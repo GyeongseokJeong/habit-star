@@ -1,19 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { Noto_Sans_KR, Noto_Color_Emoji } from "next/font/google";
+import "@fontsource-variable/noto-sans-kr";
+import "@fontsource/noto-color-emoji/400.css";
 import "./globals.css";
-
-const notoSans = Noto_Sans_KR({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-korean",
-  display: "swap",
-});
-const notoEmoji = Noto_Color_Emoji({
-  weight: "400",
-  subsets: ["emoji"],
-  variable: "--font-emoji",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "별하루 — 작은 실천, 반짝이는 하루",
@@ -37,9 +25,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ko" suppressHydrationWarning>
-      <body className={`${notoSans.variable} ${notoEmoji.variable}`}>
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

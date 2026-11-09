@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 :root {
+  --font-korean: "Noto Sans KR Variable";
+  --font-emoji: "Noto Color Emoji";
   color-scheme: light;
 }
 * {
@@ -2500,3 +2502,12 @@ button:disabled {
     scroll-behavior: auto !important;
   }
 }
+
+.account-panel section { margin: 18px 0; padding: 14px; border: 1px solid var(--line); border-radius: 12px; }
+.account-panel button { margin-top: 8px; }
+.account-panel pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 240px; overflow: auto; font-size: 11px; }
+.account-panel input { width: 100%; }
+.account-modes { display: flex; gap: 10px; margin-bottom: 18px; }
+.account-modes button { background: var(--soft); border: 1px solid var(--line); color: var(--ink); border-radius: 8px; padding: 8px; }
+.auth-page { max-width: 460px; margin: 60px auto; padding: 24px; }
+.auth-page label, .auth-page input { display: block; width: 100%; margin: 12px 0; }
