@@ -20,7 +20,7 @@ update private.sync_controls set writes_enabled=false,imports_enabled=false wher
 update private.sync_controls set writes_enabled=true,imports_enabled=true where singleton;
 ```
 
-읽기는 계속 허용되고 로컬 Outbox는 삭제되지 않습니다. 사용자에게는 동기화 대기로 표시됩니다. 신규 Auth 가입 중지는 Supabase Auth 설정에서 별도로 수행합니다.
+읽기는 계속 허용되고 로컬 Outbox는 삭제되지 않습니다. 중단된 서버 쓰기는 실패로 표시되며 재개 후 재시도할 수 있습니다. 신규 Auth 가입 중지는 Supabase Auth 설정에서 별도로 수행합니다.
 
 ## 중단 기준
 
@@ -44,3 +44,11 @@ select count(*) as operations from public.sync_operations;
 4. 잘못된 완료 import의 operation ID와 이후 version을 대조해 관리자 보상 명령을 검토합니다. 이후 편집된 행은 자동 제거하지 않습니다.
 5. 클라이언트 백업은 계정 메뉴에서 내려받습니다. 복원은 기록 없는 같은 계정/비회원 공간만 허용하며 기존 데이터는 덮어쓰지 않습니다.
 6. 수정 후 격리·원본·작업 수·충돌 사본과 복구 테스트를 다시 검증하고 단계적으로 재개합니다.
+
+## PR #3 스키마 업데이트
+
+이미 001을 적용한 DB에는 002(가져오기 검증/충돌 상태 보정), 003(JSON 타입 검증)를 순서대로 추가 적용합니다. 001 파일을 수정하거나 운영 데이터를 초기화하지 않습니다. 002는 잘못 완료 표시된 충돌 배치의 메타데이터만 보정하고 습관·원본 staging·불변 작업 결과는 유지합니다.
+
+클라이언트는 `verified: true`가 없는 예전 서버 응답을 성공 처리하지 않습니다. 따라서 DB를 먼저 업데이트한 다음 새 클라이언트를 배포하세요. 서버 RPC와 클라이언트를 이전 버전으로 함께 되돌리면 잘못된 완료 표시 문제가 재발하므로, 롤백 시에도 보정 RPC와 원본/journal을 유지합니다.
+
+가져오기 충돌은 명시적으로 해결한 뒤 같은 배치를 재개합니다. 응답 유실 시 새로운 ID를 만들거나 staging을 지우지 마세요. 성공은 서버의 applied 이력 검증 + 독립 재조회 + 로컬 일치 검증을 통과했을 때만 기록합니다. 정상적인 후속 편집은 더 높은 서버 버전/변경 이력으로 확인합니다.

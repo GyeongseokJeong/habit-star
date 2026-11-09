@@ -1,3 +1,4 @@
+import { errorCode, failurePhase } from "./sync-status";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { LocalRepository, type State } from "./repository";
 import { type Entity, type Operation, type Conflict, same } from "./domain";
@@ -21,14 +22,35 @@ export class SupabaseTransport implements CloudTransport {
   ) {}
   async rpc<T>(name: string, args: Record<string, unknown>): Promise<T> {
     const {
+      data: { session },
+      error: sessionError,
+    } = await this.client.auth.getSession();
+    if (sessionError || !session) throw Error("auth_required");
+    // Verify this exact token, then pin it on the RPC. The global session can change
+    // between awaits (another tab/login); it must never redirect A's command to B.
+    const {
       data: { user },
       error: authError,
-    } = await this.client.auth.getUser();
+    } = await this.client.auth.getUser(session.access_token);
+    if (
+      authError &&
+      (authError.status === 0 ||
+        (authError.name === "AuthRetryableFetchError" && !authError.status))
+    )
+      throw Error("network_unavailable");
+    if (authError?.status && authError.status >= 500)
+      throw Error("sync_server_error");
     if (authError || user?.id !== this.userId || !user.email_confirmed_at)
       throw Error("auth_required");
-    const { data, error } = await this.client.rpc(name, args);
+    const { data, error, status } = await this.client
+      .rpc(name, args)
+      .setHeader("Authorization", `Bearer ${session.access_token}`);
     if (error)
-      throw Error(error.code === "42501" ? "auth_required" : error.message);
+      throw Error(
+        status === 401 || error.message.includes("auth_required")
+          ? "auth_required"
+          : error.message,
+      );
     return data as T;
   }
   prepare() {
@@ -57,8 +79,16 @@ export class SupabaseTransport implements CloudTransport {
     return { entities, cursor: page.cursor, conflicts: page.conflicts };
   }
 }
+export function reconcileConflicts(state: State, incoming: Conflict[]) {
+  const all = new Map(state.conflicts.map((c) => [c.id, c]));
+  for (const c of incoming) all.set(c.id, c);
+  state.conflicts = [...all.values()];
+}
 export function overlay(state: State, rows: Entity[]) {
-  for (const row of rows) state.entities[row.key] = row;
+  for (const row of rows) {
+    const prior = state.entities[row.key];
+    if (!prior || row.version >= prior.version) state.entities[row.key] = row;
+  }
   for (const op of state.outbox)
     for (const c of op.changes) {
       const remote = state.entities[c.key],
@@ -78,7 +108,9 @@ export function overlay(state: State, rows: Entity[]) {
         deleted: c.deleted,
       };
     }
-  for (const conflict of state.conflicts.filter((c) => !c.resolved))
+  for (const conflict of state.conflicts.filter(
+    (c) => !c.resolved && !state.outbox.some((op) => op.conflictId === c.id),
+  ))
     for (const c of conflict.operation.changes)
       state.entities[c.key] = {
         key: c.key,
@@ -92,6 +124,10 @@ export function overlay(state: State, rows: Entity[]) {
 }
 export function acknowledge(state: State, op: Operation, result: SyncResult) {
   state.outbox = state.outbox.filter((o) => o.id !== op.id);
+  if (op.conflictId) {
+    const resolved = state.conflicts.find((c) => c.id === op.conflictId);
+    if (resolved) resolved.resolved = true;
+  }
   if (result.status === "conflict") {
     if (!state.conflicts.some((c) => c.id === result.conflict.id))
       state.conflicts.push(result.conflict);
@@ -123,72 +159,185 @@ export class SyncEngine {
     this.stopped = true;
   }
   async run() {
+    const attemptId = crypto.randomUUID();
     const work = async () => {
       if (this.stopped) return;
-      // Pull before sending, but preserve original operation bases for CAS.
-      if (this.cloud.prepare) {
-        const timezone = await this.cloud.prepare();
+      await this.repo.mutate((s) => {
+        s.sync = {
+          ...s.sync,
+          phase: "syncing",
+          attemptId,
+          lastAttemptAt: new Date().toISOString(),
+          error: undefined,
+        };
+      });
+      try {
+        // Pull before sending, but preserve original operation bases for CAS.
+        if (this.cloud.prepare) {
+          const timezone = await this.cloud.prepare();
+          if (this.stopped) return;
+          await this.repo.mutate((s) => {
+            s.timezone = timezone;
+          });
+        }
+        const state = await this.repo.state(),
+          pulled = await this.cloud.pull(
+            state.cursor === 0 ? -1 : state.cursor,
+          );
         if (this.stopped) return;
         await this.repo.mutate((s) => {
-          s.timezone = timezone;
+          s.hydrated = true;
+          reconcileConflicts(s, pulled.conflicts);
+          overlay(s, pulled.entities);
+          s.cursor = Math.max(s.cursor, pulled.cursor);
         });
-      }
-      const state = await this.repo.state(),
-        pulled = await this.cloud.pull(state.cursor === 0 ? -1 : state.cursor);
-      if (this.stopped) return;
-      await this.repo.mutate((s) => {
-        s.hydrated = true;
-        s.conflicts = pulled.conflicts;
-        overlay(s, pulled.entities);
-        s.cursor = pulled.cursor;
-      });
-      for (let i = 0; i < 100 && !this.stopped; i++) {
-        const s = await this.repo.state();
-        const blocked = new Set(
-          s.conflicts
-            .filter((c) => !c.resolved)
-            .flatMap((c) => c.operation.changes.map((x) => x.key)),
-        );
-        const op = s.outbox.find(
-          (o) => o.conflictId || !o.changes.some((c) => blocked.has(c.key)),
-        );
-        if (!op) break;
-        const result = await this.cloud.apply(op);
+        for (let i = 0; i < 100 && !this.stopped; i++) {
+          const s = await this.repo.state();
+          const blocked = new Set(
+            s.conflicts
+              .filter((c) => !c.resolved)
+              .flatMap((c) => c.operation.changes.map((x) => x.key)),
+          );
+          const op = s.outbox.find(
+            (o) => o.conflictId || !o.changes.some((c) => blocked.has(c.key)),
+          );
+          if (!op) break;
+          let result: SyncResult;
+          try {
+            result = await this.cloud.apply(op);
+          } catch (error) {
+            if (
+              !op.conflictId ||
+              errorCode(error) !== "conflict_already_resolved"
+            )
+              throw error;
+            // Preserve this device's choice if another device already resolved it.
+            const snapshot = await this.cloud.pull(-1);
+            if (this.stopped) return;
+            if (
+              !snapshot.conflicts.some(
+                (c) => c.id === op.conflictId && c.resolved,
+              )
+            )
+              throw error;
+            await this.repo.mutate((s) => {
+              const index = s.outbox.findIndex((o) => o.id === op.id);
+              if (index < 0) return;
+              const { conflictId, ...original } = s.outbox[index];
+              s.outbox[index] = {
+                ...original,
+                id: crypto.randomUUID(),
+                supersedesOperationId: op.id,
+              };
+              reconcileConflicts(s, snapshot.conflicts);
+              overlay(s, snapshot.entities);
+              s.cursor = Math.max(s.cursor, snapshot.cursor);
+            });
+            continue;
+          }
+          if (this.stopped) return;
+          await this.repo.mutate((s) => acknowledge(s, op, result));
+        }
+        const latest = await this.repo.state(),
+          delta = await this.cloud.pull(latest.cursor);
         if (this.stopped) return;
-        await this.repo.mutate((s) => acknowledge(s, op, result));
+        await this.repo.mutate((s) => {
+          reconcileConflicts(s, delta.conflicts);
+          overlay(s, delta.entities);
+          s.cursor = Math.max(s.cursor, delta.cursor);
+          if (s.sync?.attemptId === attemptId) {
+            const pending =
+              s.outbox.length > 0 ||
+              s.conflicts.some((c) => !c.resolved) ||
+              !!s.importJournal;
+            s.sync = {
+              ...s.sync,
+              phase: pending ? "waiting" : "succeeded",
+              error: undefined,
+              ...(!pending
+                ? {
+                    lastSuccessAt: new Date().toISOString(),
+                    lastSuccessLocalRevision: s.localRevision ?? 0,
+                    lastSuccessCursor: s.cursor,
+                  }
+                : {}),
+            };
+          }
+        });
+        return { status: "completed" as const };
+      } catch (error) {
+        if (!this.stopped)
+          await this.repo.mutate((s) => {
+            if (s.sync?.attemptId === attemptId)
+              s.sync = {
+                ...s.sync,
+                phase: failurePhase(error),
+                error: errorCode(error),
+              };
+          });
+        throw error;
       }
-      const latest = await this.repo.state(),
-        delta = await this.cloud.pull(latest.cursor);
-      if (this.stopped) return;
-      await this.repo.mutate((s) => {
-        s.conflicts = delta.conflicts;
-        overlay(s, delta.entities);
-        s.cursor = delta.cursor;
-      });
     };
     if (typeof navigator !== "undefined" && navigator.locks)
       return navigator.locks.request(
         `sync:${this.repo.scope}`,
         { ifAvailable: true },
-        (lock) => (lock ? work() : undefined),
+        (lock) => (lock ? work() : { status: "skipped" as const }),
       );
     // Server idempotency protects duplicate workers on older browsers.
     return work();
   }
 }
+export type ImportOutcome =
+  { status: "applied" } | { status: "conflict"; conflict: Conflict };
+export type ImportTransport = Pick<SupabaseTransport, "rpc" | "pull">;
 export async function importGuest(
   guest: LocalRepository,
   member: LocalRepository,
-  cloud: SupabaseTransport,
-) {
+  cloud: ImportTransport,
+  active: () => boolean = () => true,
+): Promise<ImportOutcome> {
+  const run = () => performImport(guest, member, cloud, active);
+  // Import verification and the normal sync loop share the same account lock.
+  if (typeof navigator !== "undefined" && navigator.locks)
+    return navigator.locks.request(`sync:${member.scope}`, run);
+  return run();
+}
+async function performImport(
+  guest: LocalRepository,
+  member: LocalRepository,
+  cloud: ImportTransport,
+  active: () => boolean = () => true,
+): Promise<ImportOutcome> {
+  const assertActive = () => {
+    if (!active()) throw Error("account_changed");
+  };
   const owner = crypto.randomUUID();
+  assertActive();
   await guest.mutate((s) => {
     if (s.importLock && s.importLock.until > Date.now())
       throw Error("다른 창에서 기록을 이전하고 있어요.");
     s.importLock = { owner, until: Date.now() + 60000 };
   });
   try {
-    return await importGuestUnlocked(guest, member, cloud);
+    return await importGuestUnlocked(guest, member, cloud, assertActive, owner);
+  } catch (error) {
+    if (active())
+      await member.mutate((s) => {
+        if (s.importJournal) {
+          s.importJournal.phase =
+            failurePhase(error) === "auth_required"
+              ? "auth_required"
+              : "failed";
+          s.importJournal.error = errorCode(error);
+          s.sync = {
+            ...s.sync,
+            phase: failurePhase(error),
+            error: errorCode(error),
+          };
+        }
+      });
+    throw error;
   } finally {
     await guest.mutate((s) => {
       if (s.importLock?.owner === owner) delete s.importLock;
@@ -198,56 +347,144 @@ export async function importGuest(
 async function importGuestUnlocked(
   guest: LocalRepository,
   member: LocalRepository,
-  cloud: SupabaseTransport,
-) {
-  const s = await guest.state();
-  if (s.migration?.issues.length && !s.recoveryAcknowledged)
+  cloud: ImportTransport,
+  assertActive: () => void,
+  owner: string,
+): Promise<ImportOutcome> {
+  const source = await guest.state();
+  assertActive();
+  if (source.migration?.issues.length && !source.recoveryAcknowledged)
     throw Error("복구 항목을 먼저 백업·확인해주세요.");
   let journal = (await member.state()).importJournal;
   if (!journal) {
-    const items = Object.values(s.entities).filter(
+    const items = Object.values(source.entities).filter(
       (e) => e.kind !== "days" || !e.deleted,
     );
-    // Keep frozen bytes to resume an interrupted import, including after reload.
-    const content = JSON.stringify(items),
-      hash = await sha256(content);
+    const hash = await sha256(JSON.stringify(items));
+    assertActive();
     const id = await cloud.rpc<string>("begin_import", {
-      p_source: s.migration?.backup.sourceId ?? guest.scope,
+      p_source: source.migration?.backup.sourceId ?? guest.scope,
       p_hash: hash,
       p_total: items.length,
     });
-    journal = { id, hash, items };
+    assertActive();
+    journal = { id, hash, items, phase: "staging" };
     await member.mutate((s) => {
       s.importJournal = journal;
     });
   }
-  for (let i = 0; i < journal.items.length; i += 200) {
+  const frozen = journal;
+  assertActive();
+  await member.mutate((s) => {
+    if (s.importJournal) {
+      s.importJournal.phase = "staging";
+      delete s.importJournal.error;
+    }
+  });
+  for (let i = 0; i < frozen.items.length; i += 200) {
+    assertActive();
     await guest.mutate((s) => {
-      if (s.importLock) s.importLock.until = Date.now() + 60000;
+      if (s.importLock?.owner !== owner || s.importLock.until <= Date.now())
+        throw Error("import_lease_lost");
+      s.importLock.until = Date.now() + 60000;
     });
     await cloud.rpc("stage_import", {
-      p_batch: journal.id,
+      p_batch: frozen.id,
       p_chunk: i / 200,
-      p_items: journal.items.slice(i, i + 200),
+      p_items: frozen.items.slice(i, i + 200),
     });
   }
-  if (!journal.items.length) {
+  assertActive();
+  const result = await cloud.rpc<SyncResult & { verified?: boolean }>(
+    "commit_import",
+    { p_batch: frozen.id, p_content: JSON.stringify(frozen.items) },
+  );
+  assertActive();
+  if (result.status === "conflict") {
     await member.mutate((s) => {
-      s.imported = journal!.hash;
-      delete s.importJournal;
+      if (!s.conflicts.some((c) => c.id === result.conflict.id))
+        s.conflicts.push(result.conflict);
+      if (s.importJournal) s.importJournal.phase = "conflict";
+      // Legacy clients could have marked this same hash successful before verification.
+      if (s.imported === frozen.hash && !s.importReceipt) delete s.imported;
+      overlay(s, result.conflict.remote);
     });
-    return;
+    return result;
   }
-  const result = await cloud.rpc<SyncResult>("commit_import", {
-    p_batch: journal.id,
-    p_content: JSON.stringify(journal.items),
-  });
+  if (result.status !== "applied" || result.verified !== true)
+    throw Error("import_verification_failed");
   await member.mutate((s) => {
-    if (result.status === "conflict") s.conflicts.push(result.conflict);
-    else overlay(s, result.entities);
-    s.imported = journal!.hash;
-    delete s.importJournal;
+    if (s.importJournal) s.importJournal.phase = "verifying";
   });
+  const snapshot = await cloud.pull(-1);
+  assertActive();
+  const rows = new Map(snapshot.entities.map((e) => [e.key, e]));
+  if (
+    snapshot.cursor < result.revision ||
+    result.entities.length !== frozen.items.length
+  )
+    throw Error("import_verification_failed");
+  const sourceKeys = new Set(frozen.items.map((e) => e.key));
+  if (
+    new Set(result.entities.map((e) => e.key)).size !== frozen.items.length ||
+    result.entities.some((e) => !sourceKeys.has(e.key))
+  )
+    throw Error("import_verification_failed");
+  for (const expected of result.entities) {
+    const actual = rows.get(expected.key);
+    if (
+      !actual ||
+      actual.version < expected.version ||
+      (actual.version === expected.version &&
+        (!same(actual.data, expected.data) ||
+          actual.deleted !== expected.deleted))
+    )
+      throw Error("import_verification_failed");
+  }
+  await member.mutate((s) => {
+    // No async work inside this transaction: equality and success are committed atomically.
+    const importedKeys = new Set(frozen.items.map((e) => e.key));
+    reconcileConflicts(s, snapshot.conflicts);
+    if (
+      s.outbox.some((op) => op.changes.some((c) => importedKeys.has(c.key))) ||
+      s.conflicts.some(
+        (c) =>
+          !c.resolved &&
+          c.operation.changes.some((x) => importedKeys.has(x.key)),
+      )
+    )
+      throw Error("import_verification_pending");
+    overlay(s, snapshot.entities);
+    for (const expected of result.entities) {
+      const actual = rows.get(expected.key)!;
+      if (!same(s.entities[actual.key], actual))
+        throw Error("import_verification_failed");
+    }
+    s.cursor = Math.max(s.cursor, snapshot.cursor);
+    s.hydrated = true;
+    s.imported = frozen.hash;
+    s.importReceipt = {
+      batchId: frozen.id,
+      hash: frozen.hash,
+      cursor: snapshot.cursor,
+      verifiedAt: new Date().toISOString(),
+    };
+    delete s.importJournal;
+    s.localRevision = (s.localRevision ?? 0) + 1;
+    const pending = s.outbox.length || s.conflicts.some((c) => !c.resolved);
+    s.sync = {
+      ...s.sync,
+      phase: pending ? "waiting" : "succeeded",
+      ...(!pending
+        ? {
+            lastSuccessAt: new Date().toISOString(),
+            lastSuccessLocalRevision: s.localRevision,
+            lastSuccessCursor: s.cursor,
+          }
+        : {}),
+    };
+  });
+  return { status: "applied" };
 }
 export async function sha256(s: string) {
   return Array.from(

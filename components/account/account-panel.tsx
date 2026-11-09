@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cloudEnabled, supabase } from "@/lib/supabase/client";
 import type { useHabitApp } from "@/lib/habits/use-habit-app";
 import type { Snapshot } from "@/lib/habits/repository";
@@ -11,6 +11,9 @@ export function AccountPanel({ app }: { app: App }) {
     [preview, setPreview] = useState<Snapshot | null>(null),
     [reauth, setReauth] = useState(false);
   const state = app.snapshot?.state;
+  useEffect(() => {
+    if (state?.importReceipt && !state.importJournal) setPreview(null);
+  }, [state?.importReceipt?.verifiedAt, state?.importJournal]);
   return (
     <div className="account-panel">
       <p>
@@ -18,6 +21,24 @@ export function AccountPanel({ app }: { app: App }) {
           ? app.user.email
           : "로그인 없이 이 기기에서 사용할 수 있어요."}
       </p>
+      {state && (
+        <dl className="storage-status">
+          <dt>기기 저장</dt>
+          <dd>{state.localSavedAt ? "로컬 저장 완료" : "로컬 기록 확인됨"}</dd>
+          {app.user && (
+            <>
+              <dt>클라우드</dt>
+              <dd>{app.status}</dd>
+              <dt>마지막 동기화 성공</dt>
+              <dd>
+                {state.sync?.lastSuccessAt
+                  ? new Date(state.sync.lastSuccessAt).toLocaleString("ko-KR")
+                  : "아직 확인되지 않았어요"}
+              </dd>
+            </>
+          )}
+        </dl>
+      )}
       {app.user && !reauth ? (
         <>
           <button className="secondary full" onClick={() => void app.sync()}>
@@ -67,8 +88,8 @@ export function AccountPanel({ app }: { app: App }) {
                     !preview.state.recoveryAcknowledged)
                 }
                 onClick={async () => {
-                  await app.migrate();
-                  setPreview(null);
+                  const result = await app.migrate();
+                  if (result?.status === "applied") setPreview(null);
                 }}
               >
                 이 계정으로 병합
@@ -80,6 +101,37 @@ export function AccountPanel({ app }: { app: App }) {
                 나중에
               </button>
             </section>
+          )}
+          {state?.importJournal && (
+            <section aria-label="가져오기 상태">
+              <h3>
+                {state.importJournal.phase === "conflict"
+                  ? "가져오기 충돌"
+                  : state.importJournal.phase === "auth_required"
+                    ? "가져오기 인증 만료"
+                    : state.importJournal.phase === "failed"
+                      ? "가져오기 실패"
+                      : state.importJournal.phase === "verifying"
+                        ? "가져오기 검증 중"
+                        : "가져오기 대기"}
+              </h3>
+              <p>
+                원본과 중단 지점을 보존했습니다. 충돌을 해결하거나 연결·인증을
+                복구한 후 재개해주세요.
+              </p>
+              <button
+                className="secondary full"
+                disabled={app.busy}
+                onClick={() => void app.migrate()}
+              >
+                가져오기 재개
+              </button>
+            </section>
+          )}
+          {!state?.importJournal && state?.importReceipt && (
+            <p role="status">
+              가져오기 완료 · 서버와 로컬 기록을 확인했습니다.
+            </p>
           )}
           <form
             onSubmit={async (e) => {
@@ -142,7 +194,13 @@ export function AccountPanel({ app }: { app: App }) {
                     )}
                   </pre>
                 </details>
+                {state.outbox.some((op) => op.conflictId === c.id) && (
+                  <p role="status">
+                    선택한 내용을 서버에 확인 중입니다. 연결 후 계속 처리합니다.
+                  </p>
+                )}
                 <button
+                  disabled={state.outbox.some((op) => op.conflictId === c.id)}
                   onClick={() =>
                     void app
                       .resolve(c, true)
@@ -154,6 +212,7 @@ export function AccountPanel({ app }: { app: App }) {
                   이 기기 기록 사용
                 </button>
                 <button
+                  disabled={state.outbox.some((op) => op.conflictId === c.id)}
                   onClick={() =>
                     void app
                       .resolve(c, false)
@@ -333,6 +392,7 @@ export function AccountPanel({ app }: { app: App }) {
         백업 복원 (기록이 없는 같은 계정·브라우저)
         <input
           type="file"
+          disabled={!app.snapshot || app.busy}
           accept="application/json"
           onChange={async (e) => {
             const file = e.target.files?.[0];

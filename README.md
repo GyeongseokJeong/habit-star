@@ -15,12 +15,12 @@ pnpm test:e2e
 pnpm build
 ```
 
-브라우저 테스트 전에 `pnpm exec playwright install chromium`을 실행하세요. 시스템 Chromium을 사용하려면 `CHROMIUM_PATH=/usr/bin/chromium pnpm test:e2e`를 사용합니다. Google Fonts를 빌드 시 내려받으므로 `fonts.googleapis.com`과 `fonts.gstatic.com`의 HTTPS 접근과 정상 CA가 필요합니다.
+브라우저 테스트 전에 `pnpm exec playwright install chromium`을 실행하세요. 시스템 Chromium을 사용하려면 `CHROMIUM_PATH=/usr/bin/chromium pnpm test:e2e`를 사용합니다. Noto Sans KR/Color Emoji는 lockfile로 고정한 Fontsource 패키지에서 자체 제공합니다. 빌드·실행 시 Google Fonts 접근은 필요하지 않으며 SIL OFL 라이선스는 `public/licenses`에 포함됩니다. `pnpm build` 후 `pnpm test:e2e:production`으로 실제 프로덕션 서버의 글꼴 요청과 오프라인 재진입을 검증합니다.
 
 ## 클라우드 연결
 
 1. Supabase 프로젝트를 생성하거나 Docker 환경에서 `pnpm exec supabase start`를 실행합니다. 이메일 확인 기능은 로컬 설정에서도 켜져 있습니다.
-2. 원격 프로젝트에는 CLI의 검토 가능한 마이그레이션 절차로 `supabase/migrations`를 적용합니다. 이 저장소의 스크립트는 원격 DB를 자동 수정하지 않습니다.
+2. 원격 프로젝트에는 CLI의 검토 가능한 마이그레이션 절차로 `supabase/migrations`를 순서대로 적용합니다. 이미 001을 적용한 환경도 002/003 후속 마이그레이션이 필요합니다. 원문 마이그레이션을 바꾸거나 운영 DB를 reset하지 않습니다. 이 저장소의 스크립트는 원격 DB를 자동 수정하지 않습니다.
 3. `.env.example`을 `.env.local`로 복사하고 프로젝트 URL과 **publishable key**, 인증 후 돌아올 `NEXT_PUBLIC_SITE_URL`을 설정합니다. 운영 URL은 HTTPS origin만 허용합니다. `service_role`/secret key는 브라우저에 제공하지 않습니다.
 4. `NEXT_PUBLIC_CLOUD_ENABLED=true`로 설정하고 개발 서버를 재시작합니다. 배포에서는 이 값이 빌드 시 포함되므로 다시 빌드합니다.
 5. Supabase Auth에서 이메일 확인, 사이트 URL, `/auth/confirm` 및 `/auth/confirm?next=/auth/reset` 리디렉션을 환경의 실제 HTTPS 도메인에 맞게 설정합니다. 운영 SMTP와 발송 제한도 설정하세요.
@@ -52,3 +52,5 @@ pnpm test:db --postgres
 - 백업 복원은 기록이 없는 같은 계정/비회원 공간에서만 허용합니다. 기존 데이터를 덮어쓰는 복원은 거부합니다.
 
 [구현·PR 구분 및 테스트 기준](docs/implementation.md) · [운영·롤백 절차](docs/operations.md)
+
+[PR #3 리뷰 보완·검증 보고](docs/pr3-review.md)에서 가져오기 완료 조건, 상태 표시, 업그레이드·롤백 주의사항을 확인하세요.

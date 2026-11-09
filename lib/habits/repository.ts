@@ -1,3 +1,4 @@
+import type { SyncMetadata } from "./sync-status";
 import { openDB, type IDBPDatabase } from "idb";
 import {
   type Change,
@@ -22,13 +23,28 @@ export type State = {
   conflicts: Conflict[];
   cursor: number;
   hydrated?: boolean;
+  localRevision?: number;
+  localSavedAt?: string;
+  sync?: SyncMetadata;
   timezone: string;
   migration?: Migration;
   importLock?: { owner: string; until: number };
   imported?: string;
   hasUserEdits?: boolean;
   recoveryAcknowledged?: boolean;
-  importJournal?: { id: string; hash: string; items: Entity[] };
+  importReceipt?: {
+    batchId: string;
+    hash: string;
+    cursor: number;
+    verifiedAt: string;
+  };
+  importJournal?: {
+    id: string;
+    hash: string;
+    items: Entity[];
+    phase?: "staging" | "conflict" | "verifying" | "failed" | "auth_required";
+    error?: string;
+  };
 };
 export type Snapshot = {
   habits: Habit[];
@@ -54,6 +70,7 @@ const empty = (timezone: string): State => ({
 export class LocalRepository implements HabitRepository {
   private dbPromise: Promise<IDBPDatabase>;
   private channel: BroadcastChannel | null;
+  private listeners = new Set<() => void>();
   constructor(
     readonly scope: string,
     private samples: () => Habit[] = () => [],
@@ -75,17 +92,23 @@ export class LocalRepository implements HabitRepository {
     return this.scope.startsWith("member:");
   }
   subscribe(fn: () => void) {
+    this.listeners.add(fn);
     const listener = (e: MessageEvent) => {
       if (e.data === this.scope) fn();
     };
     this.channel?.addEventListener("message", listener);
-    return () => this.channel?.removeEventListener("message", listener);
+    return () => {
+      this.listeners.delete(fn);
+      this.channel?.removeEventListener("message", listener);
+    };
   }
   close() {
+    this.listeners.clear();
     this.channel?.close();
     void this.dbPromise.then((db) => db.close()).catch(() => {});
   }
   private notify() {
+    for (const fn of this.listeners) fn();
     this.channel?.postMessage(this.scope);
   }
   async initialize() {
@@ -150,6 +173,9 @@ export class LocalRepository implements HabitRepository {
     if (!this.member && s.importLock && s.importLock.until > Date.now())
       throw Error("기록 이전 중에는 비회원 기록을 잠시 편집할 수 없어요.");
     if (changes.some((c) => !c.seed)) s.hasUserEdits = true;
+    s.localRevision = (s.localRevision ?? 0) + 1;
+    s.localSavedAt = new Date().toISOString();
+    if (s.sync?.phase === "succeeded") s.sync = { ...s.sync, phase: "waiting" };
     for (const c of changes)
       s.entities[c.key] = {
         key: c.key,
@@ -520,7 +546,17 @@ export class LocalRepository implements HabitRepository {
         );
       Object.assign(s, structuredClone(incoming), { cursor: 0 });
       delete s.importLock;
+      // A restored success receipt describes another cache/run, not this connection.
+      s.sync = { phase: "waiting" };
     });
+  }
+  static async purgeScope(scope: string) {
+    const db = await openDB("byeolharu-v2", 1);
+    try {
+      await db.delete("scopes", scope);
+    } finally {
+      db.close();
+    }
   }
   async clear() {
     const db = await this.dbPromise;
@@ -530,7 +566,12 @@ export class LocalRepository implements HabitRepository {
   async resolve(conflict: Conflict, useLocal: boolean) {
     await this.mutate((s) => {
       const found = s.conflicts.find((c) => c.id === conflict.id);
-      if (!found || found.resolved) return;
+      if (
+        !found ||
+        found.resolved ||
+        s.outbox.some((op) => op.conflictId === conflict.id)
+      )
+        return;
       const changes = conflict.operation.changes.map((c) => {
         const base = conflict.remote.find((r) => r.key === c.key) ?? null;
         return {
@@ -542,7 +583,7 @@ export class LocalRepository implements HabitRepository {
         };
       });
       this.apply(s, changes, conflict.id);
-      found.resolved = true;
+      // Keep the conflict visible until the resolution operation is acknowledged.
     });
   }
 }

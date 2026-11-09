@@ -11,9 +11,12 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:db": "bash scripts/test-db.sh",
-    "test:e2e:cloud": "node scripts/test-cloud.mjs"
+    "test:e2e:cloud": "node scripts/test-cloud.mjs",
+    "test:e2e:production": "playwright test --config playwright.production.config.ts"
   },
   "dependencies": {
+    "@fontsource-variable/noto-sans-kr": "^5.3.1",
+    "@fontsource/noto-color-emoji": "^5.3.2",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.119.0",
     "idb": "^8.0.4",

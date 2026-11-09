@@ -144,6 +144,9 @@ test("backup restores into a new guest browser without overwriting another datas
     const target = await next.newPage();
     await target.goto("/");
     await target.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+    await expect(
+      target.getByLabel("백업 복원 (기록이 없는 같은 계정·브라우저)"),
+    ).toBeEnabled();
     await target
       .getByLabel("백업 복원 (기록이 없는 같은 계정·브라우저)")
       .setInputFiles(file!);
@@ -198,11 +201,9 @@ test("editing, star cancellation, plain completion, alarms, theme and deletion s
     .click();
   await page.reload();
   await page.getByRole("tab", { name: /전체/ }).click();
-  const card = page
-    .locator(".habit-card")
-    .filter({
-      has: page.getByRole("heading", { name: "수정된 습관", exact: true }),
-    });
+  const card = page.locator(".habit-card").filter({
+    has: page.getByRole("heading", { name: "수정된 습관", exact: true }),
+  });
   await expect(card).toContainText("회귀 확인 메모");
   await expect(card).toContainText("실천 완료");
   await expect(card).toContainText("23:59");
@@ -216,6 +217,12 @@ test("editing, star cancellation, plain completion, alarms, theme and deletion s
   await page
     .getByRole("button", { name: "이 습관 삭제하기", exact: true })
     .click();
+  await expect(
+    page.getByRole("dialog", { name: "습관 수정하기" }),
+  ).not.toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "수정된 습관", exact: true }),
+  ).not.toBeVisible();
   await page.reload();
   await page.getByRole("tab", { name: /전체/ }).click();
   await expect(

@@ -12,9 +12,17 @@ if [ "${1:-}" = "--postgres" ]; then
   done
   docker exec "$task_db" pg_isready -h 127.0.0.1 -U postgres >/dev/null
   docker exec -i "$task_db" psql -U postgres -v ON_ERROR_STOP=1 < tests/db-bootstrap.sql
-  docker exec -i "$task_db" psql -U postgres -v ON_ERROR_STOP=1 < supabase/migrations/202611100001_cloud.sql
+  for migration in supabase/migrations/*.sql; do
+    docker exec -i "$task_db" psql -U postgres -v ON_ERROR_STOP=1 < "$migration"
+    if [ "$migration" = "supabase/migrations/202611100001_cloud.sql" ]; then
+      docker exec -i "$task_db" psql -U postgres -v ON_ERROR_STOP=1 < tests/legacy-import-before.sql
+    fi
+  done
+  docker exec -i "$task_db" psql -U postgres -v ON_ERROR_STOP=1 < tests/legacy-import-after.sql
 else
   task_db=supabase_db_habit-star
 fi
 # Never targets a production DATABASE_URL.
-docker exec -i "$task_db" psql -U postgres -v ON_ERROR_STOP=1 < supabase/tests/cloud.sql
+for suite in supabase/tests/*.sql; do
+  docker exec -i "$task_db" psql -U postgres -v ON_ERROR_STOP=1 < "$suite"
+done

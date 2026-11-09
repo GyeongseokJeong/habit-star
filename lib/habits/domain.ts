@@ -37,6 +37,7 @@ export type Operation = {
   createdAt?: string;
   changes: Change[];
   conflictId?: string;
+  supersedesOperationId?: string;
 };
 export type Conflict = {
   id: string;

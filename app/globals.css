@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 :root {
+  --font-korean: "Noto Sans KR Variable";
+  --font-emoji: "Noto Color Emoji";
   color-scheme: light;
 }
 * {
