@@ -1,70 +1,73 @@
-const CACHE = "byeolharu-shell-v1";
+const CACHE = "byeolharu-shell-v3";
+const SHELL = "/offline";
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches
-      .open(CACHE)
-      .then((cache) =>
-        cache.addAll(["/", "/icon.svg", "/icon-192.png", "/icon-512.png"]),
-      ),
+    (async () => {
+      const cache = await caches.open(CACHE);
+      await cache.addAll(["/icon.svg", "/icon-192.png", "/icon-512.png"]);
+      const response = await fetch(SHELL, {
+        credentials: "omit",
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error("Offline shell unavailable");
+      const html = await response.clone().text();
+      await cache.put(SHELL, response);
+      // Pre-cache this static shell's scripts/styles too; caching HTML alone cannot boot offline.
+      const assets = [...html.matchAll(/(?:src|href)="([^"\s]+)"/g)]
+        .map((match) => match[1].replaceAll("&amp;", "&"))
+        .filter((path) => path.startsWith("/_next/static/"));
+      await cache.addAll([...new Set(assets)]);
+    })(),
   );
   self.skipWaiting();
 });
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then((keys) =>
-        Promise.all(
-          keys
-            .filter(
-              (key) => key.startsWith("byeolharu-shell-") && key !== CACHE,
-            )
-            .map((key) => caches.delete(key)),
-        ),
-      )
-      .then(() => self.clients.claim()),
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(
+        keys
+          .filter((key) => key.startsWith("byeolharu-shell-") && key !== CACHE)
+          .map((key) => caches.delete(key)),
+      );
+      await self.clients.claim();
+    })(),
   );
 });
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (event.request.method !== "GET" || url.origin !== self.location.origin)
     return;
-  if (event.request.mode === "navigate") {
+  if (url.pathname.startsWith("/auth") || url.pathname.startsWith("/api"))
+    return;
+  if (
+    event.request.mode === "navigate" &&
+    ["/", SHELL].includes(url.pathname) &&
+    !url.search
+  ) {
+    // Never cache session-bearing navigation responses.
     event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          if (response.ok) {
-            const copy = response.clone();
-            event.waitUntil(
-              caches.open(CACHE).then((cache) => cache.put("/", copy)),
-            );
-          }
-          return response;
-        })
-        .catch(() =>
-          caches.match("/").then((response) => response || Response.error()),
-        ),
+      fetch(event.request).catch(
+        async () => (await caches.match(SHELL)) || Response.error(),
+      ),
     );
   } else if (
     url.pathname.startsWith("/_next/static/") ||
     /^\/icon[\w-]*\.(png|svg)$/.test(url.pathname)
   ) {
     event.respondWith(
-      caches.match(event.request).then(
-        (cached) =>
-          cached ||
-          fetch(event.request).then((response) => {
-            if (response.ok) {
-              const copy = response.clone();
-              event.waitUntil(
-                caches
-                  .open(CACHE)
-                  .then((cache) => cache.put(event.request, copy)),
-              );
-            }
-            return response;
-          }),
-      ),
+      (async () => {
+        const cached = await caches.match(event.request);
+        if (cached) return cached;
+        const response = await fetch(event.request);
+        if (response.ok) {
+          const copy = response.clone();
+          event.waitUntil(
+            caches.open(CACHE).then((cache) => cache.put(event.request, copy)),
+          );
+        }
+        return response;
+      })(),
     );
   }
 });

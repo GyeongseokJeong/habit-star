@@ -35,27 +35,21 @@ import {
   X,
 } from "lucide-react";
 
-export type TimeGroup = "morning" | "day" | "night";
-export type Habit = {
-  id: string;
-  title: string;
-  icon: string;
-  timeGroup: TimeGroup;
-  scheduledTime?: string;
-  alarmEnabled: boolean;
-  completed: boolean;
-  rating: number;
-  memo: string;
-};
-type History = Record<string, Habit[]>;
+import {
+  type Habit,
+  type TimeGroup,
+  type History,
+  dateKey,
+  stats,
+} from "@/lib/habits/domain";
+import { useHabitApp } from "@/lib/habits/use-habit-app";
+import { AccountPanel } from "@/components/account/account-panel";
+export type { Habit, TimeGroup } from "@/lib/habits/domain";
 type Tab = "all" | TimeGroup | "matrix";
 type InstallEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: string }>;
 };
-const STORAGE_KEY = "byeolharu_v1_habits";
-const HISTORY_KEY = "byeolharu_v1_history";
-const DAY_KEY = "byeolharu_v1_day";
 const GROUPS = {
   morning: {
     name: "아침",
@@ -98,10 +92,7 @@ const EMOJIS = [
   "🛏️",
   "🎵",
 ];
-const uid = () =>
-  "habit_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6);
-const dateKey = (date: Date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+const uid = () => crypto.randomUUID();
 const timeGroup = (date: Date): TimeGroup =>
   date.getHours() >= 5 && date.getHours() < 11
     ? "morning"
@@ -161,37 +152,6 @@ const initialHabits = (): Habit[] =>
       memo: "",
     },
   ].map((h) => ({ ...h, id: uid() }) as Habit);
-function isHabit(value: unknown): value is Habit {
-  if (!value || typeof value !== "object") return false;
-  const h = value as Habit;
-  return (
-    typeof h.id === "string" &&
-    typeof h.title === "string" &&
-    typeof h.icon === "string" &&
-    ["morning", "day", "night"].includes(h.timeGroup) &&
-    Number.isInteger(h.rating) &&
-    h.rating >= 0 &&
-    h.rating <= 5 &&
-    typeof h.completed === "boolean" &&
-    typeof h.alarmEnabled === "boolean" &&
-    typeof h.memo === "string" &&
-    (h.scheduledTime === undefined ||
-      (typeof h.scheduledTime === "string" &&
-        /^([01]\d|2[0-3]):[0-5]\d$/.test(h.scheduledTime)))
-  );
-}
-function stats(habits: Habit[]) {
-  const rated = habits.filter((h) => h.rating > 0);
-  const completed = habits.filter((h) => h.completed).length;
-  return {
-    completed,
-    rate: habits.length ? Math.round((completed / habits.length) * 100) : 0,
-    average: rated.length
-      ? rated.reduce((sum, h) => sum + h.rating, 0) / rated.length
-      : 0,
-  };
-}
-
 export function StarRating({
   rating,
   onRate,
@@ -779,9 +739,12 @@ function MonthlyMatrix({
 }
 
 export default function Byeolharu() {
-  const [habits, setHabits] = useState<Habit[]>([]);
-  const [history, setHistory] = useState<History>({});
-  const [ready, setReady] = useState(false);
+  const app = useHabitApp(initialHabits);
+  const habits = app.snapshot?.habits ?? [];
+  const history = app.snapshot?.history ?? {};
+  const ready = !!app.snapshot;
+  const setHabits = app.setHabits;
+  const [accountOpen, setAccountOpen] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [now, setNow] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("all");
@@ -810,46 +773,19 @@ export default function Byeolharu() {
   useEffect(() => {
     const date = new Date();
     const key = dateKey(date);
-    let loaded = initialHabits();
-    let archive: History = {};
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed: unknown = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.every(isHabit)) loaded = parsed;
-      }
-      const raw = JSON.parse(localStorage.getItem(HISTORY_KEY) || "{}");
-      if (raw && typeof raw === "object" && !Array.isArray(raw))
-        archive = Object.fromEntries(
-          Object.entries(raw).filter(
-            ([day, rows]) =>
-              /^\d{4}-\d{2}-\d{2}$/.test(day) &&
-              Array.isArray(rows) &&
-              rows.every(isHabit),
-          ),
-        ) as History;
-      const storedDay = localStorage.getItem(DAY_KEY);
-      if (storedDay && storedDay !== key) {
-        archive[storedDay] = loaded;
-        loaded = loaded.map((h) => ({
-          ...h,
-          completed: false,
-          rating: 0,
-          memo: "",
-        }));
-      }
-      const savedTheme = localStorage.getItem("byeolharu_v1_theme");
-      if (savedTheme === "dark") setTheme("dark");
+      if (
+        (localStorage.getItem("byeolharu_v2_theme") ??
+          localStorage.getItem("byeolharu_v1_theme")) === "dark"
+      )
+        setTheme("dark");
     } catch {
       setStorageWarning(true);
     }
     currentDay.current = key;
-    setHabits(loaded);
-    setHistory(archive);
     setNow(date);
     setMonth(new Date(date.getFullYear(), date.getMonth(), 1));
     setActiveTab(timeGroup(date));
-    setReady(true);
     const clock = setInterval(() => setNow(new Date()), 1000);
     const install = (event: Event) => {
       event.preventDefault();
@@ -870,17 +806,11 @@ export default function Byeolharu() {
   useEffect(() => {
     if (!ready) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(habits));
-      localStorage.setItem(DAY_KEY, currentDay.current);
-      localStorage.setItem(
-        HISTORY_KEY,
-        JSON.stringify({ ...history, [currentDay.current]: habits }),
-      );
-      localStorage.setItem("byeolharu_v1_theme", theme);
+      localStorage.setItem("byeolharu_v2_theme", theme);
     } catch {
       setStorageWarning(true);
     }
-  }, [habits, history, theme, ready]);
+  }, [theme, ready]);
 
   const chime = useCallback(() => {
     try {
@@ -908,18 +838,28 @@ export default function Byeolharu() {
 
   useEffect(() => {
     if (!ready || !now) return;
-    const day = dateKey(now);
+    const actualDay = dateKey(
+      now,
+      app.user ? app.snapshot?.state.timezone : undefined,
+    );
+    if (actualDay !== app.snapshot?.day) {
+      void app.ensureDay().catch(() => setStorageWarning(true));
+      return;
+    }
+    const day = app.snapshot?.day ?? actualDay;
     if (day !== currentDay.current) {
-      const previousDay = currentDay.current;
-      setHistory((prev) => ({ ...prev, [previousDay]: habits }));
       currentDay.current = day;
-      setHabits((prev) =>
-        prev.map((h) => ({ ...h, completed: false, rating: 0, memo: "" })),
-      );
       fired.current.clear();
       return;
     }
-    const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    const time = app.user
+      ? new Intl.DateTimeFormat("en-GB", {
+          timeZone: app.snapshot?.state.timezone,
+          hour: "2-digit",
+          minute: "2-digit",
+          hourCycle: "h23",
+        }).format(now)
+      : `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
     const due = habits.find(
       (h) =>
         h.alarmEnabled &&
@@ -934,8 +874,8 @@ export default function Byeolharu() {
     }
   }, [now, habits, ready, chime]);
 
-  const handleRateHabit = (id: string, rating: number) => {
-    setHabits((prev) =>
+  const handleRateHabit = async (id: string, rating: number) => {
+    await setHabits((prev) =>
       prev.map((h) =>
         String(h.id) === String(id)
           ? { ...h, rating, completed: rating > 0 }
@@ -944,7 +884,7 @@ export default function Byeolharu() {
     );
     showToast(rating ? `✦ ${rating}★ 기록 완료!` : "별점 기록을 취소했어요.");
   };
-  const handleSave = (data: Omit<Habit, "id">) => {
+  const handleSave = async (data: Omit<Habit, "id">) => {
     if (editing === "new") {
       const newHabit: Habit = {
         ...data,
@@ -954,29 +894,37 @@ export default function Byeolharu() {
         rating: 0,
         memo: "",
       };
-      setHabits((prev) => [...prev, newHabit]);
+      await setHabits((prev) => [...prev, newHabit]);
       setActiveTab("all");
       showToast(`✦ '${newHabit.title}' 습관이 추가되었습니다!`);
     } else if (editing) {
       const id = editing.id;
-      setHabits((prev) =>
+      await setHabits((prev) =>
         prev.map((h) => (String(h.id) === String(id) ? { ...h, ...data } : h)),
       );
       showToast("✦ 습관이 수정되었습니다!");
     }
     setEditing(null);
   };
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!editing || editing === "new") return;
     const id = editing.id;
-    setHabits((prev) => prev.filter((h) => String(h.id) !== String(id)));
+    await setHabits((prev) => prev.filter((h) => String(h.id) !== String(id)));
     setEditing(null);
     showToast("습관이 삭제되었습니다.");
   };
   const summary = stats(habits);
-  const today = now ? dateKey(now) : "";
+  const today = app.snapshot?.day ?? "";
   const allHistory = { ...history, ...(today ? { [today]: habits } : {}) };
-  const group = now ? timeGroup(now) : "day";
+  const displayNow =
+    now && app.user
+      ? new Date(
+          now.toLocaleString("en-US", {
+            timeZone: app.snapshot?.state.timezone,
+          }),
+        )
+      : now;
+  const group = displayNow ? timeGroup(displayNow) : "day";
   const GreetingIcon = GROUPS[group].icon;
   const detail = habits.find((h) => h.id === detailId);
   const filtered = habits.filter(
@@ -999,7 +947,7 @@ export default function Byeolharu() {
       : [];
   let streak = 0;
   if (now) {
-    const day = new Date(now);
+    const day = new Date(`${today}T12:00:00`);
     if (!summary.completed) day.setDate(day.getDate() - 1);
     for (let i = 0; i < 3660; i++) {
       if (!allHistory[dateKey(day)]?.some((h) => h.completed)) break;
@@ -1011,26 +959,30 @@ export default function Byeolharu() {
     <HabitCard
       key={habit.id}
       habit={habit}
-      onRate={handleRateHabit}
+      onRate={(id, rating) => {
+        void handleRateHabit(id, rating).catch(() => {});
+      }}
       onOpen={() => setDetailId(habit.id)}
       onEdit={() => setEditing(habit)}
       onAlarm={() => {
-        setHabits((prev) =>
-          prev.map((h) =>
-            h.id === habit.id ? { ...h, alarmEnabled: !h.alarmEnabled } : h,
-          ),
-        );
-        if (!habit.alarmEnabled) {
-          try {
-            if (!audio.current) audio.current = new AudioContext();
-            void audio.current.resume();
-          } catch {}
-        }
-        showToast(
-          habit.alarmEnabled
-            ? "루틴 알림을 껐어요."
-            : "루틴 알림을 켰어요. 앱을 열어두면 알려드릴게요.",
-        );
+        void (async () => {
+          await setHabits((prev) =>
+            prev.map((h) =>
+              h.id === habit.id ? { ...h, alarmEnabled: !h.alarmEnabled } : h,
+            ),
+          );
+          if (!habit.alarmEnabled) {
+            try {
+              if (!audio.current) audio.current = new AudioContext();
+              void audio.current.resume();
+            } catch {}
+          }
+          showToast(
+            habit.alarmEnabled
+              ? "루틴 알림을 껐어요."
+              : "루틴 알림을 켰어요. 앱을 열어두면 알려드릴게요.",
+          );
+        })().catch(() => {});
       }}
     />
   );
@@ -1069,7 +1021,7 @@ export default function Byeolharu() {
           <div className="header-actions">
             <span className="saved-label">
               <span className={storageWarning ? "warning-dot" : "saved-dot"} />
-              {storageWarning ? "저장 확인 필요" : "이 기기에 저장됨"}
+              {storageWarning ? "저장 확인 필요" : app.status}
             </span>
             <div className="notification-wrap">
               <button
@@ -1133,8 +1085,8 @@ export default function Byeolharu() {
             <span className="header-divider" />
             <button
               className="avatar"
-              aria-label="별하루 이용 안내"
-              onClick={() => setHelp(true)}
+              aria-label="계정 및 데이터 관리"
+              onClick={() => setAccountOpen(true)}
             >
               나
             </button>
@@ -1195,6 +1147,9 @@ export default function Byeolharu() {
             <span>
               {now
                 ? now.toLocaleDateString("ko-KR", {
+                    timeZone: app.user
+                      ? app.snapshot?.state.timezone
+                      : undefined,
                     month: "long",
                     day: "numeric",
                     weekday: "long",
@@ -1204,6 +1159,9 @@ export default function Byeolharu() {
             <time suppressHydrationWarning>
               {now
                 ? now.toLocaleTimeString("en-GB", {
+                    timeZone: app.user
+                      ? app.snapshot?.state.timezone
+                      : undefined,
                     hour: "2-digit",
                     minute: "2-digit",
                   })
@@ -1284,7 +1242,9 @@ export default function Byeolharu() {
                 <span>{habits.length}</span>
               </h2>
               <span className="routine-date">
-                {now ? `${now.getMonth() + 1}월 ${now.getDate()}일` : "오늘"}
+                {now
+                  ? `${Number(today.slice(5, 7))}월 ${Number(today.slice(8))}일`
+                  : "오늘"}
                 <span className="today-pill">TODAY</span>
               </span>
             </div>
@@ -1502,7 +1462,9 @@ export default function Byeolharu() {
           </span>
           <button onClick={() => setHelp(true)}>
             <ShieldCheck size={13} />
-            기록은 이 기기에만 안전하게 저장돼요
+            {app.user
+              ? "내 계정에 안전하게 동기화해요"
+              : "기록은 이 기기에만 저장돼요"}
           </button>
           <small>MADE FOR YOUR EVERYDAY</small>
         </footer>
@@ -1522,8 +1484,16 @@ export default function Byeolharu() {
               ? activeTab
               : group
           }
-          onSave={handleSave}
-          onDelete={editing !== "new" ? handleDelete : undefined}
+          onSave={(data) => {
+            void handleSave(data).catch(() => {});
+          }}
+          onDelete={
+            editing !== "new"
+              ? () => {
+                  void handleDelete().catch(() => {});
+                }
+              : undefined
+          }
           onClose={() => setEditing(null)}
         />
       )}
@@ -1533,13 +1503,23 @@ export default function Byeolharu() {
           habit={detail}
           onClose={() => setDetailId(null)}
           onSave={(data) => {
-            setHabits((prev) =>
-              prev.map((h) => (h.id === detail.id ? { ...h, ...data } : h)),
-            );
-            setDetailId(null);
-            showToast("✦ 오늘의 실천이 기록되었습니다!");
+            void (async () => {
+              await setHabits((prev) =>
+                prev.map((h) => (h.id === detail.id ? { ...h, ...data } : h)),
+              );
+              setDetailId(null);
+              showToast("✦ 오늘의 실천이 기록되었습니다!");
+            })().catch(() => {});
           }}
         />
+      )}
+      {accountOpen && (
+        <Modal
+          title="계정 및 데이터 관리"
+          onClose={() => setAccountOpen(false)}
+        >
+          <AccountPanel app={app} />
+        </Modal>
       )}
       {help && (
         <Modal title="나의 속도로, 별하루" onClose={() => setHelp(false)}>
@@ -1554,9 +1534,10 @@ export default function Byeolharu() {
             </p>
             <h4>나만의 작은 기록</h4>
             <p>
-              기록과 테마는 이 브라우저에 저장돼요. 다른 기기와 자동 동기화되지
-              않으며, 브라우저 데이터를 지우면 기록도 삭제돼요. 매일 자정에 새
-              루틴이 시작되고 이전 기록은 달력에 남아요.
+              비회원 기록과 테마는 이 브라우저에 저장돼요. 이메일 인증 후
+              로그인하면 계정별로 기록을 동기화할 수 있어요. 비회원 기록 이전은
+              확인 후 진행하며, 오프라인 기록은 연결 후 전송해요. 매일 새 루틴이
+              시작되고 이전 기록은 달력에 남아요.
             </p>
             <h4>가벼운 루틴 알림</h4>
             <p>
@@ -1641,10 +1622,11 @@ export default function Byeolharu() {
           {toast}
         </div>
       )}
-      {storageWarning && (
+      {(storageWarning || app.error) && (
         <div className="storage-warning" role="alert">
-          브라우저 저장소를 사용할 수 없거나 이전 기록을 읽지 못했어요. 저장
-          설정을 확인해주세요.
+          {app.error ||
+            "브라우저 저장소를 사용할 수 없어요. 저장 설정을 확인해주세요."}
+          <button onClick={() => setAccountOpen(true)}>백업·계정 확인</button>
           <button
             aria-label="저장 경고 닫기"
             onClick={() => setStorageWarning(false)}
