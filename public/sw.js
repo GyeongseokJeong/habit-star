@@ -1,10 +1,15 @@
-const CACHE = "byeolharu-shell-v3";
+const CACHE = "byeolharu-shell-v4";
 const SHELL = "/offline";
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(CACHE);
-      await cache.addAll(["/icon.svg", "/icon-192.png", "/icon-512.png"]);
+      await cache.addAll([
+        "/icon.svg",
+        "/icon-192.png",
+        "/icon-512.png",
+        "/noto-color-emoji-colr.woff2",
+      ]);
       const response = await fetch(SHELL, {
         credentials: "omit",
         cache: "no-store",
@@ -53,6 +58,7 @@ self.addEventListener("fetch", (event) => {
     );
   } else if (
     url.pathname.startsWith("/_next/static/") ||
+    url.pathname === "/noto-color-emoji-colr.woff2" ||
     /^\/icon[\w-]*\.(png|svg)$/.test(url.pathname)
   ) {
     event.respondWith(

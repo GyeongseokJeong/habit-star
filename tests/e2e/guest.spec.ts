@@ -218,6 +218,10 @@ test("editing, star cancellation, plain completion, alarms, theme and deletion s
     .getByRole("button", { name: "이 습관 삭제하기", exact: true })
     .click();
   await expect(
+    page.getByText("이 습관을 삭제할까요? 이전 날짜의 기록은 그대로 남아요."),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "삭제 확인", exact: true }).click();
+  await expect(
     page.getByRole("dialog", { name: "습관 수정하기" }),
   ).not.toBeVisible();
   await expect(

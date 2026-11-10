@@ -1,15 +1,18 @@
 "use client";
-import { useState, useEffect } from "react";
-import { cloudEnabled, supabase } from "@/lib/supabase/client";
-import { authErrorMessage } from "@/lib/supabase/auth-feedback";
-import { emailAuthRedirect } from "@/lib/supabase/redirect";
+import { useState, useEffect, type ReactNode } from "react";
+import { cloudEnabled } from "@/lib/supabase/client";
+import { AuthForm } from "./auth-form";
 import type { useHabitApp } from "@/lib/habits/use-habit-app";
 import type { Snapshot } from "@/lib/habits/repository";
 type App = ReturnType<typeof useHabitApp>;
-export function AccountPanel({ app }: { app: App }) {
-  const [mode, setMode] = useState<"login" | "signup" | "reset">("login"),
-    [message, setMessage] = useState(""),
-    [busy, setBusy] = useState(false),
+export function AccountPanel({
+  app,
+  settings,
+}: {
+  app: App;
+  settings?: ReactNode;
+}) {
+  const [message, setMessage] = useState(""),
     [preview, setPreview] = useState<Snapshot | null>(null),
     [reauth, setReauth] = useState(false);
   const state = app.snapshot?.state;
@@ -18,11 +21,16 @@ export function AccountPanel({ app }: { app: App }) {
   }, [state?.importReceipt?.verifiedAt, state?.importJournal]);
   return (
     <div className="account-panel">
-      <p>
-        {app.user
-          ? app.user.email
-          : "로그인 없이 이 기기에서 사용할 수 있어요."}
-      </p>
+      <div className="account-identity">
+        <div className="account-identity-label">
+          {app.user ? "내 계정" : "비회원으로 함께하고 있어요"}
+        </div>
+        {app.user ? (
+          <strong className="account-email">{app.user.email}</strong>
+        ) : (
+          <p>로그인 없이 이 기기에서 사용할 수 있어요.</p>
+        )}
+      </div>
       {state && (
         <dl className="storage-status">
           <dt>기기 저장</dt>
@@ -41,9 +49,20 @@ export function AccountPanel({ app }: { app: App }) {
           )}
         </dl>
       )}
+      {!!state?.outbox.length && (
+        <p className="sync-warning" role="alert">
+          미전송 기록 {state.outbox.length}개 · 기기에는 보존되어 있어요. 연결
+          후 동기화해주세요.
+        </p>
+      )}
       {app.user && !reauth ? (
         <>
-          <button className="secondary full" onClick={() => void app.sync()}>
+          <h3>동기화</h3>
+          <button
+            className="secondary full"
+            disabled={app.busy}
+            onClick={() => void app.sync()}
+          >
             지금 동기화
           </button>
           <button
@@ -135,35 +154,40 @@ export function AccountPanel({ app }: { app: App }) {
               가져오기 완료 · 서버와 로컬 기록을 확인했습니다.
             </p>
           )}
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              try {
-                await app.changeTimezone(
-                  new FormData(e.currentTarget).get("timezone") as string,
-                );
-                setMessage(
-                  "계정 시간대를 변경했습니다. 이전 기록의 날짜는 유지됩니다.",
-                );
-              } catch {
-                setMessage(
-                  "시간대를 바꾸지 못했습니다. 연결 및 IANA 시간대 이름을 확인해주세요.",
-                );
-              }
-            }}
-          >
-            <label className="field">
-              계정 시간대
-              <input
-                key={state?.timezone}
-                name="timezone"
-                defaultValue={state?.timezone}
-                required
-                placeholder="Asia/Seoul"
-              />
-            </label>
-            <button className="secondary full">시간대 변경</button>
-          </form>
+          <details>
+            <summary>계정 시간대 설정</summary>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                try {
+                  await app.changeTimezone(
+                    new FormData(e.currentTarget).get("timezone") as string,
+                  );
+                  setMessage(
+                    "계정 시간대를 변경했습니다. 이전 기록의 날짜는 유지됩니다.",
+                  );
+                } catch {
+                  setMessage(
+                    "시간대를 바꾸지 못했습니다. 연결 및 IANA 시간대 이름을 확인해주세요.",
+                  );
+                }
+              }}
+            >
+              <label className="field">
+                계정 시간대
+                <input
+                  key={state?.timezone}
+                  name="timezone"
+                  defaultValue={state?.timezone}
+                  required
+                  placeholder="Asia/Seoul"
+                />
+              </label>
+              <button className="secondary full" disabled={app.busy}>
+                시간대 변경
+              </button>
+            </form>
+          </details>
           {state?.conflicts
             .filter((c) => !c.resolved)
             .map((c) => (
@@ -202,6 +226,7 @@ export function AccountPanel({ app }: { app: App }) {
                   </p>
                 )}
                 <button
+                  className="secondary full"
                   disabled={state.outbox.some((op) => op.conflictId === c.id)}
                   onClick={() =>
                     void app
@@ -214,6 +239,7 @@ export function AccountPanel({ app }: { app: App }) {
                   이 기기 기록 사용
                 </button>
                 <button
+                  className="secondary full"
                   disabled={state.outbox.some((op) => op.conflictId === c.id)}
                   onClick={() =>
                     void app
@@ -244,184 +270,82 @@ export function AccountPanel({ app }: { app: App }) {
           </button>
         </>
       ) : cloudEnabled() ? (
-        <>
-          <div className="account-modes">
-            <button onClick={() => setMode("login")}>로그인</button>
-            <button onClick={() => setMode("signup")}>회원가입</button>
-            <button onClick={() => setMode("reset")}>비밀번호 찾기</button>
-          </div>
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              setBusy(true);
-              const form = new FormData(e.currentTarget),
-                email = form.get("email") as string,
-                password = form.get("password") as string;
-              try {
-                const client = supabase(),
-                  redirect = emailAuthRedirect(
-                    location.origin,
-                    process.env.NODE_ENV === "production"
-                      ? undefined
-                      : process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL,
-                    mode === "reset",
-                  );
-                const result =
-                  mode === "signup"
-                    ? await client.auth.signUp({
-                        email,
-                        password,
-                        options: { emailRedirectTo: redirect },
-                      })
-                    : mode === "reset"
-                      ? await client.auth.resetPasswordForEmail(email, {
-                          redirectTo: redirect,
-                        })
-                      : await client.auth.signInWithPassword({
-                          email,
-                          password,
-                        });
-                if (result.error) throw result.error;
-                if (mode === "login") setReauth(false);
-                setMessage(
-                  mode === "login"
-                    ? "로그인했습니다."
-                    : mode === "signup"
-                      ? "가입 요청을 처리했습니다. 이메일의 인증 링크를 확인해주세요."
-                      : "요청을 처리했습니다. 이메일을 확인해주세요.",
-                );
-              } catch (error) {
-                setMessage(authErrorMessage(error));
-              } finally {
-                setBusy(false);
-              }
-            }}
-          >
-            <label className="field">
-              이메일
-              <input type="email" name="email" required autoComplete="email" />
-            </label>
-            {mode !== "reset" && (
-              <label className="field">
-                비밀번호
-                <input
-                  type="password"
-                  name="password"
-                  minLength={8}
-                  required
-                  autoComplete={
-                    mode === "signup" ? "new-password" : "current-password"
-                  }
-                />
-              </label>
-            )}
-            <button className="primary full" disabled={busy}>
-              {mode === "login"
-                ? "로그인"
-                : mode === "signup"
-                  ? "이메일로 회원가입"
-                  : "재설정 메일 보내기"}
-            </button>
-          </form>
-          <button
-            className="text-button full"
-            disabled={busy}
-            onClick={async () => {
-              const email = window.prompt(
-                "인증 메일을 다시 받을 이메일을 입력해주세요.",
-              );
-              if (!email) return;
-              setBusy(true);
-              try {
-                const { error } = await supabase().auth.resend({
-                  type: "signup",
-                  email,
-                  options: {
-                    emailRedirectTo: emailAuthRedirect(
-                      location.origin,
-                      process.env.NODE_ENV === "production"
-                        ? undefined
-                        : process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL,
-                    ),
-                  },
-                });
-                if (error) throw error;
-                setMessage("요청을 처리했습니다. 이메일을 확인해주세요.");
-              } catch (error) {
-                setMessage(authErrorMessage(error));
-              } finally {
-                setBusy(false);
-              }
-            }}
-          >
-            인증 메일 다시 보내기
-          </button>
-        </>
+        <AuthForm onAuthenticated={() => setReauth(false)} />
       ) : (
         <p>
           클라우드 연결이 아직 설정되지 않았습니다. 비회원 기록은 계속 사용할 수
           있어요.
         </p>
       )}
-      <button
-        className="secondary full"
-        onClick={() =>
-          void app
-            .backup()
-            .catch(() =>
-              setMessage(
-                "백업을 읽지 못했습니다. 브라우저 저장 설정을 확인해주세요.",
-              ),
-            )
-        }
-      >
-        기록 백업 내려받기
-      </button>
-      {!!state?.migration?.issues.length && (
-        <section>
-          <h3>원본 복구 확인 필요</h3>
-          <p>
-            원본은 수정하지 않았습니다. 아래 항목을 확인하고 백업을
-            보관해주세요.
-          </p>
-          <details>
-            <summary>검증 결과 {state.migration.issues.length}개</summary>
-            <pre>{JSON.stringify(state.migration.issues, null, 2)}</pre>
-          </details>
-          {!state.recoveryAcknowledged && (
-            <button
-              className="secondary full"
-              onClick={() =>
-                void app
-                  .acknowledgeRecovery()
-                  .catch(() => setMessage("백업을 확인해주세요."))
+      {settings}
+      <section aria-label="내 데이터">
+        <h3>내 데이터</h3>
+        <button
+          className="secondary full"
+          onClick={() =>
+            void app
+              .backup()
+              .catch(() =>
+                setMessage(
+                  "백업을 읽지 못했습니다. 브라우저 저장 설정을 확인해주세요.",
+                ),
+              )
+          }
+        >
+          기록 백업 내려받기
+        </button>
+        {!!state?.migration?.issues.length && (
+          <section>
+            <h3>원본 복구 확인 필요</h3>
+            <p>
+              원본은 수정하지 않았습니다. 아래 항목을 확인하고 백업을
+              보관해주세요.
+            </p>
+            <details>
+              <summary>검증 결과 {state.migration.issues.length}개</summary>
+              <pre>{JSON.stringify(state.migration.issues, null, 2)}</pre>
+            </details>
+            {!state.recoveryAcknowledged && (
+              <button
+                className="secondary full"
+                onClick={() =>
+                  void app
+                    .acknowledgeRecovery()
+                    .catch(() => setMessage("백업을 확인해주세요."))
+                }
+              >
+                원본 백업 후 유효한 기록 사용 확인
+              </button>
+            )}
+          </section>
+        )}
+        <label className="field">
+          백업 복원 (기록이 없는 같은 계정·브라우저)
+          <input
+            type="file"
+            disabled={!app.snapshot || app.busy}
+            accept="application/json"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              try {
+                await app.restore(await file.text());
+                setMessage("백업을 복원했습니다.");
+              } catch (error) {
+                setMessage(
+                  error instanceof Error ? error.message : "복원 실패",
+                );
               }
-            >
-              원본 백업 후 유효한 기록 사용 확인
-            </button>
-          )}
-        </section>
+              e.target.value = "";
+            }}
+          />
+        </label>
+      </section>
+      {(message || app.error) && (
+        <p role="status" className="auth-feedback">
+          {message || app.error}
+        </p>
       )}
-      <label className="field">
-        백업 복원 (기록이 없는 같은 계정·브라우저)
-        <input
-          type="file"
-          disabled={!app.snapshot || app.busy}
-          accept="application/json"
-          onChange={async (e) => {
-            const file = e.target.files?.[0];
-            if (!file) return;
-            try {
-              await app.restore(await file.text());
-              setMessage("백업을 복원했습니다.");
-            } catch (error) {
-              setMessage(error instanceof Error ? error.message : "복원 실패");
-            }
-            e.target.value = "";
-          }}
-        />
-      </label>
-      <p role="status">{message || app.error}</p>
     </div>
   );
 }
