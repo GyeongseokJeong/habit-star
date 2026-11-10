@@ -195,3 +195,143 @@ for (const width of [320, 390, 430]) {
     ).toHaveAttribute("aria-pressed", "false");
   });
 }
+
+for (const theme of ["light", "dark"] as const) {
+  for (const width of [320, 395]) {
+    test(`alarm switch geometry, motion and saved state in ${theme} at ${width}px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 549 });
+      await page.emulateMedia({
+        colorScheme: theme === "light" ? "dark" : "light",
+      });
+      await page.goto("/");
+      await expect(
+        page.getByRole("button", { name: "새 습관 추가", exact: true }),
+      ).toBeEnabled();
+      if (theme === "dark") {
+        await page.getByRole("button", { name: "다크 모드로 전환" }).click();
+      }
+      await page
+        .getByRole("button", { name: "새 습관 추가", exact: true })
+        .click();
+      const switchInput = page
+        .getByRole("dialog", { name: "나를 위한 새로운 습관" })
+        .getByRole("checkbox", { name: "루틴 알림" });
+      const geometry = async () =>
+        page.locator("dialog .toggle").evaluate((input) => {
+          const box = input.getBoundingClientRect();
+          const track = getComputedStyle(input, "::before");
+          const thumb = getComputedStyle(input, "::after");
+          return {
+            checked: (input as HTMLInputElement).checked,
+            target: [box.width, box.height],
+            border: getComputedStyle(input).borderTopWidth,
+            boxSizing: getComputedStyle(input).boxSizing,
+            track: [
+              track.width,
+              track.height,
+              track.left,
+              track.top,
+              track.backgroundColor,
+            ],
+            thumb: [
+              thumb.width,
+              thumb.height,
+              thumb.left,
+              thumb.top,
+              thumb.backgroundColor,
+            ],
+            travel: new DOMMatrixReadOnly(thumb.transform).m41,
+            duration: thumb.transitionDuration,
+            overflow: document.documentElement.scrollWidth > innerWidth,
+          };
+        });
+      await expect(switchInput).not.toBeChecked();
+      const off = await geometry();
+      expect(off.target).toEqual([56, 44]);
+      expect(off.border).toBe("0px");
+      expect(off.boxSizing).toBe("border-box");
+      expect(off.track).toEqual([
+        "56px",
+        "32px",
+        "0px",
+        "6px",
+        theme === "light" ? "rgb(133, 139, 149)" : "rgb(102, 113, 131)",
+      ]);
+      expect(off.thumb).toEqual([
+        "24px",
+        "24px",
+        "4px",
+        "10px",
+        "rgb(255, 255, 255)",
+      ]);
+      expect(off.travel).toBe(0);
+      expect(off.duration).toBe("0.18s");
+      expect(off.overflow).toBe(false);
+
+      await switchInput.click();
+      await expect(switchInput).toBeChecked();
+      await expect.poll(async () => (await geometry()).travel).toBe(24);
+      expect((await geometry()).track[4]).toBe(
+        theme === "light" ? "rgb(98, 84, 126)" : "rgb(105, 90, 133)",
+      );
+      await switchInput.focus();
+      await page.keyboard.press("Space");
+      await expect(switchInput).not.toBeChecked();
+      await expect.poll(async () => (await geometry()).travel).toBe(0);
+      await expect(switchInput).toHaveCSS("outline-style", "solid");
+
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await switchInput.click();
+      await expect(switchInput).toBeChecked();
+      expect((await geometry()).travel).toBe(24);
+      expect((await geometry()).duration).toBe("0s");
+      await page
+        .getByPlaceholder("예: 하루 10분 책 읽기")
+        .fill(`알림 스위치 ${theme} ${width}`);
+      await page
+        .getByRole("button", { name: "새 습관 추가하기", exact: true })
+        .click();
+      const editSavedHabit = page.getByRole("button", {
+        name: `알림 스위치 ${theme} ${width} 수정`,
+        exact: true,
+      });
+      await expect(editSavedHabit).toBeVisible();
+      await page.reload();
+      await editSavedHabit.click();
+      await expect(
+        page.getByRole("dialog", { name: "나를 위한 새로운 습관" }),
+      ).not.toBeVisible();
+      await expect(
+        page.getByRole("button", {
+          name: `알림 스위치 ${theme} ${width} 수정`,
+          exact: true,
+        }),
+      ).toBeVisible();
+      await page.reload();
+      await page
+        .getByRole("button", {
+          name: `알림 스위치 ${theme} ${width} 수정`,
+          exact: true,
+        })
+        .click();
+      await expect(
+        page.getByRole("checkbox", { name: "루틴 알림" }),
+      ).toBeChecked();
+      await expect
+        .poll(() =>
+          page
+            .getByRole("dialog", { name: "습관 수정하기" })
+            .getByRole("checkbox", { name: "루틴 알림" })
+            .evaluate(
+              (input) =>
+                new DOMMatrixReadOnly(
+                  getComputedStyle(input, "::after").transform,
+                ).m41,
+            ),
+        )
+        .toBe(24);
+    });
+  }
+}
