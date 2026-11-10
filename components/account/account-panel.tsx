@@ -1,6 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
 import { cloudEnabled, supabase } from "@/lib/supabase/client";
+import { authErrorMessage } from "@/lib/supabase/auth-feedback";
+import { emailAuthRedirect } from "@/lib/supabase/redirect";
 import type { useHabitApp } from "@/lib/habits/use-habit-app";
 import type { Snapshot } from "@/lib/habits/repository";
 type App = ReturnType<typeof useHabitApp>;
@@ -257,7 +259,13 @@ export function AccountPanel({ app }: { app: App }) {
                 password = form.get("password") as string;
               try {
                 const client = supabase(),
-                  redirect = `${location.origin}/auth/confirm`;
+                  redirect = emailAuthRedirect(
+                    location.origin,
+                    process.env.NODE_ENV === "production"
+                      ? undefined
+                      : process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL,
+                    mode === "reset",
+                  );
                 const result =
                   mode === "signup"
                     ? await client.auth.signUp({
@@ -267,7 +275,7 @@ export function AccountPanel({ app }: { app: App }) {
                       })
                     : mode === "reset"
                       ? await client.auth.resetPasswordForEmail(email, {
-                          redirectTo: `${redirect}?next=/auth/reset`,
+                          redirectTo: redirect,
                         })
                       : await client.auth.signInWithPassword({
                           email,
@@ -282,10 +290,8 @@ export function AccountPanel({ app }: { app: App }) {
                       ? "가입 요청을 처리했습니다. 이메일의 인증 링크를 확인해주세요."
                       : "요청을 처리했습니다. 이메일을 확인해주세요.",
                 );
-              } catch {
-                setMessage(
-                  "요청을 처리하지 못했습니다. 입력 정보와 연결 상태를 확인해주세요.",
-                );
+              } catch (error) {
+                setMessage(authErrorMessage(error));
               } finally {
                 setBusy(false);
               }
@@ -327,14 +333,22 @@ export function AccountPanel({ app }: { app: App }) {
               if (!email) return;
               setBusy(true);
               try {
-                await supabase().auth.resend({
+                const { error } = await supabase().auth.resend({
                   type: "signup",
                   email,
                   options: {
-                    emailRedirectTo: `${location.origin}/auth/confirm`,
+                    emailRedirectTo: emailAuthRedirect(
+                      location.origin,
+                      process.env.NODE_ENV === "production"
+                        ? undefined
+                        : process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL,
+                    ),
                   },
                 });
+                if (error) throw error;
                 setMessage("요청을 처리했습니다. 이메일을 확인해주세요.");
+              } catch (error) {
+                setMessage(authErrorMessage(error));
               } finally {
                 setBusy(false);
               }

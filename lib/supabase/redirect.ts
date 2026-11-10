@@ -1,9 +1,20 @@
+export function emailAuthRedirect(
+  origin: string,
+  previewRedirect?: string,
+  recovery = false,
+) {
+  const url = new URL(previewRedirect || "/auth/confirm", origin);
+  if (recovery) url.searchParams.set("next", "/auth/reset");
+  return url.toString();
+}
 export function applicationOrigin(
   configured: string | undefined,
   production: boolean,
+  requestOrigin?: string,
 ) {
   const url = new URL(
-    configured ?? (production ? "" : "http://localhost:3000"),
+    configured ??
+      (production ? "" : (requestOrigin ?? "http://localhost:3000")),
   );
   if (
     url.username ||
@@ -17,10 +28,14 @@ export function applicationOrigin(
     throw Error("Invalid application origin");
   return url.origin;
 }
-export function authDestination(params: URLSearchParams, failed: boolean) {
+export function authDestination(
+  params: URLSearchParams,
+  failed: boolean,
+  recovery = false,
+) {
   return failed
     ? "/?auth=error"
-    : params.get("next") === "/auth/reset"
+    : recovery || params.get("next") === "/auth/reset"
       ? "/auth/reset"
       : "/";
 }
