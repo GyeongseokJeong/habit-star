@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase/client";
+import { authErrorMessage } from "@/lib/supabase/auth-feedback";
 export default function ResetPassword() {
   const [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false);
@@ -24,9 +25,12 @@ export default function ResetPassword() {
             setMessage(
               "비밀번호를 변경했습니다. 홈으로 이동해 로그인해주세요.",
             );
-          } catch {
+          } catch (error) {
             setMessage(
-              "변경하지 못했습니다. 메일의 재설정 링크를 다시 확인해주세요.",
+              error instanceof Error &&
+                error.message === "메일의 재설정 링크를 다시 열어주세요."
+                ? error.message
+                : authErrorMessage(error),
             );
           } finally {
             setBusy(false);

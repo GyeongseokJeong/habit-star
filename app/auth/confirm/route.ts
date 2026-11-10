@@ -9,9 +9,17 @@ export async function GET(request: Request) {
     type = url.searchParams.get("type");
   let origin: string;
   try {
+    const production = process.env.NODE_ENV === "production",
+      protocol =
+        request.headers.get("x-forwarded-proto") ?? url.protocol.slice(0, -1),
+      host =
+        request.headers.get("x-forwarded-host") ??
+        request.headers.get("host") ??
+        url.host;
     origin = applicationOrigin(
       process.env.NEXT_PUBLIC_SITE_URL,
-      process.env.NODE_ENV === "production",
+      production,
+      production ? undefined : `${protocol}://${host}`,
     );
   } catch {
     return new Response("Application URL is not configured", {
@@ -36,7 +44,13 @@ export async function GET(request: Request) {
     : token_hash && ["signup", "recovery", "email"].includes(type ?? "")
       ? await client.auth.verifyOtp({ token_hash, type: type as EmailOtpType })
       : { error: true };
-  const target = authDestination(url.searchParams, !!result.error);
+  const recovery =
+    type === "recovery" ||
+    ("data" in result &&
+      result.data !== null &&
+      "redirectType" in result.data &&
+      result.data.redirectType === "recovery");
+  const target = authDestination(url.searchParams, !!result.error, recovery);
   const response = NextResponse.redirect(new URL(target, origin));
   response.headers.set("Cache-Control", "private, no-store");
   return response;
