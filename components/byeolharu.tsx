@@ -956,23 +956,27 @@ export default function Byeolharu() {
       : now;
   const group = displayNow ? timeGroup(displayNow) : "day";
   const detail = habits.find((h) => h.id === detailId);
-  const filtered = habits.filter(
-    (h) =>
-      activeTab === "all" ||
-      activeTab === "matrix" ||
-      h.timeGroup === activeTab,
-  );
+  const filtered = habits
+    .filter(
+      (h) =>
+        activeTab === "all" ||
+        activeTab === "matrix" ||
+        h.timeGroup === activeTab,
+    )
+    .sort((a, b) => Number(a.completed) - Number(b.completed));
   const upcoming =
     activeTab !== "all" && activeTab !== "matrix"
-      ? habits.filter(
-          (h) =>
-            h.timeGroup ===
-            (activeTab === "morning"
-              ? "day"
-              : activeTab === "day"
-                ? "night"
-                : "morning"),
-        )
+      ? habits
+          .filter(
+            (h) =>
+              h.timeGroup ===
+              (activeTab === "morning"
+                ? "day"
+                : activeTab === "day"
+                  ? "night"
+                  : "morning"),
+          )
+          .sort((a, b) => Number(a.completed) - Number(b.completed))
       : [];
   let streak = 0;
   if (now) {
