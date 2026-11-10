@@ -1403,24 +1403,27 @@ a {
   align-items: center;
   gap: 5px;
 }
-.toggle {
+.toggle-control {
   --toggle-off: #858b95;
-  appearance: none;
-  box-sizing: border-box;
   position: relative;
-  width: 56px;
+  flex: 0 0 56px;
   height: 44px;
-  flex-shrink: 0;
-  margin: 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
+  color-scheme: only light;
 }
-.dark .toggle {
+.dark .toggle-control {
   --toggle-off: #667183;
 }
-.toggle::before {
-  content: "";
+.toggle-input {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 56px;
+  height: 44px;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.toggle-track {
   position: absolute;
   top: 6px;
   left: 0;
@@ -1428,15 +1431,15 @@ a {
   height: 32px;
   border-radius: 16px;
   background: var(--toggle-off);
+  pointer-events: none;
   transition: background-color 0.18s ease;
 }
-.toggle:checked::before {
+.toggle-input:checked + .toggle-track {
   background: var(--selection-bg);
 }
-.toggle::after {
-  content: "";
+.toggle-thumb {
   position: absolute;
-  top: 10px;
+  top: 4px;
   left: 4px;
   width: 24px;
   height: 24px;
@@ -1444,8 +1447,30 @@ a {
   background: #fff;
   transition: transform 0.18s ease;
 }
-.toggle:checked::after {
+.toggle-input:checked + .toggle-track .toggle-thumb {
   transform: translateX(24px);
+}
+.toggle-input:focus-visible + .toggle-track {
+  outline: 2px solid var(--sage);
+  outline-offset: 4px;
+}
+@media (forced-colors: active) {
+  .toggle-track,
+  .toggle-input:checked + .toggle-track {
+    background: Canvas;
+    border: 2px solid CanvasText;
+  }
+  .toggle-input:checked + .toggle-track {
+    background: Highlight;
+  }
+  .toggle-thumb {
+    top: 2px;
+    left: 2px;
+    background: CanvasText;
+  }
+  .toggle-input:checked + .toggle-track .toggle-thumb {
+    background: HighlightText;
+  }
 }
 .modal .primary {
   margin-top: 8px;

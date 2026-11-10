@@ -81,7 +81,7 @@ async function checkControls(page: Page, theme: "light" | "dark") {
       },
       targets: [
         ...modal.querySelectorAll<HTMLElement>(
-          ".emoji-picker button, .segmented button, .repeat-weekdays button, .toggle",
+          ".emoji-picker button, .segmented button, .repeat-weekdays button, .toggle-input",
         ),
       ].map((element) => {
         const rect = element.getBoundingClientRect();
@@ -117,6 +117,27 @@ async function checkControls(page: Page, theme: "light" | "dark") {
   expect(colors.overflow).toBe(false);
   await expect(unselected).toHaveAttribute("aria-pressed", "false");
 }
+
+test("reminder switch remains visible in forced colors", async ({ page }) => {
+  await page.emulateMedia({ forcedColors: "active" });
+  await page.goto("/");
+  await page.getByRole("button", { name: "새 습관 추가", exact: true }).click();
+  const toggle = page.getByRole("checkbox", { name: "루틴 알림" });
+  const track = page.locator("dialog .toggle-track");
+  const thumb = track.locator(".toggle-thumb");
+  await expect(track).toHaveCSS("border-top-width", "2px");
+  await expect(thumb).toBeVisible();
+  await toggle.check();
+  await expect(toggle).toBeChecked();
+  await expect
+    .poll(() =>
+      thumb.evaluate(
+        (element) =>
+          new DOMMatrixReadOnly(getComputedStyle(element).transform).m41,
+      ),
+    )
+    .toBe(24);
+});
 
 for (const width of [320, 390, 430]) {
   test(`editor selection and OS/app theme independence at ${width}px`, async ({
@@ -219,15 +240,22 @@ for (const theme of ["light", "dark"] as const) {
         .getByRole("dialog", { name: "나를 위한 새로운 습관" })
         .getByRole("checkbox", { name: "루틴 알림" });
       const geometry = async () =>
-        page.locator("dialog .toggle").evaluate((input) => {
+        page.locator("dialog .toggle-control").evaluate((control) => {
+          const input =
+            control.querySelector<HTMLInputElement>(".toggle-input")!;
           const box = input.getBoundingClientRect();
-          const track = getComputedStyle(input, "::before");
-          const thumb = getComputedStyle(input, "::after");
+          const track = getComputedStyle(
+            control.querySelector(".toggle-track")!,
+          );
+          const thumb = getComputedStyle(
+            control.querySelector(".toggle-thumb")!,
+          );
           return {
-            checked: (input as HTMLInputElement).checked,
+            checked: input.checked,
             target: [box.width, box.height],
             border: getComputedStyle(input).borderTopWidth,
             boxSizing: getComputedStyle(input).boxSizing,
+            colorScheme: getComputedStyle(control).colorScheme,
             track: [
               track.width,
               track.height,
@@ -252,6 +280,7 @@ for (const theme of ["light", "dark"] as const) {
       expect(off.target).toEqual([56, 44]);
       expect(off.border).toBe("0px");
       expect(off.boxSizing).toBe("border-box");
+      expect(off.colorScheme).toBe("light only");
       expect(off.track).toEqual([
         "56px",
         "32px",
@@ -263,7 +292,7 @@ for (const theme of ["light", "dark"] as const) {
         "24px",
         "24px",
         "4px",
-        "10px",
+        "4px",
         "rgb(255, 255, 255)",
       ]);
       expect(off.travel).toBe(0);
@@ -327,11 +356,29 @@ for (const theme of ["light", "dark"] as const) {
             .evaluate(
               (input) =>
                 new DOMMatrixReadOnly(
-                  getComputedStyle(input, "::after").transform,
+                  getComputedStyle(
+                    input.parentElement!.querySelector(".toggle-thumb")!,
+                  ).transform,
                 ).m41,
             ),
         )
         .toBe(24);
+      await page
+        .getByRole("dialog", { name: "습관 수정하기" })
+        .getByRole("button", { name: "닫기" })
+        .click();
+      await page
+        .getByRole("heading", { name: `알림 스위치 ${theme} ${width}` })
+        .click();
+      const detailSwitch = page
+        .getByRole("dialog", { name: "오늘의 실천 기록" })
+        .getByRole("checkbox", { name: "루틴 알림" });
+      await expect(detailSwitch).toBeChecked();
+      await expect(
+        page.locator("dialog .toggle-track .toggle-thumb"),
+      ).toBeVisible();
+      await detailSwitch.uncheck();
+      await expect(detailSwitch).not.toBeChecked();
     });
   }
 }

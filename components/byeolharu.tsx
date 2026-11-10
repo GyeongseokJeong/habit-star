@@ -253,6 +253,33 @@ function Modal({
   );
 }
 
+function ReminderToggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="alarm-field">
+      <span>
+        <Bell size={16} /> 루틴 알림
+      </span>
+      <span className="toggle-control">
+        <input
+          type="checkbox"
+          className="toggle-input"
+          checked={checked}
+          onChange={(event) => onChange(event.target.checked)}
+        />
+        <span className="toggle-track" aria-hidden="true">
+          <span className="toggle-thumb" />
+        </span>
+      </span>
+    </label>
+  );
+}
+
 function HabitEditor({
   habit,
   defaultGroup,
@@ -424,22 +451,12 @@ function HabitEditor({
               }
             />
           </label>
-          <label className="alarm-field">
-            <span>
-              <Bell size={16} /> 루틴 알림
-            </span>
-            <input
-              type="checkbox"
-              className="toggle"
-              checked={draft.alarmEnabled}
-              onChange={(e) =>
-                setDraft((prev) => ({
-                  ...prev,
-                  alarmEnabled: e.target.checked,
-                }))
-              }
-            />
-          </label>
+          <ReminderToggle
+            checked={draft.alarmEnabled}
+            onChange={(alarmEnabled) =>
+              setDraft((prev) => ({ ...prev, alarmEnabled }))
+            }
+          />
         </div>
         {habit && isScheduled(draft as Habit, today) && (
           <>
@@ -592,19 +609,12 @@ function HabitDetail({
             }
           />
         </label>
-        <label className="alarm-field">
-          <span>
-            <Bell size={16} /> 루틴 알림
-          </span>
-          <input
-            className="toggle"
-            type="checkbox"
-            checked={draft.alarmEnabled}
-            onChange={(e) =>
-              setDraft((prev) => ({ ...prev, alarmEnabled: e.target.checked }))
-            }
-          />
-        </label>
+        <ReminderToggle
+          checked={draft.alarmEnabled}
+          onChange={(alarmEnabled) =>
+            setDraft((prev) => ({ ...prev, alarmEnabled }))
+          }
+        />
       </div>
       <button
         className="primary full"
