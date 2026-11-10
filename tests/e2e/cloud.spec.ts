@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import {
   test,
   expect,
@@ -108,6 +109,36 @@ test("email confirmation, two-device offline sync, conflict resolution, import a
     await expect(
       page.getByRole("button", { name: "이전할 로컬 기록 5점", exact: true }),
     ).toHaveAttribute("aria-pressed", "true", { timeout: 30000 });
+    // Acknowledged memo edits must reach an independent browser, too.
+    await page
+      .getByRole("heading", { name: "이전할 로컬 기록", exact: true })
+      .click();
+    await page
+      .getByPlaceholder("오늘의 느낌을 가볍게 남겨보세요.")
+      .fill("기기 A에서 쓴 메모");
+    await page
+      .getByRole("button", { name: "단순 체크만 하기", exact: true })
+      .click();
+    await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+    await page.getByRole("button", { name: "지금 동기화" }).click();
+    await expect(page.locator(".saved-label")).toContainText("동기화 완료", {
+      timeout: 30000,
+    });
+    await page.getByRole("button", { name: "닫기", exact: true }).click();
+    await second.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+    await second.getByRole("button", { name: "지금 동기화" }).click();
+    await expect(second.locator(".saved-label")).toContainText("동기화 완료", {
+      timeout: 30000,
+    });
+    await second.getByRole("button", { name: "닫기", exact: true }).click();
+    await expect(
+      second.locator(".habit-card").filter({
+        has: second.getByRole("heading", {
+          name: "이전할 로컬 기록",
+          exact: true,
+        }),
+      }),
+    ).toContainText("기기 A에서 쓴 메모");
     // Both devices edit the same base offline: neither candidate may disappear.
     await page.context().setOffline(true);
     await secondContext.setOffline(true);
@@ -451,4 +482,116 @@ test("switching between two authenticated accounts never reuses the prior accoun
   await expect(
     page.getByRole("heading", { name: "B 계정의 개인 기록", exact: true }),
   ).not.toBeVisible();
+});
+
+test("incorrect password is rejected and a confirmed session survives reload", async ({
+  page,
+  request,
+}) => {
+  const { email, password } = await register(page, request);
+  await page.reload();
+  await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+  await expect(page.getByText(email, { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "로그아웃", exact: true }).click();
+  await expect(
+    page.getByText("로그인 없이 이 기기에서 사용할 수 있어요."),
+  ).toBeVisible();
+  await page.getByLabel("이메일", { exact: true }).fill(email);
+  await page.getByLabel("비밀번호", { exact: true }).fill(`${password}-wrong`);
+  await page
+    .getByRole("button", { name: "로그인", exact: true })
+    .last()
+    .click();
+  await expect(page.getByRole("status")).toContainText(
+    "요청을 처리하지 못했습니다.",
+  );
+  await expect(page.getByText(email, { exact: true })).not.toBeVisible();
+  await page.getByRole("button", { name: "닫기", exact: true }).click();
+  await login(page, email, password);
+});
+
+test("v1 settings and historical ratings/memos survive consented, repeatable cloud import", async ({
+  page,
+  request,
+}) => {
+  const habit = {
+    id: "v1-step02",
+    title: "v1 보존 검증",
+    icon: "📚",
+    timeGroup: "night",
+    alarmEnabled: true,
+    scheduledTime: "21:30",
+    completed: true,
+    rating: 4,
+    memo: "과거의 소중한 메모",
+  };
+  const raw = {
+    habits: JSON.stringify([habit]),
+    history: JSON.stringify({ "2026-01-01": [habit] }),
+    day: "2026-01-01",
+    theme: "dark",
+  };
+  await page.addInitScript((raw) => {
+    if (localStorage.getItem("step02-fixture")) return;
+    for (const [key, value] of Object.entries(raw))
+      localStorage.setItem(`byeolharu_v1_${key}`, value);
+    localStorage.setItem("step02-fixture", "1");
+  }, raw);
+  await register(page, request);
+  await page.getByRole("tab", { name: /전체/ }).click();
+  // Signup and confirmation never implicitly copy the guest data.
+  await expect(
+    page.getByRole("heading", { name: habit.title, exact: true }),
+  ).not.toBeVisible();
+  await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await page
+      .getByRole("button", { name: "이 기기의 비회원 기록 가져오기" })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "기록 이전 확인" }),
+    ).toBeVisible();
+    await expect(page.getByText(/현재 습관 1개 · 날짜/)).toBeVisible();
+    await page.getByRole("button", { name: "이 계정으로 병합" }).click();
+    // A prior receipt may remain visible during a retry; wait for this attempt's ACK.
+    await expect(
+      page.getByRole("button", { name: "이 계정으로 병합" }),
+    ).not.toBeVisible();
+    await expect(
+      page.getByText("가져오기 완료 · 서버와 로컬 기록을 확인했습니다."),
+    ).toBeVisible();
+    const downloaded = page.waitForEvent("download");
+    await page.getByRole("button", { name: "기록 백업 내려받기" }).click();
+    const file = await downloaded;
+    const backup = JSON.parse(await readFile((await file.path())!, "utf8"));
+    const entities = Object.values(backup.state.entities) as {
+      kind: string;
+      day: string;
+      data: unknown;
+    }[];
+    const past = entities.filter(
+      (row) => row.kind === "habit_entries" && row.day === "2026-01-01",
+    );
+    expect(past).toHaveLength(1);
+    expect(past[0].data).toMatchObject({
+      title: habit.title,
+      rating: 4,
+      completed: true,
+      memo: habit.memo,
+      timeGroup: "night",
+      alarmEnabled: true,
+      scheduledTime: "21:30",
+    });
+    expect(entities.filter((row) => row.kind === "habits")).toHaveLength(1);
+    expect(
+      await page.evaluate(() =>
+        Object.fromEntries(
+          ["habits", "history", "day", "theme"].map((key) => [
+            key,
+            localStorage.getItem(`byeolharu_v1_${key}`),
+          ]),
+        ),
+      ),
+    ).toEqual(raw);
+  }
 });

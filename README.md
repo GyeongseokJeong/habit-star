@@ -54,3 +54,5 @@ pnpm test:db --postgres
 [구현·PR 구분 및 테스트 기준](docs/implementation.md) · [운영·롤백 절차](docs/operations.md)
 
 [PR #3 리뷰 보완·검증 보고](docs/pr3-review.md)에서 가져오기 완료 조건, 상태 표시, 업그레이드·롤백 주의사항을 확인하세요.
+
+[STEP 02 연결·통합 검증 보고와 기존 v0 App 설정 절차](docs/step02-validation.md)를 확인하세요. 로컬 Supabase 검증과 실제 호스팅 프로젝트·배포 검증 상태를 구분합니다.
