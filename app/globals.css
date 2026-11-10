@@ -1067,57 +1067,43 @@ a {
   gap: 5px;
 }
 .little-note {
-  position: relative;
-  overflow: hidden;
-  padding: 24px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px;
   border: 1px solid color-mix(in srgb, var(--gold) 45%, var(--line));
-  border-radius: 20px;
+  border-radius: 18px;
   background: linear-gradient(145deg, var(--gold-soft), var(--surface) 82%);
   box-shadow: 0 12px 30px #1114210d;
 }
 .note-icon {
   display: grid;
   place-items: center;
+  flex: none;
   width: 36px;
   height: 36px;
-  margin-bottom: 13px;
   border-radius: 12px;
   color: var(--gold);
   background: color-mix(in srgb, var(--gold) 16%, transparent);
 }
-.little-note .eyebrow {
-  margin: 0 0 8px;
-  font-size: 10px;
-  letter-spacing: 1.2px;
-  color: var(--body);
+.note-copy {
+  min-width: 0;
 }
 .little-note h3 {
-  font-size: 19px;
-  line-height: 1.55;
+  font-size: 16px;
+  line-height: 1.45;
   font-weight: 650;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.4px;
   color: var(--ink);
   margin: 0;
   word-break: keep-all;
 }
-.little-note > p:not(.eyebrow) {
-  font-size: 13px;
-  line-height: 1.75;
-  color: var(--body);
-  margin: 12px 0 17px;
-  word-break: keep-all;
-}
-.note-signature {
-  color: var(--ink);
+.note-copy p {
   font-size: 12px;
-  font-weight: 600;
-}
-.note-sparkle {
-  position: absolute;
-  right: 20px;
-  bottom: 20px;
-  color: var(--gold);
-  opacity: 0.55;
+  line-height: 1.55;
+  color: var(--body);
+  margin: 7px 0 0;
+  word-break: keep-all;
 }
 .site-footer {
   display: flex;
@@ -2099,9 +2085,6 @@ a {
   .sidebar {
     display: flex;
   }
-  .sidebar .matrix-panel {
-    width: 100%;
-  }
   .matrix-panel {
     padding: 18px 8px;
   }
@@ -2113,16 +2096,7 @@ a {
   }
   .little-note {
     width: 100%;
-    padding: 22px 24px;
-  }
-  .little-note > p br {
-    display: none;
-  }
-  .little-note h3 {
-    font-size: 18px;
-  }
-  .little-note > p:not(.eyebrow) {
-    max-width: 280px;
+    padding: 16px;
   }
   .gentle-note {
     font-size: 11px;
