@@ -258,6 +258,7 @@ function HabitEditor({
   onDelete?: () => void;
   onClose: () => void;
 }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [draft, setDraft] = useState<Omit<Habit, "id">>(() =>
     habit
       ? { ...habit }
@@ -294,7 +295,7 @@ function HabitEditor({
         <fieldset>
           <legend>습관 아이콘</legend>
           <div className="emoji-picker">
-            {EMOJIS.map((icon) => (
+            {[...new Set([draft.icon, ...EMOJIS])].map((icon) => (
               <button
                 type="button"
                 key={icon}
@@ -404,11 +405,44 @@ function HabitEditor({
           <Check size={18} />
           {habit ? "수정 완료" : "새 습관 추가하기"}
         </button>
-        {onDelete && (
-          <button type="button" className="delete-button" onClick={onDelete}>
-            <Trash2 size={16} />이 습관 삭제하기
-          </button>
-        )}
+        <button type="button" className="text-button full" onClick={onClose}>
+          취소
+        </button>
+        {onDelete &&
+          (confirmDelete ? (
+            <div
+              className="delete-confirmation"
+              role="group"
+              aria-label="습관 삭제 확인"
+            >
+              <p>이 습관을 삭제할까요? 이전 날짜의 기록은 그대로 남아요.</p>
+              <div className="form-row">
+                <button
+                  type="button"
+                  className="secondary full"
+                  onClick={() => setConfirmDelete(false)}
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  className="delete-button"
+                  onClick={onDelete}
+                >
+                  <Trash2 size={16} />
+                  삭제 확인
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="delete-button"
+              onClick={() => setConfirmDelete(true)}
+            >
+              <Trash2 size={16} />이 습관 삭제하기
+            </button>
+          ))}
       </form>
     </Modal>
   );
@@ -551,10 +585,7 @@ function HabitCard({
   onAlarm: () => void;
 }) {
   return (
-    <article
-      className={`habit-card ${habit.completed ? "is-completed" : ""}`}
-      onClick={onOpen}
-    >
+    <article className={`habit-card ${habit.completed ? "is-completed" : ""}`}>
       <div className="card-top">
         <span className={`habit-emoji ${habit.timeGroup}`}>{habit.icon}</span>
         <div className="card-actions">
@@ -582,7 +613,7 @@ function HabitCard({
       </div>
       <button className="card-content" onClick={onOpen}>
         <h3>{habit.title}</h3>
-        <p>{habit.memo || "오늘의 작은 실천을 기다리고 있어요."}</p>
+        {habit.memo && <p>{habit.memo}</p>}
         <span className="time-badge">
           <Clock3 size={12} />
           {habit.scheduledTime || "자유롭게"}
@@ -603,7 +634,7 @@ function HabitCard({
               <span> / 5</span>
             </>
           ) : (
-            <span>별점을 남겨보세요</span>
+            <span>미기록</span>
           )}
         </span>
         <button
@@ -785,7 +816,7 @@ export default function Byeolharu() {
     currentDay.current = key;
     setNow(date);
     setMonth(new Date(date.getFullYear(), date.getMonth(), 1));
-    setActiveTab(timeGroup(date));
+    setActiveTab("all");
     const clock = setInterval(() => setNow(new Date()), 1000);
     const install = (event: Event) => {
       event.preventDefault();
@@ -1096,7 +1127,19 @@ export default function Byeolharu() {
       <main id="main" className="main-container">
         <div className="page-intro">
           <div>
-            <p className="eyebrow">A LITTLE BETTER, EVERY DAY</p>
+            <p className="eyebrow">
+              {now
+                ? now.toLocaleDateString("ko-KR", {
+                    timeZone: app.user
+                      ? app.snapshot?.state.timezone
+                      : undefined,
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                    weekday: "long",
+                  })
+                : "오늘의 하루를 준비해요"}
+            </p>
             <h1>
               오늘도, 나답게 빛나는 하루 <Sparkles size={25} />
             </h1>
@@ -1104,82 +1147,31 @@ export default function Byeolharu() {
               완벽하지 않아도 괜찮아요. 작은 실천 하나면 충분해요.
             </p>
           </div>
-          <button
-            className="primary add-button"
-            onClick={() => setEditing("new")}
-          >
-            <Plus size={18} />새 습관 추가
-          </button>
         </div>
-        <section className="hero" aria-label="오늘의 응원">
-          <div className="hero-copy">
-            <div className="today-tag">
-              <span />
-              TODAY, YOUR DAY
-            </div>
-            <h2>
-              작은 실천이 모여,
-              <br />
-              반짝이는 <span>하루</span>가 돼요.
-            </h2>
+        <section className="daily-note" aria-label="오늘의 응원">
+          <span className="daily-note-icon">
+            <Sparkles size={23} strokeWidth={1.4} />
+          </span>
+          <div>
+            <h2>작은 실천, 반짝이는 하루.</h2>
             <p>
-              잘했는지보다, 얼마나 마음을 담았는지.
-              <br className="mobile-only" /> 오늘의 순간에 별을 남겨보세요.
+              {summary.completed === habits.length && habits.length > 0
+                ? "오늘의 작은 약속을 모두 채웠어요. 나에게 다정한 별을 남겨주세요."
+                : "별 하나인 날도, 다섯 개인 날도 모두 소중한 나의 하루예요."}
             </p>
-            <span className="hero-greeting">
-              <GreetingIcon size={16} />
-              {GROUPS[group].greeting}
-            </span>
           </div>
-          <div className="hero-art" aria-hidden="true">
-            <div className="orbit orbit-one" />
-            <div className="orbit orbit-two" />
-            <div className="orbit orbit-three" />
-            <Sparkles className="hero-star main-star" strokeWidth={1} />
-            <Star className="hero-star small-star" strokeWidth={1.2} />
-            <Sparkles className="hero-star tiny-star" strokeWidth={1} />
-            <span className="orbit-dot dot-one" />
-            <span className="orbit-dot dot-two" />
-            <span className="orbit-dot dot-three" />
-            <span className="art-caption">MAKE YOUR OWN CONSTELLATION</span>
-          </div>
-          <div className="hero-clock">
-            <span>
-              {now
-                ? now.toLocaleDateString("ko-KR", {
-                    timeZone: app.user
-                      ? app.snapshot?.state.timezone
-                      : undefined,
-                    month: "long",
-                    day: "numeric",
-                    weekday: "long",
-                  })
-                : "오늘의 하루"}
-            </span>
-            <time suppressHydrationWarning>
-              {now
-                ? now.toLocaleTimeString("en-GB", {
-                    timeZone: app.user
-                      ? app.snapshot?.state.timezone
-                      : undefined,
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })
-                : "00:00"}
-              <span className="clock-seconds">
-                {now ? String(now.getSeconds()).padStart(2, "0") : "00"}
-              </span>
-            </time>
-          </div>
+          <span className="daily-note-time">
+            <GreetingIcon size={17} />
+            {GROUPS[group].name}, 나를 위한 시간
+          </span>
         </section>
         <section className="metrics" aria-label="오늘의 통계">
           <div className="metric completion-metric">
             <div className="metric-label">
               <span>
                 <Target size={15} />
-                오늘의 실천율
+                실천율
               </span>
-              <span className="metric-note">차근차근 채워가요</span>
             </div>
             <div className="metric-value">
               {summary.rate}
@@ -1206,7 +1198,7 @@ export default function Byeolharu() {
             <div className="metric-label">
               <span>
                 <Star size={15} />
-                오늘의 평균 별점
+                평균 별점
               </span>
             </div>
             <div className="metric-value">
@@ -1225,10 +1217,6 @@ export default function Byeolharu() {
             <div className="metric-value">
               {streak}
               <span>일</span>
-              <span className="streak-pill">
-                <Flame size={12} />
-                {streak ? "좋은 흐름이에요" : "오늘부터 시작"}
-              </span>
             </div>
           </div>
         </section>
@@ -1241,12 +1229,12 @@ export default function Byeolharu() {
                   : "나의 데일리 루틴"}
                 <span>{habits.length}</span>
               </h2>
-              <span className="routine-date">
-                {now
-                  ? `${Number(today.slice(5, 7))}월 ${Number(today.slice(8))}일`
-                  : "오늘"}
-                <span className="today-pill">TODAY</span>
-              </span>
+              <button
+                className="primary add-button"
+                onClick={() => setEditing("new")}
+              >
+                <Plus size={17} />새 습관 추가
+              </button>
             </div>
             <div className="tabs" role="tablist" aria-label="시간대별 루틴">
               {(
@@ -1353,18 +1341,6 @@ export default function Byeolharu() {
                         </button>
                       </div>
                     )}
-                    {filtered.length % 2 === 1 && (
-                      <button
-                        className="add-card"
-                        onClick={() => setEditing("new")}
-                      >
-                        <span>
-                          <Plus size={22} />
-                        </span>
-                        <b>새로운 작은 약속</b>
-                        <p>나를 위한 습관을 하나 더 만들어볼까요?</p>
-                      </button>
-                    )}
                   </div>
                   {upcoming.length > 0 && (
                     <>
@@ -1429,30 +1405,6 @@ export default function Byeolharu() {
               <span className="note-signature">나의 속도로, 별하루</span>
               <Sparkles className="note-sparkle" size={38} strokeWidth={1} />
             </section>
-            <button
-              className="install-button"
-              onClick={async () => {
-                if (installEvent) {
-                  await installEvent.prompt();
-                  const choice = await installEvent.userChoice;
-                  if (choice.outcome === "accepted")
-                    showToast("별하루를 설치했어요!");
-                  setInstallEvent(null);
-                } else
-                  showToast(
-                    "브라우저 메뉴의 “홈 화면에 추가” 또는 “앱 설치”로 별하루를 가까이 두세요.",
-                  );
-              }}
-            >
-              <span className="install-icon">
-                <ArrowDownToLine size={17} />
-              </span>
-              <span>
-                <b>별하루를 더 가까이</b>
-                <small>홈 화면에 추가하고 매일 만나요</small>
-              </span>
-              <ArrowRight size={16} />
-            </button>
           </aside>
         </div>
         <footer className="site-footer">
@@ -1518,7 +1470,52 @@ export default function Byeolharu() {
           title="계정 및 데이터 관리"
           onClose={() => setAccountOpen(false)}
         >
-          <AccountPanel app={app} />
+          <AccountPanel
+            key={app.user?.id ?? "guest"}
+            app={app}
+            settings={
+              <section className="account-settings" aria-label="설정">
+                <h3>설정</h3>
+                <div className="setting-row">
+                  <span>화면 테마</span>
+                  <button
+                    className="secondary"
+                    onClick={() =>
+                      setTheme(theme === "light" ? "dark" : "light")
+                    }
+                  >
+                    {theme === "light"
+                      ? "라이트 · 다크로 전환"
+                      : "다크 · 라이트로 전환"}
+                  </button>
+                </div>
+                <p className="settings-hint">
+                  알림은 습관별로 설정할 수 있어요. 앱이 열려 있을 때
+                  알려드려요.
+                </p>
+                {installEvent && (
+                  <button
+                    className="secondary full"
+                    onClick={async () => {
+                      try {
+                        await installEvent.prompt();
+                        const choice = await installEvent.userChoice;
+                        if (choice.outcome === "accepted")
+                          showToast("별하루를 설치했어요!");
+                        setInstallEvent(null);
+                      } catch {
+                        showToast(
+                          "설치를 시작하지 못했어요. 잠시 후 다시 시도해주세요.",
+                        );
+                      }
+                    }}
+                  >
+                    <ArrowDownToLine size={17} /> 별하루 앱 설치
+                  </button>
+                )}
+              </section>
+            }
+          />
         </Modal>
       )}
       {help && (
@@ -1570,9 +1567,15 @@ export default function Byeolharu() {
             </p>
             {(allHistory[pastDate] || []).map((h) => (
               <div className="past-row" key={h.id}>
-                <span>
-                  {h.icon} {h.title}
-                </span>
+                <div className="past-habit">
+                  <span className="habit-emoji" aria-hidden="true">
+                    {h.icon}
+                  </span>
+                  <div>
+                    <span>{h.title}</span>
+                    {h.memo && <p>{h.memo}</p>}
+                  </div>
+                </div>
                 <b>
                   {h.rating ? `${h.rating}★` : h.completed ? "완료" : "미실천"}
                 </b>

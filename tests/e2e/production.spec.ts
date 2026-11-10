@@ -35,6 +35,11 @@ test("production fonts are self-hosted and the cached shell preserves offline ed
         ),
       );
   });
+  expect(
+    await page.evaluate(
+      async () => !!(await caches.match("/noto-color-emoji-colr.woff2")),
+    ),
+  ).toBe(true);
   await expect.poll(() => localFonts.length).toBeGreaterThan(0);
   expect(externalFonts).toEqual([]);
   expect(localFonts.every((h) => h === "localhost")).toBe(true);
@@ -50,6 +55,18 @@ test("production fonts are self-hosted and the cached shell preserves offline ed
   await expect(
     page.getByRole("button", { name: "오프라인 생산 빌드 4점", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
+  const paintedPixels = await page.evaluate(async () => {
+    await document.fonts.load('40px "Byeolharu Color Emoji"', "🌱");
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 80;
+    const context = canvas.getContext("2d")!;
+    context.font = '40px "Byeolharu Color Emoji"';
+    context.fillText("🌱", 0, 50);
+    return [...context.getImageData(0, 0, 80, 80).data].filter(
+      (v, i) => i % 4 === 3 && v > 0,
+    ).length;
+  });
+  expect(paintedPixels).toBeGreaterThan(100);
   await context.setOffline(false);
   await page.reload();
   await page.getByRole("tab", { name: /전체/ }).click();

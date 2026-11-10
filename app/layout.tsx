@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "@fontsource-variable/noto-sans-kr";
-import "@fontsource/noto-color-emoji/400.css";
+
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,8 +16,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f8fafc" },
-    { media: "(prefers-color-scheme: dark)", color: "#090a0f" },
+    { media: "(prefers-color-scheme: light)", color: "#f7f7f4" },
+    { media: "(prefers-color-scheme: dark)", color: "#11151a" },
   ],
 };
 export default function RootLayout({

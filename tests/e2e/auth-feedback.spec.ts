@@ -22,7 +22,12 @@ test("resend rate limits are visible and never reported as success", async ({
   await page
     .getByLabel("이메일", { exact: true })
     .fill("release-check@example.test");
-  page.once("dialog", (dialog) => dialog.accept("release-check@example.test"));
+  await page
+    .getByRole("button", { name: "인증 메일이 오지 않았나요?" })
+    .click();
+  await expect(page.getByLabel("인증받을 이메일")).toHaveValue(
+    "release-check@example.test",
+  );
   await page.getByRole("button", { name: "인증 메일 다시 보내기" }).click();
   await expect(page.getByRole("status")).toContainText("잠시 제한되었습니다");
   await expect(
