@@ -1301,6 +1301,52 @@ a {
   color: var(--sage);
   background: var(--sage-soft);
 }
+.repeat-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  margin-top: 10px;
+}
+.repeat-weekdays button {
+  min-width: 0;
+  min-height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--body);
+}
+.repeat-weekdays button.selected {
+  border-color: var(--sage);
+  color: var(--sage);
+  background: var(--sage-soft);
+  font-weight: 600;
+}
+.resting-habits {
+  margin-top: 22px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.resting-habits h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 550;
+  color: var(--body);
+}
+.resting-habits button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin: 2px 6px 2px 0;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--body);
+}
 .form-row {
   display: flex;
   gap: 18px;

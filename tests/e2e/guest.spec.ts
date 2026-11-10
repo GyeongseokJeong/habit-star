@@ -84,6 +84,70 @@ test("legacy data survives migration, edits, reload, midnight snapshot and backu
     theme: "dark",
   });
 });
+test("repeat presets and weekdays update today's list and rate without losing edits", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(
+    page.getByRole("button", { name: "새 습관 추가", exact: true }),
+  ).toBeEnabled();
+  const day = await page.evaluate(() => new Date().getDay());
+  const restPreset = day === 0 || day === 6 ? "평일" : "주말";
+  await page.getByRole("button", { name: "새 습관 추가", exact: true }).click();
+  await page.getByPlaceholder("예: 하루 10분 책 읽기").fill("요일 반복 습관");
+  await page.getByRole("button", { name: restPreset, exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: restPreset, exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await page
+    .getByRole("button", { name: "새 습관 추가하기", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "요일 반복 습관 반복 요일 수정" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "요일 반복 습관", exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "요일 반복 습관 반복 요일 수정" })
+    .click();
+  const todayLabel = [
+    "일요일",
+    "월요일",
+    "화요일",
+    "수요일",
+    "목요일",
+    "금요일",
+    "토요일",
+  ][day];
+  await page.getByRole("button", { name: todayLabel, exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: todayLabel, exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "수정 완료", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "요일 반복 습관", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "요일 반복 습관 5점" }).click();
+  const rateWithHabit = await page
+    .locator(".completion-metric .metric-value")
+    .innerText();
+  await page
+    .getByRole("button", { name: "요일 반복 습관 수정", exact: true })
+    .click();
+  await page.getByRole("button", { name: restPreset, exact: true }).click();
+  await page.getByRole("button", { name: "수정 완료", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "요일 반복 습관 반복 요일 수정" }),
+  ).toBeVisible();
+  expect(
+    await page.locator(".completion-metric .metric-value").innerText(),
+  ).not.toBe(rateWithHabit);
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "요일 반복 습관 반복 요일 수정" }),
+  ).toBeVisible();
+});
 test("malformed legacy data is preserved and recovery is visible", async ({
   page,
 }) => {
