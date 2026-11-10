@@ -143,13 +143,22 @@ for (const width of [320, 395]) {
       await expect(
         page.getByRole("tab", { name: "별점 매트릭스" }),
       ).toContainText("별점");
+      await expect(page.locator(".matrix-panel")).toHaveCount(1);
       await expect(page.locator(".little-note")).toContainText(
-        "꾸준함은 언제나 완벽함보다 빛나요.",
+        "꾸준함은 완벽함보다 빛나요.",
       );
       await expect(page.locator(".little-note")).toContainText(
-        "별이 하나인 날도, 다섯 개인 날도 모두 소중한 나의 하루예요.",
+        "별 하나여도, 소중한 오늘이에요.",
       );
+      await expect
+        .poll(() =>
+          page
+            .locator(".little-note")
+            .evaluate((note) => note.getBoundingClientRect().height),
+        )
+        .toBeLessThan(150);
       await page.getByRole("tab", { name: "전체" }).click();
+      await expect(page.locator(".matrix-panel")).toHaveCount(0);
     }
   });
 }
@@ -171,6 +180,7 @@ test("time-of-day tabs update their heading and visible habit count", async ({
     await page.getByRole("tab", { name: tab, exact: true }).click();
     await expect(page.locator(".routine-heading h2")).toContainText(heading);
     await expect(page.locator(".routine-heading h2 > span")).toHaveText(count);
+    await expect(page.locator(".matrix-panel")).toHaveCount(0);
     await expect(
       page.getByRole("tab", { name: tab, exact: true }),
     ).toHaveAttribute("aria-selected", "true");

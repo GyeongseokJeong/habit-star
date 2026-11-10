@@ -660,14 +660,12 @@ function MonthlyMatrix({
   today,
   history,
   onDate,
-  expanded = false,
 }: {
   month: Date;
   onMonthChange: (date: Date) => void;
   today: string;
   history: History;
   onDate: (key: string) => void;
-  expanded?: boolean;
 }) {
   const year = month.getFullYear(),
     index = month.getMonth();
@@ -683,7 +681,7 @@ function MonthlyMatrix({
     habits.filter((h) => h.rating > 0).map((h) => h.rating),
   );
   return (
-    <section className={`panel matrix-panel ${expanded ? "expanded" : ""}`}>
+    <section className="panel matrix-panel expanded">
       <div className="section-label">
         <span>
           <LayoutGrid size={16} />
@@ -1307,7 +1305,6 @@ export default function Byeolharu() {
                     );
                     setPastDate(key);
                   }}
-                  expanded
                 />
               ) : (
                 <>
@@ -1374,36 +1371,14 @@ export default function Byeolharu() {
             </div>
           </section>
           <aside className="sidebar">
-            {activeTab !== "matrix" && (
-              <MonthlyMatrix
-                month={month}
-                onMonthChange={setMonth}
-                today={today}
-                history={allHistory}
-                onDate={(key) => {
-                  const dayStats = stats(allHistory[key] || []);
-                  showToast(
-                    `${Number(key.slice(5, 7))}월 ${Number(key.slice(8))}일: ${dayStats.rate}% 달성 · 평균 ${dayStats.average.toFixed(1)}★`,
-                  );
-                  setPastDate(key);
-                }}
-              />
-            )}
-            <section className="little-note">
+            <section className="little-note" aria-label="오늘의 응원">
               <span className="note-icon" aria-hidden="true">
                 <Sparkles size={19} />
               </span>
-              <p className="eyebrow">A GENTLE REMINDER</p>
-              <h3>
-                꾸준함은 언제나 <br />
-                완벽함보다 빛나요.
-              </h3>
-              <p>
-                별이 하나인 날도, 다섯 개인 날도 <br />
-                모두 소중한 나의 하루예요.
-              </p>
-              <span className="note-signature">나의 속도로, 별하루</span>
-              <Sparkles className="note-sparkle" size={38} strokeWidth={1} />
+              <div className="note-copy">
+                <h3>꾸준함은 완벽함보다 빛나요.</h3>
+                <p>별 하나여도, 소중한 오늘이에요.</p>
+              </div>
             </section>
           </aside>
         </div>
