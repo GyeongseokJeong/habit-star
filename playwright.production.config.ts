@@ -15,7 +15,11 @@ export default defineConfig({
     command: "pnpm start --hostname 127.0.0.1 --port 3100",
     url: "http://localhost:3100",
     timeout: 30000,
-    env: { NEXT_TELEMETRY_DISABLED: "1" },
+    env: {
+      NEXT_TELEMETRY_DISABLED: "1",
+      NEXT_PUBLIC_CLOUD_ENABLED: "false",
+      NEXT_PUBLIC_SITE_URL: "",
+    },
   },
   reporter: "list",
 });
