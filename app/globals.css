@@ -84,18 +84,18 @@ a {
 }
 .byeolharu.dark {
   color-scheme: dark;
-  --bg: #11151a;
-  --surface: #191e24;
-  --ink: #e9eae5;
-  --muted: #a0a9b1;
-  --body: #b6bfbf;
-  --line: #2c343b;
-  --soft: #222930;
-  --sage: #a4c1b2;
-  --sage-soft: #25342f;
-  --accent: #d1b27e;
-  --gold: #c6a269;
-  --gold-soft: #332d23;
+  --bg: #0c111b;
+  --surface: #161d29;
+  --ink: #f4f1e9;
+  --muted: #a9b2c1;
+  --body: #c7ccd3;
+  --line: #343c4b;
+  --soft: #1d2633;
+  --sage: #b6ceb9;
+  --sage-soft: #25362f;
+  --accent: #edbd79;
+  --gold: #e5b76e;
+  --gold-soft: #332d26;
   --danger: #f0a0a4;
 }
 .habit-emoji,
@@ -341,41 +341,121 @@ a {
 .add-button {
   flex-shrink: 0;
 }
-.daily-note {
+.starlit-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 230px;
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 20px 24px;
-  border-radius: 14px;
-  background: var(--sage-soft);
+  padding: 30px 42px;
+  border: 1px solid #817784;
+  border-radius: 26px;
+  background: #131928 url("/starlit-night.png") center 20% / cover no-repeat;
+  color: #fff4e8;
+  box-shadow: 0 15px 35px #11142113;
 }
-.daily-note-icon {
-  display: grid;
-  place-items: center;
-  color: var(--accent);
-  flex-shrink: 0;
-  width: 40px;
+.starlit-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    90deg,
+    #0e1324b8 0%,
+    #11172955 58%,
+    transparent 100%
+  );
 }
-.daily-note h2 {
-  margin: 0 0 4px;
-  font-size: 17px;
-  font-weight: 550;
-  letter-spacing: -0.5px;
+.starlit-copy {
+  position: relative;
+  z-index: 1;
+  max-width: 66%;
 }
-.daily-note p {
+.starlit-kicker {
+  margin: 0 0 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  color: #f5cf91;
+}
+.starlit-copy h2 {
   margin: 0;
-  font-size: 13px;
-  color: var(--body);
+  font-size: clamp(23px, 2.7vw, 34px);
+  line-height: 1.35;
+  font-weight: 650;
+  letter-spacing: -1.3px;
+  word-break: keep-all;
+  text-shadow: 0 2px 14px #0e132478;
+}
+.starlit-message {
+  margin: 12px 0 0;
+  font-size: 14px;
+  color: #f1e7db;
   word-break: keep-all;
 }
-.daily-note-time {
-  margin-left: auto;
-  display: flex;
+.starlit-progress {
+  display: inline-flex;
   align-items: center;
-  gap: 7px;
-  color: var(--sage);
+  gap: 8px;
+  margin: 18px 0 0;
+  padding: 5px 11px;
+  border: 1px solid #ffe7ae55;
+  border-radius: 99px;
+  background: #10172275;
+  color: #fff2da;
   font-size: 12px;
-  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.starlit-progress strong {
+  color: #ffda90;
+  font-weight: 700;
+}
+.starlit-progress-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ffd386;
+  box-shadow: 0 0 10px #ffd386;
+}
+.starlit-star {
+  position: absolute;
+  top: 39%;
+  right: 31%;
+  z-index: 0;
+  display: block;
+  width: 76px;
+  height: 76px;
+  color: #ffe5a4;
+  opacity: var(--star-opacity);
+  filter: drop-shadow(0 0 var(--star-glow) #ffdf92);
+  transform: scale(var(--star-scale));
+  transition:
+    opacity 450ms ease,
+    filter 450ms ease,
+    transform 450ms ease;
+  pointer-events: none;
+}
+.starlit-star::before {
+  content: "";
+  position: absolute;
+  inset: -48px;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    #ffe4a698,
+    #f0bb5442 33%,
+    transparent 70%
+  );
+  filter: blur(10px);
+  opacity: var(--star-bloom);
+  transition: opacity 450ms ease;
+}
+.starlit-star svg {
+  width: 100%;
+  height: 100%;
+  stroke-width: 1;
 }
 .metrics {
   margin-top: 20px;
@@ -555,27 +635,28 @@ a {
 .habit-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
 }
 .habit-card {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  column-gap: 12px;
+  align-items: start;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 16px 18px 0;
+  border-radius: 16px;
+  padding: 14px 16px 0;
   min-width: 0;
 }
 .habit-card:hover {
   border-color: color-mix(in srgb, var(--sage) 45%, var(--line));
 }
 .card-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  display: contents;
 }
 .habit-emoji {
+  grid-column: 1;
+  grid-row: 1;
   width: 44px;
   height: 44px;
   border-radius: 12px;
@@ -587,6 +668,8 @@ a {
   background: var(--soft);
 }
 .card-actions {
+  grid-column: 3;
+  grid-row: 1;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -605,10 +688,12 @@ a {
   color: var(--sage);
 }
 .card-content {
-  flex: 1;
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
   width: 100%;
   text-align: left;
-  padding: 12px 0 14px;
+  padding: 0 0 12px;
   background: transparent;
   border: 0;
   color: inherit;
@@ -616,9 +701,9 @@ a {
 }
 .card-content h3 {
   font-size: 15px;
-  font-weight: 550;
-  line-height: 1.6;
-  margin: 0 0 7px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 0 0 5px;
   letter-spacing: -0.3px;
   overflow-wrap: anywhere;
 }
@@ -644,12 +729,14 @@ a {
   margin: 0 3px;
 }
 .card-rating {
+  grid-column: 1 / -1;
+  grid-row: 2;
   border-top: 1px solid var(--line);
   display: flex;
   align-items: center;
-  padding: 4px 0;
+  padding: 2px 0;
   gap: 4px;
-  min-height: 53px;
+  min-height: 48px;
 }
 .star-tray {
   display: flex;
@@ -1758,9 +1845,6 @@ a {
   .metric-value > small {
     display: none;
   }
-  .daily-note-time {
-    display: none;
-  }
 }
 @media (max-width: 850px) {
   .header-inner,
@@ -1775,7 +1859,7 @@ a {
     grid-template-columns: minmax(0, 1fr);
   }
   .habit-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
   }
   .rating-number {
     display: none;
@@ -1860,20 +1944,44 @@ a {
     padding: 9px 12px;
     font-size: 12px;
   }
-  .daily-note {
-    padding: 12px 16px;
-    gap: 10px;
+  .starlit-hero {
+    min-height: 214px;
+    padding: 20px 22px;
+    border-radius: 20px;
+    background-position: 82% center;
   }
-  .daily-note-icon {
-    width: 26px;
-    align-self: flex-start;
-    padding-top: 2px;
+  .starlit-hero::before {
+    background: linear-gradient(
+      90deg,
+      #0e1324da 0%,
+      #10172eaa 58%,
+      #11172935 100%
+    );
   }
-  .daily-note h2 {
-    font-size: 16px;
+  .starlit-copy {
+    max-width: 83%;
   }
-  .daily-note p {
-    display: none;
+  .starlit-kicker {
+    font-size: 9px;
+    letter-spacing: 1.3px;
+    margin-bottom: 6px;
+  }
+  .starlit-copy h2 {
+    font-size: 22px;
+  }
+  .starlit-message {
+    margin-top: 8px;
+    font-size: 12px;
+    max-width: 215px;
+  }
+  .starlit-progress {
+    margin-top: 12px;
+  }
+  .starlit-star {
+    top: 32%;
+    right: 29%;
+    width: 42px;
+    height: 42px;
   }
   .metrics {
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1941,13 +2049,11 @@ a {
     gap: 12px;
   }
   .habit-card {
-    padding: 14px 16px 0;
-  }
-  .card-content {
-    padding-top: 8px;
+    padding: 12px 14px 0;
+    column-gap: 10px;
   }
   .card-content h3 {
-    font-size: 16px;
+    font-size: 15px;
   }
   .card-rating {
     gap: 4px;

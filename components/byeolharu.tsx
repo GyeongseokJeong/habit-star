@@ -44,6 +44,7 @@ import {
 } from "@/lib/habits/domain";
 import { useHabitApp } from "@/lib/habits/use-habit-app";
 import { AccountPanel } from "@/components/account/account-panel";
+import { StarlitHero } from "@/components/starlit-hero";
 export type { Habit, TimeGroup } from "@/lib/habits/domain";
 type Tab = "all" | TimeGroup | "matrix";
 type InstallEvent = Event & {
@@ -956,7 +957,6 @@ export default function Byeolharu() {
         )
       : now;
   const group = displayNow ? timeGroup(displayNow) : "day";
-  const GreetingIcon = GROUPS[group].icon;
   const detail = habits.find((h) => h.id === detailId);
   const filtered = habits.filter(
     (h) =>
@@ -1148,23 +1148,7 @@ export default function Byeolharu() {
             </p>
           </div>
         </div>
-        <section className="daily-note" aria-label="오늘의 응원">
-          <span className="daily-note-icon">
-            <Sparkles size={23} strokeWidth={1.4} />
-          </span>
-          <div>
-            <h2>작은 실천, 반짝이는 하루.</h2>
-            <p>
-              {summary.completed === habits.length && habits.length > 0
-                ? "오늘의 작은 약속을 모두 채웠어요. 나에게 다정한 별을 남겨주세요."
-                : "별 하나인 날도, 다섯 개인 날도 모두 소중한 나의 하루예요."}
-            </p>
-          </div>
-          <span className="daily-note-time">
-            <GreetingIcon size={17} />
-            {GROUPS[group].name}, 나를 위한 시간
-          </span>
-        </section>
+        <StarlitHero completed={summary.completed} total={habits.length} />
         <section className="metrics" aria-label="오늘의 통계">
           <div className="metric completion-metric">
             <div className="metric-label">
