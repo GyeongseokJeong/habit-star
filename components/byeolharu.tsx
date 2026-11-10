@@ -905,6 +905,13 @@ export default function Byeolharu() {
 
   useEffect(() => {
     if (!ready) return;
+    const themeColor = document.querySelector<HTMLMetaElement>(
+      'meta[name="theme-color"]',
+    );
+    themeColor?.setAttribute(
+      "content",
+      theme === "light" ? "#F7F6F2" : "#0C111B",
+    );
     try {
       localStorage.setItem("byeolharu_v2_theme", theme);
     } catch {
