@@ -69,6 +69,38 @@ for (const viewport of [
   });
 }
 
+test("pending habits stay first in each tab and completed habits keep their original order", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 395, height: 595 });
+  await page.goto("/");
+  const titles = () =>
+    page
+      .locator("#routine-panel > .habit-grid")
+      .first()
+      .locator(".habit-card h3")
+      .allTextContents();
+  const book = "독서 30분 & TOP 50 책장";
+  const stretch = "취침 전 스트레칭 10분";
+  const morning = ["미온수 한 잔 & 영양제", "아침 가벼운 러닝 20분"];
+  const lunch = "건강한 점심 & 가벼운 산책";
+
+  await expect.poll(titles).toEqual([book, stretch, ...morning, lunch]);
+  await page.getByRole("tab", { name: "밤", exact: true }).click();
+  await expect.poll(titles).toEqual([book, stretch]);
+
+  await page.getByRole("button", { name: `${book} 1점` }).click();
+  await expect.poll(titles).toEqual([stretch, book]);
+  await page.getByRole("tab", { name: "전체", exact: true }).click();
+  await expect.poll(titles).toEqual([stretch, ...morning, lunch, book]);
+
+  await page.reload();
+  await expect.poll(titles).toEqual([stretch, ...morning, lunch, book]);
+  await page.getByRole("tab", { name: "밤", exact: true }).click();
+  await page.getByRole("button", { name: `${book} 1점` }).click();
+  await expect.poll(titles).toEqual([book, stretch]);
+});
+
 test("the hero star brightens with each completed habit and dims when undone", async ({
   page,
 }) => {
