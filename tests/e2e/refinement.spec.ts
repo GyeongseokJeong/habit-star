@@ -152,8 +152,13 @@ for (const width of [320, 395]) {
     ).toBeVisible();
 
     for (const theme of ["light", "dark"]) {
-      if (theme === "dark")
-        await page.getByRole("button", { name: "다크 모드로 전환" }).click();
+      if (theme === "dark") {
+        const themeButton = page.getByRole("button", {
+          name: "다크 모드로 전환",
+        });
+        await themeButton.focus();
+        await page.keyboard.press("Enter");
+      }
       await page.getByRole("tab", { name: "별점 매트릭스" }).click();
       await expect(
         page.getByRole("heading", { name: "차곡차곡 쌓인 나의 별 5" }),

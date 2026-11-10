@@ -1404,33 +1404,48 @@ a {
   gap: 5px;
 }
 .toggle {
+  --toggle-off: #858b95;
   appearance: none;
-  width: 44px;
-  height: 44px;
-  border: 9px solid var(--surface);
-  border-radius: 22px;
-  background: var(--control-border);
+  box-sizing: border-box;
   position: relative;
-  cursor: pointer;
+  width: 56px;
+  height: 44px;
   flex-shrink: 0;
   margin: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
 }
-.toggle:checked {
+.dark .toggle {
+  --toggle-off: #667183;
+}
+.toggle::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: 0;
+  width: 56px;
+  height: 32px;
+  border-radius: 16px;
+  background: var(--toggle-off);
+  transition: background-color 0.18s ease;
+}
+.toggle:checked::before {
   background: var(--selection-bg);
 }
 .toggle::after {
   content: "";
   position: absolute;
-  width: 20px;
-  height: 20px;
-  top: 3px;
-  left: 3px;
-  background: var(--surface);
+  top: 10px;
+  left: 4px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
-  transition: transform 0.16s;
+  background: #fff;
+  transition: transform 0.18s ease;
 }
 .toggle:checked::after {
-  transform: translateX(18px);
+  transform: translateX(24px);
 }
 .modal .primary {
   margin-top: 8px;
