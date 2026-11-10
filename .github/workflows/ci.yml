@@ -15,6 +15,7 @@ jobs:
           node-version: 24.22.1
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm validate:skills
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm test:db --postgres
