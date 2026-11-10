@@ -277,6 +277,7 @@ export class LocalRepository implements HabitRepository {
         "icon",
         "timeGroup",
         "scheduledTime",
+        "repeatDays",
         "alarmEnabled",
       ];
       for (const kind of ["habits", "habit_entries"] as const) {

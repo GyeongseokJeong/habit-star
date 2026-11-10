@@ -65,6 +65,63 @@ it("day creation is idempotent and clears only new practice fields", async () =>
   ).toHaveLength(1);
   r.close();
 });
+it("keeps earlier practice untouched when today's repeat days change and queues both entities", async () => {
+  const r = new LocalRepository(`member:${crypto.randomUUID()}`);
+  await r.initialize();
+  await r.ensureDay();
+  await r.mutate((s) => {
+    s.hydrated = true;
+  });
+  const h = sample();
+  await r.create(h);
+  const today = (await r.load()).day;
+  const yesterday = dateKey(new Date(Date.now() - 86400000));
+  const pastKey = entityKey("habit_entries", h.id, yesterday);
+  await r.mutate((s) => {
+    s.entities[pastKey] = {
+      ...structuredClone(s.entities[entityKey("habit_entries", h.id, today)]),
+      key: pastKey,
+      day: yesterday,
+      data: {
+        ...s.entities[entityKey("habit_entries", h.id, today)].data,
+        completed: true,
+        rating: 5,
+        memo: "보존",
+      },
+    };
+    s.entities[entityKey("days", yesterday, yesterday)] = {
+      key: entityKey("days", yesterday, yesterday),
+      kind: "days",
+      id: yesterday,
+      day: yesterday,
+      data: { timezone: "UTC" },
+      version: 0,
+      deleted: false,
+    };
+  });
+  const before = structuredClone((await r.state()).entities[pastKey]);
+  await r.changeHabits((rows) =>
+    rows.map((item) => ({ ...item, repeatDays: [0, 6] })),
+  );
+  const snapshot = await r.load();
+  expect(snapshot.state.entities[pastKey]).toEqual(before);
+  expect(snapshot.history[yesterday][0]).toMatchObject({
+    memo: "보존",
+    rating: 5,
+  });
+  expect(
+    snapshot.state.entities[entityKey("habits", h.id)].data.repeatDays,
+  ).toEqual([0, 6]);
+  expect(
+    snapshot.state.entities[entityKey("habit_entries", h.id, today)].data
+      .repeatDays,
+  ).toEqual([0, 6]);
+  expect(snapshot.state.outbox.at(-1)?.changes.map((c) => c.kind)).toEqual([
+    "habits",
+    "habit_entries",
+  ]);
+  r.close();
+});
 it("aborts all writes when a transaction fails", async () => {
   const r = await guest(),
     before = await r.state();

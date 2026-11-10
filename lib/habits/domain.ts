@@ -5,6 +5,7 @@ export type Habit = {
   icon: string;
   timeGroup: TimeGroup;
   scheduledTime?: string;
+  repeatDays?: number[];
   alarmEnabled: boolean;
   completed: boolean;
   rating: number;
@@ -86,17 +87,34 @@ export function isHabit(v: unknown): v is Habit {
     typeof h.completed === "boolean" &&
     typeof h.alarmEnabled === "boolean" &&
     typeof h.memo === "string" &&
+    (h.repeatDays === undefined ||
+      (Array.isArray(h.repeatDays) &&
+        h.repeatDays.length >= 1 &&
+        h.repeatDays.length <= 7 &&
+        new Set(h.repeatDays).size === h.repeatDays.length &&
+        h.repeatDays.every(
+          (day) => Number.isInteger(day) && day >= 0 && day <= 6,
+        ))) &&
     (h.scheduledTime === undefined ||
       (typeof h.scheduledTime === "string" &&
         /^([01]\d|2[0-3]):[0-5]\d$/.test(h.scheduledTime)))
   );
 }
-export function stats(habits: Habit[]) {
-  const rated = habits.filter((h) => h.rating > 0),
-    completed = habits.filter((h) => h.completed).length;
+export function isScheduled(habit: Habit, day: string): boolean {
+  return (
+    habit.repeatDays === undefined ||
+    habit.repeatDays.includes(new Date(`${day}T12:00:00Z`).getUTCDay())
+  );
+}
+export function stats(habits: Habit[], day?: string) {
+  const scheduled = day ? habits.filter((h) => isScheduled(h, day)) : habits;
+  const rated = scheduled.filter((h) => h.rating > 0),
+    completed = scheduled.filter((h) => h.completed).length;
   return {
     completed,
-    rate: habits.length ? Math.round((completed / habits.length) * 100) : 0,
+    rate: scheduled.length
+      ? Math.round((completed / scheduled.length) * 100)
+      : 0,
     average: rated.length
       ? rated.reduce((n, h) => n + h.rating, 0) / rated.length
       : 0,
@@ -110,6 +128,7 @@ export function definition(h: Habit, position: number): Payload {
     icon: h.icon,
     timeGroup: h.timeGroup,
     scheduledTime: h.scheduledTime ?? null,
+    ...(h.repeatDays === undefined ? {} : { repeatDays: h.repeatDays }),
     alarmEnabled: h.alarmEnabled,
     position,
   };

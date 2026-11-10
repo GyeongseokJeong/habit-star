@@ -40,6 +40,7 @@ import {
   type TimeGroup,
   type History,
   dateKey,
+  isScheduled,
   stats,
 } from "@/lib/habits/domain";
 import { useHabitApp } from "@/lib/habits/use-habit-app";
@@ -92,6 +93,12 @@ const EMOJIS = [
   "💻",
   "🛏️",
   "🎵",
+];
+const WEEKDAYS = [1, 2, 3, 4, 5, 6, 0];
+const REPEAT_PRESETS = [
+  { label: "매일", days: WEEKDAYS },
+  { label: "평일", days: WEEKDAYS.slice(0, 5) },
+  { label: "주말", days: WEEKDAYS.slice(5) },
 ];
 const uid = () => crypto.randomUUID();
 const timeGroup = (date: Date): TimeGroup =>
@@ -249,12 +256,14 @@ function Modal({
 function HabitEditor({
   habit,
   defaultGroup,
+  today,
   onSave,
   onDelete,
   onClose,
 }: {
   habit?: Habit;
   defaultGroup: TimeGroup;
+  today: string;
   onSave: (draft: Omit<Habit, "id">) => void;
   onDelete?: () => void;
   onClose: () => void;
@@ -268,6 +277,7 @@ function HabitEditor({
           icon: "🌱",
           timeGroup: defaultGroup,
           scheduledTime: "",
+          repeatDays: [...WEEKDAYS],
           alarmEnabled: false,
           completed: false,
           rating: 0,
@@ -345,6 +355,64 @@ function HabitEditor({
             })}
           </div>
         </fieldset>
+        <fieldset>
+          <legend>반복 요일</legend>
+          <div className="segmented repeat-presets">
+            {REPEAT_PRESETS.map(({ label, days }) => (
+              <button
+                type="button"
+                key={label}
+                className={
+                  WEEKDAYS.filter((day) =>
+                    (draft.repeatDays ?? WEEKDAYS).includes(day),
+                  ).join() === days.join()
+                    ? "selected"
+                    : ""
+                }
+                aria-pressed={
+                  WEEKDAYS.filter((day) =>
+                    (draft.repeatDays ?? WEEKDAYS).includes(day),
+                  ).join() === days.join()
+                }
+                onClick={() =>
+                  setDraft((prev) => ({ ...prev, repeatDays: [...days] }))
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div
+            className="repeat-weekdays"
+            role="group"
+            aria-label="반복할 요일"
+          >
+            {WEEKDAYS.map((day, index) => (
+              <button
+                type="button"
+                key={day}
+                className={
+                  (draft.repeatDays ?? WEEKDAYS).includes(day) ? "selected" : ""
+                }
+                aria-label={`${["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"][index]}`}
+                aria-pressed={(draft.repeatDays ?? WEEKDAYS).includes(day)}
+                onClick={() =>
+                  setDraft((prev) => {
+                    const selected = prev.repeatDays ?? WEEKDAYS;
+                    const next = selected.includes(day)
+                      ? selected.filter((value) => value !== day)
+                      : WEEKDAYS.filter(
+                          (value) => selected.includes(value) || value === day,
+                        );
+                    return next.length ? { ...prev, repeatDays: next } : prev;
+                  })
+                }
+              >
+                {["월", "화", "수", "목", "금", "토", "일"][index]}
+              </button>
+            ))}
+          </div>
+        </fieldset>
         <div className="form-row">
           <label className="field">
             예정 시간
@@ -373,7 +441,7 @@ function HabitEditor({
             />
           </label>
         </div>
-        {habit && (
+        {habit && isScheduled(draft as Habit, today) && (
           <>
             <fieldset>
               <legend>오늘의 별점</legend>
@@ -674,11 +742,13 @@ function MonthlyMatrix({
   const records = Object.entries(history).filter(([key]) =>
     key.startsWith(`${year}-${String(index + 1).padStart(2, "0")}`),
   );
-  const recordedDays = records.filter(([, habits]) =>
-    habits.some((h) => h.completed),
+  const recordedDays = records.filter(([day, habits]) =>
+    habits.some((h) => h.completed && isScheduled(h, day)),
   ).length;
-  const ratings = records.flatMap(([, habits]) =>
-    habits.filter((h) => h.rating > 0).map((h) => h.rating),
+  const ratings = records.flatMap(([day, habits]) =>
+    habits
+      .filter((h) => isScheduled(h, day) && h.rating > 0)
+      .map((h) => h.rating),
   );
   return (
     <section className="panel matrix-panel expanded">
@@ -721,7 +791,7 @@ function MonthlyMatrix({
         ))}
         {Array.from({ length: count }, (_, i) => {
           const key = dateKey(new Date(year, index, i + 1));
-          const score = stats(history[key] || []).average;
+          const score = stats(history[key] || [], key).average;
           return (
             <button
               key={key}
@@ -893,6 +963,7 @@ export default function Byeolharu() {
     const due = habits.find(
       (h) =>
         h.alarmEnabled &&
+        isScheduled(h, day) &&
         !h.completed &&
         h.scheduledTime === time &&
         !fired.current.has(`${day}-${h.id}-${time}`),
@@ -943,8 +1014,14 @@ export default function Byeolharu() {
     setEditing(null);
     showToast("습관이 삭제되었습니다.");
   };
-  const summary = stats(habits);
   const today = app.snapshot?.day ?? "";
+  const scheduledHabits = today
+    ? habits.filter((h) => isScheduled(h, today))
+    : [];
+  const restingHabits = today
+    ? habits.filter((h) => !isScheduled(h, today))
+    : [];
+  const summary = stats(habits, today);
   const allHistory = { ...history, ...(today ? { [today]: habits } : {}) };
   const displayNow =
     now && app.user
@@ -956,7 +1033,7 @@ export default function Byeolharu() {
       : now;
   const group = displayNow ? timeGroup(displayNow) : "day";
   const detail = habits.find((h) => h.id === detailId);
-  const filtered = habits
+  const filtered = scheduledHabits
     .filter(
       (h) =>
         activeTab === "all" ||
@@ -966,7 +1043,7 @@ export default function Byeolharu() {
     .sort((a, b) => Number(a.completed) - Number(b.completed));
   const upcoming =
     activeTab !== "all" && activeTab !== "matrix"
-      ? habits
+      ? scheduledHabits
           .filter(
             (h) =>
               h.timeGroup ===
@@ -983,7 +1060,12 @@ export default function Byeolharu() {
     const day = new Date(`${today}T12:00:00`);
     if (!summary.completed) day.setDate(day.getDate() - 1);
     for (let i = 0; i < 3660; i++) {
-      if (!allHistory[dateKey(day)]?.some((h) => h.completed)) break;
+      if (
+        !allHistory[dateKey(day)]?.some(
+          (h) => h.completed && isScheduled(h, dateKey(day)),
+        )
+      )
+        break;
       streak++;
       day.setDate(day.getDate() - 1);
     }
@@ -1079,7 +1161,7 @@ export default function Byeolharu() {
                   </p>
                   <button
                     className="secondary full"
-                    disabled={testPending || !habits.length}
+                    disabled={testPending || !scheduledHabits.length}
                     onClick={() => {
                       try {
                         if (!audio.current) audio.current = new AudioContext();
@@ -1088,7 +1170,8 @@ export default function Byeolharu() {
                       setTestPending(true);
                       testTimer.current = setTimeout(() => {
                         setNotification(
-                          habits.find((h) => !h.completed) || habits[0],
+                          scheduledHabits.find((h) => !h.completed) ||
+                            scheduledHabits[0],
                         );
                         chime();
                         setTestPending(false);
@@ -1150,7 +1233,10 @@ export default function Byeolharu() {
             </p>
           </div>
         </div>
-        <StarlitHero completed={summary.completed} total={habits.length} />
+        <StarlitHero
+          completed={summary.completed}
+          total={scheduledHabits.length}
+        />
         <section className="metrics" aria-label="오늘의 통계">
           <div className="metric completion-metric">
             <div className="metric-label">
@@ -1176,7 +1262,7 @@ export default function Byeolharu() {
             </div>
             <div className="metric-value">
               {summary.completed}
-              <span className="muted">/ {habits.length}</span>
+              <span className="muted">/ {scheduledHabits.length}</span>
               <small>개 완료</small>
             </div>
           </div>
@@ -1217,7 +1303,7 @@ export default function Byeolharu() {
                     : `나의 ${GROUPS[activeTab].name} 루틴`}
                 <span>
                   {activeTab === "all" || activeTab === "matrix"
-                    ? habits.length
+                    ? scheduledHabits.length
                     : filtered.length}
                 </span>
               </h2>
@@ -1284,8 +1370,9 @@ export default function Byeolharu() {
                   {id !== "matrix" && (
                     <span className="tab-count">
                       {id === "all"
-                        ? habits.length
-                        : habits.filter((h) => h.timeGroup === id).length}
+                        ? scheduledHabits.length
+                        : scheduledHabits.filter((h) => h.timeGroup === id)
+                            .length}
                     </span>
                   )}
                 </button>
@@ -1303,7 +1390,7 @@ export default function Byeolharu() {
                   today={today}
                   history={allHistory}
                   onDate={(key) => {
-                    const dayStats = stats(allHistory[key] || []);
+                    const dayStats = stats(allHistory[key] || [], key);
                     showToast(
                       `${Number(key.slice(5, 7))}월 ${Number(key.slice(8))}일: ${dayStats.rate}% 달성 · 평균 ${dayStats.average.toFixed(1)}★`,
                     );
@@ -1332,7 +1419,9 @@ export default function Byeolharu() {
                         <Leaf size={25} />
                         <h3>
                           {ready
-                            ? "아직 등록된 습관이 없어요"
+                            ? habits.length
+                              ? "오늘 예정된 습관이 없어요"
+                              : "아직 등록된 습관이 없어요"
                             : "오늘의 루틴을 준비하고 있어요"}
                         </h3>
                         <p>가볍게 시작할 수 있는 작은 약속을 만들어보세요.</p>
@@ -1345,6 +1434,32 @@ export default function Byeolharu() {
                       </div>
                     )}
                   </div>
+                  {restingHabits.filter(
+                    (h) => activeTab === "all" || h.timeGroup === activeTab,
+                  ).length > 0 && (
+                    <section
+                      className="resting-habits"
+                      aria-label="오늘 쉬는 습관"
+                    >
+                      <h3>오늘 쉬는 습관</h3>
+                      {restingHabits
+                        .filter(
+                          (h) =>
+                            activeTab === "all" || h.timeGroup === activeTab,
+                        )
+                        .map((habit) => (
+                          <button
+                            key={habit.id}
+                            onClick={() => setEditing(habit)}
+                            aria-label={`${habit.title} 반복 요일 수정`}
+                          >
+                            <span aria-hidden="true">{habit.icon}</span>
+                            {habit.title}
+                            <Pencil size={14} aria-hidden="true" />
+                          </button>
+                        ))}
+                    </section>
+                  )}
                   {upcoming.length > 0 && (
                     <>
                       <div className="upcoming-heading">
@@ -1408,6 +1523,7 @@ export default function Byeolharu() {
               ? undefined
               : habits.find((h) => h.id === editing.id)
           }
+          today={today}
           defaultGroup={
             activeTab === "morning" ||
             activeTab === "day" ||
@@ -1512,8 +1628,8 @@ export default function Byeolharu() {
             <p>
               비회원 기록과 테마는 이 브라우저에 저장돼요. 이메일 인증 후
               로그인하면 계정별로 기록을 동기화할 수 있어요. 비회원 기록 이전은
-              확인 후 진행하며, 오프라인 기록은 연결 후 전송해요. 매일 새 루틴이
-              시작되고 이전 기록은 달력에 남아요.
+              확인 후 진행하며, 오프라인 기록은 연결 후 전송해요. 설정한 요일에
+              루틴이 나타나고 이전 기록은 달력에 남아요.
             </p>
             <h4>가벼운 루틴 알림</h4>
             <p>
@@ -1536,8 +1652,8 @@ export default function Byeolharu() {
           <div className="past-summary">
             <Star size={28} className="gold" />
             <h3>
-              {stats(allHistory[pastDate] || []).rate}% 달성 · 평균{" "}
-              {stats(allHistory[pastDate] || []).average.toFixed(1)}★
+              {stats(allHistory[pastDate] || [], pastDate).rate}% 달성 · 평균{" "}
+              {stats(allHistory[pastDate] || [], pastDate).average.toFixed(1)}★
             </h3>
             <p>
               {allHistory[pastDate]?.length

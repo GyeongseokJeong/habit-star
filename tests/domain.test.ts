@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { dateKey, validDay, stats, merge } from "../lib/habits/domain";
+import {
+  dateKey,
+  validDay,
+  stats,
+  merge,
+  isHabit,
+  isScheduled,
+  definition,
+} from "../lib/habits/domain";
 import { migrateLegacy, captureLegacy } from "../lib/habits/migration";
 const h = {
   id: "legacy",
@@ -97,6 +105,30 @@ describe("dates and semantics", () => {
       rate: 100,
       average: 4,
     }));
+  it("defaults legacy habits to every day and excludes resting days from daily rates", () => {
+    const monday = "2026-11-09";
+    expect(isScheduled(h, monday)).toBe(true);
+    expect(isScheduled({ ...h, repeatDays: [0, 6] }, monday)).toBe(false);
+    expect(isScheduled({ ...h, repeatDays: [0, 6] }, "2026-11-08")).toBe(true);
+    expect(
+      stats(
+        [h, { ...h, id: "weekend", completed: false, repeatDays: [0, 6] }],
+        monday,
+      ),
+    ).toMatchObject({ completed: 1, rate: 100 });
+    expect(stats([{ ...h, repeatDays: [0, 6] }], monday)).toMatchObject({
+      completed: 0,
+      rate: 0,
+      average: 0,
+    });
+    expect(definition(h, 0)).not.toHaveProperty("repeatDays");
+  });
+  it("rejects empty, duplicate and out-of-range repeat selections", () => {
+    expect(isHabit({ ...h, repeatDays: [1, 3] })).toBe(true);
+    for (const days of [[], [1, 1], [7], [-1], [1.5], "월"]) {
+      expect(isHabit({ ...h, repeatDays: days })).toBe(false);
+    }
+  });
   it("merges disjoint fields but preserves rating conflicts", () => {
     expect(
       merge(
