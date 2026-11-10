@@ -46,7 +46,9 @@ async function confirm(
     )
     .toBe(true);
   await page.goto(link);
-  await page.waitForURL("http://localhost:3000/**", { timeout: 10000 });
+  await expect(page).toHaveURL(/^http:\/\/localhost:3000\//, {
+    timeout: 10000,
+  });
 }
 async function login(page: Page, email: string, password: string) {
   await page.goto("/");
