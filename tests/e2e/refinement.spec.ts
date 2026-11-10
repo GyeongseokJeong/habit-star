@@ -288,6 +288,7 @@ test("install action is only in settings when a real prompt is available", async
 test("auth tabs, password visibility, resend cooldown and reset preserve existing endpoints", async ({
   page,
 }) => {
+  await page.route("http://127.0.0.1:54321/**", (route) => route.abort());
   let resends = 0;
   await page.route("**/auth/v1/resend**", (route) => {
     resends++;

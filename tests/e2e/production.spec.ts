@@ -1,4 +1,27 @@
 import { test, expect } from "@playwright/test";
+
+test("cloud-disabled mode keeps guest records available and callbacks fail closed", async ({
+  page,
+  request,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+  await expect(
+    page.getByText("클라우드 연결이 아직 설정되지 않았습니다."),
+  ).toBeVisible();
+  await expect(page.getByLabel("이메일", { exact: true })).toHaveCount(0);
+  for (const path of ["/auth/confirm", "/auth/callback"]) {
+    const response = await request.get(
+      `${path}?next=https://attacker.example`,
+      {
+        maxRedirects: 0,
+      },
+    );
+    expect(response.status()).toBe(503);
+    expect(await response.text()).toBe("Application URL is not configured");
+    expect(response.headers()["cache-control"]).toBe("private, no-store");
+  }
+});
 test("production fonts are self-hosted and the cached shell preserves offline edits after reload", async ({
   page,
   context,

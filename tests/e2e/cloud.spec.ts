@@ -5,7 +5,12 @@ import {
   type APIRequestContext,
   type Page,
 } from "@playwright/test";
-async function confirm(page: Page, request: APIRequestContext, email: string) {
+async function confirm(
+  page: Page,
+  request: APIRequestContext,
+  email: string,
+  type?: "recovery",
+) {
   let link = "";
   await expect
     .poll(
@@ -14,27 +19,36 @@ async function confirm(page: Page, request: APIRequestContext, email: string) {
           "http://localhost:54324/api/v1/messages",
         );
         const body = await response.json();
-        const message = body.messages?.find(
+        const messages = (body.messages ?? []).filter(
           (m: { To: { Address: string }[] }) =>
             m.To.some((to) => to.Address === email),
         );
-        if (!message) return false;
-        const detail = await (
-          await request.get(
-            `http://localhost:54324/api/v1/message/${message.ID}`,
-          )
-        ).json();
-        link =
-          (detail.HTML || detail.Text || "")
+        for (const message of messages) {
+          const detail = await (
+            await request.get(
+              `http://localhost:54324/api/v1/message/${message.ID}`,
+            )
+          ).json();
+          const candidate = (detail.HTML || detail.Text || "")
             .match(/https?:[^\s"<>]+\/auth\/v1\/verify[^\s"<>]+/)?.[0]
-            ?.replaceAll("&amp;", "&") ?? "";
-        return !!link;
+            ?.replaceAll("&amp;", "&");
+          if (
+            candidate &&
+            (!type || new URL(candidate).searchParams.get("type") === type)
+          ) {
+            link = candidate;
+            return true;
+          }
+        }
+        return false;
       },
       { timeout: 30000 },
     )
     .toBe(true);
   await page.goto(link);
-  await page.waitForURL("http://localhost:3000/**", { timeout: 10000 });
+  await expect(page).toHaveURL(/^http:\/\/localhost:3000\//, {
+    timeout: 10000,
+  });
 }
 async function login(page: Page, email: string, password: string) {
   await page.goto("/");
@@ -279,7 +293,7 @@ test("email password recovery issues a usable new password", async ({
   await expect(
     page.getByText("요청을 처리했습니다. 이메일을 확인해주세요."),
   ).toBeVisible();
-  await confirm(page, request, email);
+  await confirm(page, request, email, "recovery");
   await expect(
     page.getByRole("heading", { name: "비밀번호 재설정" }),
   ).toBeVisible();

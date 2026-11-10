@@ -1,5 +1,9 @@
 import { expect, test } from "@playwright/test";
 
+test.beforeEach(async ({ page }) => {
+  await page.route("http://127.0.0.1:54321/**", (route) => route.abort());
+});
+
 test("resend rate limits are visible and never reported as success", async ({
   page,
 }) => {
@@ -71,7 +75,7 @@ test("an unconfirmed email receives actionable login feedback", async ({
   );
 });
 
-test("both callback routes fail closed and reject external next destinations", async ({
+test("cloud-enabled callbacks reject external next destinations without valid credentials", async ({
   request,
 }) => {
   for (const path of ["/auth/confirm", "/auth/callback"]) {
