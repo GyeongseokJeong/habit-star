@@ -40,6 +40,11 @@ test("production fonts are self-hosted and the cached shell preserves offline ed
       async () => !!(await caches.match("/noto-color-emoji-colr.woff2")),
     ),
   ).toBe(true);
+  expect(
+    await page.evaluate(
+      async () => !!(await caches.match("/starlit-night.png")),
+    ),
+  ).toBe(true);
   await expect.poll(() => localFonts.length).toBeGreaterThan(0);
   expect(externalFonts).toEqual([]);
   expect(localFonts.every((h) => h === "localhost")).toBe(true);

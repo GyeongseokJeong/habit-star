@@ -1,4 +1,4 @@
-const CACHE = "byeolharu-shell-v4";
+const CACHE = "byeolharu-shell-v5";
 const SHELL = "/offline";
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -9,6 +9,7 @@ self.addEventListener("install", (event) => {
         "/icon-192.png",
         "/icon-512.png",
         "/noto-color-emoji-colr.woff2",
+        "/starlit-night.png",
       ]);
       const response = await fetch(SHELL, {
         credentials: "omit",
@@ -59,6 +60,7 @@ self.addEventListener("fetch", (event) => {
   } else if (
     url.pathname.startsWith("/_next/static/") ||
     url.pathname === "/noto-color-emoji-colr.woff2" ||
+    url.pathname === "/starlit-night.png" ||
     /^\/icon[\w-]*\.(png|svg)$/.test(url.pathname)
   ) {
     event.respondWith(
