@@ -109,6 +109,74 @@ test("the hero star brightens with each completed habit and dims when undone", a
     .toBe(true);
 });
 
+for (const width of [320, 395]) {
+  test(`mobile matrix tiles fit their seven columns at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 549 });
+    await page.goto("/");
+    await expect(
+      page.getByRole("heading", { name: "미온수 한 잔 & 영양제" }),
+    ).toBeVisible();
+
+    for (const theme of ["light", "dark"]) {
+      if (theme === "dark")
+        await page.getByRole("button", { name: "다크 모드로 전환" }).click();
+      await page.getByRole("tab", { name: "별점 매트릭스" }).click();
+      await expect(
+        page.getByRole("heading", { name: "차곡차곡 쌓인 나의 별 5" }),
+      ).toBeVisible();
+      const dimensions = await page.evaluate(() => {
+        const grid = document.querySelector(".expanded .calendar-grid.days")!;
+        const tiles = [...grid.querySelectorAll(".day-tile")];
+        const columnWidth = grid.getBoundingClientRect().width / 7;
+        return {
+          columnWidth,
+          widestTile: Math.max(
+            ...tiles.map((tile) => tile.getBoundingClientRect().width),
+          ),
+          overflow: document.documentElement.scrollWidth > innerWidth,
+        };
+      });
+      expect(dimensions.widestTile).toBeLessThanOrEqual(dimensions.columnWidth);
+      expect(dimensions.overflow).toBe(false);
+      await expect(
+        page.getByRole("tab", { name: "별점 매트릭스" }),
+      ).toContainText("별점");
+      await expect(page.locator(".little-note")).toContainText(
+        "꾸준함은 언제나 완벽함보다 빛나요.",
+      );
+      await expect(page.locator(".little-note")).toContainText(
+        "별이 하나인 날도, 다섯 개인 날도 모두 소중한 나의 하루예요.",
+      );
+      await page.getByRole("tab", { name: "전체" }).click();
+    }
+  });
+}
+
+test("time-of-day tabs update their heading and visible habit count", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 395, height: 549 });
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "미온수 한 잔 & 영양제" }),
+  ).toBeVisible();
+  for (const [tab, heading, count] of [
+    ["아침", "나의 아침 루틴", "2"],
+    ["낮", "나의 낮 루틴", "1"],
+    ["밤", "나의 밤 루틴", "2"],
+    ["전체", "나의 데일리 루틴", "5"],
+  ]) {
+    await page.getByRole("tab", { name: tab, exact: true }).click();
+    await expect(page.locator(".routine-heading h2")).toContainText(heading);
+    await expect(page.locator(".routine-heading h2 > span")).toHaveText(count);
+    await expect(
+      page.getByRole("tab", { name: tab, exact: true }),
+    ).toHaveAttribute("aria-selected", "true");
+  }
+});
+
 test("legacy custom emoji remains selected without changing the original", async ({
   page,
 }) => {

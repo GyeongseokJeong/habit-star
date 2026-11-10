@@ -1210,8 +1210,14 @@ export default function Byeolharu() {
               <h2>
                 {activeTab === "matrix"
                   ? "차곡차곡 쌓인 나의 별"
-                  : "나의 데일리 루틴"}
-                <span>{habits.length}</span>
+                  : activeTab === "all"
+                    ? "나의 데일리 루틴"
+                    : `나의 ${GROUPS[activeTab].name} 루틴`}
+                <span>
+                  {activeTab === "all" || activeTab === "matrix"
+                    ? habits.length
+                    : filtered.length}
+                </span>
               </h2>
               <button
                 className="primary add-button"
@@ -1235,6 +1241,7 @@ export default function Byeolharu() {
                   role="tab"
                   id={`tab-${id}`}
                   aria-selected={activeTab === id}
+                  aria-label={label}
                   aria-controls="routine-panel"
                   tabIndex={activeTab === id ? 0 : -1}
                   onKeyDown={(e) => {
@@ -1259,10 +1266,21 @@ export default function Byeolharu() {
                   className={activeTab === id ? "selected" : ""}
                   onClick={() => setActiveTab(id)}
                 >
-                  <Icon size={15} />
-                  {label}
+                  <Icon size={15} aria-hidden="true" />
+                  <span className="tab-label">
+                    {id === "matrix" ? (
+                      <>
+                        <span className="tab-label-full">별점 매트릭스</span>
+                        <span className="tab-label-mobile" aria-hidden="true">
+                          별점
+                        </span>
+                      </>
+                    ) : (
+                      label
+                    )}
+                  </span>
                   {id !== "matrix" && (
-                    <span>
+                    <span className="tab-count">
                       {id === "all"
                         ? habits.length
                         : habits.filter((h) => h.timeGroup === id).length}
@@ -1372,18 +1390,16 @@ export default function Byeolharu() {
               />
             )}
             <section className="little-note">
-              <span className="note-icon">
-                <Leaf size={19} />
+              <span className="note-icon" aria-hidden="true">
+                <Sparkles size={19} />
               </span>
               <p className="eyebrow">A GENTLE REMINDER</p>
               <h3>
-                꾸준함은 언제나
-                <br />
+                꾸준함은 언제나 <br />
                 완벽함보다 빛나요.
               </h3>
               <p>
-                별 하나인 날도, 다섯 개인 날도
-                <br />
+                별이 하나인 날도, 다섯 개인 날도 <br />
                 모두 소중한 나의 하루예요.
               </p>
               <span className="note-signature">나의 속도로, 별하루</span>
