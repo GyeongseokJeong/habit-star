@@ -47,7 +47,7 @@ for (const width of [320, 390, 430]) {
     await dialog.getByRole("button", { name: "낮", exact: true }).click();
     await dialog.getByRole("button", { name: "평일", exact: true }).click();
     await dialog.getByLabel("예정 시간").fill("13:30");
-    await dialog.getByRole("checkbox", { name: "루틴 알림" }).check();
+    await dialog.getByRole("switch", { name: "루틴 알림" }).click();
     await expect(
       dialog.getByRole("button", { name: "하루 기록하기 템플릿" }),
     ).toHaveAttribute("aria-pressed", "false");
@@ -77,8 +77,8 @@ for (const width of [320, 390, 430]) {
       edit.getByRole("button", { name: "평일", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
     await expect(
-      edit.getByRole("checkbox", { name: "루틴 알림" }),
-    ).toBeChecked();
+      edit.getByRole("switch", { name: "루틴 알림" }),
+    ).toHaveAttribute("aria-checked", "true");
     await edit.getByRole("button", { name: "매일", exact: true }).click();
     await edit.getByRole("button", { name: "수정 완료" }).click();
     await expect(edit).not.toBeVisible();
@@ -106,9 +106,10 @@ test("templates are keyboard accessible in dark mode", async ({ page }) => {
   await page.keyboard.press("Space");
   await expect(template).toHaveAttribute("aria-pressed", "true");
   await expect(template).toHaveCSS("background-color", "rgb(105, 90, 133)");
-  await expect(
-    page.getByRole("checkbox", { name: "루틴 알림" }),
-  ).not.toBeChecked();
+  await expect(page.getByRole("switch", { name: "루틴 알림" })).toHaveAttribute(
+    "aria-checked",
+    "false",
+  );
 });
 
 test("direct entry remains available without selecting a template", async ({

@@ -81,7 +81,7 @@ async function checkControls(page: Page, theme: "light" | "dark") {
       },
       targets: [
         ...modal.querySelectorAll<HTMLElement>(
-          ".emoji-picker button, .segmented button, .repeat-weekdays button, .toggle-input",
+          ".emoji-picker button, .segmented button, .repeat-weekdays button, .reminder-switch",
         ),
       ].map((element) => {
         const rect = element.getBoundingClientRect();
@@ -122,13 +122,13 @@ test("reminder switch remains visible in forced colors", async ({ page }) => {
   await page.emulateMedia({ forcedColors: "active" });
   await page.goto("/");
   await page.getByRole("button", { name: "새 습관 추가", exact: true }).click();
-  const toggle = page.getByRole("checkbox", { name: "루틴 알림" });
-  const track = page.locator("dialog .toggle-track");
-  const thumb = track.locator(".toggle-thumb");
+  const toggle = page.getByRole("switch", { name: "루틴 알림" });
+  const track = toggle;
+  const thumb = track.locator(".reminder-switch-thumb");
   await expect(track).toHaveCSS("border-top-width", "2px");
   await expect(thumb).toBeVisible();
   const colors = await track.evaluate((element) => {
-    const thumb = element.querySelector(".toggle-thumb")!;
+    const thumb = element.querySelector(".reminder-switch-thumb")!;
     const probe = document.createElement("span");
     document.body.append(probe);
     const systemColor = (keyword: string) => {
@@ -150,8 +150,8 @@ test("reminder switch remains visible in forced colors", async ({ page }) => {
   expect(colors.forcedColors).toBe(true);
   expect(colors.offTrack).toBe(colors.canvas);
   expect(colors.offThumb).toBe(colors.canvasText);
-  await toggle.check();
-  await expect(toggle).toBeChecked();
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-checked", "true");
   await expect(track).toHaveCSS("background-color", colors.highlight);
   await expect(thumb).toHaveCSS("background-color", colors.highlightText);
   await expect
@@ -263,31 +263,23 @@ for (const theme of ["light", "dark"] as const) {
         .click();
       const switchInput = page
         .getByRole("dialog", { name: "나를 위한 새로운 습관" })
-        .getByRole("checkbox", { name: "루틴 알림" });
+        .getByRole("switch", { name: "루틴 알림" });
       const geometry = async () =>
-        page.locator("dialog .toggle-control").evaluate((control) => {
-          const input =
-            control.querySelector<HTMLInputElement>(".toggle-input")!;
-          const box = input.getBoundingClientRect();
-          const track = getComputedStyle(
-            control.querySelector(".toggle-track")!,
-          );
+        switchInput.evaluate((button) => {
+          const box = button.getBoundingClientRect();
+          const track = getComputedStyle(button);
           const thumb = getComputedStyle(
-            control.querySelector(".toggle-thumb")!,
+            button.querySelector(".reminder-switch-thumb")!,
           );
           return {
-            checked: input.checked,
+            checked: button.getAttribute("aria-checked"),
             target: [box.width, box.height],
-            border: getComputedStyle(input).borderTopWidth,
-            boxSizing: getComputedStyle(input).boxSizing,
-            colorScheme: getComputedStyle(control).colorScheme,
-            track: [
-              track.width,
-              track.height,
-              track.left,
-              track.top,
-              track.backgroundColor,
-            ],
+            border: track.borderTopWidth,
+            clip: track.backgroundClip,
+            radius: track.borderTopLeftRadius,
+            boxSizing: track.boxSizing,
+            colorScheme: track.colorScheme,
+            track: [track.width, track.height, track.backgroundColor],
             thumb: [
               thumb.width,
               thumb.height,
@@ -300,24 +292,24 @@ for (const theme of ["light", "dark"] as const) {
             overflow: document.documentElement.scrollWidth > innerWidth,
           };
         });
-      await expect(switchInput).not.toBeChecked();
+      await expect(switchInput).toHaveAttribute("aria-checked", "false");
       const off = await geometry();
       expect(off.target).toEqual([56, 44]);
-      expect(off.border).toBe("0px");
+      expect(off.border).toBe("6px");
+      expect(off.clip).toBe("padding-box");
+      expect(off.radius).toBe("22px");
       expect(off.boxSizing).toBe("border-box");
-      expect(off.colorScheme).toBe("light only");
+      expect(off.colorScheme).toBe(theme);
       expect(off.track).toEqual([
         "56px",
-        "32px",
-        "0px",
-        "6px",
+        "44px",
         theme === "light" ? "rgb(133, 139, 149)" : "rgb(102, 113, 131)",
       ]);
       expect(off.thumb).toEqual([
         "24px",
         "24px",
         "4px",
-        "4px",
+        "10px",
         "rgb(255, 255, 255)",
       ]);
       expect(off.travel).toBe(0);
@@ -325,20 +317,26 @@ for (const theme of ["light", "dark"] as const) {
       expect(off.overflow).toBe(false);
 
       await switchInput.click();
-      await expect(switchInput).toBeChecked();
+      await expect(switchInput).toHaveAttribute("aria-checked", "true");
       await expect.poll(async () => (await geometry()).travel).toBe(24);
-      expect((await geometry()).track[4]).toBe(
+      expect((await geometry()).clip).toBe("padding-box");
+      expect((await geometry()).border).toBe("6px");
+      expect((await geometry()).track[2]).toBe(
         theme === "light" ? "rgb(98, 84, 126)" : "rgb(105, 90, 133)",
       );
       await switchInput.focus();
       await page.keyboard.press("Space");
-      await expect(switchInput).not.toBeChecked();
+      await expect(switchInput).toHaveAttribute("aria-checked", "false");
       await expect.poll(async () => (await geometry()).travel).toBe(0);
       await expect(switchInput).toHaveCSS("outline-style", "solid");
+      await page.keyboard.press("Enter");
+      await expect(switchInput).toHaveAttribute("aria-checked", "true");
 
       await page.emulateMedia({ reducedMotion: "reduce" });
       await switchInput.click();
-      await expect(switchInput).toBeChecked();
+      await expect(switchInput).toHaveAttribute("aria-checked", "false");
+      await switchInput.click();
+      await expect(switchInput).toHaveAttribute("aria-checked", "true");
       expect((await geometry()).travel).toBe(24);
       expect((await geometry()).duration).toBe("0s");
       await page
@@ -371,18 +369,18 @@ for (const theme of ["light", "dark"] as const) {
         })
         .click();
       await expect(
-        page.getByRole("checkbox", { name: "루틴 알림" }),
-      ).toBeChecked();
+        page.getByRole("switch", { name: "루틴 알림" }),
+      ).toHaveAttribute("aria-checked", "true");
       await expect
         .poll(() =>
           page
             .getByRole("dialog", { name: "습관 수정하기" })
-            .getByRole("checkbox", { name: "루틴 알림" })
+            .getByRole("switch", { name: "루틴 알림" })
             .evaluate(
-              (input) =>
+              (button) =>
                 new DOMMatrixReadOnly(
                   getComputedStyle(
-                    input.parentElement!.querySelector(".toggle-thumb")!,
+                    button.querySelector(".reminder-switch-thumb")!,
                   ).transform,
                 ).m41,
             ),
@@ -397,13 +395,13 @@ for (const theme of ["light", "dark"] as const) {
         .click();
       const detailSwitch = page
         .getByRole("dialog", { name: "오늘의 실천 기록" })
-        .getByRole("checkbox", { name: "루틴 알림" });
-      await expect(detailSwitch).toBeChecked();
+        .getByRole("switch", { name: "루틴 알림" });
+      await expect(detailSwitch).toHaveAttribute("aria-checked", "true");
       await expect(
-        page.locator("dialog .toggle-track .toggle-thumb"),
+        page.locator("dialog .reminder-switch .reminder-switch-thumb"),
       ).toBeVisible();
-      await detailSwitch.uncheck();
-      await expect(detailSwitch).not.toBeChecked();
+      await detailSwitch.click();
+      await expect(detailSwitch).toHaveAttribute("aria-checked", "false");
     });
   }
 }

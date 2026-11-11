@@ -1434,6 +1434,66 @@ a {
   align-items: center;
   gap: 5px;
 }
+.reminder-switch {
+  --toggle-off: #858b95;
+  position: relative;
+  flex: 0 0 56px;
+  width: 56px;
+  height: 44px;
+  padding: 0;
+  border: 6px solid transparent;
+  border-inline-width: 0;
+  border-radius: 22px;
+  background: var(--toggle-off) padding-box;
+  transition: background-color 0.18s ease;
+}
+.dark .reminder-switch {
+  --toggle-off: #667183;
+}
+.reminder-switch.is-on {
+  background-color: var(--selection-bg);
+}
+.reminder-switch-thumb {
+  position: absolute;
+  top: 10px;
+  left: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.18s ease;
+  pointer-events: none;
+}
+.reminder-switch.is-on .reminder-switch-thumb {
+  transform: translateX(24px);
+}
+.reminder-switch:focus-visible {
+  outline: 2px solid var(--sage);
+  outline-offset: 4px;
+}
+@media (forced-colors: active) {
+  .reminder-switch {
+    border: 2px solid CanvasText;
+    background: Canvas;
+  }
+  .reminder-switch.is-on {
+    background: Highlight;
+  }
+  .reminder-switch-thumb {
+    top: 8px;
+    left: 2px;
+    background: CanvasText;
+  }
+  .reminder-switch.is-on .reminder-switch-thumb {
+    background: HighlightText;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reminder-switch,
+  .reminder-switch-thumb {
+    transition: none;
+  }
+}
 .toggle-control {
   --toggle-off: #858b95;
   position: relative;
