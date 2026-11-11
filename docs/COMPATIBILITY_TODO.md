@@ -23,6 +23,62 @@
 
 이번 범위에서 현행 공통 `ReminderToggle`의 네이티브 checkbox와 별도 HTML 트랙/손잡이 구조를 재확인했다. 기존 CSS에 새 색상 우회를 더하지 않았다. Chromium의 OFF/ON 이동, 포커스, 저장 상태, forced-colors와 OS/앱 라이트·다크 조합 자동 회귀는 통과했다. 삼성 인터넷 실기기 및 웹페이지 강제 다크 설정은 검증할 수 없었으므로 원인·해결 여부는 여전히 **Deferred / Unresolved**다. 브라우저 캐시나 서비스 워커의 구버전 CSS 적용 가능성 역시 실기기에서 버전/설정을 대조해야 분리할 수 있다.
 
+## 실기기 진단 방법 (앱 코드·운영 빌드 변경 없음)
+
+문제가 보이는 삼성 인터넷 탭을 USB 디버깅이 켜진 기기에서 열고, PC Chrome의 `chrome://inspect/#devices`에서 해당 탭의 **Inspect**를 선택한다. 새 습관 추가/수정 모달을 연 뒤 DevTools Console에 아래 코드를 붙여 넣는다. 습관 이름·계정·토큰은 수집하지 않는다. 각 조건에서 **OFF와 ON을 각각** 실행하고, 동일 기기의 Chrome에서도 같은 조건을 반복하여 결과와 화면 캡처를 함께 보존한다. 디버깅 도구에 연결할 수 없다면 기기 모델·Android/One UI/삼성 인터넷 버전, OS 다크 및 삼성 인터넷의 웹페이지 다크 모드 설정, 앱 테마, OFF/ON 스크린샷을 먼저 요청한다.
+
+```js
+(() => {
+  const dialog = document.querySelector("dialog[open]");
+  if (!dialog?.querySelector(".toggle-control")) {
+    console.warn("습관 추가/수정 모달을 먼저 열어 주세요.");
+    return;
+  }
+  const input = dialog.querySelector(".toggle-input");
+  const elements = {
+    dialog,
+    toggleControl: dialog.querySelector(".toggle-control"),
+    checkbox: input,
+    track: dialog.querySelector(".toggle-track"),
+    thumb: dialog.querySelector(".toggle-thumb"),
+    selectedTime: dialog.querySelector(".segmented button.selected"),
+    selectedWeekday: dialog.querySelector(".repeat-weekdays button.selected"),
+  };
+  console.log("switch environment", {
+    browser: navigator.userAgent,
+    forcedColors: matchMedia("(forced-colors: active)").matches,
+    osDark: matchMedia("(prefers-color-scheme: dark)").matches,
+    appDark: document.querySelector(".byeolharu")?.classList.contains("dark"),
+    checked: input.checked,
+    selectionToken: getComputedStyle(dialog)
+      .getPropertyValue("--selection-bg")
+      .trim(),
+  });
+  console.table(
+    Object.fromEntries(
+      Object.entries(elements).map(([name, element]) => {
+        const css = getComputedStyle(element);
+        return [
+          name,
+          {
+            colorScheme: css.colorScheme,
+            background: css.backgroundColor,
+            foreground: css.color,
+            forcedColorAdjust: css.forcedColorAdjust,
+            filter: css.filter,
+            opacity: css.opacity,
+          },
+        ];
+      }),
+    ),
+  );
+})();
+```
+
+예상되는 코드 경로: `.byeolharu`와 모달·시간대·요일 버튼은 앱 테마의 `color-scheme`(라이트/다크)을 상속하지만 `.toggle-control` 하위는 `only light`가 명시되어 네이티브 checkbox의 선호 색 구성이 고정된다. 트랙과 손잡이는 checkbox의 네이티브 페인트가 아닌 별도 HTML 요소이므로, 일반 모드에서는 각각 `--toggle-off`/`--selection-bg` 및 `#fff`를 쓰고, `forced-colors: active`에서만 `Canvas`/`CanvasText`/`Highlight`/`HighlightText`로 바뀐다. 브라우저 강제 다크 설정과 CSS `forced-colors` 미디어 쿼리가 동일하다고 가정하지 않는다. `only light`를 DevTools에서 잠시 `inherit`로 바꿨을 때 Chromium에서는 스위치의 **계산된** 트랙·손잡이 색이 변하지 않았다. 이것만으로 삼성 인터넷 결과를 예측할 수 없다.
+
+판정: 쿼리가 `true`이고 시스템 색으로 계산되면 접근성용 고대비 분기의 영향이다. `false`인데 트랙/손잡이 계산색이 시간대·요일과 달리 의도와 다르면 적용된 CSS/캐시/토큰을 조사한다. 계산색은 정상인데 실제 픽셀만 어두우면 브라우저의 페인트 후처리 가능성을 조사한다. `getComputedStyle()`은 후처리된 픽셀 색을 증명하지 못하므로 화면 캡처와 반드시 함께 비교한다. **실기기 결과 전에는 원인도 해결도 확정하지 않는다.**
+
 ## 후속 검증과 완료 기준
 
 1. 문제 기기의 OS/One UI/삼성 인터넷 버전, 브라우저 웹페이지 다크 모드 설정, 앱 테마 및 재현 시각을 기록한다. 가능한 경우 동일 화면의 OFF/ON 스크린샷과 설정 값을 보존한다.

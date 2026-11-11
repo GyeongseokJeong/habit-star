@@ -127,8 +127,33 @@ test("reminder switch remains visible in forced colors", async ({ page }) => {
   const thumb = track.locator(".toggle-thumb");
   await expect(track).toHaveCSS("border-top-width", "2px");
   await expect(thumb).toBeVisible();
+  const colors = await track.evaluate((element) => {
+    const thumb = element.querySelector(".toggle-thumb")!;
+    const probe = document.createElement("span");
+    document.body.append(probe);
+    const systemColor = (keyword: string) => {
+      probe.style.color = keyword;
+      return getComputedStyle(probe).color;
+    };
+    const result = {
+      forcedColors: matchMedia("(forced-colors: active)").matches,
+      offTrack: getComputedStyle(element).backgroundColor,
+      offThumb: getComputedStyle(thumb).backgroundColor,
+      canvas: systemColor("Canvas"),
+      canvasText: systemColor("CanvasText"),
+      highlight: systemColor("Highlight"),
+      highlightText: systemColor("HighlightText"),
+    };
+    probe.remove();
+    return result;
+  });
+  expect(colors.forcedColors).toBe(true);
+  expect(colors.offTrack).toBe(colors.canvas);
+  expect(colors.offThumb).toBe(colors.canvasText);
   await toggle.check();
   await expect(toggle).toBeChecked();
+  await expect(track).toHaveCSS("background-color", colors.highlight);
+  await expect(thumb).toHaveCSS("background-color", colors.highlightText);
   await expect
     .poll(() =>
       thumb.evaluate(
