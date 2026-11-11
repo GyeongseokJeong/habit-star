@@ -112,6 +112,113 @@ test("templates are keyboard accessible in dark mode", async ({ page }) => {
   );
 });
 
+test("settings and reflection preserve each other's fields offline", async ({
+  page,
+  context,
+}) => {
+  await page.setViewportSize({ width: 320, height: 740 });
+  await page.goto("/");
+  await expect(
+    page.getByRole("button", { name: "새 습관 추가", exact: true }),
+  ).toBeEnabled();
+  await context.setOffline(true);
+  await page.getByRole("button", { name: "새 습관 추가", exact: true }).click();
+  const create = page.getByRole("dialog", { name: "나를 위한 새로운 습관" });
+  await create.getByPlaceholder("예: 하루 10분 책 읽기").fill("분리 기록");
+  await create.getByLabel("예정 시간").fill("08:00");
+  await create.getByRole("button", { name: "새 습관 추가하기" }).click();
+  const card = page
+    .locator(".habit-card")
+    .filter({ has: page.getByRole("heading", { name: "분리 기록" }) });
+  await card.getByRole("button", { name: "분리 기록 2점" }).click();
+  await expect(
+    card.getByRole("button", { name: "분리 기록 2점" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await card.getByRole("heading", { name: "분리 기록" }).click();
+  let detail = page.getByRole("dialog", { name: "오늘의 실천 기록" });
+  await expect(detail.getByLabel("예정 시간")).toHaveCount(0);
+  await expect(detail.getByRole("switch", { name: "루틴 알림" })).toHaveCount(
+    0,
+  );
+  for (const rating of [1, 2, 3, 4, 5, 4]) {
+    await detail.getByRole("button", { name: `상세 ${rating}점` }).click();
+    await expect(
+      detail.getByRole("button", { name: `상세 ${rating}점` }),
+    ).toHaveAttribute("aria-pressed", "true");
+  }
+  await detail
+    .getByRole("textbox", { name: "나에게 남기는 한 줄" })
+    .fill("오늘의 뿌듯함");
+  await detail.getByRole("button", { name: "+ 뿌듯함" }).click();
+  await expect(
+    detail.getByRole("textbox", { name: "나에게 남기는 한 줄" }),
+  ).toHaveValue("오늘의 뿌듯함 · 뿌듯함");
+  await detail.getByRole("button", { name: "별점 저장" }).click();
+  await expect(
+    card.getByRole("button", { name: "분리 기록 4점" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await card.getByRole("button", { name: "분리 기록 수정" }).click();
+  let edit = page.getByRole("dialog", { name: "습관 수정하기" });
+  await expect(edit.getByText("오늘의 별점")).toHaveCount(0);
+  await expect(edit.getByText("짧은 기록")).toHaveCount(0);
+  await edit.getByPlaceholder("예: 하루 10분 책 읽기").fill("분리 기록 수정");
+  await edit.getByRole("button", { name: "🌱 아이콘" }).click();
+  await edit.getByRole("button", { name: "낮", exact: true }).click();
+  await edit.getByRole("button", { name: "평일", exact: true }).click();
+  await edit.getByLabel("예정 시간").fill("13:30");
+  await edit.getByRole("switch", { name: "루틴 알림" }).click();
+  await edit.getByRole("button", { name: "수정 완료" }).click();
+  const updated = page
+    .locator(".habit-card")
+    .filter({ has: page.getByRole("heading", { name: "분리 기록 수정" }) });
+  await expect(
+    updated.getByRole("button", { name: "분리 기록 수정 4점" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(updated).toContainText("오늘의 뿌듯함");
+  await updated.getByRole("heading", { name: "분리 기록 수정" }).click();
+  detail = page.getByRole("dialog", { name: "오늘의 실천 기록" });
+  await expect(
+    detail.getByRole("textbox", { name: "나에게 남기는 한 줄" }),
+  ).toHaveValue("오늘의 뿌듯함 · 뿌듯함");
+  await detail
+    .getByRole("textbox", { name: "나에게 남기는 한 줄" })
+    .fill("오늘의 뿌듯함 수정");
+  await detail.getByRole("button", { name: "상세 4점" }).click();
+  await expect(
+    detail.getByRole("button", { name: "상세 4점" }),
+  ).toHaveAttribute("aria-pressed", "false");
+  await detail.getByRole("button", { name: "단순 체크만 하기" }).click();
+  await expect(updated).toContainText("실천 완료");
+  await expect(
+    updated.getByRole("button", { name: "분리 기록 수정 4점" }),
+  ).toHaveAttribute("aria-pressed", "false");
+  await context.setOffline(false);
+  await page.reload();
+  const persisted = page
+    .locator(".habit-card")
+    .filter({ has: page.getByRole("heading", { name: "분리 기록 수정" }) });
+  await expect(persisted).toContainText("오늘의 뿌듯함 수정");
+  await expect(persisted).toContainText("13:30");
+  await expect(persisted).toContainText("실천 완료");
+  await persisted.getByRole("button", { name: "분리 기록 수정 수정" }).click();
+  edit = page.getByRole("dialog", { name: "습관 수정하기" });
+  await expect(edit.getByRole("switch", { name: "루틴 알림" })).toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
+  await expect(
+    edit.getByRole("button", { name: "평일", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(edit.getByRole("button", { name: "🌱 아이콘" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(
+    edit.getByRole("button", { name: "낮", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(edit.getByLabel("예정 시간")).toHaveValue("13:30");
+});
+
 test("direct entry remains available without selecting a template", async ({
   page,
 }) => {

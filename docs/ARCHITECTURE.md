@@ -2,6 +2,10 @@
 
 Next.js 16 App Router + React 19 + TypeScript. `app/page.tsx`에서 클라이언트 `components/byeolharu.tsx` 화면을 제공하고 `lib/habits/use-habit-app.ts`가 화면의 상태와 기록 동작을 연결한다. `lib/habits/domain.ts`가 Habit·날짜·Entity·Operation 모델을 정의한다. 앱의 클라우드 기능은 `NEXT_PUBLIC_CLOUD_ENABLED`로 기본 비활성이다.
 
+## 습관 설정과 날짜별 기록
+
+Habit Configuration은 `title`, `icon`, `timeGroup`, `repeatDays`, `scheduledTime`, `alarmEnabled`만, Daily Reflection은 해당 날짜의 `rating`, `completed`, `memo`만 변경한다. 카드의 빠른 별점은 기록 경로를, 알림 버튼은 설정 경로를 사용한다. 저장 시 화면의 전체 Habit을 병합하지 않고 허용 필드만 반영한다. 기존 Habit 모델과 `habit_entries` 날짜별 스냅샷은 유지하며, 설정 변경은 오늘의 기록을 보존하고 과거 스냅샷은 수정하지 않는다. 단순 체크(`completed: true`, `rating: 0`)는 미실천과 다르다. 새 기능에서도 두 화면의 책임을 혼합하지 않는다.
+
 ## 저장·인증·동기화
 
 - `lib/habits/repository.ts`: IndexedDB `byeolharu-v2`의 `scopes`(비회원/회원별 로컬 상태)와 `backups`를 사용한다. 상태·Outbox를 트랜잭션으로 보존하고 BroadcastChannel로 탭 간 갱신을 알린다. `lib/habits/migration.ts`는 v1 localStorage 원문을 먼저 백업하고 유효 행을 변환한다. 샘플 습관은 신규 비회원 공간 초기 화면용이며 실제 계정/기록 데이터가 아니다.

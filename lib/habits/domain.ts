@@ -11,6 +11,41 @@ export type Habit = {
   rating: number;
   memo: string;
 };
+export type HabitSettingsPatch = Pick<
+  Habit,
+  | "title"
+  | "icon"
+  | "timeGroup"
+  | "repeatDays"
+  | "scheduledTime"
+  | "alarmEnabled"
+>;
+export type DailyRecordPatch = Pick<Habit, "rating" | "completed" | "memo">;
+
+export function applyHabitSettings(
+  habit: Habit,
+  patch: HabitSettingsPatch,
+): Habit {
+  return {
+    ...habit,
+    title: patch.title,
+    icon: patch.icon,
+    timeGroup: patch.timeGroup,
+    repeatDays: patch.repeatDays,
+    scheduledTime: patch.scheduledTime,
+    alarmEnabled: patch.alarmEnabled,
+  };
+}
+
+export function applyDailyRecord(habit: Habit, patch: DailyRecordPatch): Habit {
+  return {
+    ...habit,
+    rating: patch.rating,
+    completed: patch.completed,
+    memo: patch.memo,
+  };
+}
+
 export type History = Record<string, Habit[]>;
 export type Kind = "habits" | "habit_entries" | "days";
 export type Payload = Record<string, unknown>;

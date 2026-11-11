@@ -399,15 +399,23 @@ for (const theme of ["light", "dark"] as const) {
       await page
         .getByRole("heading", { name: `알림 스위치 ${theme} ${width}` })
         .click();
-      const detailSwitch = page
-        .getByRole("dialog", { name: "오늘의 실천 기록" })
-        .getByRole("switch", { name: "루틴 알림" });
-      await expect(detailSwitch).toHaveAttribute("aria-checked", "true");
+      const detail = page.getByRole("dialog", { name: "오늘의 실천 기록" });
       await expect(
-        page.locator("dialog .reminder-switch .reminder-switch-thumb"),
-      ).toBeVisible();
-      await detailSwitch.click();
-      await expect(detailSwitch).toHaveAttribute("aria-checked", "false");
+        detail.getByRole("switch", { name: "루틴 알림" }),
+      ).toHaveCount(0);
+      await expect(detail.getByLabel("예정 시간")).toHaveCount(0);
+      await detail.getByRole("button", { name: "닫기" }).click();
+      await page
+        .getByRole("button", {
+          name: `알림 스위치 ${theme} ${width} 수정`,
+          exact: true,
+        })
+        .click();
+      await expect(
+        page
+          .getByRole("dialog", { name: "습관 수정하기" })
+          .getByRole("switch", { name: "루틴 알림" }),
+      ).toHaveAttribute("aria-checked", "true");
     });
   }
 }

@@ -6,6 +6,8 @@ import {
   type Habit,
   type Entity,
   type Operation,
+  applyHabitSettings,
+  applyDailyRecord,
 } from "../lib/habits/domain";
 import {
   acknowledge,
@@ -120,6 +122,77 @@ it("keeps earlier practice untouched when today's repeat days change and queues 
     "habits",
     "habit_entries",
   ]);
+  r.close();
+});
+it("persists configuration and daily record separately without changing past snapshots", async () => {
+  const r = await guest();
+  const h = sample();
+  await r.create(h);
+  const today = (await r.load()).day;
+  const yesterday = dateKey(new Date(Date.now() - 86400000));
+  const pastKey = entityKey("habit_entries", h.id, yesterday);
+  await r.mutate((s) => {
+    s.entities[pastKey] = {
+      ...structuredClone(s.entities[entityKey("habit_entries", h.id, today)]),
+      key: pastKey,
+      day: yesterday,
+      data: {
+        ...s.entities[entityKey("habit_entries", h.id, today)].data,
+        rating: 5,
+        completed: true,
+        memo: "어제",
+      },
+    };
+  });
+  const pastBefore = structuredClone((await r.state()).entities[pastKey]);
+  await r.changeHabits((rows) =>
+    rows.map((item) =>
+      applyDailyRecord(item, {
+        rating: 0,
+        completed: true,
+        memo: "오늘",
+      }),
+    ),
+  );
+  await r.changeHabits((rows) =>
+    rows.map((item) =>
+      applyHabitSettings(item, {
+        title: "새 이름",
+        icon: "🌱",
+        timeGroup: "morning",
+        repeatDays: [1, 3],
+        scheduledTime: "08:30",
+        alarmEnabled: true,
+      }),
+    ),
+  );
+  let snapshot = await r.load();
+  expect(snapshot.habits[0]).toMatchObject({
+    title: "새 이름",
+    rating: 0,
+    completed: true,
+    memo: "오늘",
+  });
+  expect(snapshot.state.entities[pastKey]).toEqual(pastBefore);
+  await r.changeHabits((rows) =>
+    rows.map((item) =>
+      applyDailyRecord(item, {
+        rating: 3,
+        completed: true,
+        memo: "수정한 오늘",
+      }),
+    ),
+  );
+  snapshot = await r.load();
+  expect(snapshot.habits[0]).toMatchObject({
+    title: "새 이름",
+    icon: "🌱",
+    scheduledTime: "08:30",
+    alarmEnabled: true,
+    rating: 3,
+    memo: "수정한 오늘",
+  });
+  expect(snapshot.state.entities[pastKey]).toEqual(pastBefore);
   r.close();
 });
 it("aborts all writes when a transaction fails", async () => {

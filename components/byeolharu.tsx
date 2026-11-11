@@ -37,8 +37,12 @@ import {
 
 import {
   type Habit,
+  type HabitSettingsPatch,
+  type DailyRecordPatch,
   type TimeGroup,
   type History,
+  applyHabitSettings,
+  applyDailyRecord,
   dateKey,
   isScheduled,
   stats,
@@ -298,34 +302,25 @@ function ReminderToggle({
 function HabitEditor({
   habit,
   defaultGroup,
-  today,
   onSave,
   onDelete,
   onClose,
 }: {
   habit?: Habit;
   defaultGroup: TimeGroup;
-  today: string;
-  onSave: (draft: Omit<Habit, "id">) => void;
+  onSave: (draft: HabitSettingsPatch) => void;
   onDelete?: () => void;
   onClose: () => void;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [draft, setDraft] = useState<Omit<Habit, "id">>(() =>
-    habit
-      ? { ...habit }
-      : {
-          title: "",
-          icon: "🌱",
-          timeGroup: defaultGroup,
-          scheduledTime: "",
-          repeatDays: [...WEEKDAYS],
-          alarmEnabled: false,
-          completed: false,
-          rating: 0,
-          memo: "",
-        },
-  );
+  const [draft, setDraft] = useState<HabitSettingsPatch>(() => ({
+    title: habit?.title ?? "",
+    icon: habit?.icon ?? "🌱",
+    timeGroup: habit?.timeGroup ?? defaultGroup,
+    scheduledTime: habit?.scheduledTime,
+    repeatDays: habit?.repeatDays ?? [...WEEKDAYS],
+    alarmEnabled: habit?.alarmEnabled ?? false,
+  }));
   return (
     <Modal
       title={habit ? "습관 수정하기" : "나를 위한 새로운 습관"}
@@ -339,9 +334,12 @@ function HabitEditor({
           event.preventDefault();
           if (draft.title.trim())
             onSave({
-              ...draft,
               title: draft.title.trim(),
+              icon: draft.icon,
+              timeGroup: draft.timeGroup,
+              repeatDays: draft.repeatDays,
               scheduledTime: draft.scheduledTime || undefined,
+              alarmEnabled: draft.alarmEnabled,
             });
         }}
       >
@@ -507,35 +505,6 @@ function HabitEditor({
             }
           />
         </div>
-        {habit && isScheduled(draft as Habit, today) && (
-          <>
-            <fieldset>
-              <legend>오늘의 별점</legend>
-              <StarRating
-                label="수정"
-                rating={draft.rating}
-                onRate={(rating) =>
-                  setDraft((prev) => ({
-                    ...prev,
-                    rating,
-                    completed: rating > 0,
-                  }))
-                }
-              />
-            </fieldset>
-            <label className="field">
-              짧은 기록
-              <textarea
-                maxLength={500}
-                rows={3}
-                value={draft.memo}
-                onChange={(e) =>
-                  setDraft((prev) => ({ ...prev, memo: e.target.value }))
-                }
-              />
-            </label>
-          </>
-        )}
         <button type="submit" className="primary full">
           <Check size={18} />
           {habit ? "수정 완료" : "새 습관 추가하기"}
@@ -589,10 +558,14 @@ function HabitDetail({
   onClose,
 }: {
   habit: Habit;
-  onSave: (data: Partial<Habit>) => void;
+  onSave: (data: DailyRecordPatch) => void;
   onClose: () => void;
 }) {
-  const [draft, setDraft] = useState(habit);
+  const [draft, setDraft] = useState<DailyRecordPatch>({
+    rating: habit.rating,
+    completed: habit.completed,
+    memo: habit.memo,
+  });
   return (
     <Modal title="오늘의 실천 기록" onClose={onClose}>
       <div className="detail-heading">
@@ -647,24 +620,6 @@ function HabitDetail({
           }
         />
       </label>
-      <div className="form-row">
-        <label className="field">
-          예정 시간
-          <input
-            type="time"
-            value={draft.scheduledTime || ""}
-            onChange={(e) =>
-              setDraft((prev) => ({ ...prev, scheduledTime: e.target.value }))
-            }
-          />
-        </label>
-        <ReminderToggle
-          checked={draft.alarmEnabled}
-          onChange={(alarmEnabled) =>
-            setDraft((prev) => ({ ...prev, alarmEnabled }))
-          }
-        />
-      </div>
       <button
         className="primary full"
         onClick={() =>
@@ -672,8 +627,6 @@ function HabitDetail({
             rating: draft.rating,
             completed: draft.rating > 0,
             memo: draft.memo,
-            scheduledTime: draft.scheduledTime || undefined,
-            alarmEnabled: draft.alarmEnabled,
           })
         }
       >
@@ -687,8 +640,6 @@ function HabitDetail({
             completed: true,
             rating: 0,
             memo: draft.memo,
-            scheduledTime: draft.scheduledTime || undefined,
-            alarmEnabled: draft.alarmEnabled,
           })
         }
       >
@@ -1100,7 +1051,13 @@ export default function Byeolharu() {
         if (activeScope.current !== scope) return;
         await setHabits((prev) =>
           prev.map((item) =>
-            item.id === id ? { ...item, rating, completed: rating > 0 } : item,
+            item.id === id
+              ? applyDailyRecord(item, {
+                  rating,
+                  completed: rating > 0,
+                  memo: item.memo,
+                })
+              : item,
           ),
         );
       });
@@ -1117,12 +1074,16 @@ export default function Byeolharu() {
         setRatingOverrides(next);
       });
   };
-  const handleSave = async (data: Omit<Habit, "id">) => {
+  const handleSave = async (data: HabitSettingsPatch) => {
     if (editing === "new") {
       const newHabit: Habit = {
-        ...data,
         id: uid(),
-        title: data.title.trim(),
+        title: data.title,
+        icon: data.icon,
+        timeGroup: data.timeGroup,
+        repeatDays: data.repeatDays,
+        scheduledTime: data.scheduledTime,
+        alarmEnabled: data.alarmEnabled,
         completed: false,
         rating: 0,
         memo: "",
@@ -1133,7 +1094,7 @@ export default function Byeolharu() {
     } else if (editing) {
       const id = editing.id;
       await setHabits((prev) =>
-        prev.map((h) => (String(h.id) === String(id) ? { ...h, ...data } : h)),
+        prev.map((h) => (h.id === id ? applyHabitSettings(h, data) : h)),
       );
       showToast("✦ 습관이 수정되었습니다!");
     }
@@ -1230,7 +1191,16 @@ export default function Byeolharu() {
         void (async () => {
           await setHabits((prev) =>
             prev.map((h) =>
-              h.id === habit.id ? { ...h, alarmEnabled: !h.alarmEnabled } : h,
+              h.id === habit.id
+                ? applyHabitSettings(h, {
+                    title: h.title,
+                    icon: h.icon,
+                    timeGroup: h.timeGroup,
+                    repeatDays: h.repeatDays,
+                    scheduledTime: h.scheduledTime,
+                    alarmEnabled: !h.alarmEnabled,
+                  })
+                : h,
             ),
           );
           if (!habit.alarmEnabled) {
@@ -1670,7 +1640,6 @@ export default function Byeolharu() {
               ? undefined
               : habits.find((h) => h.id === editing.id)
           }
-          today={today}
           defaultGroup={
             activeTab === "morning" ||
             activeTab === "day" ||
@@ -1699,7 +1668,9 @@ export default function Byeolharu() {
           onSave={(data) => {
             void (async () => {
               await setHabits((prev) =>
-                prev.map((h) => (h.id === detail.id ? { ...h, ...data } : h)),
+                prev.map((h) =>
+                  h.id === detail.id ? applyDailyRecord(h, data) : h,
+                ),
               );
               setDetailId(null);
             })().catch(() => {});
