@@ -13,7 +13,7 @@ export default defineConfig({
   webServer: {
     command: "pnpm dev",
     url: "http://localhost:3000",
-    reuseExistingServer: false,
+    reuseExistingServer: !process.env.CI,
     env: {
       NEXT_PUBLIC_CLOUD_ENABLED: "true",
       NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",

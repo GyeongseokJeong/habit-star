@@ -19,6 +19,10 @@
 - `c5cd8a8`은 두 화면의 스위치를 공통 `ReminderToggle`로 묶고, 숨긴 checkbox와 HTML 트랙/손잡이를 분리했다. `app/globals.css`에서 OFF/ON 색, `color-scheme: only light`, `:focus-visible`, `@media (forced-colors: active)` 스타일을 지정한다. 이 코드가 삼성 인터넷의 강제 다크 변환을 막는다는 증거는 없다.
 - `tests/e2e/starlit-warmth.spec.ts`는 Chromium에서 320/395px, 라이트/다크, OFF/ON 위치·색, 저장 후 상태, 키보드, reduced motion 및 forced-colors를 확인한다. Chromium 테스트나 GitHub CI 통과는 삼성 인터넷 실기기 검증을 대체하지 않는다.
 
+## Habit Experience 2.1 확인 범위
+
+이번 범위에서 현행 공통 `ReminderToggle`의 네이티브 checkbox와 별도 HTML 트랙/손잡이 구조를 재확인했다. 기존 CSS에 새 색상 우회를 더하지 않았다. Chromium의 OFF/ON 이동, 포커스, 저장 상태, forced-colors와 OS/앱 라이트·다크 조합 자동 회귀는 통과했다. 삼성 인터넷 실기기 및 웹페이지 강제 다크 설정은 검증할 수 없었으므로 원인·해결 여부는 여전히 **Deferred / Unresolved**다. 브라우저 캐시나 서비스 워커의 구버전 CSS 적용 가능성 역시 실기기에서 버전/설정을 대조해야 분리할 수 있다.
+
 ## 후속 검증과 완료 기준
 
 1. 문제 기기의 OS/One UI/삼성 인터넷 버전, 브라우저 웹페이지 다크 모드 설정, 앱 테마 및 재현 시각을 기록한다. 가능한 경우 동일 화면의 OFF/ON 스크린샷과 설정 값을 보존한다.
