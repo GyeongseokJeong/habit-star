@@ -1,5 +1,10 @@
 import { test, expect } from "@playwright/test";
 
+test("switch comparison is unavailable in production", async ({ request }) => {
+  const response = await request.get("/diagnostics/switch");
+  expect(response.status()).toBe(404);
+});
+
 test("cloud-disabled mode keeps guest records available and callbacks fail closed", async ({
   page,
   request,
@@ -83,6 +88,44 @@ test("production fonts are self-hosted and the cached shell preserves offline ed
   await expect(
     page.getByRole("button", { name: "오프라인 생산 빌드 4점", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
+  // The pressed state is optimistic; wait for the IndexedDB commit before reloading.
+  await expect
+    .poll(() =>
+      page.evaluate(async () => {
+        const request = indexedDB.open("byeolharu-v2");
+        const db = await new Promise<IDBDatabase>((resolve, reject) => {
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+        try {
+          const read = db
+            .transaction("scopes")
+            .objectStore("scopes")
+            .get("guest");
+          const state = await new Promise<
+            | {
+                entities: Record<
+                  string,
+                  { kind: string; data: { title?: string; rating?: number } }
+                >;
+              }
+            | undefined
+          >((resolve, reject) => {
+            read.onsuccess = () => resolve(read.result);
+            read.onerror = () => reject(read.error);
+          });
+          return Object.values(state?.entities ?? {}).some(
+            (entity) =>
+              entity.kind === "habit_entries" &&
+              entity.data.title === "오프라인 생산 빌드" &&
+              entity.data.rating === 4,
+          );
+        } finally {
+          db.close();
+        }
+      }),
+    )
+    .toBe(true);
   const paintedPixels = await page.evaluate(async () => {
     await document.fonts.load('40px "Byeolharu Color Emoji"', "🌱");
     const canvas = document.createElement("canvas");

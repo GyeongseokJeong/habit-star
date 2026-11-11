@@ -273,22 +273,25 @@ function ReminderToggle({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="alarm-field">
+    <div className="alarm-field">
       <span>
         <Bell size={16} /> 루틴 알림
       </span>
-      <span className="toggle-control">
-        <input
-          type="checkbox"
-          className="toggle-input"
-          checked={checked}
-          onChange={(event) => onChange(event.target.checked)}
-        />
-        <span className="toggle-track" aria-hidden="true">
-          <span className="toggle-thumb" />
+      <button
+        type="button"
+        role="switch"
+        aria-label="루틴 알림"
+        aria-checked={checked}
+        className={`reminder-switch${checked ? " is-on" : ""}`}
+        onClick={() => onChange(!checked)}
+      >
+        <span className="reminder-switch-thumb" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <circle cx="12" cy="12" r="12" fill="currentColor" />
+          </svg>
         </span>
-      </span>
-    </label>
+      </button>
+    </div>
   );
 }
 
