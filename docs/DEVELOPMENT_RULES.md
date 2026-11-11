@@ -11,6 +11,12 @@ Analyze(코드·호출 경로·영향 확인) → Design(철학·기존 UI·데�
 | 데이터/인증/동기화 | 위 검사 + `pnpm test:db --postgres`                       | 실제 로컬 Supabase 환경에서 `pnpm test:db`, `pnpm test:e2e:cloud`; 기존 데이터·오프라인·계정 격리 |
 | 배포               | `pnpm build`, `pnpm test:e2e:production`, CI verify/cloud | 운영 백업·복구·PWA·환경변수 확인, 기존 v0.app Publish 유지                                        |
 
+## 브라우저 호환성 증거 절차
+
+호환성 문제는 **Unresolved → Reproduced → Root Cause Confirmed → Fixed → Device Verified → Closed** 순으로 관리한다. Deferred는 해결 상태가 아니라 작업 우선순위 표시다. 각 단계는 기기·OS/브라우저 버전과 강제 다크 설정·앱 테마, 재현 증거, 이전 수정 이력, 코드/브라우저 원인 비교, 수정 커밋과 회귀 테스트, 해당 실기기의 수정 후 결과를 근거로 전환한다. 원인 가설만으로 Root Cause Confirmed/Fixed/Closed로 옮기지 않는다. 실기기를 구할 수 없다면 Device Verified/Closed로 옮기지 않는다.
+
+**Evidence Before CSS Changes:** 재현 환경을 식별하고 앱 CSS와 브라우저 렌더링 원인을 구분한 뒤 이전 시도를 확인한다. 근거 없이 동일 문제에 CSS 우회를 누적하지 않는다. 변경 시 Chrome 등 정상 브라우저의 기존 UI 회귀를 검증하고 결과/미확인 조건을 [호환성 TODO](COMPATIBILITY_TODO.md)에 기록한다. 삼성 인터넷 스위치 건은 현재 Deferred / Unresolved이며 해결 완료로 취급하지 않는다.
+
 `pnpm test:db --postgres`는 Docker/테스트 PostgreSQL이 필요하며 Auth HTTP 서버를 대체 검사하지 않는다. `pnpm test:db`와 `pnpm test:e2e:cloud`는 로컬 Supabase 스택이 실행 중이어야 한다. `pnpm test:e2e`/`pnpm test:e2e:production`은 Chromium 설치가 필요하며 설정된 개발/프로덕션 웹 서버를 사용한다. 실행 불가 환경은 통과로 표시하지 말고 원인을 기록한다. 기존 CI 결과는 기준선 SHA·실패 단계로 구분한다. DB 변경은 운영 마이그레이션 재실행·초기화 없이 새 파일을 순차 추가하고, 백업·복구 전략을 리뷰한 다음에만 별도 적용한다. 프로덕션 데이터와 운영 환경변수는 테스트 대상으로 사용하지 않는다.
 
 ## 시나리오로 스킬 선택 검증 (절차 예시; 기능 구현·마이그레이션 실행 아님)
