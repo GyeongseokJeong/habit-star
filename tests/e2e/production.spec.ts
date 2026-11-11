@@ -1,5 +1,10 @@
 import { test, expect } from "@playwright/test";
 
+test("switch comparison is unavailable in production", async ({ request }) => {
+  const response = await request.get("/diagnostics/switch");
+  expect(response.status()).toBe(404);
+});
+
 test("cloud-disabled mode keeps guest records available and callbacks fail closed", async ({
   page,
   request,
