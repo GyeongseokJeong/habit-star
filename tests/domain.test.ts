@@ -7,6 +7,10 @@ import {
   isHabit,
   isScheduled,
   definition,
+  applyHabitSettings,
+  applyDailyRecord,
+  type HabitSettingsPatch,
+  type DailyRecordPatch,
 } from "../lib/habits/domain";
 import { migrateLegacy, captureLegacy } from "../lib/habits/migration";
 const h = {
@@ -30,6 +34,55 @@ const raw = (overrides: Record<string, string | null> = {}) => ({
     ...overrides,
   },
 });
+describe("screen write boundaries", () => {
+  it("changes only configuration even when a caller supplies daily fields", () => {
+    const settings = {
+      title: "새 이름",
+      icon: "🌱",
+      timeGroup: "day" as const,
+      repeatDays: [1, 3],
+      scheduledTime: "13:00",
+      alarmEnabled: true,
+      rating: 1,
+      completed: false,
+      memo: "덮어쓰기",
+    };
+    expect(
+      applyHabitSettings(
+        { ...h, repeatDays: undefined },
+        settings as HabitSettingsPatch,
+      ),
+    ).toEqual({
+      ...h,
+      title: "새 이름",
+      icon: "🌱",
+      timeGroup: "day",
+      repeatDays: [1, 3],
+      scheduledTime: "13:00",
+      alarmEnabled: true,
+    });
+  });
+  it("changes only today's record and keeps simple completion distinct", () => {
+    const settings = { ...h, repeatDays: [1, 2], scheduledTime: "07:00" };
+    const record = {
+      rating: 0,
+      completed: true,
+      memo: "단순 체크",
+      title: "덮어쓰기",
+      alarmEnabled: true,
+    };
+    expect(applyDailyRecord(settings, record as DailyRecordPatch)).toEqual({
+      ...settings,
+      rating: 0,
+      completed: true,
+      memo: "단순 체크",
+    });
+    expect(
+      stats([applyDailyRecord(settings, record as DailyRecordPatch)]).rate,
+    ).toBe(100);
+  });
+});
+
 describe("legacy preservation", () => {
   it("preserves checked-without-rating and old day snapshots", () => {
     const b = raw(),
