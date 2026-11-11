@@ -285,7 +285,11 @@ function ReminderToggle({
         className={`reminder-switch${checked ? " is-on" : ""}`}
         onClick={() => onChange(!checked)}
       >
-        <span className="reminder-switch-thumb" aria-hidden="true" />
+        <span className="reminder-switch-thumb" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <circle cx="12" cy="12" r="12" fill="currentColor" />
+          </svg>
+        </span>
       </button>
     </div>
   );

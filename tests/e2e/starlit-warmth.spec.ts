@@ -138,7 +138,7 @@ test("reminder switch remains visible in forced colors", async ({ page }) => {
     const result = {
       forcedColors: matchMedia("(forced-colors: active)").matches,
       offTrack: getComputedStyle(element).backgroundColor,
-      offThumb: getComputedStyle(thumb).backgroundColor,
+      offThumb: getComputedStyle(thumb.querySelector("circle")!).fill,
       canvas: systemColor("Canvas"),
       canvasText: systemColor("CanvasText"),
       highlight: systemColor("Highlight"),
@@ -153,7 +153,7 @@ test("reminder switch remains visible in forced colors", async ({ page }) => {
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-checked", "true");
   await expect(track).toHaveCSS("background-color", colors.highlight);
-  await expect(thumb).toHaveCSS("background-color", colors.highlightText);
+  await expect(thumb.locator("circle")).toHaveCSS("fill", colors.highlightText);
   await expect
     .poll(() =>
       thumb.evaluate(
@@ -286,6 +286,7 @@ for (const theme of ["light", "dark"] as const) {
               thumb.left,
               thumb.top,
               thumb.backgroundColor,
+              getComputedStyle(thumbElement.querySelector("circle")!).fill,
             ],
             travel: new DOMMatrixReadOnly(thumb.transform).m41,
             thumbOffset: [thumbBox.left - box.left, thumbBox.top - box.top],
@@ -311,6 +312,7 @@ for (const theme of ["light", "dark"] as const) {
         "24px",
         "4px",
         "4px",
+        "rgba(0, 0, 0, 0)",
         "rgb(255, 255, 255)",
       ]);
       expect(off.travel).toBe(0);
@@ -322,6 +324,7 @@ for (const theme of ["light", "dark"] as const) {
       await expect(switchInput).toHaveAttribute("aria-checked", "true");
       await expect.poll(async () => (await geometry()).travel).toBe(24);
       expect((await geometry()).thumbOffset).toEqual([28, 10]);
+      expect((await geometry()).thumb[5]).toBe("rgb(255, 255, 255)");
       expect((await geometry()).clip).toBe("padding-box");
       expect((await geometry()).border).toBe("6px");
       expect((await geometry()).track[2]).toBe(
