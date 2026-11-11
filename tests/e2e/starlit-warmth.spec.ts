@@ -268,9 +268,9 @@ for (const theme of ["light", "dark"] as const) {
         switchInput.evaluate((button) => {
           const box = button.getBoundingClientRect();
           const track = getComputedStyle(button);
-          const thumb = getComputedStyle(
-            button.querySelector(".reminder-switch-thumb")!,
-          );
+          const thumbElement = button.querySelector(".reminder-switch-thumb")!;
+          const thumb = getComputedStyle(thumbElement);
+          const thumbBox = thumbElement.getBoundingClientRect();
           return {
             checked: button.getAttribute("aria-checked"),
             target: [box.width, box.height],
@@ -288,6 +288,7 @@ for (const theme of ["light", "dark"] as const) {
               thumb.backgroundColor,
             ],
             travel: new DOMMatrixReadOnly(thumb.transform).m41,
+            thumbOffset: [thumbBox.left - box.left, thumbBox.top - box.top],
             duration: thumb.transitionDuration,
             overflow: document.documentElement.scrollWidth > innerWidth,
           };
@@ -309,16 +310,18 @@ for (const theme of ["light", "dark"] as const) {
         "24px",
         "24px",
         "4px",
-        "10px",
+        "4px",
         "rgb(255, 255, 255)",
       ]);
       expect(off.travel).toBe(0);
+      expect(off.thumbOffset).toEqual([4, 10]);
       expect(off.duration).toBe("0.18s");
       expect(off.overflow).toBe(false);
 
       await switchInput.click();
       await expect(switchInput).toHaveAttribute("aria-checked", "true");
       await expect.poll(async () => (await geometry()).travel).toBe(24);
+      expect((await geometry()).thumbOffset).toEqual([28, 10]);
       expect((await geometry()).clip).toBe("padding-box");
       expect((await geometry()).border).toBe("6px");
       expect((await geometry()).track[2]).toBe(
