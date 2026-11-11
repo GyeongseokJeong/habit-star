@@ -100,6 +100,15 @@ const REPEAT_PRESETS = [
   { label: "평일", days: WEEKDAYS.slice(0, 5) },
   { label: "주말", days: WEEKDAYS.slice(5) },
 ];
+const HABIT_TEMPLATES: { title: string; icon: string; timeGroup: TimeGroup }[] =
+  [
+    { title: "독서 20분", icon: "📚", timeGroup: "night" },
+    { title: "가벼운 운동", icon: "🏃", timeGroup: "morning" },
+    { title: "물 마시기", icon: "💧", timeGroup: "morning" },
+    { title: "스트레칭", icon: "🧘", timeGroup: "night" },
+    { title: "일찍 잠들기", icon: "🌙", timeGroup: "night" },
+    { title: "하루 기록하기", icon: "✍️", timeGroup: "night" },
+  ];
 const uid = () => crypto.randomUUID();
 const timeGroup = (date: Date): TimeGroup =>
   date.getHours() >= 5 && date.getHours() < 11
@@ -163,11 +172,13 @@ const initialHabits = (): Habit[] =>
 export function StarRating({
   rating,
   onRate,
+  onSelect,
   label,
   large = false,
 }: {
   rating: number;
-  onRate: (rating: number) => void;
+  onRate?: (rating: number) => void;
+  onSelect?: (value: number) => void;
   label: string;
   large?: boolean;
 }) {
@@ -190,7 +201,8 @@ export function StarRating({
           onBlur={() => setHover(0)}
           onClick={(event) => {
             event.stopPropagation();
-            onRate(rating === value ? 0 : value);
+            if (onSelect) onSelect(value);
+            else onRate?.(rating === value ? 0 : value);
           }}
           className={(hover || rating) >= value ? "star filled" : "star"}
         >
@@ -330,6 +342,40 @@ function HabitEditor({
             });
         }}
       >
+        {!habit && (
+          <fieldset className="template-field">
+            <legend>바로 시작하기</legend>
+            <div className="template-picker">
+              {HABIT_TEMPLATES.map((template) => (
+                <button
+                  type="button"
+                  key={template.title}
+                  aria-label={`${template.title} 템플릿`}
+                  aria-pressed={
+                    draft.title === template.title &&
+                    draft.icon === template.icon &&
+                    draft.timeGroup === template.timeGroup &&
+                    WEEKDAYS.every((day) =>
+                      (draft.repeatDays ?? WEEKDAYS).includes(day),
+                    )
+                  }
+                  onClick={() =>
+                    setDraft((prev) => ({
+                      ...prev,
+                      title: template.title,
+                      icon: template.icon,
+                      timeGroup: template.timeGroup,
+                      repeatDays: [...WEEKDAYS],
+                    }))
+                  }
+                >
+                  <span aria-hidden="true">{template.icon}</span>
+                  {template.title}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        )}
         <fieldset>
           <legend>습관 아이콘</legend>
           <div className="emoji-picker">
@@ -704,7 +750,7 @@ function HabitCard({
         <StarRating
           label={habit.title}
           rating={habit.rating}
-          onRate={(rating) => onRate(habit.id, rating)}
+          onSelect={(value) => onRate(habit.id, value)}
         />
         <span className="rating-number">
           {habit.rating ? (
@@ -869,6 +915,21 @@ export default function Byeolharu() {
   const [installEvent, setInstallEvent] = useState<InstallEvent | null>(null);
   const [testPending, setTestPending] = useState(false);
   const [storageWarning, setStorageWarning] = useState(false);
+  const [ratingOverrides, setRatingOverrides] = useState<
+    Map<string, { rating: number; scope: string; day: string }>
+  >(new Map());
+  const ratingOverridesRef = useRef(ratingOverrides);
+  const [heldCompletion, setHeldCompletion] = useState<Map<string, boolean>>(
+    new Map(),
+  );
+  const heldCompletionRef = useRef(heldCompletion);
+  const ratingWrites = useRef(new Map<string, Promise<void>>());
+  const reorderTimers = useRef(
+    new Map<string, ReturnType<typeof setTimeout>>(),
+  );
+  const scope = app.user?.id ?? "guest";
+  const activeScope = useRef(scope);
+  activeScope.current = scope;
   const audio = useRef<AudioContext | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const testTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -909,6 +970,8 @@ export default function Byeolharu() {
       window.removeEventListener("beforeinstallprompt", install);
       if (toastTimer.current) clearTimeout(toastTimer.current);
       if (testTimer.current) clearTimeout(testTimer.current);
+      for (const timer of reorderTimers.current.values()) clearTimeout(timer);
+      reorderTimers.current.clear();
       void audio.current?.close();
     };
   }, []);
@@ -992,15 +1055,64 @@ export default function Byeolharu() {
     }
   }, [now, habits, ready, chime]);
 
-  const handleRateHabit = async (id: string, rating: number) => {
-    await setHabits((prev) =>
-      prev.map((h) =>
-        String(h.id) === String(id)
-          ? { ...h, rating, completed: rating > 0 }
-          : h,
-      ),
+  const handleRateHabit = (id: string, value: number) => {
+    const habit = habits.find((item) => item.id === id);
+    const day = app.snapshot?.day;
+    if (!habit || !day) return;
+    const previous = ratingOverridesRef.current.get(id);
+    const current =
+      previous?.scope === scope && previous.day === day
+        ? previous.rating
+        : habit.rating;
+    const rating = current === value ? 0 : value;
+    const override = { rating, scope, day };
+    const nextOverrides = new Map(ratingOverridesRef.current);
+    nextOverrides.set(id, override);
+    ratingOverridesRef.current = nextOverrides;
+    setRatingOverrides(nextOverrides);
+
+    if (!heldCompletionRef.current.has(id)) {
+      const nextHeld = new Map(heldCompletionRef.current);
+      nextHeld.set(id, habit.completed);
+      heldCompletionRef.current = nextHeld;
+      setHeldCompletion(nextHeld);
+    }
+    const priorTimer = reorderTimers.current.get(id);
+    if (priorTimer) clearTimeout(priorTimer);
+    reorderTimers.current.set(
+      id,
+      setTimeout(() => {
+        const nextHeld = new Map(heldCompletionRef.current);
+        nextHeld.delete(id);
+        heldCompletionRef.current = nextHeld;
+        setHeldCompletion(nextHeld);
+        reorderTimers.current.delete(id);
+      }, 700),
     );
-    showToast(rating ? `✦ ${rating}★ 기록 완료!` : "별점 기록을 취소했어요.");
+
+    const previousWrite = ratingWrites.current.get(id) ?? Promise.resolve();
+    const write = previousWrite
+      .catch(() => {})
+      .then(async () => {
+        if (activeScope.current !== scope) return;
+        await setHabits((prev) =>
+          prev.map((item) =>
+            item.id === id ? { ...item, rating, completed: rating > 0 } : item,
+          ),
+        );
+      });
+    ratingWrites.current.set(id, write);
+    void write
+      .catch(() => {})
+      .finally(() => {
+        if (ratingWrites.current.get(id) !== write) return;
+        ratingWrites.current.delete(id);
+        if (ratingOverridesRef.current.get(id) !== override) return;
+        const next = new Map(ratingOverridesRef.current);
+        next.delete(id);
+        ratingOverridesRef.current = next;
+        setRatingOverrides(next);
+      });
   };
   const handleSave = async (data: Omit<Habit, "id">) => {
     if (editing === "new") {
@@ -1032,14 +1144,23 @@ export default function Byeolharu() {
     showToast("습관이 삭제되었습니다.");
   };
   const today = app.snapshot?.day ?? "";
+  const visibleHabits = habits.map((habit) => {
+    const override = ratingOverrides.get(habit.id);
+    return override?.scope === scope && override.day === today
+      ? { ...habit, rating: override.rating, completed: override.rating > 0 }
+      : habit;
+  });
   const scheduledHabits = today
-    ? habits.filter((h) => isScheduled(h, today))
+    ? visibleHabits.filter((h) => isScheduled(h, today))
     : [];
   const restingHabits = today
-    ? habits.filter((h) => !isScheduled(h, today))
+    ? visibleHabits.filter((h) => !isScheduled(h, today))
     : [];
-  const summary = stats(habits, today);
-  const allHistory = { ...history, ...(today ? { [today]: habits } : {}) };
+  const summary = stats(visibleHabits, today);
+  const allHistory = {
+    ...history,
+    ...(today ? { [today]: visibleHabits } : {}),
+  };
   const displayNow =
     now && app.user
       ? new Date(
@@ -1049,7 +1170,7 @@ export default function Byeolharu() {
         )
       : now;
   const group = displayNow ? timeGroup(displayNow) : "day";
-  const detail = habits.find((h) => h.id === detailId);
+  const detail = visibleHabits.find((h) => h.id === detailId);
   const filtered = scheduledHabits
     .filter(
       (h) =>
@@ -1057,7 +1178,11 @@ export default function Byeolharu() {
         activeTab === "matrix" ||
         h.timeGroup === activeTab,
     )
-    .sort((a, b) => Number(a.completed) - Number(b.completed));
+    .sort(
+      (a, b) =>
+        Number(heldCompletion.get(a.id) ?? a.completed) -
+        Number(heldCompletion.get(b.id) ?? b.completed),
+    );
   const upcoming =
     activeTab !== "all" && activeTab !== "matrix"
       ? scheduledHabits
@@ -1070,7 +1195,11 @@ export default function Byeolharu() {
                   ? "night"
                   : "morning"),
           )
-          .sort((a, b) => Number(a.completed) - Number(b.completed))
+          .sort(
+            (a, b) =>
+              Number(heldCompletion.get(a.id) ?? a.completed) -
+              Number(heldCompletion.get(b.id) ?? b.completed),
+          )
       : [];
   let streak = 0;
   if (now) {
@@ -1091,9 +1220,7 @@ export default function Byeolharu() {
     <HabitCard
       key={habit.id}
       habit={habit}
-      onRate={(id, rating) => {
-        void handleRateHabit(id, rating).catch(() => {});
-      }}
+      onRate={handleRateHabit}
       onOpen={() => setDetailId(habit.id)}
       onEdit={() => setEditing(habit)}
       onAlarm={() => {
@@ -1572,7 +1699,6 @@ export default function Byeolharu() {
                 prev.map((h) => (h.id === detail.id ? { ...h, ...data } : h)),
               );
               setDetailId(null);
-              showToast("✦ 오늘의 실천이 기록되었습니다!");
             })().catch(() => {});
           }}
         />
