@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "release": "v3.2-art-v1.0",
+  "status": "USER_APPROVED_IMAGE_SOURCES; BINARY_UPLOAD_PENDING",
+  "sourcePackage": "byeolharu-v3.2-approved-art-set-v1.0.zip",
+  "runtimeBaseUrl": "/assets/constellation/v3.2/",
+  "notice": "PNG sources approved. WebP images are optimized derivatives awaiting mobile visual QA. Never replace Stage 5 PNG with visual-match alternate.",
+  "stages": [
+    {
+      "stage": 1,
+      "name": "첫 번째 별빛",
+      "minPoints": 0,
+      "maxPoints": 6,
+      "width": 1024,
+      "height": 1536,
+      "originalPath": "design/constellation-v3-2/approved-art-v1.0/originals/stage-01.png",
+      "originalSha256": "654cc20d0d42bb2a9731e03278d0726cfe6eae0c70c9d8e7b769e43aa8a920d4",
+      "runtimePath": "public/assets/constellation/v3.2/stage-01.webp",
+      "runtimeSha256": "e317a35bf725b3a14d90dff308013c1eebed3c87b0b690cc72824e5173ed0694",
+      "runtimeUrl": "/assets/constellation/v3.2/stage-01.webp"
+    },
+    {
+      "stage": 2,
+      "name": "별이 모이는 밤",
+      "minPoints": 7,
+      "maxPoints": 19,
+      "width": 1024,
+      "height": 1536,
+      "originalPath": "design/constellation-v3-2/approved-art-v1.0/originals/stage-02.png",
+      "originalSha256": "5eaf44c4ee62497deadfb94142506eae42eb933212da4b28e1164900753618aa",
+      "runtimePath": "public/assets/constellation/v3.2/stage-02.webp",
+      "runtimeSha256": "d2758106781a8686404b2b2e8e39b722475e99b7401e51d641cb8b726b8a9066",
+      "runtimeUrl": "/assets/constellation/v3.2/stage-02.webp"
+    },
+    {
+      "stage": 3,
+      "name": "별빛의 연결",
+      "minPoints": 20,
+      "maxPoints": 49,
+      "width": 1024,
+      "height": 1536,
+      "originalPath": "design/constellation-v3-2/approved-art-v1.0/originals/stage-03.png",
+      "originalSha256": "3fcb7360b2148bbb6006547ff902ac4a8ea7d90763c2f44eddac486ccf8d98c6",
+      "runtimePath": "public/assets/constellation/v3.2/stage-03.webp",
+      "runtimeSha256": "875573bd2f44dac715d9779b48490b5f70dd567e0df20fc66ca6216526f8d1a5",
+      "runtimeUrl": "/assets/constellation/v3.2/stage-03.webp"
+    },
+    {
+      "stage": 4,
+      "name": "나의 작은 별자리",
+      "minPoints": 50,
+      "maxPoints": 99,
+      "width": 1024,
+      "height": 1536,
+      "originalPath": "design/constellation-v3-2/approved-art-v1.0/originals/stage-04.png",
+      "originalSha256": "9c3e4a702520755eb8356c666a38068d17af37af884c585c8880ef03ad16c419",
+      "runtimePath": "public/assets/constellation/v3.2/stage-04.webp",
+      "runtimeSha256": "3559aa0e934e3ef8363d5577d527c9c2d1ff6a86fb03fbd042521c3bd5663420",
+      "runtimeUrl": "/assets/constellation/v3.2/stage-04.webp"
+    },
+    {
+      "stage": 5,
+      "name": "찬란한 별자리",
+      "minPoints": 100,
+      "maxPoints": 199,
+      "width": 1024,
+      "height": 1536,
+      "originalPath": "design/constellation-v3-2/approved-art-v1.0/originals/stage-05.png",
+      "originalSha256": "8cb972840af872ff7532d79003fc47c2f97bd5b49c0568cfae61de59c43eff35",
+      "runtimePath": "public/assets/constellation/v3.2/stage-05.png",
+      "runtimeSha256": "8cb972840af872ff7532d79003fc47c2f97bd5b49c0568cfae61de59c43eff35",
+      "runtimeUrl": "/assets/constellation/v3.2/stage-05.png"
+    },
+    {
+      "stage": 6,
+      "name": "빛나는 은하",
+      "minPoints": 200,
+      "maxPoints": null,
+      "width": 1254,
+      "height": 1254,
+      "originalPath": "design/constellation-v3-2/approved-art-v1.0/originals/stage-06.png",
+      "originalSha256": "81c7841fc31802df39738ad324db3bda21a62e389edc39f2cbd833a15b1f47bb",
+      "runtimePath": "public/assets/constellation/v3.2/stage-06.webp",
+      "runtimeSha256": "cf2c9817fc8ab15bbff70126bb130073ad5224fb6c81ccdfbd322dcde45c04e9",
+      "runtimeUrl": "/assets/constellation/v3.2/stage-06.webp"
+    }
+  ]
+}
