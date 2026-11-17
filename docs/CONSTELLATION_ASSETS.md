@@ -31,7 +31,7 @@ The source ZIP paths are `optimized-webp/stage-XX.webp` and `originals/stage-XX.
 2. On GitHub, open the feature branch **`feat/v3-2-approved-art-assets-handoff`**, then open `public/assets/constellation/` → **Add file → Upload files**. Upload all six files from `optimized-webp/`, keeping the exact filenames. Commit to that feature branch, not `main`.
 3. Open or create the `originals/` subdirectory and upload all six PNG files from `originals/`. Commit to the same branch. If GitHub's web upload doesn't preserve a folder path, clone the feature branch locally and copy the directory tree, then commit/push; do not flatten or rename the files.
 4. After files are present in the feature branch, v0.app should use `/assets/constellation/stage-XX.webp` and the exported component `ConstellationArtwork` in `components/constellation-artwork.tsx`. No external hotlinked URLs or private image storage.
-5. Verify successful image requests and visual fit in v0 Preview. In particular, Stage 6 (1254×1254) must not be forced to 2:3 and no SVG/card screenshot is a replacement for the approved images.
+5. Verify successful image requests and visual fit in v0 Preview. In particular, Stage 6 (1024×1536) must not be forced to 2:3 and no SVG/card screenshot is a replacement for the approved images.
 6. Run tests and CI, review changes and merge the PR. Merge/Publish only as an intentional, separate release action.
 
 ## Approval checksum registry
@@ -51,7 +51,7 @@ The **WEBP images are derived previews** of these originals, not independently a
 
 - [ ] 12 exact image files committed to branch (six PNG, six WEBP)
 - [ ] 6 images are actual PNG format (not JPEG content under PNG extension), and SHA-256 values match the registry
-- [ ] Stage 1–5 render in 2:3, Stage 6 in 1:1, without stretch
+- [ ] Stage 1–6 render in 2:3, without stretch
 - [ ] Every WEBP responds successfully; no broken image fallback
 - [ ] Stage 1/2 show no deer, Stage 3 partial deer, Stage 4 complete young deer, Stage 5 mature deer, Stage 6 magnificent final deer
 - [ ] `pnpm typecheck`, `pnpm test`, `pnpm build`, GitHub CI verified
@@ -65,3 +65,14 @@ Old design experiments under `design/constellation-v3-2/svg/` and `layout.protot
 ## Stage 5 format incident fixed (v1.0.1)
 
 The previously packaged `originals/stage-05.png` was internally JPEG (`FF D8 FF`), although its SHA-256 matched the prior registry. This was an error in our packaging and integrity checks, **not** a new visual choice. The corrected image is a true PNG (`89 50 4E 47 0D 0A 1A 0A`) with identical decoded RGB pixels and 1024×1536 dimensions. The corrected Stage 5 checksum is `0e13d38fab74bf530a9f22f6c57c0f116d58033101eae6d2743a5b374af9ad54`. **Never upload the original v1.0 or the old v0-upload-ready ZIP.** Use `byeolharu-v3.2-v0-upload-ready-v1.0.1.zip` or the v1.0.1 complete archive.
+
+## Stage 6 final artwork update (2026-11-18)
+
+The user replaced the previously approved **1254×1254 square Stage 6** with a final **1024×1536 portrait Stage 6**, maintaining the same Stage 1–5 2:3 ratio. These are deliberately distinct approved files; do not stretch the original square version.
+
+Upload the **exact two** files from `byeolharu-v3.2-stage-06-final-2x3.zip` to the existing GitHub paths (replacing previous files):
+
+- `public/assets/constellation/originals/stage-06.png` — 2,741,990 bytes, SHA-256 `72c91f59cbe695b10b2fd28376d21c9ac2eeff09318f6e9b5a45f0b0ea95a80e`
+- `public/assets/constellation/stage-06.webp` — 525,838 bytes, SHA-256 `e6b1b060e6c917a9d0a32bf2613db9090a3361262f2d9d682e21ec6c92a1c6ef`
+
+The change requires the accompanying updated `lib/constellation/art.ts`, `scripts/verify-constellation-assets.mjs`, and tests in the same PR. **Do not merge just the metadata updates before both images have been replaced and verified**. Stages 1–5 remain unchanged. A screenshot or regenerated deer is not an acceptable replacement.
