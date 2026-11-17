@@ -4,9 +4,13 @@ import { Star } from "lucide-react";
 export function StarlitHero({
   completed,
   total,
+  onViewConstellation,
+  stage,
 }: {
   completed: number;
   total: number;
+  onViewConstellation?: () => void;
+  stage?: number;
 }) {
   const progress = total > 0 ? Math.min(1, completed / total) : 0;
   const starStyle = {
@@ -41,6 +45,11 @@ export function StarlitHero({
             {completed} / {total}
           </strong>
         </p>
+        {onViewConstellation && stage !== undefined && (
+          <button type="button" className="constellation-open" onClick={onViewConstellation}>
+            <Star size={16} aria-hidden="true" /> 나의 별자리 <span>STAGE {stage}</span>
+          </button>
+        )}
       </div>
       <span className="starlit-star" style={starStyle} aria-hidden="true">
         <Star fill="currentColor" />
