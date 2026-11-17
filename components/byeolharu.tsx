@@ -50,6 +50,9 @@ import {
 import { useHabitApp } from "@/lib/habits/use-habit-app";
 import { AccountPanel } from "@/components/account/account-panel";
 import { StarlitHero } from "@/components/starlit-hero";
+import { ConstellationGrowthView } from "@/components/constellation-growth-view";
+import { calculateConstellationGrowth } from "@/lib/constellation/growth";
+import { getConstellationStage } from "@/lib/constellation/art";
 export type { Habit, TimeGroup } from "@/lib/habits/domain";
 type Tab = "all" | TimeGroup | "matrix";
 type InstallEvent = Event & {
@@ -855,6 +858,7 @@ export default function Byeolharu() {
   const ready = !!app.snapshot;
   const setHabits = app.setHabits;
   const [accountOpen, setAccountOpen] = useState(false);
+  const [constellationOpen, setConstellationOpen] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [now, setNow] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("all");
@@ -1121,6 +1125,10 @@ export default function Byeolharu() {
     ? visibleHabits.filter((h) => !isScheduled(h, today))
     : [];
   const summary = stats(visibleHabits, today);
+  const growthPoints = app.snapshot
+    ? calculateConstellationGrowth({ ...app.snapshot, habits: visibleHabits }).totalPoints
+    : 0;
+  const growthStage = getConstellationStage(growthPoints).stage;
   const allHistory = {
     ...history,
     ...(today ? { [today]: visibleHabits } : {}),
@@ -1353,6 +1361,8 @@ export default function Byeolharu() {
         <StarlitHero
           completed={summary.completed}
           total={scheduledHabits.length}
+          onViewConstellation={ready ? () => setConstellationOpen(true) : undefined}
+          stage={ready ? growthStage : undefined}
         />
         <section className="metrics" aria-label="오늘의 통계">
           <div className="metric completion-metric">
@@ -1676,6 +1686,11 @@ export default function Byeolharu() {
             })().catch(() => {});
           }}
         />
+      )}
+      {constellationOpen && (
+        <Modal title="나의 별자리" wide onClose={() => setConstellationOpen(false)}>
+          <ConstellationGrowthView points={growthPoints} />
+        </Modal>
       )}
       {accountOpen && (
         <Modal
