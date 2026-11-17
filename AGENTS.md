@@ -1,6 +1,6 @@
 # 별하루 개발 헌장
 
-모든 변경은 **Project Constitution → Agent Skills → Validation → GitHub CI** 순서로 검토한다. 제품 판단은 [제품 철학](docs/PRODUCT_PHILOSOPHY.md), 화면은 [디자인 시스템](docs/DESIGN_SYSTEM.md), 데이터 흐름은 [아키텍처](docs/ARCHITECTURE.md), 검증·배포는 [개발 규칙](docs/DEVELOPMENT_RULES.md)을 따른다. 사용자 기록을 동의 없이 삭제·초기화·이전하지 않는다.
+모든 변경은 **Project Constitution → Agent Skills → Validation → GitHub CI** 순서로 검토한다. 제품 판단은 [제품 철학](docs/PRODUCT_PHILOSOPHY.md), 화면은 [디자인 시스템](docs/DESIGN_SYSTEM.md), 데이터 흐름은 [아키텍처](docs/ARCHITECTURE.md), 검증·배포는 [개발 규칙](docs/DEVELOPMENT_RULES.md)을 따른다. **V3.2 별자리 성장의 확정 정책·아트 합격 기준은 [시그니처 별자리 설계](docs/CONSTELLATION_V3_2.md)를 우선 확인한다.** 사용자 기록을 동의 없이 삭제·초기화·이전하지 않는다.
 
 ## 필요한 스킬만 선택
 
@@ -18,3 +18,7 @@
 먼저 실제 코드와 사용 경로를 확인하고 **Analyze → Design → Implement → Validate → Review**를 수행한다. 작은 변경은 관련 검증만, 데이터 모델·인증·동기화는 강화된 검증을 수행한다. 스킬의 금지 사항과 완료 기준을 확인하고, 실행하지 못한 검증은 그대로 보고한다. 배포/DB 변경은 자동 승인하지 않는다.
 
 Codex는 공식 규격에 따라 저장소의 `.agents/skills/`를 발견하고 설명과 작업이 맞으면 스킬을 선택할 수 있다. 명시 호출은 `$design-guardian`처럼 한다. **v0.app의 저장소 스킬 자동 발견·호출은 검증되지 않았다.** v0 작업에서는 이 파일과 위 표의 `SKILL.md`를 명시적으로 읽으라고 요청한다. 자동화 검사는 파일의 형식·경로만 검증하며 실제 에이전트의 호출을 보증하지 않는다.
+
+## 정책·하네스 갱신 원칙
+
+하네스에 적힌 내용이 이후 **사용자가 확정한 제품 정책** 또는 **검증된 실제 코드 동작**과 충돌하면, 기존 규칙을 무비판적으로 고수하지 않는다. 실제 충돌 근거를 확인하고 관련 기준 문서·스킬·테스트를 함께 수정한 다음 PR로 변경 이유와 영향 범위를 검토한다. 확정 사항과 제안/미확정 사항을 구분하며, 승인되지 않은 범위의 구현·운영 DB 변경·배포를 수반하지 않는다.
