@@ -18,28 +18,30 @@ it("tracks actual completed guest demo records across reload and reversal", asyn
   try {
     await r.initialize();
     const initial = await r.load();
+    // Legacy migration re-identifies seeded demo records with new UUIDs.
+    const seededId = initial.habits[0].id;
     expect(calculateConstellationGrowth(initial).totalPoints).toBe(0);
     expect(initial.state.demoConfirmedDailyEntryKeys).toBeUndefined();
 
     // Editing only display settings must not magically add growth.
-    await r.update(h.id, { title: "새 이름" });
+    await r.update(seededId, { title: "새 이름" });
     expect(calculateConstellationGrowth(await r.load()).totalPoints).toBe(0);
 
-    await r.update(h.id, { rating: 3, completed: true });
+    await r.update(seededId, { rating: 3, completed: true });
     const updated = await r.load();
     expect(updated.state.demoConfirmedDailyEntryKeys).toContain(
-      entityKey("habit_entries", h.id, updated.day),
+      entityKey("habit_entries", seededId, updated.day),
     );
     expect(calculateConstellationGrowth(updated).totalPoints).toBe(1);
 
     // Reverting back to the demo's original rating cannot erase user intent.
-    await r.update(h.id, { rating: 5, completed: true });
+    await r.update(seededId, { rating: 5, completed: true });
     expect(calculateConstellationGrowth(await r.load()).totalPoints).toBe(1);
 
     // Explicitly cancelling the record drops growth, not its audit marker.
-    await r.update(h.id, { rating: 0, completed: false });
+    await r.update(seededId, { rating: 0, completed: false });
     expect(calculateConstellationGrowth(await r.load()).totalPoints).toBe(0);
-    await r.update(h.id, { rating: 0, completed: true });
+    await r.update(seededId, { rating: 0, completed: true });
     expect(calculateConstellationGrowth(await r.load()).totalPoints).toBe(1);
   } finally {
     r.close();
