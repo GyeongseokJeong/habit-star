@@ -3,8 +3,8 @@ import { CONSTELLATION_ART, getConstellationArtByStage, getConstellationStage } 
 
 describe("approved V3.2 constellation visual asset mapping", () => {
   it.each([
-    [0, 1], [6, 1], [7, 2], [19, 2], [20, 3], [49, 3],
-    [50, 4], [99, 4], [100, 5], [199, 5], [200, 6], [201, 6], [9999, 6],
+    [0, 1], [1, 1], [6, 1], [7, 2], [19, 2], [20, 3], [49, 3],
+    [50, 4], [99, 4], [100, 5], [199, 5], [200, 6], [201, 6], [300, 6], [9999, 6],
   ])("maps %i growth points to Stage %i", (points, stage) => {
     expect(getConstellationStage(points).stage).toBe(stage);
   });
