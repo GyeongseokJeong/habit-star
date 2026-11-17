@@ -21,8 +21,8 @@ describe("approved V3.2 constellation visual asset mapping", () => {
       expect(entry.sha256).toMatch(/^[0-9a-f]{64}$/);
       expect(entry.src).toMatch(/^\/assets\/constellation\/stage-0[1-6]\.webp$/);
       expect(entry.original).toMatch(/^\/assets\/constellation\/originals\/stage-0[1-6]\.png$/);
-      expect(entry.width).toBe(entry.stage === 6 ? 1254 : 1024);
-      expect(entry.height).toBe(entry.stage === 6 ? 1254 : 1536);
+      expect(entry.width).toBe(1024);
+      expect(entry.height).toBe(1536);
       expect(getConstellationArtByStage(entry.stage)).toBe(entry);
     }
   });
