@@ -17,7 +17,13 @@ for (const width of [320, 390, 430]) {
     await expect(dialog.getByText("다음 별자리까지")).toContainText("7점");
     const art = dialog.locator("img");
     await expect(art).toBeVisible();
-    await expect.poll(async () => art.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(1024);
+    // Next/Image may deliver a responsive optimized width: verify aspect, not a fixed decoded width.
+    await expect.poll(async () => art.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+    const intrinsicRatio = await art.evaluate((el) => {
+      const image = el as HTMLImageElement;
+      return image.naturalHeight / image.naturalWidth;
+    });
+    expect(intrinsicRatio).toBeCloseTo(1.5, 1);
     const widths = await page.evaluate(() => ({
       body: document.documentElement.scrollWidth,
       viewport: window.innerWidth,
