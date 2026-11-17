@@ -18,7 +18,6 @@ export function ConstellationGrowthView({ points }: { points: number }) {
   return (
     <section className="constellation-growth-view" aria-label="별자리 성장 현황">
       <div className="constellation-card" style={style}>
-        <span className="constellation-finial" aria-hidden="true">✦</span>
         <div className="constellation-card-heading">
           <span className="constellation-stage-mark">STAGE {art.stage}</span>
           <h3 className="constellation-card-title">{art.title}</h3>
@@ -31,7 +30,6 @@ export function ConstellationGrowthView({ points }: { points: number }) {
         />
 
         <p className="constellation-poem">{caption}</p>
-        <span className="constellation-card-foot" aria-hidden="true">✧</span>
       </div>
 
       <div className="constellation-growth-summary">
@@ -57,7 +55,7 @@ export function ConstellationGrowthView({ points }: { points: number }) {
           </>
         ) : (
           <p className="constellation-growth-complete">
-            ✦ 별빛은 앞으로도 조금씩 더 풍성해져요.
+            별빛은 앞으로도 조금씩 더 풍성해져요.
           </p>
         )}
       </div>

@@ -234,12 +234,16 @@ function Modal({
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const dialog = ref.current;
+    const previousFocus = document.activeElement;
     dialog?.showModal();
     const original = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       dialog?.close();
       document.body.style.overflow = original;
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) {
+        previousFocus.focus();
+      }
     };
   }, []);
   return (
