@@ -31,6 +31,8 @@ export type State = {
   importLock?: { owner: string; until: number };
   imported?: string;
   hasUserEdits?: boolean;
+  /** Explicitly confirmed completions of freshly seeded guest demonstration records. */
+  demoConfirmedDailyEntryKeys?: string[];
   recoveryAcknowledged?: boolean;
   importReceipt?: {
     batchId: string;
@@ -173,6 +175,32 @@ export class LocalRepository implements HabitRepository {
     if (!this.member && s.importLock && s.importLock.until > Date.now())
       throw Error("기록 이전 중에는 비회원 기록을 잠시 편집할 수 없어요.");
     if (changes.some((c) => !c.seed)) s.hasUserEdits = true;
+    // The fresh guest introduction includes three pre-completed example habits.
+    // Explicit changes to daily completion/rating must count as real actions,
+    // even if the user later returns the entry to its seeded visual values.
+    // Configuration-only changes do not confirm example practice.
+    const initial = s.migration?.backup.raw;
+    const freshGuestSamples =
+      !this.member &&
+      initial &&
+      ["byeolharu_v1_habits", "byeolharu_v1_history", "byeolharu_v1_day"].every(
+        (key) => initial[key] == null,
+      );
+    if (freshGuestSamples) {
+      const confirmed = new Set(s.demoConfirmedDailyEntryKeys ?? []);
+      for (const change of changes) {
+        if (
+          !change.seed &&
+          change.kind === "habit_entries" &&
+          change.base &&
+          (change.base.data.completed !== change.data.completed ||
+            change.base.data.rating !== change.data.rating)
+        ) {
+          confirmed.add(change.key);
+        }
+      }
+      if (confirmed.size) s.demoConfirmedDailyEntryKeys = [...confirmed];
+    }
     s.localRevision = (s.localRevision ?? 0) + 1;
     s.localSavedAt = new Date().toISOString();
     if (s.sync?.phase === "succeeded") s.sync = { ...s.sync, phase: "waiting" };
