@@ -52,15 +52,16 @@ async function confirm(
 }
 
 async function openRecords(page: Page) {
-  const open = page.getByRole("button", { name: "기록 관리", exact: true });
+  const open = page.getByRole("button", { name: "데이터 관리", exact: true });
   if (await open.isVisible()) await open.click();
 }
 async function openImport(page: Page) {
   await openRecords(page);
-  const advanced = page.getByText("다른 비회원 기록 확인하기");
+  const advanced = page.getByText("고급 데이터 관리", { exact: true });
   const importAction = page.getByRole("button", { name: "이 기기의 비회원 기록 가져오기" });
-  await expect.poll(async () => (await advanced.isVisible()) || (await importAction.isVisible())).toBe(true);
-  if (await advanced.isVisible()) await advanced.click();
+  await expect(advanced).toBeVisible();
+  await advanced.click();
+  await expect(importAction).toBeVisible();
   await importAction.click();
 }
 async function logout(page: Page) {
