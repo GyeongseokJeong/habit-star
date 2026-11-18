@@ -58,8 +58,10 @@ async function openRecords(page: Page) {
 async function openImport(page: Page) {
   await openRecords(page);
   const advanced = page.getByText("다른 비회원 기록 확인하기");
+  const importAction = page.getByRole("button", { name: "이 기기의 비회원 기록 가져오기" });
+  await expect.poll(async () => (await advanced.isVisible()) || (await importAction.isVisible())).toBe(true);
   if (await advanced.isVisible()) await advanced.click();
-  await page.getByRole("button", { name: "이 기기의 비회원 기록 가져오기" }).click();
+  await importAction.click();
 }
 async function logout(page: Page) {
   const back = page.getByRole("button", { name: "내 계정으로" });
