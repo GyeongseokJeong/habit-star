@@ -158,6 +158,7 @@ test("malformed legacy data is preserved and recovery is visible", async ({
   });
   await page.goto("/");
   await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+  await page.getByRole("button", { name: "기록 관리", exact: true }).click();
   await expect(page.getByText("원본 복구 확인 필요")).toBeVisible();
   expect(
     await page.evaluate(() => localStorage.getItem("byeolharu_v1_habits")),
