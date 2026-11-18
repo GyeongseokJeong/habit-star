@@ -25,7 +25,7 @@ test("guest record backup and restore remain nested under a compact records page
   await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
   await page.getByRole("button", { name: "기록 관리", exact: true }).click();
   await expect(page.getByRole("button", { name: "기록 백업 내려받기" })).toBeVisible();
-  await expect(page.getByLabel("백업 복원 (기록이 없는 같은 계정·브라우저)")).toHaveCount(0);
+  await expect(page.getByLabel("백업 복원 (기록이 없는 같은 계정·브라우저)")).toBeHidden();
   await page.getByText("백업 파일 복원", { exact: true }).click();
   await expect(page.getByLabel("백업 복원 (기록이 없는 같은 계정·브라우저)")).toBeEnabled();
   await expect(page.locator("body").evaluate(() => document.documentElement.scrollWidth <= innerWidth)).resolves.toBe(true);
