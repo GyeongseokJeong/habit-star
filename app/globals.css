@@ -3016,3 +3016,90 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
 }
 .account-import-prompt span { display: grid; gap: 3px; flex: 1; font-size: 12px; font-weight: 600; }
 .account-import-prompt small { color: var(--body); font-size: 11px; font-weight: 400; }
+
+
+/* B2.3 — compact data-management navigation and stronger text hierarchy. */
+.modal:has(.account-panel) .modal-top { display: flex; align-items: center; gap: 7px; }
+.modal:has(.account-panel) .modal-top h2 { flex: 1; min-width: 0; font-size: 21px; letter-spacing: -.55px; }
+.modal:has(.account-panel) .modal-back { flex: 0 0 44px; margin-left: -8px; }
+.account-panel.account-hub { font-size: 15px; color: var(--ink); }
+.account-panel .account-hero { margin: 8px 0 13px; }
+.account-panel .account-hero-text strong { font-size: 17px; }
+.account-panel .account-hero-text span { font-size: 13px; color: var(--body); }
+.account-panel .account-status-line {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 2px;
+  color: var(--body);
+}
+.account-status-line > svg { flex: 0 0 auto; color: var(--sage); }
+.account-status-line > span { flex: 1; color: var(--ink); font-size: 14px; font-weight: 550; overflow-wrap: anywhere; }
+.account-status-line.is-syncing > svg { color: var(--accent); }
+.account-status-line.is-warning > svg, .account-status-line.is-error > svg { color: var(--danger); }
+.account-status-line button { min-height: 44px; border: 0; padding: 9px 8px; background: transparent; color: var(--accent); font-size: 13px; font-weight: 650; }
+.account-panel .account-import-prompt {
+  margin: 8px 0 12px;
+  min-height: 60px;
+  padding: 11px 13px;
+  border-color: var(--gold);
+}
+.account-panel .account-import-prompt span { font-size: 14px; color: var(--ink); }
+.account-panel .account-import-prompt small { font-size: 12px; color: var(--body); line-height: 1.5; }
+.account-panel .account-menu { margin-top: 13px; }
+.account-panel .account-menu > button { min-height: 61px; }
+.account-panel .account-menu > button > span { font-size: 15px; font-weight: 650; }
+.account-panel .account-menu > button > span > small { font-size: 12px; color: var(--body); font-weight: 400; line-height: 1.5; }
+.account-panel .account-detail { padding-top: 2px !important; }
+.account-panel .account-detail-hint { color: var(--body); font-size: 13px; line-height: 1.65; margin: 0 0 13px; }
+.account-panel .account-sync-overview {
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--surface);
+  padding: 15px 14px 12px;
+  margin: 8px 0 15px;
+}
+.account-panel .account-sync-heading { display: flex; align-items: center; gap: 9px; }
+.account-panel .account-sync-heading strong { color: var(--ink); font-size: 15px; font-weight: 650; }
+.account-panel .account-sync-heading > svg { color: var(--sage); flex: 0 0 auto; }
+.account-panel .account-sync-overview.is-syncing .account-sync-heading > svg { color: var(--accent); }
+.account-panel .account-sync-overview.is-waiting .account-sync-heading > svg,
+.account-panel .account-sync-overview.is-error .account-sync-heading > svg { color: var(--danger); }
+.account-panel .account-sync-overview > p { color: var(--body); font-size: 12px; line-height: 1.6; margin: 7px 0 0; }
+.account-panel .account-sync-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--line);
+}
+.account-panel .account-sync-footer > span { color: var(--body); font-size: 12px; min-width: 0; }
+.account-panel .account-sync-footer > button { display: flex; align-items: center; gap: 5px; flex: 0 0 auto; min-height: 44px; padding: 8px 10px; font-size: 12px; }
+.account-panel .account-section-title { font-size: 15px; color: var(--ink); }
+.account-panel .account-action-row { color: var(--ink); font-size: 14px; font-weight: 550; }
+.account-panel .account-action-row > svg { flex: 0 0 auto; }
+.account-panel .account-note, .account-panel .account-sync-alert { font-size: 13px; line-height: 1.7; }
+.account-panel .account-advanced-details { margin: 14px 0 0; padding: 2px 0; border-top: 1px solid var(--line); }
+.account-panel .account-advanced-details > summary {
+  list-style: none; display: flex; align-items: center; justify-content: space-between;
+  min-height: 48px; padding: 8px 2px; color: var(--body); font-size: 13px; font-weight: 550;
+  cursor: pointer;
+}
+.account-panel .account-advanced-details > summary::-webkit-details-marker { display: none; }
+.account-panel .account-advanced-details[open] > summary svg { transform: rotate(90deg); }
+.account-panel .account-advanced-details > p { margin: 4px 0 10px; }
+.account-panel .account-import-preview { margin: 12px 0; }
+.account-panel .account-import-preview p { font-size: 13px; line-height: 1.65; color: var(--body); }
+.account-panel .account-import-flow .account-import-preview { margin-top: 8px; }
+.account-panel .account-import-flow .account-compact-actions button { min-height: 46px; }
+.account-panel .account-setting-heading { font-size: 15px; }
+.account-panel .account-setting-heading small { font-size: 12px; color: var(--body); }
+.account-panel .account-record-row > span { font-size: 14px; }
+.account-panel .account-record-row > strong { font-size: 13px; }
+@media (prefers-reduced-motion: no-preference) {
+  .account-panel .is-spinning { animation: account-sync-spin 1.2s linear infinite; }
+}
+@keyframes account-sync-spin { to { transform: rotate(360deg); } }
+@media (max-width: 620px) {
+  .modal:has(.account-panel) .modal-top h2 { font-size: 20px; }
+  .account-panel .account-sync-footer { flex-wrap: wrap; }
+  .account-panel .account-sync-footer > span { flex: 1; }
+}
