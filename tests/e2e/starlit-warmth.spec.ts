@@ -39,7 +39,7 @@ async function checkControls(page: Page, theme: "light" | "dark") {
     )
     .toEqual(
       Array(3).fill(
-        theme === "light" ? "rgb(98, 84, 126)" : "rgb(105, 90, 133)",
+        theme === "light" ? "rgb(98, 84, 126)" : "rgb(121, 104, 142)",
       ),
     );
   const colors = await page.evaluate(() => {
@@ -93,10 +93,10 @@ async function checkControls(page: Page, theme: "light" | "dark") {
   expect(colors.scheme).toBe(theme);
   expect(colors.inputScheme).toBe(theme);
   expect(colors.background).toBe(
-    theme === "light" ? "rgb(255, 255, 255)" : "rgb(23, 29, 41)",
+    theme === "light" ? "rgb(255, 255, 255)" : "rgb(32, 44, 61)",
   );
   expect(colors.inputBg).toBe(
-    theme === "light" ? "rgb(247, 246, 242)" : "rgb(12, 17, 27)",
+    theme === "light" ? "rgb(247, 246, 242)" : "rgb(17, 25, 37)",
   );
   expect(colors.controlBg).toBe(colors.weekdayBg);
   expect(colors.controlBg).toBe(colors.emojiBg);
@@ -202,7 +202,7 @@ for (const width of [320, 390, 430]) {
         await expect(current).toHaveClass(new RegExp(appTheme));
         await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute(
           "content",
-          appTheme === "light" ? /#f7f6f2/i : /#0c111b/i,
+          appTheme === "light" ? /#f7f6f2/i : /#111925/i,
         );
         await checkControls(page, appTheme);
         await expect(
@@ -328,7 +328,7 @@ for (const theme of ["light", "dark"] as const) {
       expect((await geometry()).clip).toBe("padding-box");
       expect((await geometry()).border).toBe("6px");
       expect((await geometry()).track[2]).toBe(
-        theme === "light" ? "rgb(98, 84, 126)" : "rgb(105, 90, 133)",
+        theme === "light" ? "rgb(98, 84, 126)" : "rgb(121, 104, 142)",
       );
       await switchInput.focus();
       await page.keyboard.press("Space");
@@ -418,4 +418,67 @@ for (const theme of ["light", "dark"] as const) {
       ).toHaveAttribute("aria-checked", "true");
     });
   }
+}
+
+
+for (const width of [320, 390, 430]) {
+  test(`B2 dark matrix keeps readable dates and five gold tiers at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.emulateMedia({ colorScheme: "light" });
+    await page.goto("/");
+    await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
+    await page.getByRole("button", { name: "다크 모드로 전환" }).click();
+    await page.getByRole("button", { name: "별점", exact: true }).click();
+    const panel = page.locator(".matrix-panel").first();
+    await expect(panel).toBeVisible();
+    const colors = await panel.evaluate((element) => {
+      const shell = document.querySelector<HTMLElement>(".byeolharu")!;
+      const getColor = (selector: string, disabled = false) => {
+        const tile = document.createElement("button");
+        tile.className = `day-tile ${selector}`;
+        tile.disabled = disabled;
+        tile.textContent = "18";
+        element.appendChild(tile);
+        const style = getComputedStyle(tile);
+        const answer = {
+          background: style.backgroundColor,
+          foreground: style.color,
+          opacity: style.opacity,
+          borderStyle: style.borderTopStyle,
+        };
+        tile.remove();
+        return answer;
+      };
+      const app = getComputedStyle(shell);
+      return {
+        background: app.backgroundColor,
+        surface: getComputedStyle(element).backgroundColor,
+        muted: app.getPropertyValue("--muted").trim(),
+        selection: app.getPropertyValue("--selection-bg").trim(),
+        tiers: Array.from({ length: 6 }, (_, tier) => getColor(`tier-${tier}`)),
+        disabled: getColor("tier-0", true),
+      };
+    });
+    expect(colors.background).toBe("rgb(17, 25, 37)");
+    expect(colors.surface).toBe("rgb(32, 44, 61)");
+    expect(colors.muted).toBe("#c2cad6");
+    expect(colors.selection).toBe("#79688e");
+    expect(colors.tiers.map((tier) => tier.background)).toEqual([
+      "rgb(46, 60, 79)",
+      "rgb(76, 71, 61)",
+      "rgb(109, 91, 70)",
+      "rgb(128, 104, 71)",
+      "rgb(196, 164, 120)",
+      "rgb(226, 185, 130)",
+    ]);
+    for (const tier of colors.tiers) {
+      expect(contrast(tier.foreground, tier.background)).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(colors.disabled.opacity).toBe("1");
+    expect(colors.disabled.borderStyle).toBe("dashed");
+    expect(contrast(colors.disabled.foreground, colors.disabled.background)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast("#ffffff", colors.selection)).toBeGreaterThanOrEqual(4.5);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    // This confirms computed Chromium CSS, not Samsung Internet forced-dark final pixels.
+  });
 }
