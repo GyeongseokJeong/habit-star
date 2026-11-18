@@ -44,7 +44,7 @@ for (const width of [320, 390, 430]) {
 
 for (const width of [320, 390, 430, 1280]) {
   for (const theme of ["light", "dark"] as const) {
-    test(`Stage 6 keeps its approved square artwork at ${width}px in ${theme} theme`, async ({ page }) => {
+    test(`Stage 6 preserves its approved portrait 2:3 artwork at ${width}px in ${theme} theme`, async ({ page }) => {
       await page.setViewportSize({ width, height: 820 });
       await page.goto("/");
       await expect(page.getByRole("button", { name: /나의 별자리 STAGE 1/ })).toBeVisible();
@@ -93,7 +93,7 @@ for (const width of [320, 390, 430, 1280]) {
       const image = artwork.locator("img");
       await expect.poll(() => image.evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
       const ratio = await artwork.evaluate((element) => element.getBoundingClientRect().height / element.getBoundingClientRect().width);
-      expect(ratio).toBeCloseTo(1, 1);
+      expect(ratio).toBeCloseTo(1.5, 1);
       await expect(image).toHaveCSS("object-fit", "contain");
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
       if (process.env.V0_CAPTURE_CONSTELLATION_SCREENSHOTS === "1" && width === 390 && theme === "light") {

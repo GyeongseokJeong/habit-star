@@ -15,7 +15,7 @@ const expected = [
   { stage: 3, sha: "3fcb7360b2148bbb6006547ff902ac4a8ea7d90763c2f44eddac486ccf8d98c6", width: 1024, height: 1536 },
   { stage: 4, sha: "9c3e4a702520755eb8356c666a38068d17af37af884c585c8880ef03ad16c419", width: 1024, height: 1536 },
   { stage: 5, sha: "0e13d38fab74bf530a9f22f6c57c0f116d58033101eae6d2743a5b374af9ad54", width: 1024, height: 1536 },
-  { stage: 6, sha: "81c7841fc31802df39738ad324db3bda21a62e389edc39f2cbd833a15b1f47bb", width: 1254, height: 1254 },
+  { stage: 6, sha: "72c91f59cbe695b10b2fd28376d21c9ac2eeff09318f6e9b5a45f0b0ea95a80e", webpSha: "e6b1b060e6c917a9d0a32bf2613db9090a3361262f2d9d682e21ec6c92a1c6ef", width: 1024, height: 1536 },
 ];
 
 function validatePng(data, exp, path) {
@@ -31,6 +31,10 @@ function validatePng(data, exp, path) {
 function validateWebp(data, exp, path) {
   if (data.length < 20 || data.toString("ascii", 0, 4) !== "RIFF" || data.toString("ascii", 8, 12) !== "WEBP") {
     throw new Error(`Not genuine WebP: ${path}`);
+  }
+  // The newly approved Stage 6 portrait must match the precise derived WEBP bytes.
+  if (exp.webpSha && createHash("sha256").update(data).digest("hex") !== exp.webpSha) {
+    throw new Error(`Approved WebP checksum mismatch: ${path}`);
   }
   // WebP decoder/dimensions checked in visual preview; signature is mandatory here.
 }
