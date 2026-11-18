@@ -20,3 +20,15 @@
 .readout pre { background: var(--surface); border-radius: 12px; border: 1px solid var(--line); padding: 12px; max-height: 440px; overflow: auto; font-size: 11px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .refresh { min-height: 44px; padding: 8px 16px; border-radius: 8px; border: 1px solid var(--control-border); background: var(--control-bg); color: var(--ink); }
 .notice { margin-top: 26px; }
+
+/* Only the opt-in preview diagnostic route changes the root scheme.
+ * These selectors deliberately do not match the actual Byeolharu app. */
+:global(html:has([data-force-dark-variant="declared"])) {
+  color-scheme: light dark;
+}
+:global(html:has([data-force-dark-variant="optout"])) {
+  color-scheme: only light;
+}
+.page[data-force-dark-variant="optout"] {
+  color-scheme: only light;
+}
