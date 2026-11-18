@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  ArrowDownToLine, ChevronRight, CheckCircle2, Cloud, CloudOff,
+  ArrowDownToLine, ChevronRight, CheckCircle2, CloudOff,
   Database, Download, RefreshCw, Settings2, ShieldCheck, Sparkles, UserRound,
   AlertCircle, Clock3, Laptop, Moon, Sun, LoaderCircle,
 } from "lucide-react";
@@ -64,7 +64,6 @@ export function AccountPanel({
   const [message, setMessage] = useState("");
   const [preview, setPreview] = useState<Snapshot | null>(null);
   const [guestAvailable, setGuestAvailable] = useState(false);
-  const [guestChecked, setGuestChecked] = useState(false);
   const [timezonePicker, setTimezonePicker] = useState(false);
   const [zoneQuery, setZoneQuery] = useState("");
   const [changingZone, setChangingZone] = useState(false);
@@ -96,19 +95,16 @@ export function AccountPanel({
   }, [state?.importReceipt?.verifiedAt, state?.importJournal]);
   useEffect(() => {
     if ((page !== "home" && page !== "records" && page !== "import") || !app.user) {
-      setGuestChecked(false);
       setGuestAvailable(false);
       return;
     }
     let mounted = true;
-    setGuestChecked(false);
     void app.previewImport().then((guest) => {
       if (mounted) {
         setGuestAvailable(guestHasOwnRecords(guest));
-        setGuestChecked(true);
       }
     }).catch(() => {
-      if (mounted) setGuestChecked(true);
+      if (mounted) setGuestAvailable(false);
     });
     return () => { mounted = false; };
     // The member identity and destination, not a changing callback identity, gate the scan.
