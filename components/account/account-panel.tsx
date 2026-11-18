@@ -75,7 +75,7 @@ export function AccountPanel({
   const critical = Boolean(app.error || unresolved || state?.importJournal || /실패|만료|충돌/.test(status));
   const warning = critical || (app.user && (pending > 0 || /대기/.test(status)));
   useEffect(() => {
-    if (page !== "records" || !app.user) {
+    if ((page !== "home" && page !== "records") || !app.user) {
       setGuestChecked(false);
       setGuestAvailable(false);
       return;
@@ -151,6 +151,11 @@ export function AccountPanel({
             <span><strong>{status}</strong><small>{app.user ? (pending ? "미전송 기록 " + pending + "개 · 기기에 보존됨" : "내 기록 상태 확인하기") : "이 기기에 보관된 기록을 관리할 수 있어요"}</small></span>
             <ChevronRight size={17} aria-hidden="true" />
           </button>
+          {app.user && guestAvailable && !state?.importReceipt && !state?.importJournal && (
+            <button type="button" className="account-import-prompt" onClick={() => navigate("records")}>
+              <Database size={18} /><span>이 기기에 남아 있는 기록이 있어요<small>기록을 확인하고 가져올 수 있어요</small></span><ChevronRight size={17}/>
+            </button>
+          )}
           {!app.user && cloudEnabled() && (
             <div className="account-entry">
               <button type="button" className="account-login-action" onClick={() => navigate("login")}>로그인</button>
