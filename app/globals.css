@@ -24,6 +24,13 @@ body {
   -webkit-font-smoothing: antialiased;
   background: #f7f6f2;
 }
+/* Keep the first paint aligned with the stored theme while React hydrates. */
+html[data-byeolharu-theme="dark"] {
+  color-scheme: dark;
+}
+html[data-byeolharu-theme="dark"] body {
+  background: #0c111b;
+}
 button,
 input,
 textarea {
@@ -88,7 +95,8 @@ a {
   font-size: 14px;
   line-height: 1.6;
 }
-.byeolharu.dark {
+.byeolharu.dark,
+html[data-byeolharu-theme="dark"] .byeolharu.light {
   color-scheme: dark;
   --bg: #0c111b;
   --surface: #171d29;
