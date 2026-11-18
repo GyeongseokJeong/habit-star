@@ -3,6 +3,21 @@ import "@fontsource-variable/noto-sans-kr";
 
 import "./globals.css";
 
+// Run before React hydration so a saved dark theme never paints the light shell first.
+const themeBootstrapScript = `
+(() => {
+  try {
+    const savedTheme = localStorage.getItem("byeolharu_v2_theme")
+      ?? localStorage.getItem("byeolharu_v1_theme");
+    if (savedTheme === "dark") {
+      document.documentElement.dataset.byeolharuTheme = "dark";
+    }
+  } catch {
+    // Storage may be unavailable; keep the existing light-theme fallback.
+  }
+})();
+`;
+
 export const metadata: Metadata = {
   title: "별하루 — 작은 실천, 반짝이는 하루",
   description:
@@ -15,13 +30,16 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#f7f6f2",
+  themeColor: "#19242a",
 };
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ko" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
+      </head>
       <body>{children}</body>
     </html>
   );
