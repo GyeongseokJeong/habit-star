@@ -1,6 +1,7 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { Maximize2, X } from "lucide-react";
 import { ConstellationArtwork } from "@/components/constellation-artwork";
 import { describeConstellationGrowth } from "@/lib/constellation/presentation";
 
@@ -11,6 +12,7 @@ import { describeConstellationGrowth } from "@/lib/constellation/presentation";
 export function ConstellationGrowthView({ points }: { points: number }) {
   const { art, caption, range, next, progressPercent, remainingPoints, extraGlow } =
     describeConstellationGrowth(points);
+  const [zoomOpen, setZoomOpen] = useState(false);
   const style = {
     "--constellation-extra-glow": extraGlow,
   } as CSSProperties;
@@ -24,10 +26,17 @@ export function ConstellationGrowthView({ points }: { points: number }) {
           <p className="constellation-score-range">{range}</p>
         </div>
 
-        <ConstellationArtwork
-          points={points}
-          className="constellation-scene"
-        />
+        <button
+          type="button"
+          className="constellation-art-trigger"
+          aria-label={`${art.title} 원화 크게 보기`}
+          onClick={() => setZoomOpen(true)}
+        >
+          <ConstellationArtwork points={points} className="constellation-scene" />
+          <span className="constellation-expand-hint" aria-hidden="true">
+            <Maximize2 size={14} /> 크게 보기
+          </span>
+        </button>
 
         <p className="constellation-poem">{caption}</p>
       </div>
@@ -59,6 +68,63 @@ export function ConstellationGrowthView({ points }: { points: number }) {
           </p>
         )}
       </div>
+      {zoomOpen && (
+        <ConstellationZoom
+          points={points}
+          title={art.title}
+          onClose={() => setZoomOpen(false)}
+        />
+      )}
     </section>
+  );
+}
+
+function ConstellationZoom({
+  points,
+  title,
+  onClose,
+}: {
+  points: number;
+  title: string;
+  onClose: () => void;
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    const previousFocus = document.activeElement;
+    dialog?.showModal();
+    return () => {
+      dialog?.close();
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) {
+        previousFocus.focus();
+      }
+    };
+  }, []);
+
+  return (
+    <dialog
+      ref={dialogRef}
+      className="constellation-zoom"
+      aria-label={`${title} 원화 확대 감상`}
+      onCancel={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onClose();
+      }}
+      onClick={(event) => {
+        if (event.target === dialogRef.current) onClose();
+      }}
+    >
+      <div className="constellation-zoom-content">
+        <div className="constellation-zoom-top">
+          <p>{title}</p>
+          <button type="button" className="constellation-zoom-close" aria-label="확대 감상 닫기" onClick={onClose}>
+            <X size={20} aria-hidden="true" />
+          </button>
+        </div>
+        <ConstellationArtwork points={points} className="constellation-zoom-art" />
+      </div>
+    </dialog>
   );
 }
