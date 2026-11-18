@@ -90,21 +90,24 @@ a {
 }
 .byeolharu.dark {
   color-scheme: dark;
-  --bg: #0c111b;
-  --surface: #171d29;
-  --control-bg: #252b38;
-  --control-border: #465061;
-  --selection-bg: #695a85;
+  /* B2 Samsung Internet device-review candidate: subtle midnight navy with
+     brighter neutral dates, secondary labels, and warmer achievement colors.
+     A slightly deeper selection hue preserves >=4.5:1 white text contrast. */
+  --bg: #111925;
+  --surface: #202c3d;
+  --control-bg: #364356;
+  --control-border: #59697c;
+  --selection-bg: #79688e;
   --selection-fg: #fff;
-  --ink: #f4f1e9;
-  --muted: #a9b2c1;
-  --body: #c7ccd3;
-  --line: #343c4b;
-  --soft: #1d2633;
-  --sage: #b6ceb9;
+  --ink: #f3f1ea;
+  --muted: #c2cad6;
+  --body: #d7dfeb;
+  --line: #4b596b;
+  --soft: #2e3c4f;
+  --sage: #b5cebd;
   --sage-soft: #25362f;
-  --accent: #edbd79;
-  --gold: #e5b76e;
+  --accent: #e7c18e;
+  --gold: #e2b982;
   --gold-soft: #332d26;
   --danger: #f0a0a4;
 }
@@ -990,24 +993,33 @@ a {
   border-radius: 50%;
 }
 .dark .tier-1 {
-  background: #3a3329;
-  color: #d4c6ac;
+  background: #4c473d;
+  color: #f8efdb;
 }
 .dark .tier-2 {
-  background: #4d4130;
-  color: #e2cba3;
+  background: #6d5b46;
+  color: #f8efdb;
 }
 .dark .tier-3 {
-  background: #69563b;
-  color: #f4e4ca;
+  background: #806847;
+  color: #f8efdb;
 }
 .dark .tier-4 {
-  background: #a88b5c;
-  color: #171c1a;
+  background: #c4a478;
+  color: #18222d;
 }
 .dark .tier-5 {
-  background: #c5a36c;
-  color: #171c1a;
+  background: #e2b982;
+  color: #18222d;
+}
+/* Avoid dimming both text and the entire future-day cell: this compounds
+   Samsung Internet's webpage Force Dark post-processing. */
+.dark .day-tile:disabled {
+  opacity: 1;
+  background: #263242;
+  color: #b9c4d3;
+  border-color: var(--line);
+  border-style: dashed;
 }
 .matrix-legend {
   display: flex;
