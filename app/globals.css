@@ -2761,7 +2761,7 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
 .account-panel.account-hub button,
 .account-panel:has(> .auth-form) button {
   margin-top: 0;
-  font: inherit;
+  font-family: inherit;
 }
 .account-panel.account-hub button:focus-visible,
 .account-panel:has(> .auth-form) button:focus-visible {
