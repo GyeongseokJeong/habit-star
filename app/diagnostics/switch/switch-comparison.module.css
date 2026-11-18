@@ -387,3 +387,67 @@
   color: #a5b0be;
   background: #222c3c;
 }
+
+/* B2: retain B's midnight-navy visual identity, lift empty dates and improve
+ * low-star tiers without relying on reduced opacity or changing production CSS. */
+.palettePreviewRefined2 {
+  --preview-bg: #111925;
+  --preview-panel: #202c3d;
+  --preview-line: #4b596b;
+  --preview-ink: #f3f1ea;
+  --preview-muted: #c2cad6;
+  --preview-empty: #2e3c4f;
+  --preview-empty-ink: #e1e7ef;
+  --preview-disabled: #263242;
+  --preview-disabled-ink: #b9c4d3;
+  --preview-selection: #847298;
+  --preview-selection-fg: #ffffff;
+  --preview-tier1: #4c473d;
+  --preview-tier2: #6d5b46;
+  --preview-tier3: #806847;
+  --preview-tier4: #c4a478;
+  --preview-tier5: #e2b982;
+}
+.palettePreviewRefined2 .palettePreviewDay[data-preview-tier="disabled"] {
+  border-style: dashed;
+}
+.refined2:global(.dark) {
+  --bg: #111925;
+  --surface: #202c3d;
+  --soft: #2e3c4f;
+  --ink: #f3f1ea;
+  --body: #d7dfeb;
+  --muted: #c2cad6;
+  --line: #4b596b;
+  --control-bg: #364356;
+  --control-border: #59697c;
+  --selection-bg: #847298;
+  --sage: #b5cebd;
+  --gold: #e2b982;
+  --accent: #e7c18e;
+}
+.refined2:global(.dark) :global(.tier-0) { color: #e1e7ef; }
+.refined2:global(.dark) :global(.tier-1) { background: #4c473d; color: #f8efdb; }
+.refined2:global(.dark) :global(.tier-2) { background: #6d5b46; color: #f8efdb; }
+.refined2:global(.dark) :global(.tier-3) { background: #806847; color: #f8efdb; }
+.refined2:global(.dark) :global(.tier-4) { background: #c4a478; color: #18222d; }
+.refined2:global(.dark) :global(.tier-5) { background: #e2b982; color: #18222d; }
+.refined2:global(.dark) :global(.day-tile:disabled) {
+  opacity: 1;
+  color: #b9c4d3;
+  background: #263242;
+  border-style: dashed;
+}
+.palettePicker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.palettePicker .themeButton[aria-pressed="true"] {
+  background: var(--selection-bg);
+  color: var(--selection-fg);
+  border-color: var(--selection-bg);
+  font-weight: 700;
+}
