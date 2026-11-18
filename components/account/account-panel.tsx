@@ -166,7 +166,7 @@ export function AccountPanel({
   const importPreview = preview ? (
     <div className="account-import-preview">
                   <h4>기록 이전 확인</h4>
-                  <p>대상 계정: {app.user.email}</p>
+                  <p>대상 계정: {app.user?.email ?? "로그인 계정"}</p>
                   <p>현재 습관 {preview.habits.length}개 · 날짜 {Object.keys(preview.history).length}개 · 기록 {Object.values(preview.history).reduce((n,h)=>n+h.length,0)}개</p>
                   <p>원본은 보존하고 같은 ID의 다른 내용은 충돌로 남깁니다.</p>
                   {!!preview.state.migration?.issues.length && !preview.state.recoveryAcknowledged && (
@@ -178,7 +178,7 @@ export function AccountPanel({
                       if (result?.status === "applied") setPreview(null);
                       if (page === "import" && result) navigate("records");
                     }}>이 계정으로 병합</button>
-                    <button type="button" className="text-button" onClick={() => setPreview(null)}>나중에</button>
+                    <button type="button" className="text-button" onClick={() => page === "import" ? navigate("home") : setPreview(null)}>나중에</button>
                   </div>
                 </div>
   ) : null;
@@ -221,7 +221,6 @@ export function AccountPanel({
             <button type="button" aria-label="앱 설정" onClick={() => navigate("settings")}><Settings2 size={19} /><span>앱 설정<small>화면 테마 · 시간대</small></span><ChevronRight size={17} /></button>
             {app.user && <button type="button" aria-label="계정 관리" onClick={() => navigate("security")}><UserRound size={19} /><span>계정 관리<small>계정 정보 · 로그아웃</small></span><ChevronRight size={17} /></button>}
           </nav>
-          <p className="account-footnote">작은 실천, 반짝이는 하루</p>
         </>
       )}
 
@@ -297,33 +296,24 @@ export function AccountPanel({
               {!state.recoveryAcknowledged && <button type="button" className="secondary" onClick={() => void app.acknowledgeRecovery().catch(() => setMessage("백업을 확인해주세요."))}>원본 백업 후 유효한 기록 사용 확인</button>}
             </section>
           )}
-          {app.user && (guestAvailable || !!state?.importJournal) && (
-            <section className="account-extra">
-              <h4>비회원 기록 가져오기</h4>
-              <p>이 기기에 남은 비회원 기록을 먼저 확인한 뒤 병합해요.</p>
-              <button type="button" className="secondary" disabled={app.busy} onClick={async () => {
-                try { setPreview(await app.previewImport()); }
-                catch { setMessage("비회원 기록을 읽지 못했습니다. 백업을 확인해주세요."); }
-              }}>이 기기의 비회원 기록 가져오기</button>
+          {app.user && (
+            <details className="account-advanced-details">
+              <summary>고급 데이터 관리 <ChevronRight size={16} aria-hidden="true"/></summary>
+              <p className="account-note">다른 저장 공간의 비회원 기록을 수동으로 확인할 수 있어요.</p>
+              {guestAvailable ? (
+                <button type="button" className="account-action-row" onClick={async () => {
+                  try { setPreview(await app.previewImport()); }
+                  catch { setMessage("비회원 기록을 읽지 못했습니다. 백업을 확인해주세요."); }
+                }}><Database size={18}/><span>이 기기의 비회원 기록 가져오기</span><ChevronRight size={16}/></button>
+              ) : (
+                <button type="button" className="account-action-row" onClick={async () => {
+                  try { setGuestAvailable(true); setPreview(await app.previewImport()); }
+                  catch { setMessage("비회원 기록을 읽지 못했습니다. 백업을 확인해주세요."); }
+                }}><Database size={18}/><span>이 기기의 비회원 기록 가져오기</span><ChevronRight size={16}/></button>
+              )}
               {importPreview}
-            </section>
-          )}
-          {app.user && guestChecked && !guestAvailable && !state?.importJournal && (
-            <details className="account-restore-details">
-              <summary className="account-action-row"><Database size={18}/><span>다른 비회원 기록 확인하기</span><ChevronRight size={16}/></summary>
-              <p>예전 기기 기록을 확인하거나 가져오기를 다시 시도할 수 있어요. 원본은 보존됩니다.</p>
-              <button type="button" className="secondary" onClick={async () => {
-                try {
-                  const guest = await app.previewImport();
-                  setGuestAvailable(true);
-                  setPreview(guest);
-                } catch {
-                  setMessage("비회원 기록을 읽지 못했습니다. 백업을 확인해주세요.");
-                }
-              }}>이 기기의 비회원 기록 가져오기</button>
             </details>
           )}
-          {app.user && !guestChecked && !state?.importJournal && <p className="account-note" role="status">비회원 기록을 확인하고 있어요.</p>}
         </section>
       )}
 
@@ -333,12 +323,10 @@ export function AccountPanel({
           {!preview && !message && <p role="status" className="account-note">가져올 기록을 확인하고 있어요.</p>}
           {importPreview}
           {!!state?.importJournal && <button type="button" className="secondary" onClick={() => navigate("records")}>충돌 및 가져오기 상태 확인</button>}
-          <button type="button" className="text-button account-import-dismiss" onClick={() => navigate("home")}>나중에 하기</button>
         </section>
       )}
       {page === "settings" && (
         <section className="account-detail" aria-label="앱 설정">
-          <h3>앱 설정</h3>
           <p className="account-detail-hint">별하루가 편안하게 느껴지도록 설정해요.</p>
           <div className="account-setting-block">
             <div className="account-setting-heading"><span>화면 테마</span><small>앱에서 선택한 테마를 유지해요</small></div>
@@ -379,7 +367,6 @@ export function AccountPanel({
 
       {page === "security" && app.user && (
         <section className="account-detail" aria-label="계정 관리">
-          <h3>계정 관리</h3>
           <p className="account-detail-hint">내 계정과 로그인 상태를 확인해요.</p>
           <div className="account-record-card">
             <div className="account-record-row"><ShieldCheck size={18}/><span>로그인 계정</span><strong className="account-email">{app.user.email}</strong></div>
