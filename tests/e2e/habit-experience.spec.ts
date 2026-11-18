@@ -105,7 +105,7 @@ test("templates are keyboard accessible in dark mode", async ({ page }) => {
   await expect(template).toHaveCSS("outline-style", "solid");
   await page.keyboard.press("Space");
   await expect(template).toHaveAttribute("aria-pressed", "true");
-  await expect(template).toHaveCSS("background-color", "rgb(105, 90, 133)");
+  await expect(template).toHaveCSS("background-color", "rgb(121, 104, 142)");
   await expect(page.getByRole("switch", { name: "루틴 알림" })).toHaveAttribute(
     "aria-checked",
     "false",
