@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { seedConstellationPoints } from "./fixtures/constellation-points";
 
 for (const width of [320, 390, 430]) {
   test(`V3.2 constellation viewer preserves image geometry and keyboard access at ${width}px`, async ({ page }) => {
@@ -48,41 +49,7 @@ for (const width of [320, 390, 430, 1280]) {
       await page.setViewportSize({ width, height: 820 });
       await page.goto("/");
       await expect(page.getByRole("button", { name: /나의 별자리 STAGE 1/ })).toBeVisible();
-      await page.evaluate(async () => {
-        const db = await new Promise<IDBDatabase>((resolve, reject) => {
-          const request = indexedDB.open("byeolharu-v2");
-          request.onsuccess = () => resolve(request.result);
-          request.onerror = () => reject(request.error);
-        });
-        const tx = db.transaction("scopes", "readwrite");
-        const store = tx.objectStore("scopes");
-        const state = await new Promise<{ entities: Record<string, unknown> }>((resolve, reject) => {
-          const request = store.get("guest");
-          request.onsuccess = () => resolve(request.result);
-          request.onerror = () => reject(request.error);
-        });
-        for (let offset = 1; offset <= 200; offset += 1) {
-          const day = new Date(Date.UTC(2026, 10, 17 - offset)).toISOString().slice(0, 10);
-          const id = `stage-six-${offset}`;
-          state.entities[`days:${day}:${day}`] = {
-            key: `days:${day}:${day}`, kind: "days", id: day, day,
-            data: { timezone: "UTC" }, version: 1, deleted: false,
-          };
-          state.entities[`habit_entries:${day}:${id}`] = {
-            key: `habit_entries:${day}:${id}`, kind: "habit_entries", id, day,
-            data: { title: "별빛 기록", icon: "", timeGroup: "day", alarmEnabled: false,
-              position: 0, completed: true, rating: 0, memo: "" },
-            version: 1, deleted: false,
-          };
-        }
-        store.put(state, "guest");
-        await new Promise<void>((resolve, reject) => {
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => reject(tx.error);
-        });
-        db.close();
-      });
-      await page.reload();
+      await seedConstellationPoints(page, 200);
       if (theme === "dark") await page.getByRole("button", { name: "다크 모드로 전환" }).click();
       await page.getByRole("button", { name: /나의 별자리 STAGE 6/ }).click();
       const dialog = page.getByRole("dialog", { name: "나의 별자리" });
@@ -101,6 +68,79 @@ for (const width of [320, 390, 430, 1280]) {
       }
       await page.keyboard.press("Escape");
       await expect(page.getByRole("button", { name: /나의 별자리 STAGE 6/ })).toBeFocused();
+    });
+  }
+}
+
+for (const { width, height } of [
+  { width: 320, height: 640 },
+  { width: 390, height: 720 },
+  { width: 390, height: 844 },
+  { width: 430, height: 932 },
+  { width: 1280, height: 900 },
+]) {
+  for (const theme of ["light", "dark"] as const) {
+    test(`growth layout, artwork and zoom at ${width}×${height} in ${theme}`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await page.goto("/");
+      await expect(page.getByRole("button", { name: /나의 별자리 STAGE 1/ })).toBeVisible();
+      if (theme === "dark") await page.getByRole("button", { name: "다크 모드로 전환" }).click();
+
+      for (const { stage, points } of [
+        { stage: 1, points: 0 }, { stage: 2, points: 7 },
+        { stage: 3, points: 20 }, { stage: 4, points: 50 },
+        { stage: 5, points: 100 }, { stage: 6, points: 200 },
+      ]) {
+        if (points) await seedConstellationPoints(page, points);
+        const opener = page.getByRole("button", { name: `나의 별자리 STAGE ${stage}` });
+        await expect(opener).toBeVisible();
+        await opener.click();
+        const dialog = page.getByRole("dialog", { name: "나의 별자리" });
+        const artwork = dialog.locator(`[data-constellation-stage='${stage}']`);
+        const image = artwork.locator("img");
+        await expect.poll(() => image.evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+        await expect(image).toHaveCSS("object-fit", "contain");
+        expect(decodeURIComponent(await image.getAttribute("src") ?? "")).toContain(`stage-0${stage}.webp`);
+        const geometry = await artwork.evaluate((element) => {
+          const image = element.querySelector("img") as HTMLImageElement;
+          const rect = element.getBoundingClientRect();
+          return { ratio: rect.height / rect.width, intrinsic: image.naturalHeight / image.naturalWidth, height: rect.height };
+        });
+        expect(geometry.ratio).toBeCloseTo(1.5, 1);
+        expect(geometry.intrinsic).toBeCloseTo(1.5, 1);
+        if (width < 620) {
+          expect(geometry.height).toBeGreaterThanOrEqual(296);
+          expect(geometry.height).toBeLessThanOrEqual(383);
+        }
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+        if (width === 390 && height === 844) {
+          expect(await dialog.evaluate((element) => element.scrollHeight - element.clientHeight)).toBeLessThanOrEqual(2);
+        }
+        if (width === 320 && height === 640) {
+          await dialog.locator(".constellation-growth-summary").scrollIntoViewIfNeeded();
+          await expect(dialog.locator(".constellation-growth-summary")).toBeInViewport();
+        }
+        if (stage === 2 || stage === 6) {
+          const trigger = dialog.getByRole("button", { name: `${stage === 2 ? "별이 모이는 밤" : "빛나는 은하"} 원화 크게 보기` });
+          await trigger.click();
+          const zoom = page.getByRole("dialog", { name: /원화 확대 감상/ });
+          await expect(zoom).toBeVisible();
+          await expect(zoom.locator("img")).toHaveCSS("object-fit", "contain");
+          if (width === 390 && height === 844 && theme === "light") {
+            await zoom.getByRole("button", { name: "확대 감상 닫기" }).click();
+            await expect(trigger).toBeFocused();
+            await page.screenshot({ path: `/tmp/v0-workspace/browser/screenshots/growth-after-stage-0${stage}-390x844.png`, animations: "disabled" });
+          } else {
+            await page.keyboard.press("Escape");
+            await expect(trigger).toBeFocused();
+          }
+          await expect(dialog).toBeVisible();
+          await expect(zoom).toHaveCount(0);
+        }
+        await page.keyboard.press("Escape");
+        await expect(dialog).toHaveCount(0);
+        await expect(opener).toBeFocused();
+      }
     });
   }
 }
