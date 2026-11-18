@@ -234,3 +234,34 @@ test("button variants support Space, Enter, focus and forced colors", async ({
   expect(on.results.A.thumb).toBe(on.results.B.thumb);
   expect(on.results.B.thumb).toBe(on.results.C.thumb);
 });
+
+
+test("A/B palette preview is isolated and toggles only diagnostic dark colors", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/diagnostics/switch");
+  const a = page.locator('[data-palette-preview="current"]');
+  const b = page.locator('[data-palette-preview="refined"]');
+  await expect(a).toBeVisible();
+  await expect(b).toBeVisible();
+  await page.getByRole("button", { name: "앱 다크 모드로 전환" }).click();
+  const toggle = page.locator("[data-palette-toggle]");
+  const report = page.locator("[data-diagnostic-report]");
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(async () =>
+    JSON.parse((await report.innerText()) || "null")?.environment?.palette,
+  ).toBe("refined");
+  await expect.poll(async () =>
+    JSON.parse((await report.innerText()) || "null")?.matrix?.["tier-0"]?.background,
+  ).toBe("rgb(39, 50, 67)");
+  await expect.poll(async () =>
+    JSON.parse((await report.innerText()) || "null")?.samples?.["disabled-date"]?.opacity,
+  ).toBe("1");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await expect.poll(async () =>
+    JSON.parse((await report.innerText()) || "null")?.matrix?.["tier-0"]?.background,
+  ).toBe("rgb(29, 38, 51)");
+});
