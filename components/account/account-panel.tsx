@@ -164,9 +164,9 @@ export function AccountPanel({
           )}
           {!app.user && !cloudEnabled() && <p className="account-note">클라우드 연결이 아직 설정되지 않았습니다. 비회원 기록은 계속 사용할 수 있어요.</p>}
           <nav className="account-menu" aria-label="계정 메뉴">
-            <button type="button" onClick={() => navigate("records")}><Database size={19} /><span>기록 관리<small>동기화 · 백업 · 복원</small></span><ChevronRight size={17} /></button>
-            <button type="button" onClick={() => navigate("settings")}><Settings2 size={19} /><span>앱 설정<small>화면 테마 · 시간대</small></span><ChevronRight size={17} /></button>
-            {app.user && <button type="button" onClick={() => navigate("security")}><UserRound size={19} /><span>계정 관리<small>계정 정보 · 로그아웃</small></span><ChevronRight size={17} /></button>}
+            <button type="button" aria-label="기록 관리" onClick={() => navigate("records")}><Database size={19} /><span>기록 관리<small>동기화 · 백업 · 복원</small></span><ChevronRight size={17} /></button>
+            <button type="button" aria-label="앱 설정" onClick={() => navigate("settings")}><Settings2 size={19} /><span>앱 설정<small>화면 테마 · 시간대</small></span><ChevronRight size={17} /></button>
+            {app.user && <button type="button" aria-label="계정 관리" onClick={() => navigate("security")}><UserRound size={19} /><span>계정 관리<small>계정 정보 · 로그아웃</small></span><ChevronRight size={17} /></button>}
           </nav>
           <p className="account-footnote">작은 실천, 반짝이는 하루</p>
         </>
