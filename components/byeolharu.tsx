@@ -227,12 +227,14 @@ function Modal({
   children,
   onClose,
   onEscape,
+  onBack,
   wide = false,
 }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
   onEscape?: () => void;
+  onBack?: () => void;
   wide?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -270,6 +272,7 @@ function Modal({
       }}
     >
       <div className="modal-top">
+        {onBack && <button type="button" className="icon-button modal-back" aria-label="내 계정으로" onClick={onBack}><ChevronLeft size={21} aria-hidden="true"/></button>}
         <h2 id="modal-title">{title}</h2>
         <button className="icon-button" aria-label="닫기" onClick={onClose}>
           <X size={20} />
@@ -866,9 +869,9 @@ export default function Byeolharu() {
   const ready = !!app.snapshot;
   const setHabits = app.setHabits;
   const [accountOpen, setAccountOpen] = useState(false);
-  const [accountPage, setAccountPage] = useState<"home" | "records" | "settings" | "security" | "login" | "signup" | "reset">("home");
+  const [accountPage, setAccountPage] = useState<"home" | "records" | "import" | "settings" | "security" | "login" | "signup" | "reset">("home");
   useEffect(() => {
-    if (!app.user && accountPage === "security") setAccountPage("home");
+    if (!app.user && (accountPage === "security" || accountPage === "import")) setAccountPage("home");
   }, [app.user, accountPage]);
   const [constellationOpen, setConstellationOpen] = useState(false);
   const [celebration, setCelebration] = useState<{ stage: number; scope: string; day: string } | null>(null);
@@ -1736,8 +1739,9 @@ export default function Byeolharu() {
       )}
       {accountOpen && (
         <Modal
-          title={accountPage === "home" ? "내 계정" : accountPage === "records" ? "기록 관리" : accountPage === "settings" ? "앱 설정" : accountPage === "security" ? "계정 관리" : accountPage === "login" ? "로그인" : accountPage === "signup" ? "회원가입" : "비밀번호 찾기"}
+          title={accountPage === "home" ? "내 계정" : accountPage === "records" ? "데이터 관리" : accountPage === "import" ? "비회원 기록 가져오기" : accountPage === "settings" ? "앱 설정" : accountPage === "security" ? "계정 관리" : accountPage === "login" ? "로그인" : accountPage === "signup" ? "회원가입" : "비밀번호 찾기"}
           onClose={() => { setAccountOpen(false); setAccountPage("home"); }}
+          onBack={accountPage !== "home" ? () => setAccountPage("home") : undefined}
           onEscape={() => {
             if (accountPage !== "home") setAccountPage("home");
             else { setAccountOpen(false); setAccountPage("home"); }

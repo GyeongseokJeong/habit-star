@@ -52,7 +52,7 @@ test("legacy data survives migration, edits, reload, midnight snapshot and backu
   ).toBe(raw);
   await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "기록 관리", exact: true }).click();
+  await page.getByRole("button", { name: "데이터 관리", exact: true }).click();
   await page.getByRole("button", { name: "기록 백업 내려받기" }).click();
   const backupFile = await download;
   expect(backupFile.suggestedFilename()).toContain("byeolharu-backup");
@@ -158,7 +158,7 @@ test("malformed legacy data is preserved and recovery is visible", async ({
   });
   await page.goto("/");
   await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
-  await page.getByRole("button", { name: "기록 관리", exact: true }).click();
+  await page.getByRole("button", { name: "데이터 관리", exact: true }).click();
   await expect(page.getByText("원본 복구 확인 필요")).toBeVisible();
   expect(
     await page.evaluate(() => localStorage.getItem("byeolharu_v1_habits")),
@@ -203,7 +203,7 @@ test("backup restores into a new guest browser without overwriting another datas
   ).toBeVisible();
   await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "기록 관리", exact: true }).click();
+  await page.getByRole("button", { name: "데이터 관리", exact: true }).click();
   await page.getByRole("button", { name: "기록 백업 내려받기" }).click();
   const file = await (await download).path();
   const next = await browser.newContext();
@@ -211,7 +211,7 @@ test("backup restores into a new guest browser without overwriting another datas
     const target = await next.newPage();
     await target.goto("/");
     await target.getByRole("button", { name: "계정 및 데이터 관리" }).click();
-    await target.getByRole("button", { name: "기록 관리", exact: true }).click();
+    await target.getByRole("button", { name: "데이터 관리", exact: true }).click();
     await target.getByText("백업 파일 복원", { exact: true }).click();
     await expect(
       target.getByLabel("백업 복원 (기록이 없는 같은 계정·브라우저)"),
