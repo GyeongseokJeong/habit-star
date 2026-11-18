@@ -60,7 +60,7 @@ async function openImport(page: Page) {
   const advanced = page.getByText("고급 데이터 관리", { exact: true });
   const importAction = page.getByRole("button", { name: "이 기기의 비회원 기록 가져오기" });
   await expect(advanced).toBeVisible();
-  await advanced.click();
+  if (!(await importAction.isVisible())) await advanced.click();
   await expect(importAction).toBeVisible();
   await importAction.click();
 }
