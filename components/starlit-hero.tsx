@@ -1,16 +1,18 @@
 import type { CSSProperties } from "react";
-import { Star } from "lucide-react";
+import { Sparkles, Star } from "lucide-react";
 
 export function StarlitHero({
   completed,
   total,
   onViewConstellation,
   stage,
+  celebratedStage,
 }: {
   completed: number;
   total: number;
   onViewConstellation?: () => void;
   stage?: number;
+  celebratedStage?: number | null;
 }) {
   const progress = total > 0 ? Math.min(1, completed / total) : 0;
   const starStyle = {
@@ -50,6 +52,13 @@ export function StarlitHero({
             <Star size={16} aria-hidden="true" /> 나의 별자리 <span>STAGE {stage}</span>
           </button>
         )}
+        <div aria-live="polite" aria-atomic="true">
+          {celebratedStage && (
+            <p className="constellation-stage-celebration">
+              <Sparkles size={14} aria-hidden="true" /> 별자리가 한층 밝아졌어요 · STAGE {celebratedStage}
+            </p>
+          )}
+        </div>
       </div>
       <span className="starlit-star" style={starStyle} aria-hidden="true">
         <Star fill="currentColor" />

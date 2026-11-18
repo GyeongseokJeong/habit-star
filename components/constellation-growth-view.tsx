@@ -38,6 +38,11 @@ export function ConstellationGrowthView({ points }: { points: number }) {
           </span>
         </button>
 
+        {art.stage === 6 && (
+          <span className="constellation-afterglow" aria-hidden="true">
+            {Array.from({ length: 8 }, (_, index) => <span key={index} />)}
+          </span>
+        )}
         <p className="constellation-poem">{caption}</p>
       </div>
 
