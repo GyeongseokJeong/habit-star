@@ -867,6 +867,9 @@ export default function Byeolharu() {
   const setHabits = app.setHabits;
   const [accountOpen, setAccountOpen] = useState(false);
   const [accountPage, setAccountPage] = useState<"home" | "records" | "settings" | "security" | "login" | "signup" | "reset">("home");
+  useEffect(() => {
+    if (!app.user && accountPage === "security") setAccountPage("home");
+  }, [app.user, accountPage]);
   const [constellationOpen, setConstellationOpen] = useState(false);
   const [celebration, setCelebration] = useState<{ stage: number; scope: string; day: string } | null>(null);
   const celebrationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
