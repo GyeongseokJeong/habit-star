@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateConstellationGrowth, isFreshGuestDemo } from "../lib/constellation/growth";
+import { calculateConstellationGrowth, earnedStageFromCompletion, isFreshGuestDemo } from "../lib/constellation/growth";
 import { getConstellationStage } from "../lib/constellation/art";
 import { entityKey, type Habit, type Entity } from "../lib/habits/domain";
 import type { Snapshot, State } from "../lib/habits/repository";
@@ -95,6 +95,32 @@ describe("V3.2 growth calculation", () => {
     const migration = demo([h]);
     migration.backup.raw.byeolharu_v1_habits = "[]";
     expect(calculateConstellationGrowth(snapshot([h], {}, { migration })).totalPoints).toBe(1);
+  });
+
+  it.each([[6, 2], [19, 3], [49, 4], [99, 5], [199, 6]])(
+    "announces only an earned Stage after %i points",
+    (points, expectedStage) => {
+      const history: Snapshot["history"] = {};
+      for (let index = 1; index <= points; index++) {
+        const day = new Date(Date.UTC(2026, 10, 17 - index)).toISOString().slice(0, 10);
+        history[day] = [habit(`earlier-${index}`)];
+      }
+      const current = snapshot([habit("today", false)], history);
+      expect(earnedStageFromCompletion(current, current.habits, habit("today"))).toBe(expectedStage);
+      expect(earnedStageFromCompletion(current, current.habits, habit("today", false))).toBeNull();
+      expect(earnedStageFromCompletion(current, [habit("today")], habit("today"))).toBeNull();
+      expect(earnedStageFromCompletion(current, [habit("today", false), habit("other"), habit("third"), habit("fourth")], habit("today"))).toBeNull();
+    },
+  );
+
+  it("recalculates after a date or account snapshot changes, without touching original history", () => {
+    const guest = snapshot([], { "2026-11-16": [habit("a")] });
+    const member = snapshot([], { "2026-11-16": [habit("a"), habit("b")] });
+    expect(calculateConstellationGrowth(guest).totalPoints).toBe(1);
+    expect(calculateConstellationGrowth(member).totalPoints).toBe(2);
+    expect(calculateConstellationGrowth({ ...guest, day: "2026-11-16", habits: [] }).totalPoints).toBe(0);
+    expect(calculateConstellationGrowth({ ...guest, history: { "2026-11-16": [] } }).totalPoints).toBe(0);
+    expect(guest.history["2026-11-16"]).toHaveLength(1);
   });
 
   it("ignores malformed day strings without changing history", () => {

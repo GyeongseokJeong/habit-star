@@ -47,3 +47,28 @@ it("tracks actual completed guest demo records across reload and reversal", asyn
     r.close();
   }
 });
+
+it("keeps guest and member growth in separate repository scopes", async () => {
+  const id = crypto.randomUUID();
+  const guest = new LocalRepository(`guest:growth-${id}`, () => [], { getItem: () => null });
+  const member = new LocalRepository(`member:growth-${id}`);
+  try {
+    await guest.initialize();
+    await member.initialize();
+    const guestHabit = sample();
+    const memberHabit = sample();
+    await guest.create(guestHabit);
+    await member.create(memberHabit);
+    await guest.update(guestHabit.id, { completed: true, rating: 0 });
+    expect(calculateConstellationGrowth(await guest.load()).totalPoints).toBe(1);
+    expect(calculateConstellationGrowth(await member.load()).totalPoints).toBe(0);
+    await member.update(memberHabit.id, { completed: true, rating: 3 });
+    expect(calculateConstellationGrowth(await member.load()).totalPoints).toBe(1);
+    await guest.update(guestHabit.id, { completed: false, rating: 0 });
+    expect(calculateConstellationGrowth(await guest.load()).totalPoints).toBe(0);
+    expect(calculateConstellationGrowth(await member.load()).totalPoints).toBe(1);
+  } finally {
+    guest.close();
+    member.close();
+  }
+});

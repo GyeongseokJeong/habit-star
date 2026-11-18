@@ -1,6 +1,6 @@
 # V3.2 growth engine — recording and provenance contract
 
-Status: code-only PR for calculation; **not yet connected to UI**.
+Status: merged into the home constellation viewer. The current implementation derives points from the active snapshot and shows approved artwork for all six Stages; it does not persist a growth counter.
 
 - Calculate from one authenticated/guest `Snapshot` only. Do not mix accounts, introduce a persisted counter, or infer missing dates.
 - `completed === true` qualifies regardless of rating or repeat schedule; distinct habit IDs per local day contribute a maximum of 3 points.
@@ -12,6 +12,6 @@ Status: code-only PR for calculation; **not yet connected to UI**.
 - This metadata is not written to Supabase. It is solely guest-installation demo provenance and must not influence another member's data. The real daily habit record remains the only growth scoring source.
 - This change deliberately avoids schema/RPC changes and has no PWA or deployment changes.
 
-Next PR: UI composition from `ConstellationArtwork` + external gold frame/text layer, progress indicator and growth view; confirm navigation/layout before integrating into `components/byeolharu.tsx`. Keep the existing daily completion interaction and StarlitHero.
+UI composition is implemented in `components/constellation-growth-view.tsx` and opened from `StarlitHero`. The existing daily completion interaction remains intact. Only a successful user-driven completion crossing a Stage threshold produces transient feedback; initial load, account switching, sync, and undo do not.
 
 Release checks: `pnpm typecheck`, `pnpm test`, `pnpm build`, GitHub Actions CI; browser visual testing after the UI PR. If results are unavailable, do not label them passed.

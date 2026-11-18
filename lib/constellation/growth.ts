@@ -1,4 +1,5 @@
-import { validDay, type Habit, type History } from "../habits/domain";
+import { validDay, type Habit } from "../habits/domain";
+import { getConstellationStage } from "./art";
 import type { Snapshot, State } from "../habits/repository";
 
 export type GrowthDay = { day: string; completedHabits: number; points: number };
@@ -40,13 +41,17 @@ function isUnconfirmedDemoCompletion(state: State, day: string, habit: Habit): b
 export function calculateConstellationGrowth(
   snapshot: Pick<Snapshot, "day" | "habits" | "history" | "state">,
 ): ConstellationGrowth {
-  const combined: History = { ...snapshot.history };
-  if (validDay(snapshot.day)) combined[snapshot.day] = snapshot.habits;
+  const currentDayIsValid = validDay(snapshot.day);
+  const dayKeys = Object.keys(snapshot.history);
+  if (currentDayIsValid && !Object.hasOwn(snapshot.history, snapshot.day)) dayKeys.push(snapshot.day);
+  dayKeys.sort();
   const days: GrowthDay[] = [];
   let totalPoints = 0;
   let totalCompletedHabits = 0;
-  for (const [day, habits] of Object.entries(combined).sort(([a], [b]) => a.localeCompare(b))) {
+  for (const day of dayKeys) {
     if (!validDay(day)) continue;
+    const habits = currentDayIsValid && day === snapshot.day
+      ? snapshot.habits : snapshot.history[day];
     const completed = new Set<string>();
     for (const habit of habits) {
       if (
@@ -62,4 +67,21 @@ export function calculateConstellationGrowth(
     totalCompletedHabits += completedHabits;
   }
   return { totalPoints, totalCompletedHabits, days };
+}
+
+/** Only an actual newly completed habit can earn a celebratory Stage transition. */
+export function earnedStageFromCompletion(
+  snapshot: Pick<Snapshot, "day" | "habits" | "history" | "state">,
+  visibleHabits: Habit[],
+  updatedHabit: Habit,
+): number | null {
+  const current = visibleHabits.find((habit) => habit.id === updatedHabit.id);
+  if (!current || current.completed || !updatedHabit.completed) return null;
+  const before = calculateConstellationGrowth({ ...snapshot, habits: visibleHabits }).totalPoints;
+  const after = calculateConstellationGrowth({
+    ...snapshot,
+    habits: visibleHabits.map((habit) => habit.id === updatedHabit.id ? updatedHabit : habit),
+  }).totalPoints;
+  const stage = getConstellationStage(after).stage;
+  return stage > getConstellationStage(before).stage ? stage : null;
 }

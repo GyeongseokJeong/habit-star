@@ -17,6 +17,6 @@ Habit Configuration은 `title`, `icon`, `timeGroup`, `repeatDays`, `scheduledTim
 
 `tests/*.test.ts`는 도메인/저장/동기화, `supabase/tests/*.sql`은 PostgreSQL RLS/RPC, `tests/e2e/*.spec.ts`는 Playwright 브라우저 시나리오다. `.github/workflows/ci.yml`은 verify와 별도 로컬 Supabase cloud job을 실행한다. `public/sw.js`는 앱 셸 PWA 캐시를 다루며 개인 데이터·인증 응답은 캐시하지 않는다. v0.app Publish는 기존 Vercel 배포 방식이며 이 하네스는 호스팅·환경변수·DB 설정을 바꾸지 않는다. 실행 조건은 [개발 규칙](DEVELOPMENT_RULES.md)을 따른다.
 
-## 예정: V3.2 별자리 성장 (미구현 설계)
+## V3.2 별자리 성장 (구현됨)
 
-상세 확정 정책과 아트 품질 기준은 [시그니처 별자리 설계](CONSTELLATION_V3_2.md)에 있다. 현 단계에서는 기존 날짜별 `History` 및 오늘의 `habits`를 중복 없이 결합해 사용자 전체의 성장 점수를 파생 계산하는 별도 Growth Engine을 설계한다. 별자리 Stage/시각 레이어는 이 결과를 소비하는 렌더러이며 원본 기록을 변경하지 않는다. 새로운 성장 테이블이 반드시 필요하다고 가정하지 않지만 샘플 초기 완료·이전 데이터 출처 문제는 먼저 분석한다. 이 문단은 구현 현황이 아닌 계획이다.
+[시그니처 별자리 설계](CONSTELLATION_V3_2.md)의 확정 정책에 따라 `lib/constellation/growth.ts`가 현재 저장 범위의 날짜별 `history`와 오늘 `habits`를 중복 없이 계산한다. 신규 비회원 샘플의 자동 완료는 출처 메타데이터로 제외하고, 실제로 확인된 실천만 인정한다. `lib/constellation/art.ts`의 Stage 1~6 경계와 승인된 2:3 원화를 `components/constellation-growth-view.tsx`에서 표현하며, 원본 기록과 DB 스키마를 변경하지 않는다. 홈에서는 기록·임시 완료·범위 변경에 맞춰 점수를 다시 계산하고 시계만 바뀌면 전체 기록을 재계산하지 않는다.

@@ -145,6 +145,45 @@ for (const { width, height } of [
   }
 }
 
+test("earned Stage 2 appears once, then undo and reload do not celebrate", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: /나의 별자리 STAGE 1/ })).toBeVisible();
+  await seedConstellationPoints(page, 6);
+  await expect(page.locator(".constellation-stage-celebration")).toHaveCount(0);
+  await page.getByRole("heading", { name: "독서 30분 & TOP 50 책장", exact: true }).click();
+  await page.getByRole("button", { name: "단순 체크만 하기", exact: true }).click();
+  await expect(page.getByRole("button", { name: /나의 별자리 STAGE 2/ })).toBeVisible();
+  await expect(page.locator(".constellation-stage-celebration")).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("button", { name: /나의 별자리 STAGE 2/ })).toBeVisible();
+  await expect(page.locator(".constellation-stage-celebration")).toHaveCount(0);
+  await page.getByRole("heading", { name: "독서 30분 & TOP 50 책장", exact: true }).click();
+  await page.getByRole("button", { name: "별점 저장", exact: true }).click();
+  await expect(page.getByRole("button", { name: /나의 별자리 STAGE 1/ })).toBeVisible();
+  await expect(page.locator(".constellation-stage-celebration")).toHaveCount(0);
+});
+
+test("Stage 6 afterglow grows deterministically without changing the approved image", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: /나의 별자리 STAGE 1/ })).toBeVisible();
+  await seedConstellationPoints(page, 200);
+  await page.getByRole("button", { name: /나의 별자리 STAGE 6/ }).click();
+  const card = page.locator(".constellation-card");
+  const base = await card.evaluate((el) => getComputedStyle(el.querySelector(".constellation-afterglow span")!).opacity);
+  const image = await card.locator("img").getAttribute("src");
+  await page.keyboard.press("Escape");
+  await seedConstellationPoints(page, 500);
+  await page.getByRole("button", { name: /나의 별자리 STAGE 6/ }).click();
+  const enriched = await card.evaluate((el) => getComputedStyle(el.querySelector(".constellation-afterglow span")!).opacity);
+  expect(Number(enriched)).toBeGreaterThan(Number(base));
+  expect(await card.locator("img").getAttribute("src")).toBe(image);
+  await page.screenshot({ path: "/tmp/v0-workspace/browser/screenshots/growth-stage-06-500-390x844.png", animations: "disabled" });
+  await page.reload();
+  await page.getByRole("button", { name: /나의 별자리 STAGE 6/ }).click();
+  expect(await card.evaluate((el) => getComputedStyle(el.querySelector(".constellation-afterglow span")!).opacity)).toBe(enriched);
+});
+
 test("artwork failure retains an accessible stage label", async ({ page }) => {
   await page.route(/(?:\/_next\/image|stage-01\.webp)/, (route) => route.abort());
   await page.goto("/");

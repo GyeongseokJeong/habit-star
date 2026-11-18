@@ -2458,6 +2458,30 @@ a {
   font-variant-numeric: tabular-nums;
 }
 .constellation-open:hover { background: #202847e8; border-color: #ffe1a8; }
+.constellation-stage-celebration {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 5px 10px;
+  border: 1px solid #e5b76e8c;
+  border-radius: 99px;
+  background: #142139e0;
+  color: #fff2d8;
+  font-size: 12px;
+  animation: constellation-rise 900ms ease-out both;
+}
+@keyframes constellation-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.starlit-hero:has(.constellation-stage-celebration) .starlit-star::before {
+  animation: constellation-bloom 1100ms ease-out;
+}
+@keyframes constellation-bloom {
+  30% { opacity: .9; }
+  100% { opacity: var(--star-bloom); }
+}
 .constellation-open:focus-visible { outline: 2px solid #ffe1a8; }
 .modal.wide:has(.constellation-growth-view) {
   position: fixed;
@@ -2504,6 +2528,31 @@ a {
   background: radial-gradient(ellipse at center, #ffdfa9, transparent 55%);
   opacity: calc(var(--constellation-extra-glow, 0) * 0.1);
 }
+.constellation-afterglow {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+.constellation-afterglow span {
+  position: absolute;
+  left: var(--spark-x);
+  top: var(--spark-y);
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #ffe7b5;
+  box-shadow: 0 0 8px 2px #f6c782a8;
+  opacity: clamp(0, calc(var(--constellation-extra-glow) * 2 - var(--spark-delay)), .85);
+}
+.constellation-afterglow span:nth-child(1) { --spark-x: 12%; --spark-y: 30%; --spark-delay: .04; }
+.constellation-afterglow span:nth-child(2) { --spark-x: 89%; --spark-y: 37%; --spark-delay: .16; }
+.constellation-afterglow span:nth-child(3) { --spark-x: 9%; --spark-y: 53%; --spark-delay: .3; }
+.constellation-afterglow span:nth-child(4) { --spark-x: 91%; --spark-y: 62%; --spark-delay: .44; }
+.constellation-afterglow span:nth-child(5) { --spark-x: 16%; --spark-y: 76%; --spark-delay: .58; }
+.constellation-afterglow span:nth-child(6) { --spark-x: 84%; --spark-y: 79%; --spark-delay: .72; }
+.constellation-afterglow span:nth-child(7) { --spark-x: 23%; --spark-y: 24%; --spark-delay: .86; }
+.constellation-afterglow span:nth-child(8) { --spark-x: 78%; --spark-y: 70%; --spark-delay: 1; }
 .constellation-card-heading {
   position: relative;
   z-index: 3;

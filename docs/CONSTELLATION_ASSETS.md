@@ -2,7 +2,7 @@
 
 ## Source of truth
 
-Approved image package: `byeolharu-v3.2-approved-art-set-v1.0.1.zip` from ChatGPT. The repository currently has a **code-only PR** until the six PNG and six WEBP files are uploaded to GitHub. Do not mark the image migration completed before that.
+Approved image package: `byeolharu-v3.2-approved-art-set-v1.0.1.zip` from ChatGPT. All six approved PNG originals and six derived WebP images are in `public/assets/constellation/` on `main`. Stage 6 uses the final 1024×1536 portrait update. Keep these twelve files byte-for-byte unchanged; verify with `node scripts/verify-constellation-assets.mjs`.
 
 The GitHub directory expected by Next.js and v0.app is:
 
@@ -25,13 +25,17 @@ public/assets/constellation/
 
 The source ZIP paths are `optimized-webp/stage-XX.webp` and `originals/stage-XX.png`. Only copy these 12 files into public; no reference-only alternates, contact sheets or HTML review files belong in public. The Stage 1–4 and 6 PNG bytes must remain identical. Stage 5 was mistakenly shipped as JPEG content with a PNG filename in v1.0. The corrected v1.0.1 asset is a true PNG encoding of identical decoded pixels and therefore has a new SHA-256.
 
-## User-facing upload workflow
+## Historical upload workflow (completed in PR #24 and the final Stage 6 update)
+
+The instructions below document the original handoff, not remaining work. All originals and previews are already committed. Every Stage 1–6 original is 1024×1536 (2:3); the final Stage 6 portrait replaces the earlier square version.
+
+## User-facing upload workflow (historical)
 
 1. Download and unzip the ChatGPT-approved package locally.
 2. On GitHub, open the feature branch **`feat/v3-2-approved-art-assets-handoff`**, then open `public/assets/constellation/` → **Add file → Upload files**. Upload all six files from `optimized-webp/`, keeping the exact filenames. Commit to that feature branch, not `main`.
 3. Open or create the `originals/` subdirectory and upload all six PNG files from `originals/`. Commit to the same branch. If GitHub's web upload doesn't preserve a folder path, clone the feature branch locally and copy the directory tree, then commit/push; do not flatten or rename the files.
 4. After files are present in the feature branch, v0.app should use `/assets/constellation/stage-XX.webp` and the exported component `ConstellationArtwork` in `components/constellation-artwork.tsx`. No external hotlinked URLs or private image storage.
-5. Verify successful image requests and visual fit in v0 Preview. In particular, Stage 6 (1024×1536) must not be forced to 2:3 and no SVG/card screenshot is a replacement for the approved images.
+5. Verify successful image requests and visual fit in v0 Preview. Stage 6's final 1024×1536 original is natively 2:3; never stretch or crop it, and no SVG/card screenshot is a replacement for the approved images.
 6. Run tests and CI, review changes and merge the PR. Merge/Publish only as an intentional, separate release action.
 
 ## Approval checksum registry
@@ -43,20 +47,13 @@ The **WEBP images are derived previews** of these originals, not independently a
 ## Code boundary
 
 - `lib/constellation/art.ts`: deterministic score → art mapping only; **not the Growth Engine**. User-wide total growth score is derived from actual persisted daily habit completion records separately per the product policy.
-- `components/constellation-artwork.tsx`: image display primitive, no data writes or DB schema. Does not automatically add a new navigation item, frame, score text, badges or sharing.
-- Existing UI and habit/sync/auth flows remain unchanged until a separately reviewed integration PR.
+- `components/constellation-artwork.tsx`: image display primitive, no data writes or DB schema. `components/constellation-growth-view.tsx` composes the image with a separate card frame, score, poem, zoom and Stage 6 decorative stars. Sharing is not implemented.
+- The growth viewer is integrated on the home page; existing habit/sync/auth storage paths remain unchanged.
 - If the WEBP files are absent, the image component displays a text fallback. This is a temporary error state, not a replacement for QA.
 
-## Acceptance checklist
+## Current acceptance checks
 
-- [ ] 12 exact image files committed to branch (six PNG, six WEBP)
-- [ ] 6 images are actual PNG format (not JPEG content under PNG extension), and SHA-256 values match the registry
-- [ ] Stage 1–6 render in 2:3, without stretch
-- [ ] Every WEBP responds successfully; no broken image fallback
-- [ ] Stage 1/2 show no deer, Stage 3 partial deer, Stage 4 complete young deer, Stage 5 mature deer, Stage 6 magnificent final deer
-- [ ] `pnpm typecheck`, `pnpm test`, `pnpm build`, GitHub CI verified
-- [ ] Mobile width 320–430px and both themes visually checked
-- [ ] Distinct design review for card frame, Korean labels and Growth Engine wiring
+The twelve files on `main` are verified by `node scripts/verify-constellation-assets.mjs` against signatures, SHA-256 and 1024×1536 dimensions. Playwright covers image loading, 2:3 `object-contain`, Stage 1–6, mobile and both themes, as well as enlarged viewing. The approved artworks remain unchanged. A Chrome screenshot review does not replace independent real-device aesthetic approval or Samsung Internet testing; re-run typecheck, unit tests, build and GitHub CI for each change.
 
 ## Important version conflict to avoid
 
@@ -70,9 +67,9 @@ The previously packaged `originals/stage-05.png` was internally JPEG (`FF D8 FF`
 
 The user replaced the previously approved **1254×1254 square Stage 6** with a final **1024×1536 portrait Stage 6**, maintaining the same Stage 1–5 2:3 ratio. These are deliberately distinct approved files; do not stretch the original square version.
 
-Upload the **exact two** files from `byeolharu-v3.2-stage-06-final-2x3.zip` to the existing GitHub paths (replacing previous files):
+The **exact two** files from `byeolharu-v3.2-stage-06-final-2x3.zip` are already committed at these GitHub paths (replacing the previous versions):
 
 - `public/assets/constellation/originals/stage-06.png` — 2,741,990 bytes, SHA-256 `72c91f59cbe695b10b2fd28376d21c9ac2eeff09318f6e9b5a45f0b0ea95a80e`
 - `public/assets/constellation/stage-06.webp` — 525,838 bytes, SHA-256 `e6b1b060e6c917a9d0a32bf2613db9090a3361262f2d9d682e21ec6c92a1c6ef`
 
-The change requires the accompanying updated `lib/constellation/art.ts`, `scripts/verify-constellation-assets.mjs`, and tests in the same PR. **Do not merge just the metadata updates before both images have been replaced and verified**. Stages 1–5 remain unchanged. A screenshot or regenerated deer is not an acceptable replacement.
+The corresponding `lib/constellation/art.ts`, `scripts/verify-constellation-assets.mjs`, tests, and both image files have since been merged together. Stages 1–5 remain unchanged. A screenshot or regenerated deer is not an acceptable replacement.

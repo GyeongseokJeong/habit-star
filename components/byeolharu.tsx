@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -51,7 +52,7 @@ import { useHabitApp } from "@/lib/habits/use-habit-app";
 import { AccountPanel } from "@/components/account/account-panel";
 import { StarlitHero } from "@/components/starlit-hero";
 import { ConstellationGrowthView } from "@/components/constellation-growth-view";
-import { calculateConstellationGrowth } from "@/lib/constellation/growth";
+import { calculateConstellationGrowth, earnedStageFromCompletion } from "@/lib/constellation/growth";
 import { getConstellationStage } from "@/lib/constellation/art";
 export type { Habit, TimeGroup } from "@/lib/habits/domain";
 type Tab = "all" | TimeGroup | "matrix";
@@ -863,6 +864,8 @@ export default function Byeolharu() {
   const setHabits = app.setHabits;
   const [accountOpen, setAccountOpen] = useState(false);
   const [constellationOpen, setConstellationOpen] = useState(false);
+  const [celebration, setCelebration] = useState<{ stage: number; scope: string; day: string } | null>(null);
+  const celebrationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [now, setNow] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("all");
@@ -932,6 +935,7 @@ export default function Byeolharu() {
       window.removeEventListener("beforeinstallprompt", install);
       if (toastTimer.current) clearTimeout(toastTimer.current);
       if (testTimer.current) clearTimeout(testTimer.current);
+      if (celebrationTimer.current) clearTimeout(celebrationTimer.current);
       for (const timer of reorderTimers.current.values()) clearTimeout(timer);
       reorderTimers.current.clear();
       void audio.current?.close();
@@ -1017,6 +1021,13 @@ export default function Byeolharu() {
     }
   }, [now, habits, ready, chime]);
 
+  const showStageCelebration = (stage: number, actionScope: string, actionDay: string) => {
+    if (activeScope.current !== actionScope) return;
+    setCelebration({ stage, scope: actionScope, day: actionDay });
+    if (celebrationTimer.current) clearTimeout(celebrationTimer.current);
+    celebrationTimer.current = setTimeout(() => setCelebration(null), 3600);
+  };
+
   const handleRateHabit = (id: string, value: number) => {
     const habit = habits.find((item) => item.id === id);
     const day = app.snapshot?.day;
@@ -1027,6 +1038,11 @@ export default function Byeolharu() {
         ? previous.rating
         : habit.rating;
     const rating = current === value ? 0 : value;
+    if (!rating) setCelebration(null);
+    const earnedStage = app.snapshot && earnedStageFromCompletion(
+      app.snapshot, visibleHabits,
+      applyDailyRecord(habit, { rating, completed: rating > 0, memo: habit.memo }),
+    );
     const override = { rating, scope, day };
     const nextOverrides = new Map(ratingOverridesRef.current);
     nextOverrides.set(id, override);
@@ -1068,6 +1084,9 @@ export default function Byeolharu() {
               : item,
           ),
         );
+        if (earnedStage && ratingOverridesRef.current.get(id) === override) {
+          showStageCelebration(earnedStage, scope, day);
+        }
       });
     ratingWrites.current.set(id, write);
     void write
@@ -1116,12 +1135,12 @@ export default function Byeolharu() {
     showToast("습관이 삭제되었습니다.");
   };
   const today = app.snapshot?.day ?? "";
-  const visibleHabits = habits.map((habit) => {
+  const visibleHabits = useMemo(() => habits.map((habit) => {
     const override = ratingOverrides.get(habit.id);
     return override?.scope === scope && override.day === today
       ? { ...habit, rating: override.rating, completed: override.rating > 0 }
       : habit;
-  });
+  }), [habits, ratingOverrides, scope, today]);
   const scheduledHabits = today
     ? visibleHabits.filter((h) => isScheduled(h, today))
     : [];
@@ -1129,9 +1148,9 @@ export default function Byeolharu() {
     ? visibleHabits.filter((h) => !isScheduled(h, today))
     : [];
   const summary = stats(visibleHabits, today);
-  const growthPoints = app.snapshot
+  const growthPoints = useMemo(() => app.snapshot
     ? calculateConstellationGrowth({ ...app.snapshot, habits: visibleHabits }).totalPoints
-    : 0;
+    : 0, [app.snapshot, visibleHabits]);
   const growthStage = getConstellationStage(growthPoints).stage;
   const allHistory = {
     ...history,
@@ -1367,6 +1386,7 @@ export default function Byeolharu() {
           total={scheduledHabits.length}
           onViewConstellation={ready ? () => setConstellationOpen(true) : undefined}
           stage={ready ? growthStage : undefined}
+          celebratedStage={celebration?.scope === scope && celebration.day === today ? celebration.stage : null}
         />
         <section className="metrics" aria-label="오늘의 통계">
           <div className="metric completion-metric">
@@ -1680,12 +1700,19 @@ export default function Byeolharu() {
           habit={detail}
           onClose={() => setDetailId(null)}
           onSave={(data) => {
+            const actionDay = today;
+            const actionScope = scope;
+            if (!data.completed) setCelebration(null);
+            const earnedStage = app.snapshot && earnedStageFromCompletion(
+              app.snapshot, visibleHabits, applyDailyRecord(detail, data),
+            );
             void (async () => {
               await setHabits((prev) =>
                 prev.map((h) =>
                   h.id === detail.id ? applyDailyRecord(h, data) : h,
                 ),
               );
+              if (earnedStage) showStageCelebration(earnedStage, actionScope, actionDay);
               setDetailId(null);
             })().catch(() => {});
           }}
