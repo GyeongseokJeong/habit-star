@@ -50,9 +50,28 @@ async function confirm(
     timeout: 10000,
   });
 }
+
+async function openRecords(page: Page) {
+  const open = page.getByRole("button", { name: "기록 관리", exact: true });
+  if (await open.isVisible()) await open.click();
+}
+async function openImport(page: Page) {
+  await openRecords(page);
+  const advanced = page.getByText("다른 비회원 기록 확인하기");
+  if (await advanced.isVisible()) await advanced.click();
+  await openImport(page);
+}
+async function logout(page: Page) {
+  const back = page.getByRole("button", { name: "내 계정으로" });
+  if (await back.isVisible()) await back.click();
+  await page.getByRole("button", { name: "계정 관리", exact: true }).click();
+  await logout(page);
+}
+
 async function login(page: Page, email: string, password: string) {
   await page.goto("/");
   await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+  await page.getByRole("button", { name: "로그인", exact: true }).click();
   await page.getByLabel("이메일", { exact: true }).fill(email);
   await page.getByLabel("비밀번호", { exact: true }).fill(password);
   await page
@@ -85,9 +104,7 @@ test("email confirmation, two-device offline sync, conflict resolution, import a
   await confirm(page, request, email);
   await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
   await expect(page.getByText(email, { exact: true })).toBeVisible();
-  await page
-    .getByRole("button", { name: "이 기기의 비회원 기록 가져오기" })
-    .click();
+  await openImport(page);
   await page.getByRole("button", { name: "이 계정으로 병합" }).click();
   await expect(
     page.getByRole("button", { name: "이 계정으로 병합" }),
@@ -115,9 +132,11 @@ test("email confirmation, two-device offline sync, conflict resolution, import a
     ).toHaveAttribute("aria-pressed", "true");
     await secondContext.setOffline(false);
     await second.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+    await openRecords(second);
     await second.getByRole("button", { name: "지금 동기화" }).click();
     await second.getByRole("button", { name: "닫기", exact: true }).click();
     await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+    await openRecords(page);
     await page.getByRole("button", { name: "지금 동기화" }).click();
     await page.getByRole("button", { name: "닫기", exact: true }).click();
     await expect(
@@ -134,12 +153,14 @@ test("email confirmation, two-device offline sync, conflict resolution, import a
       .getByRole("button", { name: "단순 체크만 하기", exact: true })
       .click();
     await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+    await openRecords(page);
     await page.getByRole("button", { name: "지금 동기화" }).click();
     await expect(page.locator(".saved-label")).toContainText("동기화 완료", {
       timeout: 30000,
     });
     await page.getByRole("button", { name: "닫기", exact: true }).click();
     await second.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+    await openRecords(second);
     await second.getByRole("button", { name: "지금 동기화" }).click();
     await expect(second.locator(".saved-label")).toContainText("동기화 완료", {
       timeout: 30000,
@@ -170,6 +191,7 @@ test("email confirmation, two-device offline sync, conflict resolution, import a
     ).toHaveAttribute("aria-pressed", "true");
     await page.context().setOffline(false);
     await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+    await openRecords(page);
     await page.getByRole("button", { name: "지금 동기화" }).click();
     await expect(page.locator(".saved-label")).toContainText("동기화 완료", {
       timeout: 30000,
@@ -177,13 +199,14 @@ test("email confirmation, two-device offline sync, conflict resolution, import a
     await page.getByRole("button", { name: "닫기", exact: true }).click();
     await secondContext.setOffline(false);
     await second.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+    await openRecords(second);
     await second.getByRole("button", { name: "지금 동기화" }).click();
     await expect(
-      second.getByRole("heading", { name: "동시에 변경된 기록" }),
+      second.getByRole("heading", { name: "기록 충돌 해결" }),
     ).toBeVisible({ timeout: 30000 });
     await second.getByRole("button", { name: "이 기기 기록 사용" }).click();
     await expect(
-      second.getByRole("heading", { name: "동시에 변경된 기록" }),
+      second.getByRole("heading", { name: "기록 충돌 해결" }),
     ).not.toBeVisible({ timeout: 30000 });
     await expect(second.locator(".saved-label")).toContainText("동기화 완료", {
       timeout: 30000,
@@ -194,6 +217,7 @@ test("email confirmation, two-device offline sync, conflict resolution, import a
     ).toHaveAttribute("aria-pressed", "true");
     // Bring both devices to the resolved baseline before another concurrent edit.
     await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+    await openRecords(page);
     await page.getByRole("button", { name: "지금 동기화" }).click();
     await expect(page.locator(".saved-label")).toContainText("동기화 완료", {
       timeout: 30000,
@@ -219,6 +243,7 @@ test("email confirmation, two-device offline sync, conflict resolution, import a
     }
     await page.context().setOffline(false);
     await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+    await openRecords(page);
     await page.getByRole("button", { name: "지금 동기화" }).click();
     await expect(page.locator(".saved-label")).toContainText("동기화 완료", {
       timeout: 30000,
@@ -226,13 +251,14 @@ test("email confirmation, two-device offline sync, conflict resolution, import a
     await page.getByRole("button", { name: "닫기", exact: true }).click();
     await secondContext.setOffline(false);
     await second.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+    await openRecords(second);
     await second.getByRole("button", { name: "지금 동기화" }).click();
     await expect(
-      second.getByRole("heading", { name: "동시에 변경된 기록" }),
+      second.getByRole("heading", { name: "기록 충돌 해결" }),
     ).toBeVisible({ timeout: 30000 });
     await second.getByRole("button", { name: "클라우드 기록 사용" }).click();
     await expect(
-      second.getByRole("heading", { name: "동시에 변경된 기록" }),
+      second.getByRole("heading", { name: "기록 충돌 해결" }),
     ).not.toBeVisible({ timeout: 30000 });
     await second.getByRole("button", { name: "닫기", exact: true }).click();
     await expect(
@@ -251,9 +277,9 @@ test("email confirmation, two-device offline sync, conflict resolution, import a
       second.getByRole("heading", { name: "회원 전용 기록", exact: true }),
     ).toBeVisible();
     await second.getByRole("button", { name: "계정 및 데이터 관리" }).click();
-    await second.getByRole("button", { name: "로그아웃", exact: true }).click();
+    await logout(second);
     await expect(
-      second.getByText("로그인 없이 이 기기에서 사용할 수 있어요."),
+      second.getByText("비회원으로 사용 중"),
     ).toBeVisible();
     await second.getByRole("button", { name: "닫기", exact: true }).click();
     await second.getByRole("tab", { name: /전체/ }).click();
@@ -282,6 +308,7 @@ test("email password recovery issues a usable new password", async ({
   await confirm(page, request, email);
   await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
   await expect(page.getByText(email, { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "계정 관리", exact: true }).click();
   await page.getByRole("button", { name: "다시 로그인", exact: true }).click();
   await page
     .getByRole("button", { name: "비밀번호 찾기", exact: true })
@@ -291,7 +318,7 @@ test("email password recovery issues a usable new password", async ({
     .getByRole("button", { name: "재설정 메일 보내기", exact: true })
     .click();
   await expect(
-    page.getByText("요청을 처리했습니다. 이메일을 확인해주세요."),
+    page.getByText("비밀번호 재설정 링크를 보냈습니다. 메일함을 확인해주세요."),
   ).toBeVisible();
   await confirm(page, request, email, "recovery");
   await expect(
@@ -304,9 +331,9 @@ test("email password recovery issues a usable new password", async ({
   await expect(page.getByText(/비밀번호를 변경했습니다/)).toBeVisible();
   await page.getByRole("link", { name: "별하루로 돌아가기" }).click();
   await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
-  await page.getByRole("button", { name: "로그아웃", exact: true }).click();
+  await logout(page);
   await expect(
-    page.getByText("로그인 없이 이 기기에서 사용할 수 있어요."),
+    page.getByText("비회원으로 사용 중"),
   ).toBeVisible();
   await page.getByRole("button", { name: "닫기", exact: true }).click();
   await login(page, email, nextPassword);
@@ -334,16 +361,14 @@ test("same-ID guest import remains resumable on conflict and completes only afte
 }) => {
   const { email, password } = await register(page, request);
   await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
-  await page
-    .getByRole("button", { name: "이 기기의 비회원 기록 가져오기" })
-    .click();
+  await openImport(page);
   await page.getByRole("button", { name: "이 계정으로 병합" }).click();
   await expect(
     page.getByText("가져오기 완료 · 서버와 로컬 기록을 확인했습니다."),
   ).toBeVisible();
-  await page.getByRole("button", { name: "로그아웃", exact: true }).click();
+  await logout(page);
   await expect(
-    page.getByText("로그인 없이 이 기기에서 사용할 수 있어요."),
+    page.getByText("비회원으로 사용 중"),
   ).toBeVisible();
   await page.getByRole("button", { name: "닫기", exact: true }).click();
   await page.getByRole("tab", { name: /전체/ }).click();
@@ -358,9 +383,7 @@ test("same-ID guest import remains resumable on conflict and completes only afte
     page.getByRole("heading", { name: "비회원에서 바꾼 같은 ID", exact: true }),
   ).toBeVisible();
   await login(page, email, password);
-  await page
-    .getByRole("button", { name: "이 기기의 비회원 기록 가져오기" })
-    .click();
+  await openImport(page);
   await page.getByRole("button", { name: "이 계정으로 병합" }).click();
   await expect(
     page.getByRole("heading", { name: "가져오기 충돌", exact: true }),
@@ -404,7 +427,8 @@ test("refresh cannot mask a server failure and auth-expired import keeps a resum
       body: JSON.stringify({ code: "XX000", message: "test_server_error" }),
     });
   });
-  await page.getByRole("button", { name: "지금 동기화" }).click();
+  await openRecords(page);
+    await page.getByRole("button", { name: "지금 동기화" }).click();
   await expect(page.locator(".saved-label")).toContainText(
     "클라우드 동기화 중",
   );
@@ -416,7 +440,8 @@ test("refresh cannot mask a server failure and auth-expired import keeps a resum
   });
   await page.unroute("**/rest/v1/rpc/pull_changes");
   await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
-  await page.getByRole("button", { name: "지금 동기화" }).click();
+  await openRecords(page);
+    await page.getByRole("button", { name: "지금 동기화" }).click();
   await expect(page.locator(".saved-label")).toContainText("동기화 완료");
   await page.route("**/rest/v1/rpc/commit_import", (route) =>
     route.fulfill({
@@ -425,9 +450,7 @@ test("refresh cannot mask a server failure and auth-expired import keeps a resum
       body: JSON.stringify({ code: "42501", message: "auth_required" }),
     }),
   );
-  await page
-    .getByRole("button", { name: "이 기기의 비회원 기록 가져오기" })
-    .click();
+  await openImport(page);
   await page.getByRole("button", { name: "이 계정으로 병합" }).click();
   await expect(
     page.getByRole("heading", { name: "가져오기 인증 만료", exact: true }),
@@ -461,9 +484,9 @@ test("switching between two authenticated accounts never reuses the prior accoun
     timeout: 30000,
   });
   await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
-  await page.getByRole("button", { name: "로그아웃", exact: true }).click();
+  await logout(page);
   await expect(
-    page.getByText("로그인 없이 이 기기에서 사용할 수 있어요."),
+    page.getByText("비회원으로 사용 중"),
   ).toBeVisible();
   await page.getByRole("button", { name: "닫기", exact: true }).click();
   await register(page, request);
@@ -482,9 +505,9 @@ test("switching between two authenticated accounts never reuses the prior accoun
     timeout: 30000,
   });
   await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
-  await page.getByRole("button", { name: "로그아웃", exact: true }).click();
+  await logout(page);
   await expect(
-    page.getByText("로그인 없이 이 기기에서 사용할 수 있어요."),
+    page.getByText("비회원으로 사용 중"),
   ).toBeVisible();
   await page.getByRole("button", { name: "닫기", exact: true }).click();
   await login(page, a.email, a.password);
@@ -506,10 +529,11 @@ test("incorrect password is rejected and a confirmed session survives reload", a
   await page.reload();
   await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
   await expect(page.getByText(email, { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "로그아웃", exact: true }).click();
+  await logout(page);
   await expect(
-    page.getByText("로그인 없이 이 기기에서 사용할 수 있어요."),
+    page.getByText("비회원으로 사용 중"),
   ).toBeVisible();
+  await page.getByRole("button", { name: "로그인", exact: true }).click();
   await page.getByLabel("이메일", { exact: true }).fill(email);
   await page.getByLabel("비밀번호", { exact: true }).fill(`${password}-wrong`);
   await page
@@ -559,9 +583,7 @@ test("v1 settings and historical ratings/memos survive consented, repeatable clo
   ).not.toBeVisible();
   await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
   for (let attempt = 0; attempt < 2; attempt++) {
-    await page
-      .getByRole("button", { name: "이 기기의 비회원 기록 가져오기" })
-      .click();
+    await openImport(page);
     await expect(
       page.getByRole("heading", { name: "기록 이전 확인" }),
     ).toBeVisible();
