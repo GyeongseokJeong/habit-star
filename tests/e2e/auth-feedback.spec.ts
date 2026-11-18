@@ -23,6 +23,7 @@ test("resend rate limits are visible and never reported as success", async ({
   );
   await page.goto("/");
   await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+  await page.getByRole("button", { name: "로그인", exact: true }).click();
   await page
     .getByLabel("이메일", { exact: true })
     .fill("release-check@example.test");
@@ -60,6 +61,7 @@ test("an unconfirmed email receives actionable login feedback", async ({
   );
   await page.goto("/");
   await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+  await page.getByRole("button", { name: "로그인", exact: true }).click();
   await page
     .getByLabel("이메일", { exact: true })
     .fill("release-check@example.test");
