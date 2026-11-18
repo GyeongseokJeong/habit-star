@@ -400,6 +400,10 @@ test("same-ID guest import remains resumable on conflict and completes only afte
   await expect(
     page.getByRole("heading", { name: "가져오기 충돌", exact: true }),
   ).not.toBeVisible();
+  // Resolving a conflict resumes the import automatically; do not offer
+  // a second merge after the receipt confirms completion.
+  await expect(page.getByRole("heading", { name: "기록 이전 확인" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "이 계정으로 병합" })).toHaveCount(0);
   await page.getByRole("button", { name: "닫기", exact: true }).click();
   await page.getByRole("tab", { name: /전체/ }).click();
   await expect(
@@ -468,6 +472,8 @@ test("refresh cannot mask a server failure and auth-expired import keeps a resum
   await expect(
     page.getByText("가져오기 완료 · 서버와 로컬 기록을 확인했습니다."),
   ).toBeVisible({ timeout: 30000 });
+  await expect(page.getByRole("heading", { name: "기록 이전 확인" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "이 계정으로 병합" })).toHaveCount(0);
 });
 
 test("switching between two authenticated accounts never reuses the prior account cache", async ({
