@@ -300,17 +300,10 @@ export function AccountPanel({
             <details className="account-advanced-details">
               <summary>고급 데이터 관리 <ChevronRight size={16} aria-hidden="true"/></summary>
               <p className="account-note">다른 저장 공간의 비회원 기록을 수동으로 확인할 수 있어요.</p>
-              {guestAvailable ? (
-                <button type="button" className="account-action-row" onClick={async () => {
-                  try { setPreview(await app.previewImport()); }
-                  catch { setMessage("비회원 기록을 읽지 못했습니다. 백업을 확인해주세요."); }
-                }}><Database size={18}/><span>이 기기의 비회원 기록 가져오기</span><ChevronRight size={16}/></button>
-              ) : (
-                <button type="button" className="account-action-row" onClick={async () => {
-                  try { setGuestAvailable(true); setPreview(await app.previewImport()); }
-                  catch { setMessage("비회원 기록을 읽지 못했습니다. 백업을 확인해주세요."); }
-                }}><Database size={18}/><span>이 기기의 비회원 기록 가져오기</span><ChevronRight size={16}/></button>
-              )}
+              <button type="button" className="account-action-row" onClick={async () => {
+                try { setGuestAvailable(true); setPreview(await app.previewImport()); }
+                catch { setMessage("비회원 기록을 읽지 못했습니다. 백업을 확인해주세요."); }
+              }}><Database size={18}/><span>이 기기의 비회원 기록 가져오기</span><ChevronRight size={16}/></button>
               {importPreview}
             </details>
           )}
