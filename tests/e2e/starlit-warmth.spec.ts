@@ -1,10 +1,19 @@
 import { expect, test, type Page } from "@playwright/test";
 
-const rgb = (value: string) =>
-  value
-    .match(/[\d.]+/g)!
-    .slice(0, 3)
-    .map(Number);
+// Contrast checks consume both computed CSS rgb() values and literal hex tokens.
+const rgb = (value: string): number[] => {
+  const hex = /^#([0-9a-f]{6})$/i.exec(value.trim());
+  if (hex) {
+    return [0, 2, 4].map((start) =>
+      Number.parseInt(hex[1].slice(start, start + 2), 16),
+    );
+  }
+  const css = /^rgba?\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)(?:\s*[,/].*)?\)$/i.exec(
+    value.trim(),
+  );
+  if (css) return css.slice(1, 4).map(Number);
+  throw new Error(`Unsupported CSS color format in contrast test: ${value}`);
+};
 
 function contrast(first: string, second: string) {
   const luminance = (color: string) => {
