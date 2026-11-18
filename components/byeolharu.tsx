@@ -871,7 +871,7 @@ export default function Byeolharu() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [accountPage, setAccountPage] = useState<"home" | "records" | "import" | "settings" | "security" | "login" | "signup" | "reset">("home");
   useEffect(() => {
-    if (!app.user && accountPage === "security") setAccountPage("home");
+    if (!app.user && (accountPage === "security" || accountPage === "import")) setAccountPage("home");
   }, [app.user, accountPage]);
   const [constellationOpen, setConstellationOpen] = useState(false);
   const [celebration, setCelebration] = useState<{ stage: number; scope: string; day: string } | null>(null);
