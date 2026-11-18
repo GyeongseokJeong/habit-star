@@ -37,7 +37,7 @@ function getColors(element: Element, pseudo?: string) {
   };
 }
 
-function capture(checked: Record<Variant, boolean>, theme: "light" | "dark") {
+function capture(checked: Record<Variant, boolean>, theme: "light" | "dark", palette: "current" | "refined") {
   const root = document.querySelector("[data-switch-diagnostics]")!;
   const selectedTime = root.querySelector("[data-selected-time]")!;
   const selectedWeekday = root.querySelector("[data-selected-weekday]")!;
@@ -60,6 +60,7 @@ function capture(checked: Record<Variant, boolean>, theme: "light" | "dark") {
       osDark: matchMedia("(prefers-color-scheme: dark)").matches,
       forcedColors: matchMedia("(forced-colors: active)").matches,
       appTheme: theme,
+      palette,
       documentScheme: getComputedStyle(document.documentElement).colorScheme,
       appScheme: getComputedStyle(root).colorScheme,
       metaColorScheme:
@@ -125,6 +126,7 @@ function capture(checked: Record<Variant, boolean>, theme: "light" | "dark") {
 
 export default function SwitchComparison() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [palette, setPalette] = useState<"current" | "refined">("current");
   const [checked, setChecked] = useState<Record<Variant, boolean>>({
     A: false,
     B: false,
@@ -135,10 +137,10 @@ export default function SwitchComparison() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      setReport(JSON.stringify(capture(checked, theme), null, 2));
+      setReport(JSON.stringify(capture(checked, theme, palette), null, 2));
     }, 220);
     return () => window.clearTimeout(timer);
-  }, [checked, theme, refresh]);
+  }, [checked, theme, palette, refresh]);
 
   const toggle = (id: Variant) =>
     setChecked((current) => ({ ...current, [id]: !current[id] }));
@@ -147,12 +149,12 @@ export default function SwitchComparison() {
     <main
       data-switch-diagnostics
       data-color-sample="page"
-      className={`byeolharu ${theme === "dark" ? "dark" : ""} ${styles.page}`}
+      className={`byeolharu ${theme === "dark" ? "dark" : ""} ${styles.page} ${palette === "refined" ? styles.refined : ""}`}
     >
       <div className={styles.container}>
         <header className={styles.header}>
           <p className={styles.eyebrow}>별하루 · 개발 진단 전용</p>
-          <h1>스위치 색상 비교</h1>
+          <h1>브라우저 색상 A/B 비교</h1>
           <p>
             운영 스위치는 변경하지 않습니다. 같은 선택 토큰으로 세 가지 DOM
             구조를 비교합니다. 실제 색은 화면 캡처와 아래 계산색을 함께 확인해
@@ -166,7 +168,63 @@ export default function SwitchComparison() {
           >
             앱 테마: {theme === "light" ? "라이트" : "다크"}
           </button>
+          <button
+            type="button"
+            className={styles.themeButton}
+            aria-pressed={palette === "refined"}
+            onClick={() => setPalette((value) => value === "current" ? "refined" : "current")}
+            data-palette-toggle
+          >
+            화면 팔레트: {palette === "refined" ? "B · 대비 개선" : "A · 현재"}
+          </button>
         </header>
+        <section aria-labelledby="palette-ab-title" className={styles.panel}>
+          <h2 id="palette-ab-title">다크 팔레트 A/B 미리보기</h2>
+          <p>
+            A는 현재 색상, B는 명암과 날짜 가독성을 개선한 실험안입니다.
+            같은 삼성 인터넷 다크 설정에서 두 카드를 비교하세요.
+          </p>
+          <div className={styles.paletteCompare}>
+            {([
+              { id: "current", label: "A · 현재 다크" },
+              { id: "refined", label: "B · 개선 후보" },
+            ] as const).map(({ id, label }) => (
+              <div
+                key={id}
+                data-palette-preview={id}
+                className={`${styles.palettePreview} ${id === "refined" ? styles.palettePreviewRefined : styles.palettePreviewCurrent}`}
+              >
+                <p className={styles.palettePreviewTitle}>{label}</p>
+                <div className={styles.palettePreviewPanel}>
+                  <p className={styles.palettePreviewHeading}>별점 매트릭스</p>
+                  <p className={styles.palettePreviewMonth}>2026년 11월</p>
+                  <div className={styles.palettePreviewDates} aria-label={`${label} 0~5점 및 비활성 색상`}>
+                    {Array.from({ length: 6 }, (_, tier) => (
+                      <span
+                        key={tier}
+                        className={styles.palettePreviewDay}
+                        data-preview-tier={tier}
+                        aria-label={`${tier}점 색상`}
+                      >
+                        {tier + 10}
+                      </span>
+                    ))}
+                    <span className={styles.palettePreviewDay} data-preview-tier="disabled" aria-label="비활성 날짜 색상">16</span>
+                  </div>
+                  <div className={styles.palettePreviewControls}>
+                    <span className={styles.palettePreviewSelected}>별점 선택</span>
+                    <span className={styles.palettePreviewQuiet}>미선택</span>
+                  </div>
+                  <p className={styles.palettePreviewFootnote}>하나의 별이 모여, 나만의 우주가 돼요.</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className={styles.paletteDisclaimer}>
+            화면 위의 팔레트 버튼은 아래 진단 요소에만 임시 적용됩니다.
+            실제 사용자 화면의 CSS와 기록은 변경되지 않습니다.
+          </p>
+        </section>
         <section
           aria-labelledby="palette-title"
           className={styles.panel}
