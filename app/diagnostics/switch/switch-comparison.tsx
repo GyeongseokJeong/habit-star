@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import styles from "./switch-comparison.module.css";
 
 type Variant = "A" | "B" | "C";
+type Palette = "current" | "refined" | "refined2";
 const variants: { id: Variant; title: string; structure: string }[] = [
   {
     id: "A",
@@ -37,7 +38,7 @@ function getColors(element: Element, pseudo?: string) {
   };
 }
 
-function capture(checked: Record<Variant, boolean>, theme: "light" | "dark", palette: "current" | "refined") {
+function capture(checked: Record<Variant, boolean>, theme: "light" | "dark", palette: Palette) {
   const root = document.querySelector("[data-switch-diagnostics]")!;
   const selectedTime = root.querySelector("[data-selected-time]")!;
   const selectedWeekday = root.querySelector("[data-selected-weekday]")!;
@@ -126,7 +127,7 @@ function capture(checked: Record<Variant, boolean>, theme: "light" | "dark", pal
 
 export default function SwitchComparison() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
-  const [palette, setPalette] = useState<"current" | "refined">("current");
+  const [palette, setPalette] = useState<Palette>("current");
   const [checked, setChecked] = useState<Record<Variant, boolean>>({
     A: false,
     B: false,
@@ -149,12 +150,12 @@ export default function SwitchComparison() {
     <main
       data-switch-diagnostics
       data-color-sample="page"
-      className={`byeolharu ${theme === "dark" ? "dark" : ""} ${styles.page} ${palette === "refined" ? styles.refined : ""}`}
+      className={`byeolharu ${theme === "dark" ? "dark" : ""} ${styles.page} ${palette === "refined" ? styles.refined : palette === "refined2" ? styles.refined2 : ""}`}
     >
       <div className={styles.container}>
         <header className={styles.header}>
           <p className={styles.eyebrow}>별하루 · 개발 진단 전용</p>
-          <h1>브라우저 색상 A/B 비교</h1>
+          <h1>브라우저 색상 A/B/B2 비교</h1>
           <p>
             운영 스위치는 변경하지 않습니다. 같은 선택 토큰으로 세 가지 DOM
             구조를 비교합니다. 실제 색은 화면 캡처와 아래 계산색을 함께 확인해
@@ -168,31 +169,41 @@ export default function SwitchComparison() {
           >
             앱 테마: {theme === "light" ? "라이트" : "다크"}
           </button>
-          <button
-            type="button"
-            className={styles.themeButton}
-            aria-pressed={palette === "refined"}
-            onClick={() => setPalette((value) => value === "current" ? "refined" : "current")}
-            data-palette-toggle
-          >
-            화면 팔레트: {palette === "refined" ? "B · 대비 개선" : "A · 현재"}
-          </button>
+          <div className={styles.palettePicker} aria-label="진단 화면 팔레트 선택">
+            {([
+              { id: "current", label: "A · 현재" },
+              { id: "refined", label: "B · 대비 개선" },
+              { id: "refined2", label: "B2 · 가독성 강화" },
+            ] as const).map(({ id, label }) => (
+              <button
+                type="button"
+                key={id}
+                className={styles.themeButton}
+                aria-pressed={palette === id}
+                onClick={() => setPalette(id)}
+                data-palette-option={id}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </header>
         <section aria-labelledby="palette-ab-title" className={styles.panel}>
-          <h2 id="palette-ab-title">다크 팔레트 A/B 미리보기</h2>
+          <h2 id="palette-ab-title">다크 팔레트 A/B/B2 미리보기</h2>
           <p>
-            A는 현재 색상, B는 명암과 날짜 가독성을 개선한 실험안입니다.
+            A는 현재 색상, B는 이미 실기기에서 조금 더 낫다고 평가된 개선안입니다. B2는 B에서 날짜·별점 대비만 추가 조정한 후보입니다.
             같은 삼성 인터넷 다크 설정에서 두 카드를 비교하세요.
           </p>
           <div className={styles.paletteCompare}>
             {([
               { id: "current", label: "A · 현재 다크" },
               { id: "refined", label: "B · 개선 후보" },
+              { id: "refined2", label: "B2 · 가독성 강화" },
             ] as const).map(({ id, label }) => (
               <div
                 key={id}
                 data-palette-preview={id}
-                className={`${styles.palettePreview} ${id === "refined" ? styles.palettePreviewRefined : styles.palettePreviewCurrent}`}
+                className={`${styles.palettePreview} ${id === "refined2" ? styles.palettePreviewRefined2 : id === "refined" ? styles.palettePreviewRefined : styles.palettePreviewCurrent}`}
               >
                 <p className={styles.palettePreviewTitle}>{label}</p>
                 <div className={styles.palettePreviewPanel}>
@@ -221,7 +232,7 @@ export default function SwitchComparison() {
             ))}
           </div>
           <p className={styles.paletteDisclaimer}>
-            화면 위의 팔레트 버튼은 아래 진단 요소에만 임시 적용됩니다.
+            위의 선택 버튼은 아래 진단 요소에만 임시 적용됩니다. B/B2는 앱 다크 모드에서만 차이가 나며
             실제 사용자 화면의 CSS와 기록은 변경되지 않습니다.
           </p>
         </section>
