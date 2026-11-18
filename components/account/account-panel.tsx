@@ -74,6 +74,11 @@ export function AccountPanel({
   const status = app.user ? app.status : "이 기기에 기록 저장 중";
   const critical = Boolean(app.error || unresolved || state?.importJournal || /실패|만료|충돌/.test(status));
   const warning = critical || (app.user && (pending > 0 || /대기/.test(status)));
+  // An import can finish through conflict resolution or background resume,
+  // not only through the "merge" button. Retire its stale preview after verification.
+  useEffect(() => {
+    if (state?.importReceipt && !state.importJournal) setPreview(null);
+  }, [state?.importReceipt?.verifiedAt, state?.importJournal]);
   useEffect(() => {
     if ((page !== "home" && page !== "records") || !app.user) {
       setGuestChecked(false);
