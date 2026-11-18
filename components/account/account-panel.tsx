@@ -275,6 +275,21 @@ export function AccountPanel({
               )}
             </section>
           )}
+          {app.user && guestChecked && !guestAvailable && !state?.importJournal && (
+            <details className="account-restore-details">
+              <summary className="account-action-row"><Database size={18}/><span>다른 비회원 기록 확인하기</span><ChevronRight size={16}/></summary>
+              <p>예전 기기 기록을 확인하거나 가져오기를 다시 시도할 수 있어요. 원본은 보존됩니다.</p>
+              <button type="button" className="secondary" onClick={async () => {
+                try {
+                  const guest = await app.previewImport();
+                  setGuestAvailable(true);
+                  setPreview(guest);
+                } catch {
+                  setMessage("비회원 기록을 읽지 못했습니다. 백업을 확인해주세요.");
+                }
+              }}>이 기기의 비회원 기록 가져오기</button>
+            </details>
+          )}
           {app.user && !guestChecked && !state?.importJournal && <p className="account-note" role="status">비회원 기록을 확인하고 있어요.</p>}
         </section>
       )}
