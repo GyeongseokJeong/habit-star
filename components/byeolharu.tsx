@@ -949,7 +949,7 @@ export default function Byeolharu() {
     );
     themeColor?.setAttribute(
       "content",
-      theme === "light" ? "#F7F6F2" : "#0C111B",
+      theme === "light" ? "#F7F6F2" : "#111925",
     );
     try {
       localStorage.setItem("byeolharu_v2_theme", theme);
