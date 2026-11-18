@@ -228,6 +228,8 @@ function Modal({
   onClose,
   onEscape,
   onBack,
+  accountScreen = false,
+  scrollKey,
   wide = false,
 }: {
   title: string;
@@ -235,13 +237,24 @@ function Modal({
   onClose: () => void;
   onEscape?: () => void;
   onBack?: () => void;
+  accountScreen?: boolean;
+  scrollKey?: string;
   wide?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  // Keep the account header fixed while each detail page starts at its top.
+  useLayoutEffect(() => {
+    if (!accountScreen) return;
+    const content = ref.current?.querySelector<HTMLElement>(".account-screen-body");
+    if (content) content.scrollTop = 0;
+    if (ref.current?.open) titleRef.current?.focus({ preventScroll: true });
+  }, [accountScreen, scrollKey]);
   useEffect(() => {
     const dialog = ref.current;
     const previousFocus = document.activeElement;
     dialog?.showModal();
+    if (accountScreen) titleRef.current?.focus({ preventScroll: true });
     const original = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
@@ -255,7 +268,7 @@ function Modal({
   return (
     <dialog
       ref={ref}
-      className={`modal ${wide ? "wide" : ""}`}
+      className={`modal ${wide ? "wide" : ""} ${accountScreen ? "account-screen" : ""}`}
       aria-labelledby="modal-title"
       onCancel={(e) => { e.preventDefault(); (onEscape ?? onClose)(); }}
       onClick={(e) => {
@@ -273,12 +286,12 @@ function Modal({
     >
       <div className="modal-top">
         {onBack && <button type="button" className="icon-button modal-back" aria-label="내 계정으로" onClick={onBack}><ChevronLeft size={21} aria-hidden="true"/></button>}
-        <h2 id="modal-title">{title}</h2>
+        <h2 id="modal-title" ref={titleRef} tabIndex={accountScreen ? -1 : undefined}>{title}</h2>
         <button className="icon-button" aria-label="닫기" onClick={onClose}>
           <X size={20} />
         </button>
       </div>
-      {children}
+      {accountScreen ? <div className="account-screen-body">{children}</div> : children}
     </dialog>
   );
 }
@@ -1739,6 +1752,8 @@ export default function Byeolharu() {
       )}
       {accountOpen && (
         <Modal
+          accountScreen
+          scrollKey={accountPage}
           title={accountPage === "home" ? "내 계정" : accountPage === "records" ? "데이터 관리" : accountPage === "import" ? "비회원 기록 가져오기" : accountPage === "settings" ? "앱 설정" : accountPage === "security" ? "계정 관리" : accountPage === "login" ? "로그인" : accountPage === "signup" ? "회원가입" : "비밀번호 찾기"}
           onClose={() => { setAccountOpen(false); setAccountPage("home"); }}
           onBack={accountPage !== "home" ? () => setAccountPage("home") : undefined}
