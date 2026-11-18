@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -941,6 +942,10 @@ export default function Byeolharu() {
       void audio.current?.close();
     };
   }, []);
+
+  useLayoutEffect(() => {
+    if (ready) document.documentElement.dataset.byeolharuTheme = theme;
+  }, [ready, theme]);
 
   useEffect(() => {
     if (!ready) return;
