@@ -428,7 +428,8 @@ for (const width of [320, 390, 430]) {
     await page.goto("/");
     await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
     await page.getByRole("button", { name: "다크 모드로 전환" }).click();
-    await page.getByRole("button", { name: "별점", exact: true }).click();
+    await page.getByRole("tab", { name: "별점 매트릭스" }).click();
+    await expect(page.getByRole("tab", { name: "별점 매트릭스" })).toHaveAttribute("aria-selected", "true");
     const panel = page.locator(".matrix-panel").first();
     await expect(panel).toBeVisible();
     const colors = await panel.evaluate((element) => {
