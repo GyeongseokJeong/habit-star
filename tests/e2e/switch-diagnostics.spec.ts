@@ -43,7 +43,7 @@ test("dev-only comparison matches selection tokens in both app themes and OS mod
   await page.setViewportSize({ width: 395, height: 595 });
   await page.goto("/diagnostics/switch");
   await expect(
-    page.getByRole("heading", { name: "브라우저 색상 A/B 비교" }),
+    page.getByRole("heading", { name: "브라우저 색상 A/B/B2 비교" }),
   ).toBeVisible();
   await expect(page.locator('[data-variant="A"] input')).toHaveCSS(
     "color-scheme",
@@ -236,31 +236,52 @@ test("button variants support Space, Enter, focus and forced colors", async ({
 });
 
 
-test("A/B palette preview is isolated and toggles only diagnostic dark colors", async ({ page }) => {
+test("A/B/B2 palette candidates are isolated to diagnostics and dark mode", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/diagnostics/switch");
   const a = page.locator('[data-palette-preview="current"]');
   const b = page.locator('[data-palette-preview="refined"]');
+  const b2 = page.locator('[data-palette-preview="refined2"]');
   await expect(a).toBeVisible();
   await expect(b).toBeVisible();
-  await page.getByRole("button", { name: "앱 다크 모드로 전환" }).click();
-  const toggle = page.locator("[data-palette-toggle]");
+  await expect(b2).toBeVisible();
+
   const report = page.locator("[data-diagnostic-report]");
-  await expect(toggle).toHaveAttribute("aria-pressed", "false");
-  await toggle.click();
-  await expect(toggle).toHaveAttribute("aria-pressed", "true");
-  await expect.poll(async () =>
-    JSON.parse((await report.innerText()) || "null")?.environment?.palette,
-  ).toBe("refined");
+  const option = (value: "current" | "refined" | "refined2") =>
+    page.locator(`[data-palette-option="${value}"]`);
+  await expect(option("current")).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "앱 다크 모드로 전환" }).click();
+
+  await option("refined").click();
+  await expect(option("refined")).toHaveAttribute("aria-pressed", "true");
   await expect.poll(async () =>
     JSON.parse((await report.innerText()) || "null")?.matrix?.["tier-0"]?.background,
   ).toBe("rgb(39, 50, 67)");
+
+  await option("refined2").click();
+  await expect(option("refined2")).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(async () =>
+    JSON.parse((await report.innerText()) || "null")?.environment?.palette,
+  ).toBe("refined2");
+  await expect.poll(async () =>
+    JSON.parse((await report.innerText()) || "null")?.matrix?.["tier-0"]?.background,
+  ).toBe("rgb(46, 60, 79)");
+  await expect.poll(async () =>
+    JSON.parse((await report.innerText()) || "null")?.matrix?.["tier-3"]?.background,
+  ).toBe("rgb(128, 104, 71)");
   await expect.poll(async () =>
     JSON.parse((await report.innerText()) || "null")?.samples?.["disabled-date"]?.opacity,
   ).toBe("1");
+
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
-  await toggle.click();
-  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await page.getByRole("button", { name: "앱 라이트 모드로 전환" }).click();
+  await expect.poll(async () =>
+    JSON.parse((await report.innerText()) || "null")?.samples?.page?.background,
+  ).toBe("rgb(247, 246, 242)");
+
+  await page.getByRole("button", { name: "앱 다크 모드로 전환" }).click();
+  await option("current").click();
+  await expect(option("current")).toHaveAttribute("aria-pressed", "true");
   await expect.poll(async () =>
     JSON.parse((await report.innerText()) || "null")?.matrix?.["tier-0"]?.background,
   ).toBe("rgb(29, 38, 51)");
