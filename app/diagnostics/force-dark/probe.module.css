@@ -23,10 +23,10 @@
 
 /* Only the opt-in preview diagnostic route changes the root scheme.
  * These selectors deliberately do not match the actual Byeolharu app. */
-:global(html:has([data-force-dark-variant="declared"])) {
+:global(html):has(.page[data-force-dark-variant="declared"]) {
   color-scheme: light dark;
 }
-:global(html:has([data-force-dark-variant="optout"])) {
+:global(html):has(.page[data-force-dark-variant="optout"]) {
   color-scheme: only light;
 }
 .page[data-force-dark-variant="optout"] {
