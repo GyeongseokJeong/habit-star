@@ -43,7 +43,7 @@ test("dev-only comparison matches selection tokens in both app themes and OS mod
   await page.setViewportSize({ width: 395, height: 595 });
   await page.goto("/diagnostics/switch");
   await expect(
-    page.getByRole("heading", { name: "스위치 색상 비교" }),
+    page.getByRole("heading", { name: "브라우저 색상 A/B 비교" }),
   ).toBeVisible();
   await expect(page.locator('[data-variant="A"] input')).toHaveCSS(
     "color-scheme",
