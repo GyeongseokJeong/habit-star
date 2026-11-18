@@ -278,6 +278,7 @@ test("install action is only in settings when a real prompt is available", async
     page.getByRole("button", { name: "별하루 앱 설치" }),
   ).toHaveCount(0);
   await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+  await page.getByRole("button", { name: "앱 설정", exact: true }).click();
   await page
     .getByRole("button", { name: "별하루 앱 설치", exact: true })
     .click();
@@ -309,9 +310,7 @@ test("auth tabs, password visibility, resend cooldown and reset preserve existin
   await page.goto("/");
   await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
   await page.getByRole("button", { name: "회원가입", exact: true }).click();
-  await expect(
-    page.getByRole("button", { name: "회원가입", exact: true }),
-  ).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("heading", { name: "별하루에 오신 걸 환영해요" })).toBeVisible();
   await expect(page.getByLabel("비밀번호", { exact: true })).toHaveAttribute(
     "autocomplete",
     "new-password",
@@ -340,12 +339,14 @@ test("auth tabs, password visibility, resend cooldown and reset preserve existin
   ).toBeDisabled();
   await expect(page.getByRole("status")).toContainText("이메일을 확인해주세요");
   expect(resends).toBe(1);
+  await page.getByRole("button", { name: "로그인", exact: true }).click();
   await page
     .getByRole("button", { name: "비밀번호 찾기", exact: true })
     .click();
   await expect(page.getByLabel("비밀번호", { exact: true })).toHaveCount(0);
+  await page.getByLabel("이메일", { exact: true }).fill("ui-check@example.test");
   await page
     .getByRole("button", { name: "재설정 메일 보내기", exact: true })
     .click();
-  await expect(page.getByRole("status")).toContainText("이메일을 확인해주세요");
+  await expect(page.getByText("메일을 확인해주세요", { exact: true })).toBeVisible();
 });

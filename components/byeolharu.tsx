@@ -226,11 +226,13 @@ function Modal({
   title,
   children,
   onClose,
+  onEscape,
   wide = false,
 }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
+  onEscape?: () => void;
   wide?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -253,7 +255,7 @@ function Modal({
       ref={ref}
       className={`modal ${wide ? "wide" : ""}`}
       aria-labelledby="modal-title"
-      onCancel={onClose}
+      onCancel={(e) => { e.preventDefault(); (onEscape ?? onClose)(); }}
       onClick={(e) => {
         if (e.target === ref.current) {
           const rect = ref.current.getBoundingClientRect();
@@ -864,6 +866,10 @@ export default function Byeolharu() {
   const ready = !!app.snapshot;
   const setHabits = app.setHabits;
   const [accountOpen, setAccountOpen] = useState(false);
+  const [accountPage, setAccountPage] = useState<"home" | "records" | "settings" | "security" | "login" | "signup" | "reset">("home");
+  useEffect(() => {
+    if (!app.user && accountPage === "security") setAccountPage("home");
+  }, [app.user, accountPage]);
   const [constellationOpen, setConstellationOpen] = useState(false);
   const [celebration, setCelebration] = useState<{ stage: number; scope: string; day: string } | null>(null);
   const celebrationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1730,54 +1736,32 @@ export default function Byeolharu() {
       )}
       {accountOpen && (
         <Modal
-          title="계정 및 데이터 관리"
-          onClose={() => setAccountOpen(false)}
+          title={accountPage === "home" ? "내 계정" : accountPage === "records" ? "기록 관리" : accountPage === "settings" ? "앱 설정" : accountPage === "security" ? "계정 관리" : accountPage === "login" ? "로그인" : accountPage === "signup" ? "회원가입" : "비밀번호 찾기"}
+          onClose={() => { setAccountOpen(false); setAccountPage("home"); }}
+          onEscape={() => {
+            if (accountPage !== "home") setAccountPage("home");
+            else { setAccountOpen(false); setAccountPage("home"); }
+          }}
         >
           <AccountPanel
             key={app.user?.id ?? "guest"}
             app={app}
-            settings={
-              <section className="account-settings" aria-label="설정">
-                <h3>설정</h3>
-                <div className="setting-row">
-                  <span>화면 테마</span>
-                  <button
-                    className="secondary"
-                    onClick={() =>
-                      setTheme(theme === "light" ? "dark" : "light")
-                    }
-                  >
-                    {theme === "light"
-                      ? "라이트 · 다크로 전환"
-                      : "다크 · 라이트로 전환"}
-                  </button>
-                </div>
-                <p className="settings-hint">
-                  알림은 습관별로 설정할 수 있어요. 앱이 열려 있을 때
-                  알려드려요.
-                </p>
-                {installEvent && (
-                  <button
-                    className="secondary full"
-                    onClick={async () => {
-                      try {
-                        await installEvent.prompt();
-                        const choice = await installEvent.userChoice;
-                        if (choice.outcome === "accepted")
-                          showToast("별하루를 설치했어요!");
-                        setInstallEvent(null);
-                      } catch {
-                        showToast(
-                          "설치를 시작하지 못했어요. 잠시 후 다시 시도해주세요.",
-                        );
-                      }
-                    }}
-                  >
-                    <ArrowDownToLine size={17} /> 별하루 앱 설치
-                  </button>
-                )}
-              </section>
-            }
+            page={accountPage}
+            onNavigate={setAccountPage}
+            theme={theme}
+            onThemeChange={setTheme}
+            onInstall={installEvent ? () => {
+              void (async () => {
+                try {
+                  await installEvent.prompt();
+                  const choice = await installEvent.userChoice;
+                  if (choice.outcome === "accepted") showToast("별하루를 설치했어요!");
+                  setInstallEvent(null);
+                } catch {
+                  showToast("설치를 시작하지 못했어요. 잠시 후 다시 시도해주세요.");
+                }
+              })();
+            } : undefined}
           />
         </Modal>
       )}
