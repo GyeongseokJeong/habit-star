@@ -34,7 +34,7 @@ function guestHasOwnRecords(guest: Snapshot) {
   return Boolean(
     guest.state.hasUserEdits ||
     guest.state.demoConfirmedDailyEntryKeys?.length ||
-    (raw && Object.values(raw).some((entry) => entry != null)),
+    (raw && ["byeolharu_v1_habits", "byeolharu_v1_history", "byeolharu_v1_day"].some((key) => raw[key] != null)),
   );
 }
 
