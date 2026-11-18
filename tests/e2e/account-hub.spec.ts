@@ -41,3 +41,18 @@ test("Escape from account details returns to hub before closing the sheet", asyn
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
+
+test("data management has one heading and a non-interactive status in the hub", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+  await expect(page.getByRole("button", { name: "데이터 관리", exact: true })).toHaveCount(1);
+  await expect(page.locator(".account-status-line")).toBeVisible();
+  await expect(page.locator("button.account-status-card")).toHaveCount(0);
+  await page.getByRole("button", { name: "데이터 관리", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "데이터 관리", exact: true })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "내 계정으로" })).toBeVisible();
+  await expect(page.locator(".account-sync-overview")).toBeVisible();
+  await expect(page.getByText("백업 및 복원", { exact: true })).toBeVisible();
+  await expect(page.locator("body").evaluate(() => document.documentElement.scrollWidth <= innerWidth)).resolves.toBe(true);
+});
