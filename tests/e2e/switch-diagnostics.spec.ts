@@ -120,6 +120,78 @@ test("dev-only comparison matches selection tokens in both app themes and OS mod
   ).toBe(true);
 });
 
+test("diagnostic palette reports matrix, modal and controls independently of OS theme", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 395, height: 595 });
+  await page.goto("/diagnostics/switch");
+  for (const appTheme of ["light", "dark"] as const) {
+    for (const osTheme of ["light", "dark"] as const) {
+      await page.emulateMedia({ colorScheme: osTheme });
+      await page
+        .getByRole("button", { name: "OS 설정 변경 후 다시 측정" })
+        .click();
+      const report = page.locator("[data-diagnostic-report]");
+      await expect
+        .poll(
+          async () =>
+            JSON.parse((await report.innerText()) || "null")?.environment
+              ?.osDark,
+        )
+        .toBe(osTheme === "dark");
+      const data = JSON.parse(await report.innerText());
+      expect(data.environment.appTheme).toBe(appTheme);
+      expect(data.environment.documentScheme).toBe("light");
+      expect(data.environment.appScheme).toBe(appTheme);
+      expect(data.environment.themeColor).toMatch(/#f7f6f2/i);
+      expect(data.samples.page.background).toBe(
+        appTheme === "light" ? "rgb(247, 246, 242)" : "rgb(12, 17, 27)",
+      );
+      expect(data.samples.surface.background).toBe(
+        appTheme === "light" ? "rgb(255, 255, 255)" : "rgb(23, 29, 41)",
+      );
+      expect(data.samples.modal.background).toBe(
+        data.samples.surface.background,
+      );
+      expect(data.samples["disabled-date"].opacity).toBe("0.55");
+      expect(data.samples["disabled-button"].opacity).toBe("0.5");
+      expect(data.samples.gradient.backgroundImage).toContain(
+        "linear-gradient",
+      );
+      expect(data.samples.artwork.filter).toBe("none");
+      await expect(
+        page.getByAltText("승인된 6단계 별자리: 금빛 뿔의 별빛 사슴"),
+      ).toBeVisible();
+      expect(data.samples["modal-input"].colorScheme).toBe(appTheme);
+      expect(data.samples["primary-button"].background).toBe(
+        appTheme === "light" ? "rgb(82, 111, 101)" : "rgb(164, 193, 178)",
+      );
+      expect(data.selectedTime.background).toBe(
+        appTheme === "light" ? "rgb(98, 84, 126)" : "rgb(105, 90, 133)",
+      );
+      expect(Object.keys(data.matrix)).toEqual(
+        Array.from({ length: 6 }, (_, tier) => `tier-${tier}`),
+      );
+      expect(data.matrix["tier-0"].background).toBe(
+        appTheme === "light" ? "rgb(240, 241, 236)" : "rgb(29, 38, 51)",
+      );
+      expect(data.matrix["tier-5"].background).toBe(
+        appTheme === "light" ? "rgb(167, 128, 69)" : "rgb(197, 163, 108)",
+      );
+      expect(data.matrix["tier-5"].foreground).toBe(
+        appTheme === "light" ? "rgb(255, 255, 255)" : "rgb(23, 28, 26)",
+      );
+    }
+    if (appTheme === "light")
+      await page.getByRole("button", { name: "앱 다크 모드로 전환" }).click();
+  }
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});
+
 test("button variants support Space, Enter, focus and forced colors", async ({
   page,
 }) => {

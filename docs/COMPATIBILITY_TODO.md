@@ -1,6 +1,6 @@
-# 호환성 TODO — 삼성 인터넷 강제 다크 모드의 루틴 알림 스위치 색상
+# 호환성 TODO — 삼성 인터넷 웹페이지 강제 다크 모드의 색상 왜곡 (Issue #31)
 
-**상태: 흰색 손잡이 대안 적용 / 실기기 재검증 대기** — A/B/C 비교에서 B·C 트랙의 개선을 관찰했다. 운영 화면에서 OFF·ON 트랙 색상과 손잡이 위치는 확인했으나 손잡이가 흰색으로 표시되지 않는다. 벡터 전경색 대안의 삼성 인터넷 결과와 정확한 브라우저 렌더링 원인은 아직 확인되지 않았다.
+**상태: Unresolved / 실기기 재검증 대기** — 기존 스위치 손잡이의 벡터 전경색 대안도 삼성 인터넷 결과가 확인되지 않았다. 별점 매트릭스의 금색·회색·날짜 숫자와 다른 화면의 버튼·배경·텍스트까지 Chrome과 다르게 보인다는 사용자 관찰이 추가되었다. 삼성 인터넷 웹페이지 다크 모드가 유력하지만 설정/버전별 계산색과 실제 화면의 비교 없이 원인이나 해결을 확정하지 않는다.
 
 ## 영향 환경과 재현
 
@@ -85,6 +85,27 @@
 개발 서버 전용 `/diagnostics/switch`에서 A(이전 checkbox + span 트랙/손잡이), B(`button[role=switch]` + span 손잡이), C(`button[role=switch]` + `::after` 손잡이)를 동일한 `--toggle-off`, `--selection-bg` 토큰으로 표시한다. 시간대·요일 선택 버튼도 함께 두고 브라우저가 계산한 `background`, `color-scheme`, `forced-color-adjust`, `filter`, `opacity`, OS/앱 테마 및 `forced-colors`를 화면에 출력한다. 각 버튼을 눌러 OFF/ON을 각각 촬영한다. A는 수정 전 운영 DOM/CSS를 그대로 재현하며 현재 운영 `ReminderToggle`은 B 구조다. 진단 화면의 B/C는 버튼 자체가 56×44px 트랙이지만 운영 B는 56×44px 클릭 영역 내부의 트랙이 56×32px로 보이도록 유지한다. 진단 A도 56×44px 클릭 영역 내부 56×32px 트랙이다. 서로 다른 트랙 높이를 감안한다. 운영 빌드에서 이 경로는 404를 반환하며 앱의 탐색 메뉴에 노출되지 않는다.
 
 삼성 인터넷에서 OS 라이트/다크 × 앱 라이트/다크 × OFF/ON을 기록하고 같은 기기의 Chrome과 비교한다. OS 설정을 바꿨다면 페이지를 새로고침하거나 **OS 설정 변경 후 다시 측정**을 누른다. 캡처에는 스위치 3종과 선택 버튼, 측정 JSON을 함께 넣는다. 계산색이 정상이어도 페인트 후처리로 실제 픽셀이 다를 수 있어 둘 다 필요하다. 삼성 인터넷에서 A만 어둡게 표시되고 B/C가 정상으로 보인다는 사용자 실기기 확인에 따라, 공통 운영 스위치에는 내부 손잡이가 명시된 B를 채택한다. A 비교 코드는 이 페이지에만 남겨둔다. 구조 차이가 색상 변환에 영향을 준다는 증거는 있으나 정확한 삼성 인터넷 내부 원인까지 확정된 것은 아니다. 운영 적용 후 두 앱 테마와 OFF/ON을 다시 확인하기 전에는 해결로 종결하지 않는다.
+
+## Issue #31: 테마 전역 색상 진단과 지원 근거 (2026-11-18)
+
+- 현재 `:root`는 `color-scheme: light`, 앱 컨테이너 `.byeolharu`와 `.byeolharu.dark`는 각각 `light`/`dark`를 명시한다. `<dialog class="modal">`과 입력은 이를 상속한다. `app/layout.tsx`의 `theme-color`는 초기 라이트 배경이고 홈에서 앱 테마 변경 시 `components/byeolharu.tsx`가 갱신한다. 이는 브라우저 UI 색상 힌트이며 콘텐츠 색상 변환 방지 장치가 아니다. 매트릭스 `.tier-0`~`.tier-5`는 명시적 배경색이며 `.day-tile`의 날짜색/테두리는 테마별 토큰을 사용한다. 운영 스위치는 HTML 버튼·SVG 손잡이, 이전 A 스위치는 진단 화면 전용이다.
+- [MDN `color-scheme`](https://developer.mozilla.org/en-US/docs/Web/CSS/color-scheme)에 따르면 선언은 주로 브라우저 기본 캔버스·스크롤바·폼 컨트롤의 색상에 관여하며, 자체 스타일 요소는 별도로 지정해야 한다. [HTML 메타 `color-scheme`](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/meta/name/color-scheme)은 문서의 지원 테마와 선호 순서를 브라우저에 알린다. 이미 앱의 명시적 테마가 OS보다 우선하므로 `light dark` 메타만 추가하면 삼성 인터넷의 강제 변환이 방지된다는 근거는 없다. 문서 메타와 앱 컨테이너가 서로 다른 테마로 선택되는 위험도 검증 없이 도입하지 않는다.
+- `color-scheme: only light`는 [Chrome Auto Dark Theme의 공식 opt-out 설명](https://developer.chrome.com/blog/auto-dark-theme)과 MDN에 있다. 이전 스위치 A에는 이미 지정돼 있으나 삼성 인터넷 실기기에서 그 구조의 손잡이가 어두웠다. Chrome 구현에서의 효과를 삼성 인터넷 웹페이지 강제 다크 모드의 확실한 차단 방법으로 일반화할 수 없다. 앱 다크 테마까지 `only light`로 강제하면 네이티브 UI가 불일치하므로 전역 적용도 하지 않는다. [삼성 인터넷 공식 개발자 글(2020)](https://developer.samsung.com/internet/blog/en-us/2020/12/15/dark-mode-in-samsung-internet)은 브라우저 자체 색상 변환, `prefers-color-scheme`/`color-scheme` 지원, 실험적 `Force Dark Behavior`의 `Prefer Media Query Over Force Dark` 옵션을 설명한다. 후자는 페이지가 지원 색상 체계를 명시한 경우에 개발자 스타일을 우선하는 실험적 브라우저 선택이지 사이트가 기본 강제 변환을 확실히 차단할 수 있다는 보증이 아니다. [MDN 호환성 이슈 #29347](https://github.com/mdn/browser-compat-data/issues/29347)와 [#17408](https://github.com/mdn/browser-compat-data/issues/17408)에도 강제 변환이 웹사이트 선언을 무시한다는 사용자 보고가 있으나, 버전별 확정 지원 표시는 아니다. 사용자 측 대안으로 해당 브라우저의 웹페이지 다크 모드를 끄고 앱 테마를 사용하여 비교할 수 있으나, 기기별 메뉴 위치와 효과는 실기기 확인이 필요하다.
+- [MDN `forced-colors`](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/forced-colors)는 제한된 시스템 팔레트를 적용하는 접근성 모드다. 삼성 인터넷 웹페이지 다크 모드 ON과 동일한 신호가 아니므로 `forced-colors: active`를 강제 다크 탐지나 우회에 사용하지 않는다. 고대비용 스타일과 사용자의 색상 선택은 보존한다.
+- 개발 서버 전용 `/diagnostics/switch`에 매트릭스 0~5점 및 비활성 날짜, 표면·본문·일반/주요/비활성 버튼, 선택 버튼, 그라디언트, 승인된 Stage 6 원화, 모델리스 모달과 입력, 기존 스위치 A/B/C를 같은 화면에 표시한다. 앱 라이트/다크 전환 후 **OS 설정 변경 후 다시 측정**을 눌러 `documentScheme`, `appScheme`, 메타 값, CSS 계산색을 보고 실제 픽셀과 함께 촬영한다. 이 경로는 운영 빌드에서 404이며 실제 습관 기록은 수정하지 않는다. 계산색이 예상값인데 화면만 바뀌면 브라우저의 후처리 가능성을 조사한다. Chromium 계산색 테스트는 삼성 인터넷 페인트의 증명이 아니다. 운영 CSS·메타데이터는 실기기 원인 증거 전까지 변경하지 않는다.
+
+### 실기기 검증 매트릭스 — 현재 모두 미검증
+
+| OS   | 삼성 인터넷 웹페이지 다크 | 앱 테마 | 계산색·스크린샷 | 결과   |
+| ---- | ------------------------- | ------- | --------------- | ------ |
+| 다크 | ON                        | 라이트  | 미수집          | 미검증 |
+| 다크 | ON                        | 다크    | 미수집          | 미검증 |
+| 다크 | OFF                       | 라이트  | 미수집          | 미검증 |
+| 다크 | OFF                       | 다크    | 미수집          | 미검증 |
+
+동일 기기의 Chrome 모바일에서도 앱 양쪽 테마를 비교하고, 데스크톱 Chrome의 회귀 결과와 분리한다. 기기 모델·Android/One UI·삼성 인터넷 버전·웹페이지 다크 설정·앱 테마·OFF/ON·스크린샷·계산색을 각각 기록한 뒤에만 원인 및 수정 여부를 판정한다. `getComputedStyle()`은 브라우저의 최종 페인트 색을 보장하지 않는다.
+
+로컬 Chromium (HeadlessChrome 153, 개발 서버)에서 `pnpm typecheck`, `pnpm test` (106개), `tests/e2e/switch-diagnostics.spec.ts` (3개), `tests/e2e/starlit-warmth.spec.ts` (8개)가 통과했다. 395×595 진단 화면 라이트/다크 및 1280×800 진단 화면 다크, 홈 395×595 라이트 및 1280×800 라이트/다크를 눈으로 확인했고 가로 넘침은 테스트에서 없었다. 이는 데스크톱 Chromium의 모바일 뷰포트 에뮬레이션이지 Android Chrome 또는 삼성 인터넷 실기기 결과가 아니다. 앱 운영 스타일 변경은 없으며 모든 삼성 인터넷 조합과 모바일 Chrome 실기기는 여전히 미검증이다.
 
 ## 후속 검증과 완료 기준
 

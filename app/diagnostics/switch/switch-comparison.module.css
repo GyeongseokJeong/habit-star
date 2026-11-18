@@ -61,6 +61,70 @@
   margin: 0;
 }
 
+.matrix {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 18px;
+}
+
+.matrixCell {
+  display: grid;
+  gap: 4px;
+  text-align: center;
+}
+
+.matrixLabel {
+  color: var(--body);
+  font-size: 12px;
+}
+
+.matrixCell :global(.day-tile) {
+  width: 44px;
+  height: 44px;
+}
+
+.visualSamples {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.visualSamples :global(.little-note) {
+  min-height: 150px;
+  flex: 1 1 180px;
+  align-items: center;
+}
+
+.visualSamples figure {
+  margin: 0;
+  color: var(--body);
+  font-size: 12px;
+  text-align: center;
+}
+
+.visualSamples img {
+  display: block;
+  object-fit: contain;
+}
+
+.modalSample:global(.modal) {
+  position: static;
+  display: block;
+  width: 100%;
+  max-height: none;
+  margin: 16px 0 0;
+  padding: 16px;
+  box-shadow: none;
+  animation: none;
+}
+
+.modalSample :global(.field) {
+  margin-bottom: 0;
+}
+
 .samples {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));

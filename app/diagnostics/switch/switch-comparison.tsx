@@ -1,6 +1,7 @@
 "use client";
 
 import { Bell } from "lucide-react";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import styles from "./switch-comparison.module.css";
 
@@ -8,7 +9,7 @@ type Variant = "A" | "B" | "C";
 const variants: { id: Variant; title: string; structure: string }[] = [
   {
     id: "A",
-    title: "현재 구현",
+    title: "이전 구현",
     structure: "checkbox + span 트랙 + span 손잡이",
   },
   {
@@ -27,6 +28,7 @@ function getColors(element: Element, pseudo?: string) {
   const css = getComputedStyle(element, pseudo);
   return {
     background: css.backgroundColor,
+    backgroundImage: css.backgroundImage,
     foreground: css.color,
     colorScheme: css.colorScheme,
     forcedColorAdjust: css.forcedColorAdjust,
@@ -39,16 +41,68 @@ function capture(checked: Record<Variant, boolean>, theme: "light" | "dark") {
   const root = document.querySelector("[data-switch-diagnostics]")!;
   const selectedTime = root.querySelector("[data-selected-time]")!;
   const selectedWeekday = root.querySelector("[data-selected-weekday]")!;
+  const samples = [
+    "page",
+    "surface",
+    "body-text",
+    "plain-button",
+    "primary-button",
+    "disabled-button",
+    "disabled-date",
+    "gradient",
+    "artwork",
+    "modal",
+    "modal-input",
+  ];
   return {
     environment: {
       browser: navigator.userAgent,
       osDark: matchMedia("(prefers-color-scheme: dark)").matches,
       forcedColors: matchMedia("(forced-colors: active)").matches,
       appTheme: theme,
+      documentScheme: getComputedStyle(document.documentElement).colorScheme,
+      appScheme: getComputedStyle(root).colorScheme,
+      metaColorScheme:
+        document
+          .querySelector('meta[name="color-scheme"]')
+          ?.getAttribute("content") ?? null,
+      themeColor:
+        document
+          .querySelector('meta[name="theme-color"]')
+          ?.getAttribute("content") ?? null,
+      tokens: Object.fromEntries(
+        [
+          "--bg",
+          "--surface",
+          "--ink",
+          "--soft",
+          "--gold",
+          "--selection-bg",
+        ].map((name) => [
+          name,
+          getComputedStyle(root).getPropertyValue(name).trim(),
+        ]),
+      ),
       selectionToken: getComputedStyle(root)
         .getPropertyValue("--selection-bg")
         .trim(),
     },
+    samples: Object.fromEntries(
+      samples.map((name) => [
+        name,
+        getColors(
+          name === "page"
+            ? root
+            : root.querySelector(`[data-color-sample="${name}"]`)!,
+        ),
+      ]),
+    ),
+    matrix: Object.fromEntries(
+      Array.from({ length: 6 }, (_, tier) => [
+        `tier-${tier}`,
+        getColors(root.querySelector(`[data-matrix-tier="${tier}"]`)!),
+      ]),
+    ),
     selectedTime: getColors(selectedTime),
     selectedWeekday: getColors(selectedWeekday),
     switches: Object.fromEntries(
@@ -92,6 +146,7 @@ export default function SwitchComparison() {
   return (
     <main
       data-switch-diagnostics
+      data-color-sample="page"
       className={`byeolharu ${theme === "dark" ? "dark" : ""} ${styles.page}`}
     >
       <div className={styles.container}>
@@ -112,8 +167,103 @@ export default function SwitchComparison() {
             앱 테마: {theme === "light" ? "라이트" : "다크"}
           </button>
         </header>
+        <section
+          aria-labelledby="palette-title"
+          className={styles.panel}
+          data-color-sample="surface"
+        >
+          <h2 id="palette-title">화면 색상 기준</h2>
+          <p data-color-sample="body-text">
+            배경·본문·별점 날짜가 앱 테마에 맞게 보이는지 확인하세요.
+          </p>
+          <div
+            className={styles.matrix}
+            aria-label="별점 매트릭스 색상 0점부터 5점"
+          >
+            {Array.from({ length: 6 }, (_, tier) => (
+              <div key={tier} className={styles.matrixCell}>
+                <span className={styles.matrixLabel}>{tier}점</span>
+                <button
+                  type="button"
+                  className={`day-tile tier-${tier}`}
+                  data-matrix-tier={tier}
+                  aria-label={`${tier}점 날짜 색상 샘플`}
+                >
+                  {tier + 10}
+                </button>
+              </div>
+            ))}
+            <div className={styles.matrixCell}>
+              <span className={styles.matrixLabel}>비활성</span>
+              <button
+                type="button"
+                className="day-tile tier-0"
+                data-color-sample="disabled-date"
+                aria-label="비활성 날짜 색상 샘플"
+                disabled
+              >
+                16
+              </button>
+            </div>
+          </div>
+          <div className={styles.references}>
+            <button
+              type="button"
+              className={styles.themeButton}
+              data-color-sample="plain-button"
+            >
+              일반 버튼
+            </button>
+            <button
+              type="button"
+              className="primary"
+              data-color-sample="primary-button"
+            >
+              주요 버튼
+            </button>
+            <button
+              type="button"
+              className={styles.themeButton}
+              data-color-sample="disabled-button"
+              disabled
+            >
+              비활성 버튼
+            </button>
+          </div>
+          <div className={styles.visualSamples}>
+            <div className="little-note" data-color-sample="gradient">
+              별하루 그라디언트
+            </div>
+            <figure>
+              <Image
+                src="/assets/constellation/stage-06.webp"
+                alt="승인된 6단계 별자리: 금빛 뿔의 별빛 사슴"
+                width={100}
+                height={150}
+                data-color-sample="artwork"
+              />
+              <figcaption>승인된 6단계 원화</figcaption>
+            </figure>
+          </div>
+          <dialog
+            open
+            className={`modal ${styles.modalSample}`}
+            data-color-sample="modal"
+            aria-label="모달 색상 샘플"
+          >
+            <p>모달 배경과 입력 필드</p>
+            <label className="field">
+              <span>진단용 입력</span>
+              <input
+                data-color-sample="modal-input"
+                type="text"
+                placeholder="입력 색상 확인"
+              />
+            </label>
+          </dialog>
+        </section>
         <section aria-labelledby="reference-title" className={styles.panel}>
-          <h2 id="reference-title">정상 표시 기준</h2>
+          <h2 id="reference-title">스위치·선택 버튼 기준</h2>
           <div className={styles.references}>
             <div className="segmented">
               <button
