@@ -9,10 +9,10 @@ for (const viewport of [
   }) => {
     await page.setViewportSize(viewport);
     await page.goto("/");
+    await page.getByRole("tab", { name: "전체", exact: true }).click();
     await expect(
       page.getByRole("heading", { name: "미온수 한 잔 & 영양제", exact: true }),
     ).toBeVisible();
-    await page.getByRole("tab", { name: "전체", exact: true }).click();
     await expect(
       page.getByText("별하루를 더 가까이", { exact: true }),
     ).toHaveCount(0);
