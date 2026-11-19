@@ -51,6 +51,7 @@ import {
 import { useHabitApp } from "@/lib/habits/use-habit-app";
 import { AccountPanel } from "@/components/account/account-panel";
 import { StarlitHero } from "@/components/starlit-hero";
+import { initialRoutineTab } from "@/lib/habits/time-tab";
 import { ConstellationGrowthView } from "@/components/constellation-growth-view";
 import { calculateConstellationGrowth, earnedStageFromCompletion } from "@/lib/constellation/growth";
 import { getConstellationStage } from "@/lib/constellation/art";
@@ -891,6 +892,7 @@ export default function Byeolharu() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [now, setNow] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("all");
+  const startupTabResolved = useRef(false);
   const [month, setMonth] = useState(new Date(2026, 10, 1));
   const [editing, setEditing] = useState<Habit | "new" | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -943,7 +945,6 @@ export default function Byeolharu() {
     currentDay.current = key;
     setNow(date);
     setMonth(new Date(date.getFullYear(), date.getMonth(), 1));
-    setActiveTab("all");
     const clock = setInterval(() => setNow(new Date()), 1000);
     const install = (event: Event) => {
       event.preventDefault();
@@ -1190,6 +1191,17 @@ export default function Byeolharu() {
         )
       : now;
   const group = displayNow ? timeGroup(displayNow) : "day";
+  // Resolve the launch tab only after the verified guest/member snapshot is ready.
+  // Background ticks, sync updates and midnight must not override manual navigation.
+  useEffect(() => {
+    if (!now || !app.snapshot || startupTabResolved.current) return;
+    startupTabResolved.current = true;
+    setActiveTab(initialRoutineTab(
+      now,
+      scheduledHabits,
+      app.user ? app.snapshot.state.timezone : undefined,
+    ));
+  }, [now, app.snapshot, app.user, scheduledHabits]);
   const detail = visibleHabits.find((h) => h.id === detailId);
   const filtered = scheduledHabits
     .filter(
@@ -1485,12 +1497,16 @@ export default function Byeolharu() {
                           (ids.indexOf(id) + (e.key === "ArrowRight" ? 1 : 4)) %
                             5
                         ];
+                      startupTabResolved.current = true;
                       setActiveTab(next);
                       document.getElementById(`tab-${next}`)?.focus();
                     }
                   }}
                   className={activeTab === id ? "selected" : ""}
-                  onClick={() => setActiveTab(id)}
+                  onClick={() => {
+                    startupTabResolved.current = true;
+                    setActiveTab(id);
+                  }}
                 >
                   <Icon size={15} aria-hidden="true" />
                   <span className="tab-label">
