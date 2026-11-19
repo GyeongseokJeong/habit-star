@@ -1305,14 +1305,14 @@ export default function Byeolharu() {
           <nav className="desktop-nav" aria-label="주 메뉴">
             <button
               className={activeTab !== "matrix" ? "active" : ""}
-              onClick={() => setActiveTab("all")}
+              onClick={() => { startupTabResolved.current = true; setActiveTab("all"); }}
             >
               <Sun size={16} />
               오늘의 루틴
             </button>
             <button
               className={activeTab === "matrix" ? "active" : ""}
-              onClick={() => setActiveTab("matrix")}
+              onClick={() => { startupTabResolved.current = true; setActiveTab("matrix"); }}
             >
               <LayoutGrid size={16} />
               나의 별 기록
