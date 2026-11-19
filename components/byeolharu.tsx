@@ -1684,6 +1684,7 @@ export default function Byeolharu() {
               <path d="M0 32 Q80 14 158 34 T320 28 V42 H0Z" fill="var(--closing-hill-front)" />
             </svg>
           </div>
+          <div className="closing-divider" aria-hidden="true" />
           <div className="closing-brand"><Sparkles size={16} aria-hidden="true" /> 별하루</div>
         </footer>
       </main>
