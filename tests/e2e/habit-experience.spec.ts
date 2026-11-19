@@ -297,14 +297,14 @@ test("rapid stars update immediately, keep the card steady, and persist the last
   ).toHaveAttribute("aria-pressed", "false");
 });
 
-test("touching an already rated star clears its fill and completion state", async ({ browser }) => {
-  const context = await browser.newContext({
+test.describe("mobile touch stars", () => {
+  test.use({
     hasTouch: true,
     isMobile: true,
     viewport: { width: 390, height: 844 },
   });
-  const page = await context.newPage();
-  try {
+
+  test("touching an already rated star clears its fill and completion state", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("tab", { name: "전체", exact: true }).click();
     const card = page.locator(".habit-card").filter({
@@ -317,9 +317,6 @@ test("touching an already rated star clears its fill and completion state", asyn
     await expect(card).toContainText("실천 전");
     await expect(card.locator(".star.filled")).toHaveCount(0);
     await expect(star).toHaveAttribute("aria-pressed", "false");
-    const badge = card.locator(".status-pill");
-    await expect(badge).toHaveCSS("font-size", "10px");
-  } finally {
-    await context.close();
-  }
+    await expect(card.locator(".status-pill")).toHaveCSS("font-size", "10px");
+  });
 });
