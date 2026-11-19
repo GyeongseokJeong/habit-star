@@ -768,13 +768,10 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   color: var(--muted);
   font-size: 11px;
 }
-.card-rating .alarm {
-  margin-left: auto;
-  color: var(--muted);
-}
-.card-rating .alarm.enabled {
-  background: var(--selection-bg);
-  color: var(--selection-fg);
+/* B3.2: the 44px star targets are the primary inline recording action.
+   Keep the original card footprint, soft divider and Starlit Warmth tokens. */
+.habit-card .card-rating {
+  justify-content: flex-start;
 }
 .upcoming-heading {
   display: flex;
