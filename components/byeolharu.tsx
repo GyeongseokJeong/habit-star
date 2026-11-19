@@ -1151,7 +1151,6 @@ export default function Byeolharu() {
       onRate={handleRateHabit}
       onOpen={() => setDetailId(habit.id)}
       onEdit={() => setEditing(habit)}
-
     />
   );
 
