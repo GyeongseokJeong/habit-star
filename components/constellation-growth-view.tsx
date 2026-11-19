@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties, type TouchEvent } from "react";
-import { ChevronLeft, ChevronRight, Maximize2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Maximize2, RotateCcw, X } from "lucide-react";
 import { ConstellationArtwork } from "@/components/constellation-artwork";
 import { CONSTELLATION_ART, type ConstellationStageNumber } from "@/lib/constellation/art";
 import { CONSTELLATION_CAPTIONS, describeConstellationGrowth } from "@/lib/constellation/presentation";
@@ -22,10 +22,10 @@ export function ConstellationGrowthView({ points }: { points: number }) {
   const transitionId = useRef(0);
   const galleryStage = Math.min(selectedStage, currentStage) as ConstellationStageNumber;
   const selectedArt = CONSTELLATION_ART[galleryStage - 1];
-  // Three adjacent selectors always fit with 44px touch targets, even at 320px.
-  const windowStart = Math.max(1, Math.min(galleryStage - 1, currentStage - 2));
+  // Two 44px stage selectors leave space for a fixed-size current-stage shortcut at 320px.
+  const windowStart = Math.max(1, Math.min(galleryStage, currentStage - 1));
   const visibleStages = CONSTELLATION_ART.filter(
-    (item) => item.stage <= currentStage && item.stage >= windowStart && item.stage < windowStart + 3,
+    (item) => item.stage <= currentStage && item.stage >= windowStart && item.stage < windowStart + 2,
   );
   const caption = CONSTELLATION_CAPTIONS[selectedArt.stage];
   const range = selectedArt.max === null ? `${selectedArt.min}점 이상` : `${selectedArt.min} ~ ${selectedArt.max}점`;
@@ -130,12 +130,18 @@ export function ConstellationGrowthView({ points }: { points: number }) {
             <button type="button" className="constellation-gallery-arrow" aria-label="다음 별자리" disabled={galleryStage === currentStage} onClick={() => selectStage(galleryStage + 1)}>
               <ChevronRight size={20} aria-hidden="true" />
             </button>
+            <button
+              type="button"
+              className="constellation-gallery-return"
+              aria-label="현재 별자리로"
+              title="현재 별자리로"
+              disabled={galleryStage === currentStage}
+              onClick={() => selectStage(currentStage)}
+            >
+              <RotateCcw size={16} aria-hidden="true" />
+              <span aria-hidden="true">현재</span>
+            </button>
           </nav>
-        )}
-        {galleryStage !== currentStage && (
-          <button type="button" className="constellation-gallery-return" onClick={() => selectStage(currentStage)}>
-            현재 별자리로
-          </button>
         )}
         {galleryStage === 6 && (
           <span className="constellation-afterglow" aria-hidden="true">
