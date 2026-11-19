@@ -678,7 +678,7 @@ function HabitCard({
 }) {
   const keyboardRating = useRef(false);
   return (
-    <article className={`habit-card ${habit.completed ? "is-completed" : ""}`}>
+    <article data-habit-id={habit.id} className={`habit-card ${habit.completed ? "is-completed" : ""}`}>
       <div className="card-top">
         <span className={`habit-emoji ${habit.timeGroup}`}>{habit.icon}</span>
         <div className="card-actions">
@@ -1307,13 +1307,21 @@ export default function Byeolharu() {
       onRate={(id, value, fromKeyboard) => {
         handleRateHabit(id, value);
         if (normalFocusTimer.current) clearTimeout(normalFocusTimer.current);
-        if (fromKeyboard) {
-          // Reordering after 700ms removes the focused star: advance focus while
-          // the old card is still mounted. Pointer/touch recording is unaffected.
+        const movesGroup = habit.completed !== (habit.rating === value ? false : true);
+        if (fromKeyboard && movesGroup) {
+          // Transfer focus only when the card will unmount across completion groups.
+          // Avoid interrupting editing between nonzero ratings in the same group.
           normalFocusTimer.current = setTimeout(() => {
+            const activeCard = document.activeElement?.closest(".habit-card");
+            if (activeCard?.getAttribute("data-habit-id") !== id) {
+              normalFocusTimer.current = null;
+              return;
+            }
             const next = Array.from(document.querySelectorAll<HTMLElement>(
               ".normal-pending-list .habit-card .card-rating button",
-            )).find((button) => !button.closest(".habit-card")?.contains(document.activeElement));
+            )).find((button) =>
+              button.closest(".habit-card")?.getAttribute("data-habit-id") !== id,
+            );
             const fallback = document.querySelector<HTMLButtonElement>(".normal-done-toggle")
               ?? document.getElementById("tab-" + activeTab);
             (next ?? fallback)?.focus();
