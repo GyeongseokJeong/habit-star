@@ -2840,3 +2840,193 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
     overscroll-behavior: contain;
   }
 }
+
+
+/* Habit editor balanced v2.2 — reuse Starlit Warmth colors and control states. */
+.modal:has(.habit-editor-form) {
+  overflow-x: hidden;
+  padding-bottom: 0;
+}
+.modal:has(.habit-editor-form) .modal-top {
+  position: sticky;
+  top: -24px;
+  z-index: 3;
+  background: var(--surface);
+  padding: 0 0 10px;
+}
+.habit-editor-form {
+  min-width: 0;
+}
+.habit-editor-form .template-field {
+  margin: 10px 0 16px;
+}
+.habit-editor-field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.habit-editor-heading,
+.habit-editor-schedule-title {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 650;
+}
+.habit-editor-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  gap: 3px;
+  padding: 0 2px 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.habit-editor-more svg {
+  transition: transform 0.15s ease;
+}
+.habit-editor-more[aria-expanded="true"] svg {
+  transform: rotate(90deg);
+}
+.habit-editor-form .template-picker {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+.habit-editor-form .template-picker button {
+  min-width: 0;
+  min-height: 48px;
+  border-radius: 12px;
+}
+.habit-editor-form .template-picker button > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.habit-editor-form .habit-editor-name {
+  margin: 12px 0 16px;
+}
+.habit-editor-form .habit-editor-icons {
+  margin: 0 0 18px;
+}
+.habit-editor-form .emoji-picker {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+}
+.habit-editor-form .emoji-picker button {
+  min-width: 0;
+  min-height: 44px;
+  padding: 6px 0;
+  font-size: 22px;
+}
+.habit-editor-schedule {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+.habit-editor-schedule-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.habit-editor-schedule-title svg {
+  color: var(--accent);
+}
+.habit-editor-schedule-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: end;
+}
+.habit-editor-schedule-grid .field,
+.habit-editor-schedule-grid .habit-editor-time-group {
+  margin: 0;
+  min-width: 0;
+}
+.habit-editor-schedule-grid .habit-editor-time-group legend {
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.habit-editor-schedule-grid .segmented {
+  gap: 4px;
+}
+.habit-editor-schedule-grid .segmented button {
+  min-width: 0;
+  padding: 8px 2px;
+  gap: 4px;
+  font-size: 12px;
+}
+.habit-editor-schedule-grid .field input {
+  min-height: 44px;
+  padding: 8px 4px;
+  text-align: center;
+}
+.habit-editor-form .habit-editor-repeat {
+  margin: 16px 0;
+}
+.habit-editor-form .repeat-weekdays {
+  grid-template-columns: repeat(7, minmax(44px, 1fr));
+  overflow-x: auto;
+}
+.habit-editor-custom-days {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin: 8px 0 -4px;
+}
+.habit-editor-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  display: grid;
+  gap: 2px;
+  margin-top: 16px;
+  padding: 12px 0 max(12px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+.habit-editor-footer .primary {
+  margin-top: 0;
+  min-height: 48px;
+}
+.habit-editor-footer .text-button {
+  min-height: 44px;
+}
+@media (max-width: 620px) {
+  .modal:has(.habit-editor-form) .modal-top {
+    top: -20px;
+  }
+}
+@media (max-width: 430px) {
+  .habit-editor-form .emoji-picker {
+    grid-template-columns: repeat(4, minmax(44px, 1fr));
+  }
+  .habit-editor-form .repeat-weekdays {
+    grid-template-columns: repeat(4, minmax(44px, 1fr));
+    overflow-x: visible;
+    justify-content: start;
+  }
+  .habit-editor-schedule-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .habit-editor-schedule-grid .segmented button {
+    padding: 9px 8px;
+    font-size: 13px;
+  }
+  .habit-editor-schedule-grid .field input {
+    text-align: start;
+    padding: 10px 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .habit-editor-more svg {
+    transition: none;
+  }
+}
