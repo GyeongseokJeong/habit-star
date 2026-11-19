@@ -141,6 +141,10 @@ test("production fonts are self-hosted and the cached shell preserves offline ed
   await context.setOffline(false);
   await page.reload();
   await page.getByRole("tab", { name: /전체/ }).click();
+  // Normal view folds completed entries by default; the saved offline
+  // record must still be available in the completed group after reload.
+  await expect(page.locator(".normal-done-toggle")).toBeVisible();
+  await page.locator(".normal-done-toggle").click();
   await expect(
     page.getByRole("button", { name: "오프라인 생산 빌드 4점", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
