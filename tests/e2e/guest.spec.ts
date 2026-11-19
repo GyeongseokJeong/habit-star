@@ -183,6 +183,7 @@ test("two tabs preserve independent edits", async ({ page, context }) => {
   await second
     .getByRole("button", { name: "탭 테스트 4점", exact: true })
     .click();
+  await page.locator(".normal-done-toggle").click();
   await expect(
     page.getByRole("button", { name: "탭 테스트 4점", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
@@ -270,6 +271,7 @@ test("editing, star cancellation, plain completion, deferred reminders, theme an
     .click();
   await page.reload();
   await page.getByRole("tab", { name: /전체/ }).click();
+  await page.locator(".normal-done-toggle").click();
   const card = page.locator(".habit-card").filter({
     has: page.getByRole("heading", { name: "수정된 습관", exact: true }),
   });
