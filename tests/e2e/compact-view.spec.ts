@@ -71,3 +71,24 @@ test("compact rating reuses existing optimistic save, completion fold and cancel
     has: page.locator(".compact-habit-title", { hasText: title }),
   })).toBeVisible({ timeout: 5000 });
 });
+
+test("keyboard focus survives compact rating collapse and completed-row move", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
+  await page.getByRole("tab", { name: "전체", exact: true }).click();
+  await setCompact(page);
+  const pending = page.locator(".compact-habit-group .compact-habit-card").first();
+  await expect(pending).toBeVisible();
+  await pending.locator(".compact-habit-row").click();
+  const title = (await pending.locator(".compact-habit-title").innerText()).trim();
+  const star = pending.getByRole("button", { name: title + " 4점" });
+  await star.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".compact-habit-detail")).toHaveCount(0, { timeout: 5000 });
+  await expect.poll(() => page.evaluate(() => ({
+    focused: document.activeElement !== document.body,
+    connected: document.activeElement?.isConnected === true,
+  }))).toEqual({ focused: true, connected: true });
+  const focused = await page.evaluate(() => document.activeElement?.className);
+  expect(String(focused)).toMatch(/compact-habit-row|selected/);
+});
