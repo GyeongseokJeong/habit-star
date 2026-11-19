@@ -503,9 +503,10 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
 }
 .dashboard-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
-  gap: 28px;
-  margin-top: 28px;
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 900px;
+  gap: 0;
+  margin: 28px auto 0;
 }
 .routine-heading {
   display: flex;
@@ -770,37 +771,6 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
 .upcoming-heading h3 span {
   display: none;
 }
-.gentle-note {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  font-size: 12px;
-  color: var(--muted);
-  margin: 16px 0 0;
-}
-.gentle-note > svg {
-  color: var(--accent);
-  flex-shrink: 0;
-}
-.gentle-note p {
-  margin: 0;
-}
-.gentle-note strong {
-  font-weight: 400;
-  color: var(--body);
-}
-.gentle-note button {
-  display: grid;
-  place-items: center;
-  background: transparent;
-  border: 0;
-  color: var(--muted);
-  width: 44px;
-  height: 44px;
-  flex-shrink: 0;
-  border-radius: 8px;
-}
 .empty-state {
   grid-column: 1 / -1;
   padding: 36px 20px;
@@ -1023,83 +993,104 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
 .expanded .calendar-grid {
   gap: 5px;
 }
-.little-note {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 18px;
-  border: 1px solid color-mix(in srgb, var(--gold) 45%, var(--line));
-  border-radius: 18px;
-  background: linear-gradient(145deg, var(--gold-soft), var(--surface) 82%);
-  box-shadow: 0 12px 30px #1114210d;
+/* B3.4: a quiet, space-efficient ending after the last routine card.
+   It has no action surface: instructions live in the Account Hub instead. */
+.closing-footer {
+  width: min(100%, 900px);
+  margin: 20px auto 0;
+  text-align: center;
+  --closing-hill-back: #322b48;
+  --closing-hill-front: #171d29;
 }
-.note-icon {
+.closing-landscape {
+  position: relative;
+  isolation: isolate;
   display: grid;
-  place-items: center;
-  flex: none;
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  color: var(--gold);
-  background: color-mix(in srgb, var(--gold) 16%, transparent);
+  align-items: start;
+  justify-items: center;
+  height: 120px;
+  overflow: hidden;
+  padding: 19px 12px 0;
+  background:
+    radial-gradient(ellipse at 85% 100%, #b98a7042, transparent 33%),
+    radial-gradient(ellipse at 14% 98%, #8468a538, transparent 42%),
+    linear-gradient(180deg, #111729, #211c32 88%, #2a233d);
+  color: #f4e5cf;
 }
-.note-copy {
-  min-width: 0;
+.closing-landscape::before {
+  content: "";
+  position: absolute;
+  inset: 8px 20px 25px;
+  z-index: -1;
+  opacity: .85;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 13% 50%, #e6bf8f 0 1px, transparent 2px),
+    radial-gradient(circle at 29% 24%, #c9a6d8 0 1px, transparent 2px),
+    radial-gradient(circle at 75% 27%, #e6bf8f 0 1px, transparent 2px),
+    radial-gradient(circle at 91% 48%, #f4cb9b 0 1px, transparent 2px);
 }
-.little-note h3 {
-  font-size: 16px;
-  line-height: 1.45;
-  font-weight: 650;
-  letter-spacing: -0.4px;
-  color: var(--ink);
+.closing-copy { position: relative; z-index: 1; }
+.closing-copy h2 {
   margin: 0;
+  color: #f4e5cf;
+  font-size: clamp(16px, 4.3vw, 20px);
+  font-weight: 650;
+  line-height: 1.4;
+  letter-spacing: -.55px;
   word-break: keep-all;
 }
-.note-copy p {
+.closing-copy p {
+  margin: 5px 0 0;
+  color: #e1d9e7;
   font-size: 12px;
-  line-height: 1.55;
-  color: var(--body);
-  margin: 7px 0 0;
+  line-height: 1.45;
   word-break: keep-all;
 }
-.site-footer {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  justify-content: space-between;
-  border-top: 1px solid var(--line);
-  margin-top: 32px;
-  padding: 20px 0 28px;
-  color: var(--muted);
-  font-size: 11px;
+.closing-horizon {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  display: block;
+  width: 100%;
+  height: 39px;
+  pointer-events: none;
 }
-.site-footer > span {
+.closing-brand {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  color: var(--body);
-  font-size: 13px;
-}
-.site-footer > span > svg {
-  color: var(--accent);
-}
-.site-footer > span > small {
-  font-size: 12px;
-  color: var(--muted);
-  margin-left: 7px;
-}
-.site-footer button {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  border: 0;
-  background: transparent;
+  min-height: 35px;
+  margin-top: 8px;
   color: var(--muted);
   font-size: 12px;
-  min-height: 44px;
+  font-weight: 600;
 }
-.site-footer > small {
-  display: none;
+.closing-brand svg { color: var(--accent); }
+@media (max-width: 620px) {
+  .closing-footer { margin-top: 20px; }
+  .closing-landscape { height: 112px; padding-top: 18px; }
+  .closing-horizon { height: 32px; }
+  .closing-brand { margin-top: 6px; min-height: 34px; }
+}
+@media (max-width: 340px) {
+  .closing-copy h2 { font-size: 16px; letter-spacing: -.8px; }
+  .closing-copy p { font-size: 11px; }
+}
+/* A light-theme version uses the same sunset artwork but no inverted text. */
+.byeolharu.light .closing-landscape {
+  background:
+    radial-gradient(ellipse at 85% 100%, #c9a17e69, transparent 34%),
+    radial-gradient(ellipse at 14% 98%, #a68dbd69, transparent 42%),
+    linear-gradient(180deg, #f1ebf2, #e5d7e9 80%, #d8c0dd);
+  color: #392a48;
+}
+.byeolharu.light .closing-copy h2 { color: #392a48; }
+.byeolharu.light .closing-copy p { color: #51445f; }
+.byeolharu.light .closing-footer {
+  --closing-hill-back: #b6a3c5;
+  --closing-hill-front: #e7dbe9;
 }
 .modal {
   color-scheme: inherit;
@@ -1817,10 +1808,7 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   .saved-label {
     display: none;
   }
-  .dashboard-layout {
-    grid-template-columns: minmax(0, 1fr) 340px;
-    gap: 24px;
-  }
+  .dashboard-layout { gap: 0; }
   .habit-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1843,9 +1831,7 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   .desktop-nav {
     gap: 20px;
   }
-  .dashboard-layout {
-    grid-template-columns: minmax(0, 1fr);
-  }
+  .dashboard-layout { grid-template-columns: minmax(0, 1fr); }
   .habit-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1866,12 +1852,6 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   }
   .tabs > button > .tab-count {
     display: inline;
-  }
-  .little-note {
-    padding: 16px;
-  }
-  .little-note h3 {
-    font-size: 16px;
   }
 }
 @media (max-width: 620px) {
@@ -2032,26 +2012,6 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   }
   .day-tile {
     min-height: 44px;
-  }
-  .little-note {
-    width: 100%;
-    padding: 16px;
-  }
-  .gentle-note {
-    font-size: 11px;
-    gap: 4px;
-  }
-  .gentle-note > svg {
-    width: 14px;
-  }
-  .site-footer {
-    flex-direction: column;
-    gap: 4px;
-    margin-top: 20px;
-    padding: 20px 0;
-  }
-  .site-footer > span > small {
-    font-size: 11px;
   }
   .modal {
     width: 100%;
