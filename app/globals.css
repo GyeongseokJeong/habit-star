@@ -993,23 +993,31 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
 .expanded .calendar-grid {
   gap: 5px;
 }
-/* B3.8: user-approved moonlit horizon, cropped from the selected visual mockup.
-   The scene is decorative, the message remains selectable HTML text, and the
-   transparent artwork blends into the existing page surface without a box. */
+/* B3.9: approved dark/light paired design — seamless two-layer dusk waves.
+   Keep the copy and brand as text, while the decorative SVG uses theme colors. */
 .closing-footer {
   width: min(100%, 900px);
   margin: 18px auto 0;
   text-align: center;
+  --closing-wave-left: #45405d;
+  --closing-wave-mid: #38324d;
+  --closing-wave-right: #574566;
+  --closing-wave-front-top: #1c1d2c;
+  --closing-wave-front-bottom: var(--bg);
+  --closing-glow: rgb(139 105 181 / 14%);
 }
 .closing-landscape {
   position: relative;
   isolation: isolate;
-  height: 144px;
+  height: 126px;
   padding: 12px 12px 0;
   overflow: hidden;
-  background: radial-gradient(ellipse 55% 42% at 50% 93%, rgb(138 103 169 / 12%), transparent);
+  background: radial-gradient(ellipse 64% 54% at 50% 91%, var(--closing-glow), transparent 100%);
 }
-.closing-copy { position: relative; z-index: 1; }
+.closing-copy {
+  position: relative;
+  z-index: 1;
+}
 .closing-copy h2 {
   margin: 0;
   color: #f4e5cf;
@@ -1026,14 +1034,19 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   line-height: 1.45;
   word-break: keep-all;
 }
-.closing-moonlit-scene {
+.closing-waves {
   position: absolute;
-  z-index: 0;
   inset: auto 0 0;
-  height: 84px;
-  background: url("/assets/footer/moonlit-horizon-dark.webp") center bottom / 100% 100% no-repeat;
+  width: 100%;
+  height: 72px;
+  display: block;
   pointer-events: none;
 }
+.closing-wave-back-left { stop-color: var(--closing-wave-left); }
+.closing-wave-back-mid { stop-color: var(--closing-wave-mid); }
+.closing-wave-back-right { stop-color: var(--closing-wave-right); }
+.closing-wave-front-top { stop-color: var(--closing-wave-front-top); }
+.closing-wave-front-bottom { stop-color: var(--closing-wave-front-bottom); }
 .closing-divider {
   width: min(calc(100% - 48px), 520px);
   height: 1px;
@@ -1054,25 +1067,31 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
 .closing-brand svg { color: var(--accent); }
 @media (max-width: 620px) {
   .closing-footer { margin-top: 16px; }
-  .closing-landscape { height: 126px; padding-top: 12px; }
-  .closing-moonlit-scene { height: 72px; }
+  .closing-landscape { height: 116px; padding-top: 12px; }
+  .closing-waves { height: 64px; }
   .closing-brand { min-height: 32px; }
 }
 @media (max-width: 340px) {
   .closing-copy h2 { font-size: 16px; letter-spacing: -.8px; }
   .closing-copy p { font-size: 11px; }
 }
-.byeolharu.light .closing-landscape {
-  background: radial-gradient(ellipse 55% 42% at 50% 93%, rgb(161 129 197 / 11%), transparent);
-}
-.byeolharu.light .closing-moonlit-scene {
-  background-image: url("/assets/footer/moonlit-horizon-light.webp");
+.byeolharu.light .closing-footer {
+  --closing-wave-left: #e0d5f0;
+  --closing-wave-mid: #e5d8f3;
+  --closing-wave-right: #f5dce4;
+  --closing-wave-front-top: #efe6f3;
+  --closing-wave-front-bottom: var(--bg);
+  --closing-glow: rgb(227 175 183 / 15%);
 }
 .byeolharu.light .closing-copy h2 { color: #554577; }
 .byeolharu.light .closing-copy p { color: #645d79; }
-/* The stored OS-independent theme takes precedence during the first paint. */
-html[data-byeolharu-theme="dark"] .byeolharu.light .closing-moonlit-scene {
-  background-image: url("/assets/footer/moonlit-horizon-dark.webp");
+/* Preserve dark first-paint behavior for the stored dark theme. */
+html[data-byeolharu-theme="dark"] .byeolharu.light .closing-footer {
+  --closing-wave-left: #45405d;
+  --closing-wave-mid: #38324d;
+  --closing-wave-right: #574566;
+  --closing-wave-front-top: #1c1d2c;
+  --closing-glow: rgb(139 105 181 / 14%);
 }
 html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy h2 { color: #f4e5cf; }
 html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d9e7; }
