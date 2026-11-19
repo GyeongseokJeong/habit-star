@@ -21,13 +21,13 @@ test("explicit selection is respected through clock boundary and account panel n
   await page.goto("/");
   await expect(page.getByRole("tab", { name: "아침", exact: true })).toHaveAttribute("aria-selected", "true");
 
-  await page.getByRole("tab", { name: "별점 매트릭스" }).click();
-  await expect(page.getByRole("tab", { name: "별점 매트릭스" })).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("tab", { name: "달력" }).click();
+  await expect(page.getByRole("tab", { name: "달력" })).toHaveAttribute("aria-selected", "true");
 
   await page.clock.setFixedTime(new Date("2026-11-19T18:15:00+09:00"));
   await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
   await page.getByRole("button", { name: "닫기" }).click();
-  await expect(page.getByRole("tab", { name: "별점 매트릭스" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab", { name: "달력" })).toHaveAttribute("aria-selected", "true");
 
   await page.getByRole("tab", { name: "전체", exact: true }).click();
   await page.clock.setFixedTime(new Date("2026-11-20T07:00:00+09:00"));
