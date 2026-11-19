@@ -134,6 +134,7 @@ for (const width of [320, 395]) {
   }) => {
     await page.setViewportSize({ width, height: 549 });
     await page.goto("/");
+    await page.getByRole("tab", { name: "전체", exact: true }).click();
     await expect(
       page.getByRole("heading", { name: "미온수 한 잔 & 영양제" }),
     ).toBeVisible();
@@ -192,6 +193,7 @@ test("time-of-day tabs update their heading and visible habit count", async ({
 }) => {
   await page.setViewportSize({ width: 395, height: 549 });
   await page.goto("/");
+  await page.getByRole("tab", { name: "전체", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "미온수 한 잔 & 영양제" }),
   ).toBeVisible();
@@ -248,6 +250,7 @@ test("install action is only in settings when a real prompt is available", async
   page,
 }) => {
   await page.goto("/");
+  await page.getByRole("tab", { name: "전체", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "미온수 한 잔 & 영양제", exact: true }),
   ).toBeVisible();
