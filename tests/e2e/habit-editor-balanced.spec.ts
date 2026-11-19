@@ -28,6 +28,9 @@ for (const width of [320, 390, 430]) {
 }
 
 test("expanded templates and icons fill only the requested fields", async ({ page }) => {
+  // A weekday-only habit is shown as a card only on an active weekday.
+  // Fix the clock so this regression is independent of the runner's date.
+  await page.clock.install({ time: new Date("2026-11-19T12:00:00Z") });
   await page.goto("/");
   await page.getByRole("button", { name: "새 습관 추가", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "나를 위한 새로운 습관" });
