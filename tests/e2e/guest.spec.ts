@@ -230,7 +230,7 @@ test("backup restores into a new guest browser without overwriting another datas
   }
 });
 
-test("editing, star cancellation, plain completion, alarms, theme and deletion survive reload", async ({
+test("editing, star cancellation, plain completion, deferred reminders, theme and deletion survive reload", async ({
   page,
 }) => {
   await page.goto("/");
@@ -244,7 +244,7 @@ test("editing, star cancellation, plain completion, alarms, theme and deletion s
     .click();
   await page.getByPlaceholder("예: 하루 10분 책 읽기").fill("수정된 습관");
   await page.getByLabel("예정 시간", { exact: true }).fill("23:59");
-  await page.getByLabel("루틴 알림", { exact: true }).check();
+  await expect(page.getByRole("switch", { name: "루틴 알림" })).toHaveCount(0);
   await page.getByRole("button", { name: "수정 완료", exact: true }).click();
   await page
     .getByRole("button", { name: "수정된 습관 3점", exact: true })
@@ -282,7 +282,7 @@ test("editing, star cancellation, plain completion, alarms, theme and deletion s
   await page
     .getByRole("button", { name: "수정된 습관 수정", exact: true })
     .click();
-  await expect(page.getByLabel("루틴 알림", { exact: true })).toBeChecked();
+  await expect(page.getByRole("switch", { name: "루틴 알림" })).toHaveCount(0);
   await page
     .getByRole("button", { name: "이 습관 삭제하기", exact: true })
     .click();
