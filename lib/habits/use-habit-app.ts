@@ -253,6 +253,9 @@ export function useHabitApp(samples: () => Habit[]) {
           typeof update === "function" ? update(h) : update,
         );
         await refresh(r);
+        // Guest writes have no cloud sync to clear a previous storage error.
+        // Hide a stale failure only after the local transaction has succeeded.
+        if (!user) setError("");
         void sync(false);
       } catch (e) {
         setError(
@@ -263,7 +266,7 @@ export function useHabitApp(samples: () => Habit[]) {
         throw e;
       }
     },
-    [snapshot, refresh, sync],
+    [snapshot, refresh, sync, user],
   );
   const ensureDay = useCallback(async () => {
     const r = repo.current;

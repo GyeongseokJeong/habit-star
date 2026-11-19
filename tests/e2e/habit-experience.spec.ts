@@ -336,3 +336,67 @@ test("keyboard star focus stays accessible without a filled background tile", as
   await expect(star).toHaveCSS("outline-style", "solid");
   await expect(star).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
 });
+
+
+test("guest storage failure clears after a successful retry without losing the record", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
+  await page.getByRole("tab", { name: "전체", exact: true }).click();
+
+  // Fail exactly one IndexedDB scopes write; leave existing data intact.
+  await page.evaluate(() => {
+    const originalPut = IDBObjectStore.prototype.put;
+    let failed = false;
+    Object.defineProperty(IDBObjectStore.prototype, "put", {
+      configurable: true,
+      value: function (...args: Parameters<IDBObjectStore["put"]>) {
+        if (!failed && this.name === "scopes") {
+          failed = true;
+          throw new DOMException("Simulated quota failure", "QuotaExceededError");
+        }
+        return Reflect.apply(originalPut, this, args);
+      },
+    });
+  });
+
+  const card = page.locator(".habit-card").filter({
+    has: page.getByRole("heading", { name: "미온수 한 잔 & 영양제" }),
+  });
+  const star = card.getByRole("button", { name: "미온수 한 잔 & 영양제 2점" });
+  await star.click();
+  await expect(page.locator(".storage-warning")).toContainText("저장하지 못했습니다");
+  await expect(star).toHaveAttribute("aria-pressed", "false");
+
+  // The retry commits successfully; a stale error must not remain visible.
+  await star.click();
+  await expect(star).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".storage-warning")).toHaveCount(0);
+
+  // Confirm persistence, not only the optimistic star fill.
+  await expect.poll(async () => {
+    return page.evaluate(async () => {
+      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open("byeolharu-v2");
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      try {
+        const request = db.transaction("scopes", "readonly").objectStore("scopes").get("guest");
+        const state = await new Promise<{ entities: Record<string, { kind: string; data: { title?: string; rating?: number } }> }>((resolve, reject) => {
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+        return Object.values(state.entities)
+          .filter((entry) => entry.kind === "habit_entries")
+          .find((entry) => entry.data.title === "미온수 한 잔 & 영양제")?.data.rating;
+      } finally {
+        db.close();
+      }
+    });
+  }).toBe(2);
+  await page.reload();
+  await page.getByRole("tab", { name: "전체", exact: true }).click();
+  await expect(page.getByRole("button", { name: "미온수 한 잔 & 영양제 2점" }))
+    .toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".storage-warning")).toHaveCount(0);
+});
