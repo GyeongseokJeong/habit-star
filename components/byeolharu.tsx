@@ -16,7 +16,6 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  CircleHelp,
   Clock3,
   LayoutGrid,
   Leaf,
@@ -24,7 +23,6 @@ import {
   MoreHorizontal,
   Pencil,
   Plus,
-  ShieldCheck,
   Sparkles,
   Star,
   Sun,
@@ -1442,40 +1440,30 @@ export default function Byeolharu() {
                 </>
               )}
             </div>
-            <div className="gentle-note">
-              <Sparkles size={16} />
-              <p>
-                별점은 평가가 아닌, <strong>나를 알아가는 기록</strong>이에요.
-              </p>
-              <button aria-label="별점 기록 안내" onClick={() => setHelp(true)}>
-                <CircleHelp size={15} />
-              </button>
-            </div>
           </section>
-          <aside className="sidebar">
-            <section className="little-note" aria-label="오늘의 응원">
-              <span className="note-icon" aria-hidden="true">
-                <Sparkles size={19} />
-              </span>
-              <div className="note-copy">
-                <h3>꾸준함은 완벽함보다 빛나요.</h3>
-                <p>별 하나여도, 소중한 오늘이에요.</p>
-              </div>
-            </section>
-          </aside>
         </div>
-        <footer className="site-footer">
-          <span>
-            <Sparkles size={13} />
-            별하루<small>작은 실천, 반짝이는 하루.</small>
-          </span>
-          <button onClick={() => setHelp(true)}>
-            <ShieldCheck size={13} />
-            {app.user
-              ? "내 계정에 안전하게 동기화해요"
-              : "기록은 이 기기에만 저장돼요"}
-          </button>
-          <small>MADE FOR YOUR EVERYDAY</small>
+        <footer className="closing-footer" aria-label="하루의 마무리">
+          <div className="closing-landscape">
+            <div className="closing-copy">
+              <h2>꾸준함은 완벽함보다 빛나요.</h2>
+              <p>{summary.completed > 0
+                ? "오늘도 한 걸음, 잘 해내고 있어요."
+                : "작은 시작도 충분히 소중해요."}</p>
+            </div>
+            <svg className="closing-horizon" viewBox="0 0 320 42" preserveAspectRatio="none" aria-hidden="true">
+              <defs>
+                <linearGradient id="closing-horizon-glow" x1="0%" x2="100%" y1="0%" y2="0%">
+                  <stop offset="0%" stopColor="#8660BA" />
+                  <stop offset="65%" stopColor="#D4A8BD" />
+                  <stop offset="100%" stopColor="#F0B976" />
+                </linearGradient>
+              </defs>
+              <path d="M0 24 Q42 10 92 26 T202 25 T320 17" fill="none" stroke="url(#closing-horizon-glow)" strokeWidth="1.2" />
+              <path d="M0 24 Q42 10 92 26 T202 25 T320 17 V42 H0Z" fill="var(--closing-hill-back)" />
+              <path d="M0 32 Q80 14 158 34 T320 28 V42 H0Z" fill="var(--closing-hill-front)" />
+            </svg>
+          </div>
+          <div className="closing-brand"><Sparkles size={16} aria-hidden="true" /> 별하루</div>
         </footer>
       </main>
       {editing && (
@@ -1554,6 +1542,7 @@ export default function Byeolharu() {
             onNavigate={setAccountPage}
             theme={theme}
             onThemeChange={setTheme}
+            onHelp={() => { setAccountOpen(false); setAccountPage("home"); setHelp(true); }}
             onInstall={installEvent ? () => {
               void (async () => {
                 try {
