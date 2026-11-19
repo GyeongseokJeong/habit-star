@@ -892,7 +892,9 @@ export default function Byeolharu() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [now, setNow] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("all");
-  const startupTabResolved = useRef(false);
+  // Resolve once per loaded identity, unless the user has navigated manually.
+  const startupTabResolved = useRef<string | null>(null);
+  const tabChosenManually = useRef(false);
   const [month, setMonth] = useState(new Date(2026, 10, 1));
   const [editing, setEditing] = useState<Habit | "new" | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -1191,11 +1193,16 @@ export default function Byeolharu() {
         )
       : now;
   const group = displayNow ? timeGroup(displayNow) : "day";
-  // Resolve the launch tab only after the verified guest/member snapshot is ready.
-  // Background ticks, sync updates and midnight must not override manual navigation.
+  // A newly signed-in member may publish an empty, unhydrated local snapshot
+  // before the initial cloud pull. Wait for hydrated member data so that
+  // both the actual routines and the account timezone decide the first tab.
+  // Re-resolve for a new identity only if the user has not navigated manually.
   useEffect(() => {
-    if (!now || !app.snapshot || startupTabResolved.current) return;
-    startupTabResolved.current = true;
+    if (!now || !app.snapshot || tabChosenManually.current) return;
+    if (app.user && !app.snapshot.state.hydrated) return;
+    const identity = app.user?.id ?? "guest";
+    if (startupTabResolved.current === identity) return;
+    startupTabResolved.current = identity;
     setActiveTab(initialRoutineTab(
       now,
       scheduledHabits,
@@ -1305,14 +1312,14 @@ export default function Byeolharu() {
           <nav className="desktop-nav" aria-label="주 메뉴">
             <button
               className={activeTab !== "matrix" ? "active" : ""}
-              onClick={() => { startupTabResolved.current = true; setActiveTab("all"); }}
+              onClick={() => { tabChosenManually.current = true; setActiveTab("all"); }}
             >
               <Sun size={16} />
               오늘의 루틴
             </button>
             <button
               className={activeTab === "matrix" ? "active" : ""}
-              onClick={() => { startupTabResolved.current = true; setActiveTab("matrix"); }}
+              onClick={() => { tabChosenManually.current = true; setActiveTab("matrix"); }}
             >
               <LayoutGrid size={16} />
               나의 별 기록
@@ -1497,14 +1504,14 @@ export default function Byeolharu() {
                           (ids.indexOf(id) + (e.key === "ArrowRight" ? 1 : 4)) %
                             5
                         ];
-                      startupTabResolved.current = true;
+                      tabChosenManually.current = true;
                       setActiveTab(next);
                       document.getElementById(`tab-${next}`)?.focus();
                     }
                   }}
                   className={activeTab === id ? "selected" : ""}
                   onClick={() => {
-                    startupTabResolved.current = true;
+                    tabChosenManually.current = true;
                     setActiveTab(id);
                   }}
                 >
