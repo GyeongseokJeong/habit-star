@@ -23,7 +23,29 @@ for (const width of [320, 390, 430, 1365]) {
         const scenic = el.querySelector(".closing-landscape")!.getBoundingClientRect();
         return { total: rect.height, scenic: scenic.height, left: rect.left, right: rect.right };
       });
-      expect(sizes.scenic).toBeLessThanOrEqual(width <= 620 ? 115 : 125);
+      expect(sizes.scenic).toBeLessThanOrEqual(width <= 620 ? 98 : 106);
+      const blend = await closing.evaluate((el) => {
+        const landscape = el.querySelector(".closing-landscape")!;
+        const divider = el.querySelector(".closing-divider")!;
+        const hill = el.querySelector(".closing-horizon path:last-child")!;
+        const page = el.closest(".byeolharu")!;
+        const sky = getComputedStyle(landscape);
+        const separator = getComputedStyle(divider);
+        return {
+          landscapeBackground: sky.backgroundImage,
+          pageBackground: getComputedStyle(page).getPropertyValue("--bg").trim(),
+          hillFill: hill.getAttribute("fill"),
+          separatorHeight: divider.getBoundingClientRect().height,
+          separatorWidth: divider.getBoundingClientRect().width,
+          brandGap: el.querySelector(".closing-brand")!.getBoundingClientRect().top - divider.getBoundingClientRect().bottom,
+        };
+      });
+      expect(blend.landscapeBackground).not.toContain("linear-gradient");
+      expect(blend.hillFill).toBe("var(--closing-hill-front)");
+      expect(blend.pageBackground).toMatch(/^#/);
+      expect(blend.separatorHeight).toBe(1);
+      expect(blend.separatorWidth).toBeLessThan(width);
+      expect(blend.brandGap).toBeLessThanOrEqual(8);
       expect(sizes.total).toBeLessThanOrEqual(190);
       expect(sizes.left).toBeGreaterThanOrEqual(0);
       expect(sizes.right).toBeLessThanOrEqual(width);
