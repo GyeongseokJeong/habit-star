@@ -58,3 +58,20 @@ test("normal and compact views share completed group behavior without changing r
   await finished.getByRole("button", { name: name + " 4점" }).click();
   await expect(page.locator(".compact-habit-group .compact-habit-card").filter({ hasText: name })).toBeVisible({ timeout: 5000 });
 });
+
+test("normal-view keyboard rating keeps focus when the completed card moves", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.getByRole("tab", { name: "전체", exact: true }).click();
+  const pending = page.locator(".normal-pending-list .habit-card").first();
+  await expect(pending).toBeVisible();
+  const name = (await pending.locator("h3").innerText()).trim();
+  const star = pending.getByRole("button", { name: name + " 4점" });
+  await star.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".normal-done-toggle")).toBeVisible({ timeout: 5000 });
+  await expect.poll(() => page.evaluate(() => ({
+    focused: document.activeElement !== document.body,
+    connected: document.activeElement?.isConnected === true,
+  }))).toEqual({ focused: true, connected: true });
+});
