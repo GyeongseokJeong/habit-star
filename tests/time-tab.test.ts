@@ -41,12 +41,12 @@ describe("smart startup routine tabs", () => {
       history: {} as Record<string, never[]>,
       state,
     };
-    expect(startupDataReady(false, snapshot as never)).toBe(true);
-    expect(startupDataReady(true, snapshot as never)).toBe(false);
+    expect(startupDataReady(false, snapshot)).toBe(true);
+    expect(startupDataReady(true, snapshot)).toBe(false);
     state.hydrated = true;
-    expect(startupDataReady(true, snapshot as never)).toBe(false);
+    expect(startupDataReady(true, snapshot)).toBe(false);
     snapshot.history["2026-11-19"] = [];
-    expect(startupDataReady(true, snapshot as never)).toBe(true);
+    expect(startupDataReady(true, snapshot)).toBe(true);
   });
 
 });
