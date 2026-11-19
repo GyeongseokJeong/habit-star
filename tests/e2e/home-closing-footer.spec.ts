@@ -40,7 +40,16 @@ for (const width of [320, 390, 430, 1365]) {
           brandGap: el.querySelector(".closing-brand")!.getBoundingClientRect().top - divider.getBoundingClientRect().bottom,
         };
       });
-      expect(blend.landscapeBackground).not.toContain("linear-gradient");
+      // B3.7: the background fades to --bg and the scenic SVG fades at both edges.
+      expect(blend.landscapeBackground).toContain("linear-gradient");
+      expect(blend.landscapeBackground).toContain("radial-gradient");
+      const edgeFade = await closing.locator(".closing-horizon").evaluate((el) => {
+        const style = getComputedStyle(el);
+        return style.maskImage || style.webkitMaskImage;
+      });
+      expect(edgeFade).toContain("linear-gradient");
+      // Chromium serializes transparent mask stops as rgba(0, 0, 0, 0).
+      expect(edgeFade).toMatch(/(?:transparent|rgba\(0,\s*0,\s*0,\s*0\))/);
       expect(blend.hillFill).toBe("var(--closing-hill-front)");
       expect(blend.pageBackground).toMatch(/^#/);
       expect(blend.separatorHeight).toBe(1);
