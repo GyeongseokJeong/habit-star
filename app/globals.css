@@ -358,6 +358,14 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
 }
 .add-button {
   flex-shrink: 0;
+  border-color: var(--sage);
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+}
+.add-button:hover {
+  border-color: var(--sage);
+  background: var(--sage-soft);
 }
 .starlit-hero {
   width: min(100%, 900px);
@@ -431,88 +439,66 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   text-shadow: 0 2px 12px #0b1129aa;
 }
 .starlit-arrow { flex: none; color: #f5cf91; }
+/* Compact, symmetrical summary: the three values share a baseline and a fixed row. */
 .metrics {
-  margin-top: 20px;
+  margin-top: 14px;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  padding: 20px 0;
-  border-bottom: 1px solid var(--line);
+  align-items: stretch;
+  min-height: 80px;
+  padding: 12px 8px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
 }
 .metric {
-  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 12px;
   border-right: 1px solid var(--line);
   min-width: 0;
 }
-.metric:first-child {
-  padding-left: 0;
-}
 .metric:last-child {
-  border: 0;
+  border-right: 0;
 }
 .metric-label {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 5px;
-  font-size: 12px;
+  text-align: center;
   color: var(--muted);
-}
-.metric-label > span:first-child {
-  display: flex;
-  gap: 7px;
-  align-items: center;
+  font-size: 12px;
+  line-height: 1.25;
   white-space: nowrap;
-}
-.metric-label svg {
-  stroke-width: 1.5;
 }
 .metric-value {
   display: flex;
   align-items: baseline;
-  gap: 6px;
-  font-size: 29px;
-  line-height: 1.3;
-  letter-spacing: -0.8px;
-  font-weight: 550;
-  margin-top: 8px;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  font-size: 25px;
+  line-height: 1.15;
+  letter-spacing: -0.5px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 .metric-value > span {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 400;
-  letter-spacing: 0;
-}
-.metric-value > small {
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--muted);
   letter-spacing: 0;
 }
 .metric-value .muted {
   color: var(--muted);
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 400;
-}
-.metric-value .progress-track {
-  flex: 1;
-  margin-left: 12px;
-  align-self: center;
-  background: var(--line);
-  height: 5px;
-  border-radius: 10px;
-  overflow: hidden;
-}
-.progress-track > span {
-  display: block;
-  height: 100%;
-  background: var(--sage);
-  border-radius: 10px;
-  transition: width 0.25s;
 }
 .metric-star {
   color: var(--gold);
   align-self: center;
-  width: 24px;
+  width: 19px;
+  height: 19px;
+  flex: none;
   stroke-width: 1.2;
 }
 .dashboard-layout {
@@ -1847,12 +1833,6 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   .tabs > button svg {
     display: none;
   }
-  .metric {
-    padding: 0 16px;
-  }
-  .metric-value > small {
-    display: none;
-  }
 }
 @media (max-width: 850px) {
   .header-inner,
@@ -1886,12 +1866,6 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   }
   .tabs > button > .tab-count {
     display: inline;
-  }
-  .metric-value .progress-track {
-    display: none;
-  }
-  .metric-label svg {
-    display: none;
   }
   .little-note {
     padding: 16px;
@@ -1949,6 +1923,7 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
     display: none;
   }
   .add-button {
+    min-height: 44px;
     padding: 9px 12px;
     font-size: 12px;
   }
@@ -1963,41 +1938,33 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
     height: 17px;
   }
   .metrics {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    padding: 16px 0;
-    margin-top: 8px;
+    min-height: 76px;
+    margin-top: 12px;
+    padding: 11px 5px;
+    border-radius: 16px;
   }
-  .metric,
-  .metric:first-child {
-    padding: 0 8px;
-  }
-  .metric:first-child {
-    padding-left: 0;
-  }
-  .metric:last-child {
-    padding-right: 0;
-  }
-  .metric-value {
-    font-size: 23px;
-    gap: 3px;
+  .metric {
+    padding: 0 4px;
+    gap: 5px;
   }
   .metric-label {
-    font-size: 11px;
+    font-size: 10px;
+    letter-spacing: -0.25px;
   }
-  .metric-value .muted {
-    font-size: 12px;
+  .metric-value {
+    font-size: 22px;
+    gap: 3px;
   }
+  .metric-value .muted,
   .metric-value > span {
     font-size: 12px;
   }
-  .metric:nth-child(3) .muted {
-    display: none;
-  }
   .metric-star {
     width: 17px;
+    height: 17px;
   }
   .dashboard-layout {
-    margin-top: 24px;
+    margin-top: 18px;
     gap: 24px;
   }
   .routine-heading h2 {
@@ -2008,7 +1975,7 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   }
   .tabs {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 1.3fr);
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 2px;
   }
   .tabs > button,
