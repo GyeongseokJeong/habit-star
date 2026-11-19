@@ -51,13 +51,15 @@ function guestHasOwnRecords(guest: Snapshot) {
 }
 
 export function AccountPanel({
-  app, page, onNavigate, theme, onThemeChange, onHelp, onInstall,
+  app, page, onNavigate, theme, onThemeChange, compactView, onCompactViewChange, onHelp, onInstall,
 }: {
   app: App;
   page: AccountPage;
   onNavigate: (next: AccountPage) => void;
   theme: "light" | "dark";
   onThemeChange: (next: "light" | "dark") => void;
+  compactView: boolean;
+  onCompactViewChange: (enabled: boolean) => void;
   onHelp: () => void;
   onInstall?: () => void;
 }) {
@@ -324,6 +326,19 @@ export function AccountPanel({
             <div className="account-theme-options" role="group" aria-label="화면 테마">
               <button type="button" aria-pressed={theme === "light"} onClick={() => onThemeChange("light")}><Sun size={18}/>라이트</button>
               <button type="button" aria-pressed={theme === "dark"} onClick={() => onThemeChange("dark")}><Moon size={18}/>다크</button>
+            </div>
+          </div>
+          <div className="account-setting-block">
+            <div className="compact-setting-row">
+              <span className="account-setting-heading"><span>간편 보기</span><small>습관을 한 줄로 보고, 완료한 습관은 접어요</small></span>
+              <button
+                type="button"
+                className="compact-setting-toggle"
+                role="switch"
+                aria-label="간편 보기"
+                aria-checked={compactView}
+                onClick={() => onCompactViewChange(!compactView)}
+              ><span aria-hidden="true" /></button>
             </div>
           </div>
           <div className="account-setting-block">
