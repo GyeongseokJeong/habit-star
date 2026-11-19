@@ -12,8 +12,6 @@ import {
 import {
   ArrowDownToLine,
   ArrowRight,
-  Bell,
-  BellOff,
   Check,
   CheckCheck,
   ChevronLeft,
@@ -877,7 +875,6 @@ export default function Byeolharu() {
 
   useEffect(() => {
     const date = new Date();
-    const key = dateKey(date);
     try {
       if (
         (localStorage.getItem("byeolharu_v2_theme") ??
