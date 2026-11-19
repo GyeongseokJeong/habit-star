@@ -148,7 +148,7 @@ for (const width of [320, 395]) {
         await themeButton.focus();
         await page.keyboard.press("Enter");
       }
-      await page.getByRole("tab", { name: "별점 매트릭스" }).click();
+      await page.getByRole("tab", { name: "달력" }).click();
       await expect(
         page.getByRole("heading", { name: "차곡차곡 쌓인 나의 별 5" }),
       ).toBeVisible();
@@ -167,8 +167,8 @@ for (const width of [320, 395]) {
       expect(dimensions.widestTile).toBeLessThanOrEqual(dimensions.columnWidth);
       expect(dimensions.overflow).toBe(false);
       await expect(
-        page.getByRole("tab", { name: "별점 매트릭스" }),
-      ).toContainText("별점");
+        page.getByRole("tab", { name: "달력" }),
+      ).toContainText("달력");
       await expect(page.locator(".matrix-panel")).toHaveCount(1);
       await expect(page.locator(".little-note")).toContainText(
         "꾸준함은 완벽함보다 빛나요.",
