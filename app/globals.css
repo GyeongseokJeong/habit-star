@@ -748,11 +748,13 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
 .star.filled svg {
   fill: var(--gold);
 }
-.star:hover {
-  background: var(--gold-soft);
-}
-.star:hover svg {
-  transform: scale(1.08);
+/* Rating is conveyed by the filled star, not a persistent tap/hover tile.
+   Samsung Internet may keep :hover after touch, so only fine pointers
+   receive a subtle SVG hover transform; keyboard focus stays visible. */
+@media (hover: hover) and (pointer: fine) {
+  .star:hover svg {
+    transform: scale(1.08);
+  }
 }
 .rating-number {
   font-size: 12px;
