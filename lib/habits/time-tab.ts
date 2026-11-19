@@ -1,4 +1,5 @@
 import type { TimeGroup } from "./domain";
+import type { Snapshot } from "./repository";
 
 /** The user's configured time zone takes priority over the device time zone. */
 export function currentTimeGroup(now: Date, timezone?: string): TimeGroup {
@@ -27,4 +28,15 @@ export function initialRoutineTab(
   return scheduledHabits.some((habit) => habit.timeGroup === current)
     ? current
     : "all";
+}
+
+/** A cloud pull can complete before today's recurring entries are materialized. */
+export function startupDataReady(
+  member: boolean,
+  snapshot: Pick<Snapshot, "day" | "history" | "state">,
+): boolean {
+  return !member || (
+    snapshot.state.hydrated === true &&
+    Object.prototype.hasOwnProperty.call(snapshot.history, snapshot.day)
+  );
 }
