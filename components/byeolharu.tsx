@@ -51,7 +51,7 @@ import {
 import { useHabitApp } from "@/lib/habits/use-habit-app";
 import { AccountPanel } from "@/components/account/account-panel";
 import { StarlitHero } from "@/components/starlit-hero";
-import { initialRoutineTab } from "@/lib/habits/time-tab";
+import { initialRoutineTab, startupDataReady } from "@/lib/habits/time-tab";
 import { ConstellationGrowthView } from "@/components/constellation-growth-view";
 import { calculateConstellationGrowth, earnedStageFromCompletion } from "@/lib/constellation/growth";
 import { getConstellationStage } from "@/lib/constellation/art";
@@ -1200,10 +1200,7 @@ export default function Byeolharu() {
   // Re-resolve for a new identity only if the user has not navigated manually.
   useEffect(() => {
     if (!now || !app.snapshot || tabChosenManually.current) return;
-    if (app.user && (
-      !app.snapshot.state.hydrated ||
-      !Object.prototype.hasOwnProperty.call(app.snapshot.history, app.snapshot.day)
-    )) return;
+    if (!startupDataReady(!!app.user, app.snapshot)) return;
     const identity = app.user?.id ?? "guest";
     if (startupTabResolved.current === identity) return;
     startupTabResolved.current = identity;
