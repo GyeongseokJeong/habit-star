@@ -2585,18 +2585,19 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   height: 44px;
 }
 .constellation-gallery-step > span {
-  width: 7px;
-  height: 7px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  border: 1px solid #b9a17d;
-  background: #665a58;
+  border: 1px solid var(--control-border);
+  background: var(--control-bg);
   transition: background 180ms ease, transform 180ms ease;
 }
 .constellation-gallery-step.is-active > span {
-  width: 10px;
-  height: 10px;
-  border-color: #ffe4ae;
-  background: #ffe0a0;
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--selection-fg);
+  background: var(--selection-bg);
+  box-shadow: 0 0 0 1px var(--selection-bg);
   transform: scale(1.1);
 }
 .constellation-gallery-arrow:focus-visible,
@@ -2608,10 +2609,11 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
 .constellation-gallery-return {
   position: relative;
   z-index: 3;
+  min-height: 44px;
   border: 1px solid #c6a8748c;
   border-radius: 999px;
   background: #ffffff0b;
-  padding: 6px 13px;
+  padding: 8px 14px;
   margin: 0 auto;
   color: #f3ddb7;
   font-size: 12px;
