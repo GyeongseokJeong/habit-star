@@ -3169,8 +3169,19 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   margin: 16px 0;
 }
 .habit-editor-form .repeat-weekdays {
-  grid-template-columns: repeat(7, minmax(44px, 1fr));
-  overflow-x: auto;
+  /* Always keep Monday–Sunday in one stable row, including narrow phones. */
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  overflow-x: visible;
+  padding: 2px 0 4px;
+}
+.habit-editor-form .repeat-weekdays button {
+  min-width: 0;
+  width: 100%;
+  min-height: 44px;
+  aspect-ratio: 1;
+  padding: 0;
+  border-radius: 50%;
 }
 .habit-editor-custom-days {
   display: block;
@@ -3206,9 +3217,7 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
     grid-template-columns: repeat(4, minmax(44px, 1fr));
   }
   .habit-editor-form .repeat-weekdays {
-    grid-template-columns: repeat(4, minmax(44px, 1fr));
-    overflow-x: visible;
-    justify-content: start;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
   }
   .habit-editor-schedule-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -3220,6 +3229,14 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   .habit-editor-schedule-grid .field input {
     text-align: start;
     padding: 10px 12px;
+  }
+}
+@media (max-width: 360px) {
+  /* Recover enough room for seven days without wrapping or horizontal scrolling. */
+  .habit-editor-form .repeat-weekdays {
+    margin-left: -8px;
+    margin-right: -8px;
+    gap: 4px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
