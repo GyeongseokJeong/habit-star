@@ -356,7 +356,21 @@ test("guest storage failure clears after a successful retry without losing the r
     Object.defineProperty(IDBObjectStore.prototype, "put", {
       configurable: true,
       value: function (...args: Parameters<IDBObjectStore["put"]>) {
-        if (!failed && this.name === "scopes") {
+        // Only fail the intended 2-star record write. Failing an unrelated
+        // ensureDay/initialization write would hide the entire guest habit list.
+        const state = args[0] as {
+          entities?: Record<string, {
+            kind?: string;
+            data?: { title?: string; rating?: number };
+          }>;
+        } | undefined;
+        const isTargetWrite = Object.values(state?.entities ?? {}).some(
+          (entry) =>
+            entry.kind === "habit_entries" &&
+            entry.data?.title === "미온수 한 잔 & 영양제" &&
+            entry.data.rating === 2,
+        );
+        if (!failed && this.name === "scopes" && isTargetWrite) {
           failed = true;
           throw new DOMException("Simulated quota failure", "QuotaExceededError");
         }
