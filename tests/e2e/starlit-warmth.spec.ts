@@ -226,11 +226,11 @@ test("deferred reminder data survives editing and reload on a narrow dark screen
   await expect(editor.getByRole("switch", { name: "루틴 알림" })).toHaveCount(0);
   await editor.getByLabel("예정 시간").fill("08:30");
   await editor.getByRole("button", { name: "수정 완료" }).click();
-  await page.reload();
+  await expect(page.locator(".habit-card").filter({ has: page.getByRole("heading", { name: "미온수 한 잔 & 영양제" }) })).toContainText("08:30");
 
-  // The visible toggle is postponed; its persisted value remains usable by
-  // a future background notification implementation.
-  const saved = await page.evaluate(async () => {
+  // Wait for the local write to finish before reloading. The screen can update
+  // optimistically before IndexedDB does, especially on slower CI runners.
+  const readSavedHabit = () => page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open("byeolharu-v2");
       request.onsuccess = () => resolve(request.result);
@@ -251,7 +251,9 @@ test("deferred reminder data survives editing and reload on a narrow dark screen
       db.close();
     }
   });
-  expect(saved).toMatchObject({ alarmEnabled: true, scheduledTime: "08:30" });
+  await expect.poll(readSavedHabit).toMatchObject({ alarmEnabled: true, scheduledTime: "08:30" });
+  await page.reload();
+  expect(await readSavedHabit()).toMatchObject({ alarmEnabled: true, scheduledTime: "08:30" });
 
   await page.getByRole("tab", { name: "전체", exact: true }).click();
   await expect(page.getByRole("button", { name: "알림 메뉴" })).toHaveCount(0);
