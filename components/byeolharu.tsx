@@ -13,12 +13,11 @@ import {
   ArrowDownToLine,
   ArrowRight,
   Check,
-  CheckCheck,
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
   CircleHelp,
   Clock3,
-  Flame,
   LayoutGrid,
   Leaf,
   Moon,
@@ -1246,20 +1245,20 @@ export default function Byeolharu() {
         />
         <section className="metrics" aria-label="오늘의 통계">
           <div className="metric completion-metric">
-            <div className="metric-label"><span><CheckCheck size={16} aria-hidden="true" />오늘의 실천</span></div>
+            <div className="metric-label">오늘 전체 실천</div>
             <div className="metric-value">
               {summary.completed}<span className="muted">/ {scheduledHabits.length}</span>
             </div>
           </div>
           <div className="metric">
-            <div className="metric-label"><span><Star size={15} aria-hidden="true" />평균 별점</span></div>
+            <div className="metric-label">평균 별점</div>
             <div className="metric-value">
-              <Star className="metric-star" size={26} fill="currentColor" aria-hidden="true" />
+              <Star className="metric-star" size={20} fill="currentColor" aria-hidden="true" />
               {summary.average ? summary.average.toFixed(1) : "—"}
             </div>
           </div>
           <div className="metric">
-            <div className="metric-label"><span><Flame size={15} aria-hidden="true" />연속 실천</span></div>
+            <div className="metric-label">연속 실천</div>
             <div className="metric-value">{streak}<span>일</span></div>
           </div>
         </section>
@@ -1279,7 +1278,7 @@ export default function Byeolharu() {
                 </span>
               </h2>
               <button
-                className="primary add-button"
+                className="secondary add-button"
                 onClick={() => setEditing("new")}
               >
                 <Plus size={17} />새 습관 추가
@@ -1292,7 +1291,7 @@ export default function Byeolharu() {
                   { id: "morning", label: "아침", Icon: Sunrise },
                   { id: "day", label: "낮", Icon: Sun },
                   { id: "night", label: "밤", Icon: Moon },
-                  { id: "matrix", label: "별점 매트릭스", Icon: Star },
+                  { id: "matrix", label: "달력", Icon: CalendarDays },
                 ] as const
               ).map(({ id, label, Icon }) => (
                 <button
@@ -1330,18 +1329,7 @@ export default function Byeolharu() {
                   }}
                 >
                   <Icon size={15} aria-hidden="true" />
-                  <span className="tab-label">
-                    {id === "matrix" ? (
-                      <>
-                        <span className="tab-label-full">별점 매트릭스</span>
-                        <span className="tab-label-mobile" aria-hidden="true">
-                          별점
-                        </span>
-                      </>
-                    ) : (
-                      label
-                    )}
-                  </span>
+                  <span className="tab-label">{label}</span>
                   {id !== "matrix" && (
                     <span className="tab-count">
                       {id === "all"
