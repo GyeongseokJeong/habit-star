@@ -10,6 +10,7 @@ for (const viewport of [
     await page.setViewportSize(viewport);
     await page.goto("/");
     await page.getByRole("tab", { name: "전체", exact: true }).click();
+    await page.locator(".normal-done-toggle").click();
     await expect(
       page.getByRole("heading", { name: "미온수 한 잔 & 영양제", exact: true }),
     ).toBeVisible();
@@ -83,7 +84,7 @@ test("normal view groups completed habits below pending and preserves their orde
   const lunch = "건강한 점심 & 가벼운 산책";
 
   await page.getByRole("tab", { name: "전체", exact: true }).click();
-  await expect.poll(pendingTitles).toEqual([book, stretch, ...morning, lunch]);
+  await expect.poll(pendingTitles).toEqual([book, stretch]);
   await page.getByRole("tab", { name: "밤", exact: true }).click();
   await expect.poll(pendingTitles).toEqual([book, stretch]);
 
@@ -94,10 +95,10 @@ test("normal view groups completed habits below pending and preserves their orde
   await expect(fold).toHaveAttribute("aria-expanded", "false");
   await expect(page.locator(".normal-completed-list")).toHaveCount(0);
   await fold.click();
-  await expect.poll(completedTitles).toEqual([book]);
+  await expect.poll(completedTitles).toEqual([...morning, lunch, book]);
 
   await page.getByRole("tab", { name: "전체", exact: true }).click();
-  await expect.poll(pendingTitles).toEqual([stretch, ...morning, lunch]);
+  await expect.poll(pendingTitles).toEqual([stretch]);
   await expect(page.locator(".normal-completed-list")).toHaveCount(0);
   await page.locator(".normal-done-toggle").click();
   await expect.poll(completedTitles).toEqual([book]);
@@ -109,7 +110,7 @@ test("normal view groups completed habits below pending and preserves their orde
   await page.locator(".normal-done-toggle").click();
   await page.getByRole("button", { name: `${book} 1점` }).click();
   await expect.poll(pendingTitles).toEqual([book, stretch]);
-  await expect(page.locator(".normal-done-toggle")).toHaveCount(0);
+  await expect(page.locator(".normal-done-toggle")).toBeVisible();
 });
 
 test("the three home metrics reflect rating, completion and undo without changing the stage teaser", async ({ page }) => {
@@ -128,6 +129,7 @@ test("the three home metrics reflect rating, completion and undo without changin
   await expect(hero).not.toContainText("4 / 5");
   await page.getByRole("button", { name: "취침 전 스트레칭 10분 1점" }).click();
   await expect(metrics.locator(".completion-metric .metric-value")).toHaveText("5/ 5");
+  await page.locator(".normal-done-toggle").click();
   await page.getByRole("button", { name: "독서 30분 & TOP 50 책장 1점" }).click();
   await expect(metrics.locator(".completion-metric .metric-value")).toHaveText("4/ 5");
   await page.getByRole("button", { name: "새 습관 추가", exact: true }).click();
@@ -144,6 +146,7 @@ for (const width of [320, 395]) {
     await page.setViewportSize({ width, height: 549 });
     await page.goto("/");
     await page.getByRole("tab", { name: "전체", exact: true }).click();
+    await page.locator(".normal-done-toggle").click();
     await expect(
       page.getByRole("heading", { name: "미온수 한 잔 & 영양제" }),
     ).toBeVisible();
@@ -197,6 +200,7 @@ test("time-of-day tabs update their heading and visible habit count", async ({
   await page.setViewportSize({ width: 395, height: 549 });
   await page.goto("/");
   await page.getByRole("tab", { name: "전체", exact: true }).click();
+  await page.locator(".normal-done-toggle").click();
   await expect(
     page.getByRole("heading", { name: "미온수 한 잔 & 영양제" }),
   ).toBeVisible();
