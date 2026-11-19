@@ -107,6 +107,7 @@ test("pending habits stay first in each tab and completed habits keep their orig
 test("the three home metrics reflect rating, completion and undo without changing the stage teaser", async ({ page }) => {
   await page.setViewportSize({ width: 395, height: 595 });
   await page.goto("/");
+  await page.getByRole("tab", { name: "전체", exact: true }).click();
   const hero = page.getByRole("region", { name: "나의 별자리 미리보기" });
   const metrics = page.getByRole("region", { name: "오늘의 통계" });
   await expect(hero).toContainText("첫 번째 별빛");
