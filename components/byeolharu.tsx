@@ -1539,6 +1539,11 @@ export default function Byeolharu() {
                   </div>}
                   {compactView ? (
                     <div className="compact-habit-list" aria-label="간편 습관 목록">
+                      {filtered.length === 0 && (
+                        <p className="compact-all-done">
+                          {ready ? (habits.length ? "오늘 예정된 습관이 없어요" : "아직 등록된 습관이 없어요") : "오늘의 루틴을 준비하고 있어요"}
+                        </p>
+                      )}
                       {filtered.length > 0 && (
                         <>
                           {compactPending.length > 0 && (
