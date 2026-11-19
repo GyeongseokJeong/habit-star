@@ -18,10 +18,15 @@ export function ConstellationGrowthView({ points }: { points: number }) {
   const [departure, setDeparture] = useState<{ stage: ConstellationStageNumber; direction: number; id: number } | null>(null);
   const [zoomOpen, setZoomOpen] = useState(false);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
-  const suppressZoom = useRef(false);
+  const lastSwipeAt = useRef(0);
   const transitionId = useRef(0);
   const galleryStage = Math.min(selectedStage, currentStage) as ConstellationStageNumber;
   const selectedArt = CONSTELLATION_ART[galleryStage - 1];
+  // Three adjacent selectors always fit with 44px touch targets, even at 320px.
+  const windowStart = Math.max(1, Math.min(galleryStage - 1, currentStage - 2));
+  const visibleStages = CONSTELLATION_ART.filter(
+    (item) => item.stage <= currentStage && item.stage >= windowStart && item.stage < windowStart + 3,
+  );
   const caption = CONSTELLATION_CAPTIONS[selectedArt.stage];
   const range = selectedArt.max === null ? `${selectedArt.min}점 이상` : `${selectedArt.min} ~ ${selectedArt.max}점`;
   const style = {
@@ -53,7 +58,7 @@ export function ConstellationGrowthView({ points }: { points: number }) {
   function handleTouchStart(event: TouchEvent<HTMLButtonElement>) {
     if (event.touches.length !== 1) return;
     touchStart.current = { x: event.touches[0].clientX, y: event.touches[0].clientY };
-    suppressZoom.current = false;
+
   }
 
   function handleTouchEnd(event: TouchEvent<HTMLButtonElement>) {
@@ -62,7 +67,7 @@ export function ConstellationGrowthView({ points }: { points: number }) {
     const deltaY = event.changedTouches[0].clientY - touchStart.current.y;
     touchStart.current = null;
     if (Math.abs(deltaX) < 45 || Math.abs(deltaX) <= Math.abs(deltaY) * 1.3) return;
-    suppressZoom.current = true;
+    lastSwipeAt.current = Date.now();
     selectStage(galleryStage + (deltaX < 0 ? 1 : -1));
   }
 
@@ -83,10 +88,9 @@ export function ConstellationGrowthView({ points }: { points: number }) {
           onTouchEnd={handleTouchEnd}
           onTouchCancel={() => { touchStart.current = null; }}
           onClick={() => {
-            if (suppressZoom.current) {
-              suppressZoom.current = false;
-              return;
-            }
+            // Browsers may or may not synthesize a click after a swipe.
+            // A time-bounded guard avoids swallowing the next genuine tap.
+            if (Date.now() - lastSwipeAt.current < 350) return;
             setZoomOpen(true);
           }}
         >
@@ -109,8 +113,8 @@ export function ConstellationGrowthView({ points }: { points: number }) {
             <button type="button" className="constellation-gallery-arrow" aria-label="이전 별자리" disabled={galleryStage === 1} onClick={() => selectStage(galleryStage - 1)}>
               <ChevronLeft size={20} aria-hidden="true" />
             </button>
-            <div className="constellation-gallery-steps" role="group" aria-label="획득한 단계">
-              {CONSTELLATION_ART.filter((item) => item.stage <= currentStage).map((item) => (
+            <div className="constellation-gallery-steps" role="group" aria-label={`획득한 단계 ${currentStage}개, 이전·다음 화살표로 모두 탐색 가능`}>
+              {visibleStages.map((item) => (
                 <button
                   type="button"
                   key={item.stage}
