@@ -47,7 +47,7 @@ for (const width of [320, 390, 430]) {
     await dialog.getByRole("button", { name: "낮", exact: true }).click();
     await dialog.getByRole("button", { name: "평일", exact: true }).click();
     await dialog.getByLabel("예정 시간").fill("13:30");
-    await dialog.getByRole("switch", { name: "루틴 알림" }).click();
+    await expect(dialog.getByRole("switch", { name: "루틴 알림" })).toHaveCount(0);
     await expect(
       dialog.getByRole("button", { name: "하루 기록하기 템플릿" }),
     ).toHaveAttribute("aria-pressed", "false");
@@ -76,9 +76,7 @@ for (const width of [320, 390, 430]) {
     await expect(
       edit.getByRole("button", { name: "평일", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
-    await expect(
-      edit.getByRole("switch", { name: "루틴 알림" }),
-    ).toHaveAttribute("aria-checked", "true");
+    await expect(edit.getByRole("switch", { name: "루틴 알림" })).toHaveCount(0);
     await edit.getByRole("button", { name: "매일", exact: true }).click();
     await edit.getByRole("button", { name: "수정 완료" }).click();
     await expect(edit).not.toBeVisible();
@@ -107,10 +105,7 @@ test("templates are keyboard accessible in dark mode", async ({ page }) => {
   await page.keyboard.press("Space");
   await expect(template).toHaveAttribute("aria-pressed", "true");
   await expect(template).toHaveCSS("background-color", "rgb(105, 90, 133)");
-  await expect(page.getByRole("switch", { name: "루틴 알림" })).toHaveAttribute(
-    "aria-checked",
-    "false",
-  );
+  await expect(page.getByRole("switch", { name: "루틴 알림" })).toHaveCount(0);
 });
 
 test("settings and reflection preserve each other's fields offline", async ({
@@ -167,7 +162,7 @@ test("settings and reflection preserve each other's fields offline", async ({
   await edit.getByRole("button", { name: "낮", exact: true }).click();
   await edit.getByRole("button", { name: "평일", exact: true }).click();
   await edit.getByLabel("예정 시간").fill("13:30");
-  await edit.getByRole("switch", { name: "루틴 알림" }).click();
+  await expect(edit.getByRole("switch", { name: "루틴 알림" })).toHaveCount(0);
   await edit.getByRole("button", { name: "수정 완료" }).click();
   const updated = page
     .locator(".habit-card")
@@ -204,10 +199,7 @@ test("settings and reflection preserve each other's fields offline", async ({
   await expect(persisted).toContainText("실천 완료");
   await persisted.getByRole("button", { name: "분리 기록 수정 수정" }).click();
   edit = page.getByRole("dialog", { name: "습관 수정하기" });
-  await expect(edit.getByRole("switch", { name: "루틴 알림" })).toHaveAttribute(
-    "aria-checked",
-    "true",
-  );
+  await expect(edit.getByRole("switch", { name: "루틴 알림" })).toHaveCount(0);
   await expect(
     edit.getByRole("button", { name: "평일", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
