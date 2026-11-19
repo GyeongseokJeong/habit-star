@@ -23,34 +23,29 @@ for (const width of [320, 390, 430, 1365]) {
         const scenic = el.querySelector(".closing-landscape")!.getBoundingClientRect();
         return { total: rect.height, scenic: scenic.height, left: rect.left, right: rect.right };
       });
-      expect(sizes.scenic).toBeLessThanOrEqual(width <= 620 ? 98 : 106);
+      expect(sizes.scenic).toBeLessThanOrEqual(width <= 620 ? 128 : 146);
       const blend = await closing.evaluate((el) => {
         const landscape = el.querySelector(".closing-landscape")!;
+        const scene = el.querySelector(".closing-moonlit-scene")!;
         const divider = el.querySelector(".closing-divider")!;
-        const hill = el.querySelector(".closing-horizon path:last-child")!;
         const page = el.closest(".byeolharu")!;
-        const sky = getComputedStyle(landscape);
-        const separator = getComputedStyle(divider);
         return {
-          landscapeBackground: sky.backgroundImage,
+          sceneImage: getComputedStyle(scene).backgroundImage,
+          landscapeBackground: getComputedStyle(landscape).backgroundImage,
+          sceneBounds: scene.getBoundingClientRect().toJSON(),
+          landscapeBounds: landscape.getBoundingClientRect().toJSON(),
           pageBackground: getComputedStyle(page).getPropertyValue("--bg").trim(),
-          hillFill: hill.getAttribute("fill"),
           separatorHeight: divider.getBoundingClientRect().height,
           separatorWidth: divider.getBoundingClientRect().width,
           brandGap: el.querySelector(".closing-brand")!.getBoundingClientRect().top - divider.getBoundingClientRect().bottom,
         };
       });
-      // B3.7: the background fades to --bg and the scenic SVG fades at both edges.
-      expect(blend.landscapeBackground).toContain("linear-gradient");
+      expect(blend.sceneImage).toContain(`moonlit-horizon-${theme}.webp`);
       expect(blend.landscapeBackground).toContain("radial-gradient");
-      const edgeFade = await closing.locator(".closing-horizon").evaluate((el) => {
-        const style = getComputedStyle(el);
-        return style.maskImage || style.webkitMaskImage;
-      });
-      expect(edgeFade).toContain("linear-gradient");
-      // Chromium serializes transparent mask stops as rgba(0, 0, 0, 0).
-      expect(edgeFade).toMatch(/(?:transparent|rgba\(0,\s*0,\s*0,\s*0\))/);
-      expect(blend.hillFill).toBe("var(--closing-hill-front)");
+      expect(blend.sceneBounds.bottom).toBeCloseTo(blend.landscapeBounds.bottom, 0);
+      expect(blend.sceneBounds.height).toBeGreaterThanOrEqual(width <= 620 ? 70 : 82);
+      await expect(closing.locator(".closing-moonlit-scene")).toHaveAttribute("aria-hidden", "true");
+      await expect(closing.locator(".closing-horizon")).toHaveCount(0);
       expect(blend.pageBackground).toMatch(/^#/);
       expect(blend.separatorHeight).toBe(1);
       expect(blend.separatorWidth).toBeLessThan(width);
