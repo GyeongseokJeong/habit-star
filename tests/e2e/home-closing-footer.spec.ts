@@ -48,7 +48,8 @@ for (const width of [320, 390, 430, 1365]) {
         return style.maskImage || style.webkitMaskImage;
       });
       expect(edgeFade).toContain("linear-gradient");
-      expect(edgeFade).toContain("transparent");
+      // Chromium serializes transparent mask stops as rgba(0, 0, 0, 0).
+      expect(edgeFade).toMatch(/(?:transparent|rgba\(0,\s*0,\s*0,\s*0\))/);
       expect(blend.hillFill).toBe("var(--closing-hill-front)");
       expect(blend.pageBackground).toMatch(/^#/);
       expect(blend.separatorHeight).toBe(1);
