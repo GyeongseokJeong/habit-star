@@ -738,7 +738,9 @@ function CompactHabitCard({
         className="compact-habit-row"
         aria-expanded={expanded}
         aria-controls={"compact-habit-detail-" + habit.id}
-        aria-label={habit.title + (habit.completed ? ", 실천 완료" : ", 미기록") + ", 별점 기록하기"}
+        aria-label={habit.title + (habit.rating > 0
+          ? ", 실천 완료, 별점 " + habit.rating + "점"
+          : habit.completed ? ", 실천 완료, 별점 없이 체크" : ", 미기록") + ", 기록하기"}
         onClick={onToggle}
       >
         <span className={"compact-habit-emoji " + habit.timeGroup} aria-hidden="true">{habit.icon}</span>
