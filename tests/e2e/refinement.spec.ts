@@ -10,6 +10,7 @@ for (const viewport of [
     await page.setViewportSize(viewport);
     await page.goto("/");
     await page.getByRole("tab", { name: "전체", exact: true }).click();
+    await page.locator(".normal-done-toggle").click();
     await expect(
       page.getByRole("heading", { name: "미온수 한 잔 & 영양제", exact: true }),
     ).toBeVisible();
@@ -70,38 +71,46 @@ for (const viewport of [
   });
 }
 
-test("pending habits stay first in each tab and completed habits keep their original order", async ({
-  page,
-}) => {
+test("normal view groups completed habits below pending and preserves their order and undo", async ({ page }) => {
   await page.setViewportSize({ width: 395, height: 595 });
   await page.goto("/");
-  const titles = () =>
-    page
-      .locator("#routine-panel > .habit-grid")
-      .first()
-      .locator(".habit-card h3")
-      .allTextContents();
+  const pendingTitles = () =>
+    page.locator(".normal-pending-list .habit-card h3").allTextContents();
+  const completedTitles = () =>
+    page.locator(".normal-completed-list .habit-card h3").allTextContents();
   const book = "독서 30분 & TOP 50 책장";
   const stretch = "취침 전 스트레칭 10분";
   const morning = ["미온수 한 잔 & 영양제", "아침 가벼운 러닝 20분"];
   const lunch = "건강한 점심 & 가벼운 산책";
 
   await page.getByRole("tab", { name: "전체", exact: true }).click();
-  await expect.poll(titles).toEqual([book, stretch, ...morning, lunch]);
+  await expect.poll(pendingTitles).toEqual([book, stretch]);
   await page.getByRole("tab", { name: "밤", exact: true }).click();
-  await expect.poll(titles).toEqual([book, stretch]);
+  await expect.poll(pendingTitles).toEqual([book, stretch]);
 
   await page.getByRole("button", { name: `${book} 1점` }).click();
-  await expect.poll(titles).toEqual([stretch, book]);
+  await expect.poll(pendingTitles).toEqual([stretch]);
+  const fold = page.locator(".normal-done-toggle");
+  await expect(fold).toContainText("완료한 습관 1개");
+  await expect(fold).toHaveAttribute("aria-expanded", "false");
+  await expect(page.locator(".normal-completed-list")).toHaveCount(0);
+  await fold.click();
+  await expect.poll(completedTitles).toEqual([book]);
+
   await page.getByRole("tab", { name: "전체", exact: true }).click();
-  await expect.poll(titles).toEqual([stretch, ...morning, lunch, book]);
+  await expect.poll(pendingTitles).toEqual([stretch]);
+  await expect(page.locator(".normal-completed-list")).toHaveCount(0);
+  await page.locator(".normal-done-toggle").click();
+  await expect.poll(completedTitles).toEqual([...morning, lunch, book]);
 
   await page.reload();
-  await page.getByRole("tab", { name: "전체", exact: true }).click();
-  await expect.poll(titles).toEqual([stretch, ...morning, lunch, book]);
   await page.getByRole("tab", { name: "밤", exact: true }).click();
+  await expect.poll(pendingTitles).toEqual([stretch]);
+  await expect(page.locator(".normal-done-toggle")).toBeVisible();
+  await page.locator(".normal-done-toggle").click();
   await page.getByRole("button", { name: `${book} 1점` }).click();
-  await expect.poll(titles).toEqual([book, stretch]);
+  await expect.poll(pendingTitles).toEqual([book, stretch]);
+  await expect(page.locator(".normal-done-toggle")).toHaveCount(0);
 });
 
 test("the three home metrics reflect rating, completion and undo without changing the stage teaser", async ({ page }) => {
@@ -120,6 +129,7 @@ test("the three home metrics reflect rating, completion and undo without changin
   await expect(hero).not.toContainText("4 / 5");
   await page.getByRole("button", { name: "취침 전 스트레칭 10분 1점" }).click();
   await expect(metrics.locator(".completion-metric .metric-value")).toHaveText("5/ 5");
+  await page.locator(".normal-done-toggle").click();
   await page.getByRole("button", { name: "독서 30분 & TOP 50 책장 1점" }).click();
   await expect(metrics.locator(".completion-metric .metric-value")).toHaveText("4/ 5");
   await page.getByRole("button", { name: "새 습관 추가", exact: true }).click();
@@ -136,6 +146,7 @@ for (const width of [320, 395]) {
     await page.setViewportSize({ width, height: 549 });
     await page.goto("/");
     await page.getByRole("tab", { name: "전체", exact: true }).click();
+    await page.locator(".normal-done-toggle").click();
     await expect(
       page.getByRole("heading", { name: "미온수 한 잔 & 영양제" }),
     ).toBeVisible();
@@ -189,6 +200,7 @@ test("time-of-day tabs update their heading and visible habit count", async ({
   await page.setViewportSize({ width: 395, height: 549 });
   await page.goto("/");
   await page.getByRole("tab", { name: "전체", exact: true }).click();
+  await page.locator(".normal-done-toggle").click();
   await expect(
     page.getByRole("heading", { name: "미온수 한 잔 & 영양제" }),
   ).toBeVisible();
@@ -246,6 +258,7 @@ test("install action is only in settings when a real prompt is available", async
 }) => {
   await page.goto("/");
   await page.getByRole("tab", { name: "전체", exact: true }).click();
+  await page.locator(".normal-done-toggle").click();
   await expect(
     page.getByRole("heading", { name: "미온수 한 잔 & 영양제", exact: true }),
   ).toBeVisible();

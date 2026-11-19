@@ -166,6 +166,7 @@ test("earned Stage 2 appears once, then undo and reload do not celebrate", async
   await page.reload();
   await expect(page.getByRole("button", { name: /나의 별자리 STAGE 2/ })).toBeVisible();
   await expect(page.locator(".constellation-stage-celebration")).toHaveCount(0);
+  await page.locator(".normal-done-toggle").click();
   await page.getByRole("heading", { name: "독서 30분 & TOP 50 책장", exact: true }).click();
   await page.getByRole("button", { name: "별점 저장", exact: true }).click();
   await expect(page.getByRole("button", { name: /나의 별자리 STAGE 1/ })).toBeVisible();

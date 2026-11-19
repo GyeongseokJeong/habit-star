@@ -1270,35 +1270,99 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   font-size: 13px;
   text-align: center;
 }
+/* The 56x44 touch target is invisible; only the 44x26 track is drawn.
+   This prevents an oversized capsule in mobile settings, including Samsung Internet. */
 .compact-setting-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.compact-setting-row .account-setting-heading { margin-bottom: 0; }
-.compact-setting-toggle {
-  display: flex;
-  align-items: center;
+.compact-setting-row .account-setting-heading { flex: 1 1 auto; min-width: 0; margin-bottom: 0; }
+.account-panel .compact-setting-row > button.compact-setting-toggle {
+  display: grid;
+  place-items: center;
   flex: 0 0 56px;
   width: 56px;
+  min-width: 56px;
   height: 44px;
-  padding: 0 8px;
-  border: 1px solid var(--control-border);
-  border-radius: 999px;
-  background: var(--control-bg);
+  min-height: 44px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  appearance: none;
+  -webkit-appearance: none;
   cursor: pointer;
 }
-.compact-setting-toggle > span {
-  width: 26px;
+.compact-switch-track {
+  position: relative;
+  display: block;
+  width: 44px;
   height: 26px;
+  border-radius: 999px;
+  border: 1px solid var(--control-border);
+  background: var(--control-bg);
+  transition: background 160ms ease, border-color 160ms ease;
+  pointer-events: none;
+}
+.compact-switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  display: block;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: var(--muted);
+  transform: translateX(0);
   transition: transform 160ms ease, background 160ms ease;
 }
-.compact-setting-toggle[aria-checked="true"] {
+.compact-setting-toggle[aria-checked="true"] .compact-switch-track {
   border-color: var(--selection-bg);
   background: var(--selection-bg);
 }
-.compact-setting-toggle[aria-checked="true"] > span {
-  transform: translateX(13px);
+.compact-setting-toggle[aria-checked="true"] .compact-switch-thumb {
+  transform: translateX(18px);
   background: var(--selection-fg);
 }
+.account-panel .compact-setting-toggle:focus-visible { outline: 2px solid var(--sage); outline-offset: -1px; }
+
+.normal-habit-list { display: grid; gap: 12px; }
+.normal-habit-list .habit-grid { margin-top: 0; }
+.normal-habit-list .normal-completed-group {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.normal-done-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+.normal-done-toggle > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.normal-done-toggle > span:first-child svg { color: var(--sage); }
+.normal-done-toggle > span:last-child { color: var(--muted); font-size: 12px; font-weight: 400; }
+.normal-done-toggle:focus-visible { outline: 2px solid var(--sage); outline-offset: 2px; }
+.normal-completed-list { margin-top: 10px !important; }
+.normal-completed-list .habit-card {
+  border-color: color-mix(in srgb, var(--line) 85%, var(--bg));
+  background: color-mix(in srgb, var(--surface) 91%, var(--bg));
+}
+.normal-all-done { margin: 8px 0; color: var(--sage); font-size: 13px; text-align: center; }
 @media (max-width: 360px) {
   .compact-habit-row { gap: 6px; padding: 6px 8px; }
   .compact-habit-title { font-size: 13px; }

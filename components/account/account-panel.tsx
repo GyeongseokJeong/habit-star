@@ -338,7 +338,7 @@ export function AccountPanel({
                 aria-label="간편 보기"
                 aria-checked={compactView}
                 onClick={() => onCompactViewChange(!compactView)}
-              ><span aria-hidden="true" /></button>
+              ><span className="compact-switch-track" aria-hidden="true"><span className="compact-switch-thumb" /></span></button>
             </div>
           </div>
           <div className="account-setting-block">
