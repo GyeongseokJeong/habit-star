@@ -220,6 +220,7 @@ test("deferred reminder data survives editing and reload on a narrow dark screen
 
   await expect(page.getByRole("button", { name: "알림 메뉴" })).toHaveCount(0);
   await expect(page.locator(".habit-card").first().getByRole("button", { name: /알림/ })).toHaveCount(0);
+  await page.locator(".normal-done-toggle").click();
 
   await page.getByRole("button", { name: "미온수 한 잔 & 영양제 수정", exact: true }).click();
   const editor = page.getByRole("dialog", { name: "습관 수정하기" });
