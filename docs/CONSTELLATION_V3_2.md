@@ -127,7 +127,7 @@ Stage 1–5 디자인·레벨별 차이·모바일 표현은 다음 사용자 �
 - `lib/habits/domain.ts`: `Habit`, `History`, `completed`, `rating`, 날짜 유틸.
 - `lib/habits/repository.ts`: `days` + `habit_entries`로 구성되는 `Snapshot.history`.
 - `components/byeolharu.tsx`: 오늘 기록과 과거 기록을 합친 `allHistory`, 기존 홈 지표.
-- `components/starlit-hero.tsx`: 오늘의 실천에 대한 별빛 히어로(유지 대상).
+- `components/starlit-hero.tsx`: V3.2 당시 오늘 실천 히어로. V3.3부터 사용자 승인 가로형 Stage 티저로 교체하며 성장 점수 계산·상세 화면은 그대로 유지.
 
 V3.2는 원본 기록을 읽는 **순수 계산 엔진 + 프레젠테이션**으로 구현됐다. 새 영구 DB 테이블은 추가하지 않았으며, 신규 비회원 샘플 출처는 로컬 메타데이터로 구분한다. 과거 기록과 원본은 보존한다.
 
@@ -146,6 +146,10 @@ V3.2는 원본 기록을 읽는 **순수 계산 엔진 + 프레젠테이션**으
 5. **회귀/리뷰**: `pnpm typecheck`, `pnpm test`, 관련 `pnpm test:e2e`, `pnpm build`; 저장/동기화 수정 시 별도의 DB/클라우드 검증. 실행하지 못한 검사를 통과라 표기하지 않음.
 
 서명 아트의 최종 합격은 **6개 단계 시안의 실화면 확인 + 실제 사용자 흐름에서 성장 체감 확인**까지 포함한다. 제품 방향 변경이나 구현 중 발견된 오류는 이 문서와 관련 하네스 규칙을 동기화해 고친다.
+
+## 2026-11-19 V3.3 홈 전용 티저 승인 (별자리 상세 원화와 별개)
+
+사용자가 최종 승인한 `byeolharu-home-teasers-v2`의 `public/assets/home-constellation/stage-01.webp` ~ `stage-06.webp`는 각 1950×850(39:17) 가로형이다. ZIP의 `manifest.json`에 수록된 `normalized_webp_sha256`으로 무결성을 검증한다. 홈 카드의 텍스트는 이미지와 분리하고 `getConstellationStage`/기존 원화 레지스트리의 단계명·임계값을 재사용한다. 카드 전체를 별자리 성장 상세 화면의 진입점으로 사용한다. 이전 홈 히어로 이미지·문구 보존 권고보다 최신 승인 디자인을 우선 적용하며, `public/assets/constellation/`의 세로형 PNG/WebP 12개와 `lib/constellation/art.ts`의 원화 해시 및 상세 화면은 변경하지 않는다. 삼성 인터넷 강제 다크 모드는 별도 미해결 항목이다.
 
 ## 2026-11-18 Stage 6 최종 원화 결정
 

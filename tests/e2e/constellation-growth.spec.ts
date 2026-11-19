@@ -92,7 +92,7 @@ for (const { width, height } of [
         { stage: 5, points: 100 }, { stage: 6, points: 200 },
       ]) {
         if (points) await seedConstellationPoints(page, points);
-        const opener = page.getByRole("button", { name: `나의 별자리 STAGE ${stage}` });
+        const opener = page.getByRole("button", { name: new RegExp(`나의 별자리 STAGE ${stage}`) });
         await expect(opener).toBeVisible();
         await opener.click();
         const dialog = page.getByRole("dialog", { name: "나의 별자리" });
@@ -153,7 +153,8 @@ test("earned Stage 2 appears once, then undo and reload do not celebrate", async
   await page.getByRole("heading", { name: "독서 30분 & TOP 50 책장", exact: true }).click();
   await page.getByRole("button", { name: "단순 체크만 하기", exact: true }).click();
   await expect(page.getByRole("button", { name: /나의 별자리 STAGE 2/ })).toBeVisible();
-  await expect(page.locator(".constellation-stage-celebration")).toBeVisible();
+  await expect(page.locator(".constellation-stage-celebration")).toHaveText(/별자리가 한층 밝아졌어요 · STAGE 2/);
+  await expect(page.locator(".starlit-card")).toHaveClass(/starlit-card-celebrating/);
   await page.reload();
   await expect(page.getByRole("button", { name: /나의 별자리 STAGE 2/ })).toBeVisible();
   await expect(page.locator(".constellation-stage-celebration")).toHaveCount(0);
@@ -218,11 +219,13 @@ test("growth derives from real check-only completion and survives reload without
   await expect(dialog.getByText("1점", { exact: true })).toBeVisible();
 });
 
-test("constellation stays readable in dark theme and does not alter the hero", async ({ page }) => {
+test("constellation stays readable in dark theme without changing the home completion metric", async ({ page }) => {
   await page.setViewportSize({ width: 395, height: 844 });
   await page.goto("/");
-  const hero = page.getByRole("region", { name: "오늘의 별빛" });
-  await expect(hero).toContainText("3 / 5");
+  const hero = page.getByRole("region", { name: "나의 별자리 미리보기" });
+  const completion = page.locator(".completion-metric .metric-value");
+  await expect(hero).toContainText("첫 번째 별빛");
+  await expect(completion).toHaveText("3/ 5");
   await page.getByRole("button", { name: "다크 모드로 전환" }).click();
   await page.getByRole("button", { name: /나의 별자리 STAGE 1/ }).click();
   const dialog = page.getByRole("dialog", { name: "나의 별자리" });
@@ -230,5 +233,59 @@ test("constellation stays readable in dark theme and does not alter the hero", a
   await expect(dialog.getByText("작은 별빛 하나가 태어나,")).toBeVisible();
   await expect(dialog.getByRole("progressbar", { name: /Stage 2/ })).toHaveAttribute("aria-valuenow", "0");
   await page.keyboard.press("Escape");
-  await expect(hero).toContainText("3 / 5");
+  await expect(hero).toContainText("첫 번째 별빛");
+  await expect(completion).toHaveText("3/ 5");
+});
+
+for (const width of [320, 360, 390, 430]) {
+  for (const theme of ["light", "dark"] as const) {
+    test(`approved home teaser preserves all six stages at ${width}px in ${theme}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 720 });
+      await page.goto("/");
+      if (theme === "dark") await page.getByRole("button", { name: "다크 모드로 전환" }).click();
+      for (const { stage, points, title } of [
+        { stage: 1, points: 0, title: "첫 번째 별빛" },
+        { stage: 2, points: 7, title: "별이 모이는 밤" },
+        { stage: 3, points: 20, title: "별빛의 연결" },
+        { stage: 4, points: 50, title: "나의 작은 별자리" },
+        { stage: 5, points: 100, title: "찬란한 별자리" },
+        { stage: 6, points: 200, title: "빛나는 은하" },
+      ]) {
+        if (points) await seedConstellationPoints(page, points);
+        const card = page.getByRole("button", { name: `나의 별자리 STAGE ${stage} ${title} 열기` });
+        await expect(card).toBeVisible();
+        await expect(card.locator(".starlit-copy")).toHaveText(`STAGE ${stage}${title}`);
+        const image = card.locator("img");
+        await expect(image).toHaveAttribute("src", `/assets/home-constellation/stage-${String(stage).padStart(2, "0")}.webp`);
+        await expect.poll(() => image.evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBe(1950);
+        const geometry = await card.evaluate((element) => {
+          const rect = element.getBoundingClientRect();
+          const art = element.querySelector("img")!.getBoundingClientRect();
+          const title = element.querySelector(".starlit-title")!.getBoundingClientRect();
+          const arrow = element.querySelector(".starlit-arrow")!.getBoundingClientRect();
+          return {
+            width: rect.width, height: rect.height, artWidth: art.width, artHeight: art.height,
+            titleRight: title.right, arrowLeft: arrow.left, arrowTop: arrow.top, titleBottom: title.bottom,
+          };
+        });
+        expect(geometry.height / geometry.width).toBeCloseTo(17 / 39, 2);
+        expect(geometry.artWidth).toBeCloseTo(geometry.width - 2, 0);
+        expect(geometry.artHeight).toBeCloseTo(geometry.height - 2, 0);
+        expect(geometry.arrowTop).toBeGreaterThanOrEqual(geometry.titleBottom);
+        expect(geometry.titleRight).toBeLessThan(geometry.width * 0.6 + (width - geometry.width) / 2);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+        await expect(image).toHaveCSS("object-fit", "contain");
+      }
+    });
+  }
+}
+
+test("home teaser remains readable without artwork and opens by keyboard", async ({ page }) => {
+  await page.route("**/assets/home-constellation/stage-01.webp", (route) => route.abort());
+  await page.goto("/");
+  const card = page.getByRole("button", { name: "나의 별자리 STAGE 1 첫 번째 별빛 열기" });
+  await expect(card).toContainText("첫 번째 별빛");
+  await card.focus();
+  await page.keyboard.press("Space");
+  await expect(page.getByRole("dialog", { name: "나의 별자리" })).toBeVisible();
 });

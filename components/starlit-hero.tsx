@@ -1,68 +1,50 @@
-import type { CSSProperties } from "react";
-import { Sparkles, Star } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { getConstellationStage } from "@/lib/constellation/art";
 
 export function StarlitHero({
-  completed,
-  total,
+  points,
   onViewConstellation,
-  stage,
   celebratedStage,
 }: {
-  completed: number;
-  total: number;
+  points?: number;
   onViewConstellation?: () => void;
-  stage?: number;
   celebratedStage?: number | null;
 }) {
-  const progress = total > 0 ? Math.min(1, completed / total) : 0;
-  const starStyle = {
-    "--star-opacity": 0.28 + progress * 0.72,
-    "--star-glow": `${6 + progress * 30}px`,
-    "--star-bloom": progress * progress,
-    "--star-scale": 0.78 + progress * 0.3,
-  } as CSSProperties;
-  const message =
-    total === 0
-      ? "첫 습관을 등록하면 나만의 별빛이 켜져요."
-      : completed === total
-        ? "오늘의 모든 별이 환하게 빛나요. 수고했어요!"
-        : completed === 0
-          ? "작은 실천 하나로 첫 별빛을 밝혀보세요."
-          : "하나씩 실천할 때마다 별빛이 더 밝아져요.";
+  const art = points === undefined ? null : getConstellationStage(points);
 
   return (
-    <section className="starlit-hero" aria-label="오늘의 별빛">
-      <div className="starlit-copy">
-        <p className="starlit-kicker">TODAY&apos;S LITTLE GALAXY</p>
-        <h2>
-          작은 실천이 모여,
-          <br />
-          반짝이는 하루가 돼요.
-        </h2>
-        <p className="starlit-message">{message}</p>
-        <p className="starlit-progress" aria-live="polite">
-          <span className="starlit-progress-dot" aria-hidden="true" />
-          오늘의 별빛{" "}
-          <strong>
-            {completed} / {total}
-          </strong>
-        </p>
-        {onViewConstellation && stage !== undefined && (
-          <button type="button" className="constellation-open" onClick={onViewConstellation}>
-            <Star size={16} aria-hidden="true" /> 나의 별자리 <span>STAGE {stage}</span>
-          </button>
-        )}
-        <div aria-live="polite" aria-atomic="true">
-          {celebratedStage && (
-            <p className="constellation-stage-celebration">
-              <Sparkles size={14} aria-hidden="true" /> 별자리가 한층 밝아졌어요 · STAGE {celebratedStage}
-            </p>
-          )}
+    <section className="starlit-hero" aria-label="나의 별자리 미리보기">
+      {art && onViewConstellation ? (
+        <button
+          type="button"
+          className={`starlit-card${celebratedStage ? " starlit-card-celebrating" : ""}`}
+          aria-label={`나의 별자리 STAGE ${art.stage} ${art.title} 열기`}
+          onClick={onViewConstellation}
+        >
+          <img
+            className="starlit-art"
+            src={`/assets/home-constellation/stage-${String(art.stage).padStart(2, "0")}.webp`}
+            alt=""
+            width={1950}
+            height={850}
+            fetchPriority="high"
+          />
+          <span className="starlit-copy" aria-hidden="true">
+            <span className="starlit-kicker">STAGE {art.stage}</span>
+            <span className="starlit-title">{art.title}</span>
+            <ArrowRight className="starlit-arrow" size={19} strokeWidth={1.7} />
+          </span>
+        </button>
+      ) : (
+        <div className="starlit-card starlit-card-loading" role="status" aria-label="별자리 불러오는 중">
+          <span className="starlit-copy">별자리를 불러오고 있어요</span>
         </div>
-      </div>
-      <span className="starlit-star" style={starStyle} aria-hidden="true">
-        <Star fill="currentColor" />
-      </span>
+      )}
+      {celebratedStage ? (
+        <span className="sr-only constellation-stage-celebration" role="status" aria-live="polite" aria-atomic="true">
+          별자리가 한층 밝아졌어요 · STAGE {celebratedStage}
+        </span>
+      ) : null}
     </section>
   );
 }

@@ -247,10 +247,8 @@ test("rapid stars update immediately, keep the card steady, and persist the last
     .locator(".habit-card")
     .filter({ has: page.getByRole("heading", { name: title }) });
   await expect(card).toBeVisible();
-  const hero = page.locator(".starlit-hero .starlit-star");
-  const initialOpacity = Number(
-    await hero.evaluate((element) => getComputedStyle(element).opacity),
-  );
+  const completion = page.locator(".completion-metric .metric-value");
+  const initialCompletion = await completion.innerText();
   const beforeIndex = await card.evaluate((element) =>
     Array.from(element.parentElement!.children).indexOf(element),
   );
@@ -261,9 +259,7 @@ test("rapid stars update immediately, keep the card steady, and persist the last
       card.getByRole("button", { name: `${title} ${rating}점` }),
     ).toHaveAttribute("aria-pressed", "true");
   }
-  expect(
-    Number(await hero.evaluate((element) => getComputedStyle(element).opacity)),
-  ).toBeGreaterThan(initialOpacity);
+  expect(await completion.innerText()).not.toBe(initialCompletion);
   await card.getByRole("button", { name: `${title} 5점` }).click();
   await expect(card).toContainText("미기록");
   await card.getByRole("button", { name: `${title} 3점` }).click();
