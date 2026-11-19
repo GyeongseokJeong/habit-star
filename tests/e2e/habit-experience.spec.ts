@@ -83,6 +83,7 @@ for (const width of [320, 390, 430]) {
     await edit.getByRole("button", { name: "수정 완료" }).click();
     await expect(edit).not.toBeVisible();
     await page.reload();
+    await page.getByRole("tab", { name: "전체", exact: true }).click();
     await page.getByRole("button", { name: "나만의 하루 기록 수정" }).click();
     await expect(
       page.getByRole("button", { name: "매일", exact: true }),
@@ -194,6 +195,7 @@ test("settings and reflection preserve each other's fields offline", async ({
   ).toHaveAttribute("aria-pressed", "false");
   await context.setOffline(false);
   await page.reload();
+  await page.getByRole("tab", { name: "전체", exact: true }).click();
   const persisted = page
     .locator(".habit-card")
     .filter({ has: page.getByRole("heading", { name: "분리 기록 수정" }) });

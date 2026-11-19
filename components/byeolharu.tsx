@@ -51,6 +51,7 @@ import {
 import { useHabitApp } from "@/lib/habits/use-habit-app";
 import { AccountPanel } from "@/components/account/account-panel";
 import { StarlitHero } from "@/components/starlit-hero";
+import { initialRoutineTab, startupDataReady } from "@/lib/habits/time-tab";
 import { ConstellationGrowthView } from "@/components/constellation-growth-view";
 import { calculateConstellationGrowth, earnedStageFromCompletion } from "@/lib/constellation/growth";
 import { getConstellationStage } from "@/lib/constellation/art";
@@ -891,6 +892,9 @@ export default function Byeolharu() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [now, setNow] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("all");
+  // Resolve once per loaded identity, unless the user has navigated manually.
+  const startupTabResolved = useRef<string | null>(null);
+  const tabChosenManually = useRef(false);
   const [month, setMonth] = useState(new Date(2026, 10, 1));
   const [editing, setEditing] = useState<Habit | "new" | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -943,7 +947,6 @@ export default function Byeolharu() {
     currentDay.current = key;
     setNow(date);
     setMonth(new Date(date.getFullYear(), date.getMonth(), 1));
-    setActiveTab("all");
     const clock = setInterval(() => setNow(new Date()), 1000);
     const install = (event: Event) => {
       event.preventDefault();
@@ -1190,6 +1193,23 @@ export default function Byeolharu() {
         )
       : now;
   const group = displayNow ? timeGroup(displayNow) : "day";
+  // A newly signed-in member may publish an empty, unhydrated local snapshot
+  // before the initial cloud pull. Wait for hydrated member data so that
+  // both the actual routines and the account timezone decide the first tab.
+  // The cloud pull sets hydrated before ensureDay seeds today\'s entries.
+  // Re-resolve for a new identity only if the user has not navigated manually.
+  useEffect(() => {
+    if (!now || !app.snapshot || tabChosenManually.current) return;
+    if (!startupDataReady(!!app.user, app.snapshot)) return;
+    const identity = app.user?.id ?? "guest";
+    if (startupTabResolved.current === identity) return;
+    startupTabResolved.current = identity;
+    setActiveTab(initialRoutineTab(
+      now,
+      scheduledHabits,
+      app.user ? app.snapshot.state.timezone : undefined,
+    ));
+  }, [now, app.snapshot, app.user, scheduledHabits]);
   const detail = visibleHabits.find((h) => h.id === detailId);
   const filtered = scheduledHabits
     .filter(
@@ -1293,14 +1313,14 @@ export default function Byeolharu() {
           <nav className="desktop-nav" aria-label="주 메뉴">
             <button
               className={activeTab !== "matrix" ? "active" : ""}
-              onClick={() => setActiveTab("all")}
+              onClick={() => { tabChosenManually.current = true; setActiveTab("all"); }}
             >
               <Sun size={16} />
               오늘의 루틴
             </button>
             <button
               className={activeTab === "matrix" ? "active" : ""}
-              onClick={() => setActiveTab("matrix")}
+              onClick={() => { tabChosenManually.current = true; setActiveTab("matrix"); }}
             >
               <LayoutGrid size={16} />
               나의 별 기록
@@ -1485,12 +1505,16 @@ export default function Byeolharu() {
                           (ids.indexOf(id) + (e.key === "ArrowRight" ? 1 : 4)) %
                             5
                         ];
+                      tabChosenManually.current = true;
                       setActiveTab(next);
                       document.getElementById(`tab-${next}`)?.focus();
                     }
                   }}
                   className={activeTab === id ? "selected" : ""}
-                  onClick={() => setActiveTab(id)}
+                  onClick={() => {
+                    tabChosenManually.current = true;
+                    setActiveTab(id);
+                  }}
                 >
                   <Icon size={15} aria-hidden="true" />
                   <span className="tab-label">

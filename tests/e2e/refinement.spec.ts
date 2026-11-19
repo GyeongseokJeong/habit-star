@@ -9,6 +9,7 @@ for (const viewport of [
   }) => {
     await page.setViewportSize(viewport);
     await page.goto("/");
+    await page.getByRole("tab", { name: "전체", exact: true }).click();
     await expect(
       page.getByRole("heading", { name: "미온수 한 잔 & 영양제", exact: true }),
     ).toBeVisible();
@@ -85,6 +86,7 @@ test("pending habits stay first in each tab and completed habits keep their orig
   const morning = ["미온수 한 잔 & 영양제", "아침 가벼운 러닝 20분"];
   const lunch = "건강한 점심 & 가벼운 산책";
 
+  await page.getByRole("tab", { name: "전체", exact: true }).click();
   await expect.poll(titles).toEqual([book, stretch, ...morning, lunch]);
   await page.getByRole("tab", { name: "밤", exact: true }).click();
   await expect.poll(titles).toEqual([book, stretch]);
@@ -95,6 +97,7 @@ test("pending habits stay first in each tab and completed habits keep their orig
   await expect.poll(titles).toEqual([stretch, ...morning, lunch, book]);
 
   await page.reload();
+  await page.getByRole("tab", { name: "전체", exact: true }).click();
   await expect.poll(titles).toEqual([stretch, ...morning, lunch, book]);
   await page.getByRole("tab", { name: "밤", exact: true }).click();
   await page.getByRole("button", { name: `${book} 1점` }).click();
@@ -104,6 +107,7 @@ test("pending habits stay first in each tab and completed habits keep their orig
 test("the three home metrics reflect rating, completion and undo without changing the stage teaser", async ({ page }) => {
   await page.setViewportSize({ width: 395, height: 595 });
   await page.goto("/");
+  await page.getByRole("tab", { name: "전체", exact: true }).click();
   const hero = page.getByRole("region", { name: "나의 별자리 미리보기" });
   const metrics = page.getByRole("region", { name: "오늘의 통계" });
   await expect(hero).toContainText("첫 번째 별빛");
@@ -131,6 +135,7 @@ for (const width of [320, 395]) {
   }) => {
     await page.setViewportSize({ width, height: 549 });
     await page.goto("/");
+    await page.getByRole("tab", { name: "전체", exact: true }).click();
     await expect(
       page.getByRole("heading", { name: "미온수 한 잔 & 영양제" }),
     ).toBeVisible();
@@ -189,6 +194,7 @@ test("time-of-day tabs update their heading and visible habit count", async ({
 }) => {
   await page.setViewportSize({ width: 395, height: 549 });
   await page.goto("/");
+  await page.getByRole("tab", { name: "전체", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "미온수 한 잔 & 영양제" }),
   ).toBeVisible();
@@ -245,6 +251,7 @@ test("install action is only in settings when a real prompt is available", async
   page,
 }) => {
   await page.goto("/");
+  await page.getByRole("tab", { name: "전체", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "미온수 한 잔 & 영양제", exact: true }),
   ).toBeVisible();

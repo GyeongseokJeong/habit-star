@@ -640,3 +640,101 @@ test("v1 settings and historical ratings/memos survive consented, repeatable clo
     ).toEqual(raw);
   }
 });
+
+test("fresh member resolves startup tab only after cloud hydration, unless manually navigated", async ({
+  browser,
+  request,
+}) => {
+  const now = new Date();
+  const localHour = Number(new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Seoul",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).format(now));
+  const currentPeriod = localHour >= 5 && localHour < 11
+    ? "아침" : localHour >= 11 && localHour < 17 ? "낮" : "밤";
+  const oppositePeriod = currentPeriod === "밤" ? "morning" : "night";
+  const title = "회원 첫 동기화 시간대 루틴";
+  const owner = await browser.newContext({ timezoneId: "Asia/Seoul" });
+  try {
+    const first = await owner.newPage();
+    await first.clock.setFixedTime(now);
+    const { email, password } = await register(first, request);
+    await first.getByRole("button", { name: "새 습관 추가", exact: true }).click();
+    await first.getByPlaceholder("예: 하루 10분 책 읽기").fill(title);
+    await first.getByRole("dialog", { name: "나를 위한 새로운 습관" })
+      .getByRole("button", { name: currentPeriod, exact: true }).click();
+    await first.getByRole("button", { name: "새 습관 추가하기", exact: true }).click();
+    await expect(first.locator(".saved-label")).toContainText("동기화 완료", {
+      timeout: 30000,
+    });
+
+    // Each device has no member cache. Its guest data only contains an off-period habit,
+    // so pre-hydration fallback is visibly different from the server-selected tab.
+    for (const manuallyNavigate of [false, true]) {
+      const context = await browser.newContext({ timezoneId: "Asia/Seoul" });
+      try {
+        const second = await context.newPage();
+        await second.clock.setFixedTime(now);
+        await second.addInitScript((group) => {
+          if (localStorage.getItem("first-hydration-fixture")) return;
+          localStorage.setItem("first-hydration-fixture", "1");
+          localStorage.setItem("byeolharu_v1_habits", JSON.stringify([{
+            id: "guest-off-period", title: "다른 시간대 비회원 루틴",
+            icon: "📚", timeGroup: group,
+            completed: false, rating: 0, memo: "", alarmEnabled: false,
+          }]));
+          localStorage.setItem("byeolharu_v1_day", "2026-01-01");
+        }, oppositePeriod);
+        await second.goto("/");
+        await expect(second.getByRole("tab", { name: "전체", exact: true }))
+          .toHaveAttribute("aria-selected", "true");
+        if (manuallyNavigate) {
+          await second.getByRole("tab", { name: "별점 매트릭스" }).click();
+        }
+
+        let release!: () => void;
+        const gate = new Promise<void>((resolve) => { release = resolve; });
+        let intercepted!: () => void;
+        const pulling = new Promise<void>((resolve) => { intercepted = resolve; });
+        await second.route("**/rest/v1/rpc/pull_changes", async (route) => {
+          intercepted();
+          await gate;
+          await route.continue();
+        });
+        try {
+          await second.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+          await second.getByRole("button", { name: "로그인", exact: true }).click();
+          await second.getByLabel("이메일", { exact: true }).fill(email);
+          await second.getByLabel("비밀번호", { exact: true }).fill(password);
+          await second.getByRole("button", { name: "로그인", exact: true }).last().click();
+          await expect(second.getByText(email, { exact: true })).toBeVisible();
+          await pulling;
+          await second.getByRole("button", { name: "닫기", exact: true }).click();
+          await expect(second.getByRole("tab", {
+            name: manuallyNavigate ? "별점 매트릭스" : "전체", exact: true,
+          })).toHaveAttribute("aria-selected", "true");
+        } finally {
+          release();
+        }
+        await expect(second.locator(".saved-label")).toContainText("동기화 완료", {
+          timeout: 30000,
+        });
+        await expect(second.getByRole("tab", {
+          name: manuallyNavigate ? "별점 매트릭스" : currentPeriod,
+          exact: true,
+        })).toHaveAttribute("aria-selected", "true");
+        if (manuallyNavigate) {
+          await second.getByRole("tab", { name: currentPeriod, exact: true }).click();
+        }
+        await expect(second.getByRole("heading", { name: title, exact: true }))
+          .toBeVisible();
+      } finally {
+        await context.close();
+      }
+    }
+  } finally {
+    await owner.close();
+  }
+});
+
