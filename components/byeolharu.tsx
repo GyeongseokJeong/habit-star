@@ -255,6 +255,7 @@ function Modal({
   accountScreen = false,
   scrollKey,
   wide = false,
+  fallbackFocusId,
 }: {
   title: string;
   children: ReactNode;
@@ -264,6 +265,7 @@ function Modal({
   accountScreen?: boolean;
   scrollKey?: string;
   wide?: boolean;
+  fallbackFocusId?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -286,6 +288,9 @@ function Modal({
       document.body.style.overflow = original;
       if (previousFocus instanceof HTMLElement && previousFocus.isConnected) {
         previousFocus.focus();
+      } else if (fallbackFocusId) {
+        // A saved reflection may move its card into the folded completed list.
+        document.getElementById(fallbackFocusId)?.focus();
       }
     };
   }, []);
@@ -571,10 +576,12 @@ function HabitDetail({
   habit,
   onSave,
   onClose,
+  fallbackFocusId,
 }: {
   habit: Habit;
   onSave: (data: DailyRecordPatch) => void;
   onClose: () => void;
+  fallbackFocusId: string;
 }) {
   const [draft, setDraft] = useState<DailyRecordPatch>({
     rating: habit.rating,
@@ -582,7 +589,7 @@ function HabitDetail({
     memo: habit.memo,
   });
   return (
-    <Modal title="오늘의 실천 기록" onClose={onClose}>
+    <Modal title="오늘의 실천 기록" onClose={onClose} fallbackFocusId={fallbackFocusId}>
       <div className="detail-heading">
         <span className={`habit-emoji ${habit.timeGroup}`}>{habit.icon}</span>
         <h3>{habit.title}</h3>
@@ -1300,7 +1307,7 @@ export default function Byeolharu() {
       day.setDate(day.getDate() - 1);
     }
   }
-  const renderCard = (habit: Habit) => (
+  const renderCard = (habit: Habit, grouped = true) => (
     <HabitCard
       key={habit.id}
       habit={habit}
@@ -1308,7 +1315,7 @@ export default function Byeolharu() {
         handleRateHabit(id, value);
         if (normalFocusTimer.current) clearTimeout(normalFocusTimer.current);
         const movesGroup = (heldCompletion.get(id) ?? habit.completed) !== (habit.rating === value ? false : true);
-        if (fromKeyboard && movesGroup) {
+        if (grouped && fromKeyboard && movesGroup) {
           // Transfer focus only when the card will unmount across completion groups.
           // Avoid interrupting editing between nonzero ratings in the same group.
           normalFocusTimer.current = setTimeout(() => {
@@ -1728,7 +1735,7 @@ export default function Byeolharu() {
                         <MoreHorizontal size={19} />
                       </div>
                       <div className="habit-grid">
-                        {upcoming.map(renderCard)}
+                        {upcoming.map((habit) => renderCard(habit, false))}
                       </div>
                     </>
                   )}
@@ -1794,6 +1801,7 @@ export default function Byeolharu() {
         <HabitDetail
           key={detail.id}
           habit={detail}
+          fallbackFocusId={`tab-${activeTab}`}
           onClose={() => setDetailId(null)}
           onSave={(data) => {
             const actionDay = today;
