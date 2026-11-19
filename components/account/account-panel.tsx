@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowDownToLine, ChevronRight, CheckCircle2, CloudOff,
-  Database, Download, RefreshCw, Settings2, ShieldCheck, Sparkles, UserRound,
+  Database, Download, RefreshCw, Settings2, ShieldCheck, Sparkles, UserRound, CircleHelp,
   AlertCircle, Clock3, Laptop, Moon, Sun, LoaderCircle,
 } from "lucide-react";
 import { cloudEnabled } from "@/lib/supabase/client";
@@ -51,13 +51,14 @@ function guestHasOwnRecords(guest: Snapshot) {
 }
 
 export function AccountPanel({
-  app, page, onNavigate, theme, onThemeChange, onInstall,
+  app, page, onNavigate, theme, onThemeChange, onHelp, onInstall,
 }: {
   app: App;
   page: AccountPage;
   onNavigate: (next: AccountPage) => void;
   theme: "light" | "dark";
   onThemeChange: (next: "light" | "dark") => void;
+  onHelp: () => void;
   onInstall?: () => void;
 }) {
   const state = app.snapshot?.state;
@@ -215,6 +216,7 @@ export function AccountPanel({
           <nav className="account-menu" aria-label="계정 메뉴">
             <button type="button" aria-label="데이터 관리" onClick={() => navigate("records")}><Database size={19} /><span>데이터 관리<small>동기화 · 백업 · 복원</small></span><ChevronRight size={17} /></button>
             <button type="button" aria-label="앱 설정" onClick={() => navigate("settings")}><Settings2 size={19} /><span>앱 설정<small>화면 테마 · 시간대</small></span><ChevronRight size={17} /></button>
+            <button type="button" aria-label="사용 안내" onClick={onHelp}><CircleHelp size={19} /><span>사용 안내<small>별점 기록 · 데이터 보관</small></span><ChevronRight size={17} /></button>
             {app.user && <button type="button" aria-label="계정 관리" onClick={() => navigate("security")}><UserRound size={19} /><span>계정 관리<small>계정 정보 · 로그아웃</small></span><ChevronRight size={17} /></button>}
           </nav>
         </>
