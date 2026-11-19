@@ -1307,7 +1307,7 @@ export default function Byeolharu() {
       onRate={(id, value, fromKeyboard) => {
         handleRateHabit(id, value);
         if (normalFocusTimer.current) clearTimeout(normalFocusTimer.current);
-        const movesGroup = habit.completed !== (habit.rating === value ? false : true);
+        const movesGroup = (heldCompletion.get(id) ?? habit.completed) !== (habit.rating === value ? false : true);
         if (fromKeyboard && movesGroup) {
           // Transfer focus only when the card will unmount across completion groups.
           // Avoid interrupting editing between nonzero ratings in the same group.
