@@ -723,12 +723,16 @@ function CompactHabitCard({
   habit: Habit;
   expanded: boolean;
   onToggle: () => void;
-  onRate: (value: number) => void;
+  onRate: (value: number, fromKeyboard: boolean) => void;
   onOpen: () => void;
   onEdit: () => void;
 }) {
+  const keyboardRating = useRef(false);
   return (
-    <article className={["compact-habit-card", habit.completed && "is-completed", expanded && "is-expanded"].filter(Boolean).join(" ")}>
+    <article
+      data-habit-id={habit.id}
+      className={["compact-habit-card", habit.completed && "is-completed", expanded && "is-expanded"].filter(Boolean).join(" ")}
+    >
       <button
         type="button"
         className="compact-habit-row"
@@ -747,8 +751,22 @@ function CompactHabitCard({
       </button>
       {expanded && (
         <div id={"compact-habit-detail-" + habit.id} className="compact-habit-detail">
-          <div className="compact-habit-rating">
-            <StarRating label={habit.title} rating={habit.rating} onSelect={onRate} />
+          <div
+            className="compact-habit-rating"
+            onKeyDownCapture={(event) => {
+              if ((event.key === "Enter" || event.key === " ") &&
+                  (event.target as HTMLElement).closest(".star-tray")) keyboardRating.current = true;
+            }}
+            onPointerDownCapture={() => { keyboardRating.current = false; }}
+          >
+            <StarRating
+              label={habit.title}
+              rating={habit.rating}
+              onSelect={(value) => {
+                onRate(value, keyboardRating.current);
+                keyboardRating.current = false;
+              }}
+            />
           </div>
           <div className="compact-habit-extras">
             <span className="compact-habit-time">
@@ -902,6 +920,7 @@ export default function Byeolharu() {
   const [compactCompletedOpen, setCompactCompletedOpen] = useState(false);
   const [compactExpandedId, setCompactExpandedId] = useState<string | null>(null);
   const compactCollapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const compactFocusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [now, setNow] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("all");
   // Resolve once per loaded identity, unless the user has navigated manually.
@@ -970,6 +989,7 @@ export default function Byeolharu() {
       if (toastTimer.current) clearTimeout(toastTimer.current);
       if (celebrationTimer.current) clearTimeout(celebrationTimer.current);
       if (compactCollapseTimer.current) clearTimeout(compactCollapseTimer.current);
+      if (compactFocusTimer.current) clearTimeout(compactFocusTimer.current);
       for (const timer of reorderTimers.current.values()) clearTimeout(timer);
       reorderTimers.current.clear();
     };
@@ -1256,8 +1276,25 @@ export default function Byeolharu() {
       habit={habit}
       expanded={compactExpandedId === habit.id}
       onToggle={() => setCompactExpandedId((previous) => previous === habit.id ? null : habit.id)}
-      onRate={(value) => {
+      onRate={(value, fromKeyboard) => {
         handleRateHabit(habit.id, value);
+        if (compactFocusTimer.current) clearTimeout(compactFocusTimer.current);
+        if (fromKeyboard) {
+          // Preserve keyboard navigation before the existing 700ms completion
+          // reordering can unmount the focused star/button.
+          compactFocusTimer.current = setTimeout(() => {
+            const rows = Array.from(document.querySelectorAll<HTMLButtonElement>(".compact-habit-row"));
+            const next = rows.find((row) =>
+              row.closest(".compact-habit-group") &&
+              row.closest("[data-habit-id]")?.getAttribute("data-habit-id") !== habit.id,
+            ) ?? rows.find((row) =>
+              row.closest("[data-habit-id]")?.getAttribute("data-habit-id") !== habit.id,
+            );
+            const fallback = document.getElementById("tab-" + activeTab);
+            (next ?? fallback)?.focus();
+            compactFocusTimer.current = null;
+          }, 600);
+        }
         if (compactCollapseTimer.current) clearTimeout(compactCollapseTimer.current);
         compactCollapseTimer.current = setTimeout(() => {
           setCompactExpandedId((previous) => previous === habit.id ? null : previous);
