@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { currentTimeGroup, initialRoutineTab } from "../lib/habits/time-tab";
+import { currentTimeGroup, initialRoutineTab, startupDataReady } from "../lib/habits/time-tab";
 
 const at = (hour: number, minute = 0) =>
   new Date(`2026-11-19T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00+09:00`);
@@ -34,4 +34,19 @@ describe("smart startup routine tabs", () => {
     const instant = new Date("2026-07-19T13:00:00Z");
     expect(currentTimeGroup(instant, "America/Los_Angeles")).toBe("morning");
   });
+  it("does not resolve a fresh member until the cloud snapshot and today entries exist", () => {
+    const state = { hydrated: false };
+    const snapshot = {
+      day: "2026-11-19",
+      history: {} as Record<string, never[]>,
+      state,
+    };
+    expect(startupDataReady(false, snapshot as never)).toBe(true);
+    expect(startupDataReady(true, snapshot as never)).toBe(false);
+    state.hydrated = true;
+    expect(startupDataReady(true, snapshot as never)).toBe(false);
+    snapshot.history["2026-11-19"] = [];
+    expect(startupDataReady(true, snapshot as never)).toBe(true);
+  });
+
 });
