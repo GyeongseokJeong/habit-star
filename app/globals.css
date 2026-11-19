@@ -3169,17 +3169,18 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   margin: 16px 0;
 }
 .habit-editor-form .repeat-weekdays {
-  /* Always keep Monday–Sunday in one stable row, including narrow phones. */
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  /* Keep all seven weekdays on one row without shrinking touch targets. */
+  grid-template-columns: repeat(7, minmax(44px, 1fr));
   gap: 4px;
   overflow-x: visible;
   padding: 2px 0 4px;
 }
 .habit-editor-form .repeat-weekdays button {
-  min-width: 0;
-  width: 100%;
+  min-width: 44px;
+  width: 44px;
   min-height: 44px;
-  aspect-ratio: 1;
+  height: 44px;
+  justify-self: center;
   padding: 0;
   border-radius: 50%;
 }
@@ -3217,7 +3218,7 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
     grid-template-columns: repeat(4, minmax(44px, 1fr));
   }
   .habit-editor-form .repeat-weekdays {
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-columns: repeat(7, minmax(44px, 1fr));
   }
   .habit-editor-schedule-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -3232,11 +3233,12 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   }
 }
 @media (max-width: 360px) {
-  /* Recover enough room for seven days without wrapping or horizontal scrolling. */
+  /* The 320px bottom sheet has 16px side padding. Use that space to fit
+     seven 44px circles without wrapping or horizontal scrolling. */
   .habit-editor-form .repeat-weekdays {
-    margin-left: -8px;
-    margin-right: -8px;
-    gap: 4px;
+    margin-left: -16px;
+    margin-right: -16px;
+    gap: 1px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
