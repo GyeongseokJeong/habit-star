@@ -2601,35 +2601,9 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   transform: scale(1.1);
 }
 .constellation-gallery-arrow:focus-visible,
-.constellation-gallery-step:focus-visible,
-.constellation-gallery-return:focus-visible {
+.constellation-gallery-step:focus-visible {
   outline: 2px solid #ffe0a0;
   outline-offset: 1px;
-}
-/* Keep the shortcut in the existing 44px navigation row: Stage changes never add a line. */
-.constellation-gallery-return {
-  display: inline-flex;
-  flex: 0 0 44px;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1px;
-  width: 44px;
-  height: 44px;
-  min-height: 44px;
-  padding: 0;
-  margin: 0 0 0 4px;
-  border: 1px solid #c6a8748c;
-  border-radius: 14px;
-  background: #ffffff0b;
-  color: #f3ddb7;
-  font-size: 10px;
-  line-height: 1.1;
-  cursor: pointer;
-}
-.constellation-gallery-return:disabled {
-  opacity: .45;
-  cursor: default;
 }
 @media (prefers-reduced-motion: reduce) {
   .constellation-gallery-enter,
