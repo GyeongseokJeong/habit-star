@@ -12,7 +12,7 @@ for (const width of [320, 390, 430, 1365]) {
       }
       await page.getByRole("tab", { name: "전체", exact: true }).click();
 
-      const closing = page.getByRole("contentinfo", { name: "하루의 마무리" });
+      const closing = page.locator("footer.closing-footer[aria-label='하루의 마무리']");
       await expect(closing).toBeVisible();
       await expect(closing.getByRole("heading", { name: "꾸준함은 완벽함보다 빛나요." })).toBeVisible();
       await expect(closing.locator(".closing-brand")).toHaveText("별하루");
@@ -47,7 +47,7 @@ for (const width of [320, 390, 430, 1365]) {
 test("B3.4 closing does not claim completion before a habit is recorded", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
-  const closing = page.getByRole("contentinfo", { name: "하루의 마무리" });
+  const closing = page.locator("footer.closing-footer[aria-label='하루의 마무리']");
   await expect(closing).toBeVisible();
   // A seeded demo may already include completed records. Assert the prompt matches the real summary.
   const completed = await page.locator(".completion-metric .metric-value").innerText();
