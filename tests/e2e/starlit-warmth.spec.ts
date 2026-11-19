@@ -257,6 +257,7 @@ test("deferred reminder data survives editing and reload on a narrow dark screen
   expect(await readSavedHabit()).toMatchObject({ alarmEnabled: true, scheduledTime: "08:30" });
 
   await page.getByRole("tab", { name: "전체", exact: true }).click();
+  await page.locator(".normal-done-toggle").click();
   await expect(page.getByRole("button", { name: "알림 메뉴" })).toHaveCount(0);
   const star = page.getByRole("button", { name: "미온수 한 잔 & 영양제 1점" });
   const target = await star.boundingBox();
