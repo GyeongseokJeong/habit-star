@@ -14,6 +14,9 @@ import {
   ArrowRight,
   Check,
   CalendarDays,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   ChevronLeft,
   ChevronRight,
   Clock3,
@@ -707,6 +710,62 @@ function HabitCard({
   );
 }
 
+
+/** Compact rows reuse the existing rating and edit handlers without duplicating storage. */
+function CompactHabitCard({
+  habit,
+  expanded,
+  onToggle,
+  onRate,
+  onOpen,
+  onEdit,
+}: {
+  habit: Habit;
+  expanded: boolean;
+  onToggle: () => void;
+  onRate: (value: number) => void;
+  onOpen: () => void;
+  onEdit: () => void;
+}) {
+  return (
+    <article className={["compact-habit-card", habit.completed && "is-completed", expanded && "is-expanded"].filter(Boolean).join(" ")}>
+      <button
+        type="button"
+        className="compact-habit-row"
+        aria-expanded={expanded}
+        aria-controls={"compact-habit-detail-" + habit.id}
+        aria-label={habit.title + (habit.completed ? ", 실천 완료" : ", 미기록") + ", 별점 기록하기"}
+        onClick={onToggle}
+      >
+        <span className={"compact-habit-emoji " + habit.timeGroup} aria-hidden="true">{habit.icon}</span>
+        <span className="compact-habit-title" title={habit.title}>{habit.title}</span>
+        <span className="compact-habit-status" aria-hidden="true">
+          {habit.completed && <Check size={15} />}
+          {habit.rating > 0 ? <><Star size={15} fill="currentColor" />{habit.rating}</> : "—"}
+        </span>
+        {expanded ? <ChevronUp className="compact-habit-chevron" size={17} aria-hidden="true" /> : <ChevronDown className="compact-habit-chevron" size={17} aria-hidden="true" />}
+      </button>
+      {expanded && (
+        <div id={"compact-habit-detail-" + habit.id} className="compact-habit-detail">
+          <div className="compact-habit-rating">
+            <StarRating label={habit.title} rating={habit.rating} onSelect={onRate} />
+          </div>
+          <div className="compact-habit-extras">
+            <span className="compact-habit-time">
+              <Clock3 size={13} aria-hidden="true" />
+              {habit.scheduledTime || "자유롭게"} · {GROUPS[habit.timeGroup].name}
+            </span>
+            <div className="compact-habit-actions">
+              <button type="button" onClick={onOpen}>기록 상세</button>
+              <button type="button" onClick={onEdit} aria-label={habit.title + " 수정"}><Pencil size={15} aria-hidden="true" />수정</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </article>
+  );
+}
+
 function MonthlyMatrix({
   month,
   onMonthChange,
@@ -838,6 +897,11 @@ export default function Byeolharu() {
   const [celebration, setCelebration] = useState<{ stage: number; scope: string; day: string } | null>(null);
   const celebrationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [compactView, setCompactView] = useState(false);
+  const [compactPreferenceLoaded, setCompactPreferenceLoaded] = useState(false);
+  const [compactCompletedOpen, setCompactCompletedOpen] = useState(false);
+  const [compactExpandedId, setCompactExpandedId] = useState<string | null>(null);
+  const compactCollapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [now, setNow] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("all");
   // Resolve once per loaded identity, unless the user has navigated manually.
@@ -884,6 +948,12 @@ export default function Byeolharu() {
     } catch {
       setStorageWarning(true);
     }
+    try {
+      setCompactView(localStorage.getItem("byeolharu_compact_view_v1") === "1");
+    } catch {
+      // A display preference is optional; do not flag a record-storage error.
+    }
+    setCompactPreferenceLoaded(true);
     setNow(date);
     setMonth(new Date(date.getFullYear(), date.getMonth(), 1));
     const clock = setInterval(() => setNow(new Date()), 1000);
@@ -899,6 +969,7 @@ export default function Byeolharu() {
       window.removeEventListener("beforeinstallprompt", install);
       if (toastTimer.current) clearTimeout(toastTimer.current);
       if (celebrationTimer.current) clearTimeout(celebrationTimer.current);
+      if (compactCollapseTimer.current) clearTimeout(compactCollapseTimer.current);
       for (const timer of reorderTimers.current.values()) clearTimeout(timer);
       reorderTimers.current.clear();
     };
@@ -923,6 +994,21 @@ export default function Byeolharu() {
       setStorageWarning(true);
     }
   }, [theme, ready]);
+
+  useEffect(() => {
+    if (!compactPreferenceLoaded) return;
+    try {
+      localStorage.setItem("byeolharu_compact_view_v1", compactView ? "1" : "0");
+    } catch {
+      // Display settings do not affect the existing record repository.
+    }
+  }, [compactView, compactPreferenceLoaded]);
+
+  const updateCompactView = (enabled: boolean) => {
+    setCompactView(enabled);
+    setCompactCompletedOpen(false);
+    setCompactExpandedId(null);
+  };
 
   // Keep the current-day rollover for scheduled habits and history.
   // In-app reminder notifications are intentionally deferred until a
@@ -1111,6 +1197,17 @@ export default function Byeolharu() {
         Number(heldCompletion.get(a.id) ?? a.completed) -
         Number(heldCompletion.get(b.id) ?? b.completed),
     );
+  const compactPending = filtered.filter(
+    (habit) => !(heldCompletion.get(habit.id) ?? habit.completed),
+  );
+  const compactCompleted = filtered.filter(
+    (habit) => heldCompletion.get(habit.id) ?? habit.completed,
+  );
+  useEffect(() => {
+    setCompactCompletedOpen(false);
+    setCompactExpandedId(null);
+  }, [activeTab, today, scope]);
+
   const upcoming =
     activeTab !== "all" && activeTab !== "matrix"
       ? scheduledHabits
@@ -1153,9 +1250,27 @@ export default function Byeolharu() {
       onEdit={() => setEditing(habit)}
     />
   );
+  const renderCompactCard = (habit: Habit) => (
+    <CompactHabitCard
+      key={habit.id}
+      habit={habit}
+      expanded={compactExpandedId === habit.id}
+      onToggle={() => setCompactExpandedId((previous) => previous === habit.id ? null : habit.id)}
+      onRate={(value) => {
+        handleRateHabit(habit.id, value);
+        if (compactCollapseTimer.current) clearTimeout(compactCollapseTimer.current);
+        compactCollapseTimer.current = setTimeout(() => {
+          setCompactExpandedId((previous) => previous === habit.id ? null : previous);
+          compactCollapseTimer.current = null;
+        }, 700);
+      }}
+      onOpen={() => setDetailId(habit.id)}
+      onEdit={() => setEditing(habit)}
+    />
+  );
 
   return (
-    <div className={`byeolharu ${theme}`}>
+    <div className={`byeolharu ${theme} ${compactView ? "compact-view" : ""}`}>
       <a href="#main" className="skip-link">
         본문으로 건너뛰기
       </a>
