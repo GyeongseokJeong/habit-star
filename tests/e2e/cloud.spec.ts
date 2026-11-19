@@ -64,6 +64,15 @@ async function openImport(page: Page) {
   await expect(importAction).toBeVisible();
   await importAction.click();
 }
+// Completed habits remain accessible in normal view, but are collapsed by default.
+ // Open the group before asserting or editing an already-completed cloud record.
+async function expandNormalCompleted(page: Page) {
+  const toggle = page.locator(".normal-done-toggle");
+  await expect(toggle).toBeVisible({ timeout: 30000 });
+  if (await toggle.getAttribute("aria-expanded") !== "true") await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+}
+
 async function logout(page: Page) {
   const back = page.getByRole("button", { name: "내 계정으로" });
   if (await back.isVisible()) await back.click();
@@ -142,6 +151,7 @@ test("email confirmation, two-device offline sync, conflict resolution, import a
     await openRecords(page);
     await page.getByRole("button", { name: "지금 동기화" }).click();
     await page.getByRole("button", { name: "닫기", exact: true }).click();
+    await expandNormalCompleted(page);
     await expect(
       page.getByRole("button", { name: "이전할 로컬 기록 5점", exact: true }),
     ).toHaveAttribute("aria-pressed", "true", { timeout: 30000 });
@@ -169,6 +179,7 @@ test("email confirmation, two-device offline sync, conflict resolution, import a
       timeout: 30000,
     });
     await second.getByRole("button", { name: "닫기", exact: true }).click();
+    await expandNormalCompleted(second);
     await expect(
       second.locator(".habit-card").filter({
         has: second.getByRole("heading", {
@@ -189,6 +200,7 @@ test("email confirmation, two-device offline sync, conflict resolution, import a
     await expect(
       page.getByRole("button", { name: "이전할 로컬 기록 3점", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
+    await expandNormalCompleted(second);
     await expect(
       second.getByRole("button", { name: "이전할 로컬 기록 2점", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
@@ -226,6 +238,7 @@ test("email confirmation, two-device offline sync, conflict resolution, import a
       timeout: 30000,
     });
     await page.getByRole("button", { name: "닫기", exact: true }).click();
+    await expandNormalCompleted(page);
     // Definition + today's snapshot are one command; concurrent title edits must not partially apply.
     await page.context().setOffline(true);
     await secondContext.setOffline(true);
@@ -264,6 +277,7 @@ test("email confirmation, two-device offline sync, conflict resolution, import a
       second.getByRole("heading", { name: "기록 충돌 해결" }),
     ).not.toBeVisible({ timeout: 30000 });
     await second.getByRole("button", { name: "닫기", exact: true }).click();
+    await expandNormalCompleted(second);
     await expect(
       second.getByRole("heading", { name: "A 기기의 습관 수정", exact: true }),
     ).toBeVisible();
@@ -375,6 +389,7 @@ test("same-ID guest import remains resumable on conflict and completes only afte
   ).toBeVisible();
   await page.getByRole("button", { name: "닫기", exact: true }).click();
   await page.getByRole("tab", { name: /전체/ }).click();
+  await expandNormalCompleted(page);
   await page
     .getByRole("button", { name: "미온수 한 잔 & 영양제 수정", exact: true })
     .click();
@@ -407,11 +422,13 @@ test("same-ID guest import remains resumable on conflict and completes only afte
   await expect(page.getByRole("button", { name: "이 계정으로 병합" })).toHaveCount(0);
   await page.getByRole("button", { name: "닫기", exact: true }).click();
   await page.getByRole("tab", { name: /전체/ }).click();
+  await expandNormalCompleted(page);
   await expect(
     page.getByRole("heading", { name: "비회원에서 바꾼 같은 ID", exact: true }),
   ).toBeVisible();
   await page.reload();
   await page.getByRole("tab", { name: /전체/ }).click();
+  await expandNormalCompleted(page);
   await expect(
     page.getByRole("heading", { name: "비회원에서 바꾼 같은 ID", exact: true }),
   ).toBeVisible();
