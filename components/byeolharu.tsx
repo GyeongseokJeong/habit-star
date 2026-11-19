@@ -458,19 +458,25 @@ function HabitEditor({
             <CalendarDays size={18} aria-hidden="true" /> 실천 일정
           </h3>
           <div className="habit-editor-schedule-grid">
-            <label className="field">
-              시간대
-              <select
-                value={draft.timeGroup}
-                onChange={(e) => setDraft((prev) => ({
-                  ...prev, timeGroup: e.target.value as TimeGroup,
-                }))}
-              >
-                {(Object.keys(GROUPS) as TimeGroup[]).map((group) => (
-                  <option key={group} value={group}>{GROUPS[group].name}</option>
-                ))}
-              </select>
-            </label>
+            <fieldset className="habit-editor-time-group">
+              <legend>시간대</legend>
+              <div className="segmented">
+                {(Object.keys(GROUPS) as TimeGroup[]).map((group) => {
+                  const Icon = GROUPS[group].icon;
+                  return (
+                    <button
+                      type="button"
+                      key={group}
+                      className={draft.timeGroup === group ? "selected" : ""}
+                      aria-pressed={draft.timeGroup === group}
+                      onClick={() => setDraft((prev) => ({ ...prev, timeGroup: group }))}
+                    >
+                      <Icon size={15} aria-hidden="true" /> {GROUPS[group].name}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
             <label className="field">
               예정 시간
               <input
