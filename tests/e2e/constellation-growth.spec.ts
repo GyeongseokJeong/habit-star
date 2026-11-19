@@ -318,14 +318,26 @@ test("earned-stage gallery navigates only unlocked art and preserves live growth
   const zoom = page.getByRole("dialog", { name: "별이 모이는 밤 원화 확대 감상" });
   await expect(zoom.locator("[data-constellation-stage='2']")).toBeVisible();
   await zoom.getByRole("button", { name: "확대 감상 닫기" }).click();
-  await dialog.getByRole("button", { name: "Stage 1 첫 번째 별빛" }).click();
-  await expect(dialog.getByRole("heading", { name: "첫 번째 별빛" })).toBeVisible();
-  await expect(dialog.getByRole("button", { name: "이전 별자리" })).toBeDisabled();
   const returnButton = dialog.getByRole("button", { name: "현재 별자리로" });
+  const navigation = dialog.locator(".constellation-gallery-navigation");
+  const card = dialog.locator(".constellation-card");
+  const before = await card.boundingBox();
+  const navBefore = await navigation.boundingBox();
+  expect(before).not.toBeNull();
+  expect(navBefore).not.toBeNull();
+  await expect(returnButton).toBeEnabled();
   const returnBounds = await returnButton.boundingBox();
   expect(returnBounds).not.toBeNull();
   expect(returnBounds!.height).toBeGreaterThanOrEqual(44);
+  await dialog.getByRole("button", { name: "이전 별자리" }).click();
+  await expect(dialog.getByRole("heading", { name: "첫 번째 별빛" })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "이전 별자리" })).toBeDisabled();
+  const after = await card.boundingBox();
+  const navAfter = await navigation.boundingBox();
+  expect(after!.height).toBeCloseTo(before!.height, 0);
+  expect(navAfter!.height).toBeCloseTo(navBefore!.height, 0);
   await returnButton.click();
+  await expect(returnButton).toBeDisabled();
   await expect(dialog.getByRole("heading", { name: "별빛의 연결" })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "다음 별자리" })).toBeDisabled();
   await page.keyboard.press("Escape");
@@ -368,7 +380,7 @@ test("stage gallery dot selectors have 44px touch targets without overflow at 32
   const dialog = page.getByRole("dialog", { name: "나의 별자리" });
   await expect(dialog.getByRole("button", { name: /Stage 6 빛나는 은하/ })).toBeVisible();
   const steps = dialog.locator(".constellation-gallery-step");
-  await expect(steps).toHaveCount(3);
+  await expect(steps).toHaveCount(2);
   for (const button of await steps.all()) {
     const colors = await button.evaluate((element) => {
       const dot = element.querySelector("span")!;
@@ -397,6 +409,13 @@ test("stage gallery dot selectors have 44px touch targets without overflow at 32
   await dialog.getByRole("button", { name: "이전 별자리" }).click();
   await expect(dialog.getByRole("heading", { name: "별빛의 연결" })).toBeVisible();
   await expect(dialog.getByRole("button", { name: /Stage 3 별빛의 연결/ })).toBeVisible();
+  const current = dialog.getByRole("button", { name: "현재 별자리로" });
+  const currentBounds = await current.boundingBox();
+  expect(currentBounds!.width).toBeGreaterThanOrEqual(44);
+  expect(currentBounds!.height).toBeGreaterThanOrEqual(44);
+  await current.click();
+  await expect(dialog.getByRole("heading", { name: "빛나는 은하" })).toBeVisible();
+  await expect(current).toBeDisabled();
 });
 
 test("constellation modal keeps four rounded corners on mobile and honors reduced motion", async ({ page }) => {
