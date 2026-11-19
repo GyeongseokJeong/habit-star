@@ -1,6 +1,14 @@
 import { expect, test } from "@playwright/test";
 import { seedConstellationPoints } from "./fixtures/constellation-points";
 
+// Artwork/growth regression tests must not depend on the runner's local hour.
+// The fixed night session keeps the existing night-habit interactions visible,
+// including after seedConstellationPoints() reloads the page.
+test.use({ timezoneId: "Asia/Seoul" });
+test.beforeEach(async ({ page }) => {
+  await page.clock.setFixedTime(new Date("2026-11-19T20:00:00+09:00"));
+});
+
 for (const width of [320, 390, 430]) {
   test(`V3.2 constellation viewer preserves image geometry and keyboard access at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 820 });
