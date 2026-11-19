@@ -23,29 +23,33 @@ for (const width of [320, 390, 430, 1365]) {
         const scenic = el.querySelector(".closing-landscape")!.getBoundingClientRect();
         return { total: rect.height, scenic: scenic.height, left: rect.left, right: rect.right };
       });
-      expect(sizes.scenic).toBeLessThanOrEqual(width <= 620 ? 128 : 146);
+      expect(sizes.scenic).toBeLessThanOrEqual(width <= 620 ? 118 : 128);
       const blend = await closing.evaluate((el) => {
         const landscape = el.querySelector(".closing-landscape")!;
-        const scene = el.querySelector(".closing-moonlit-scene")!;
+        const waves = el.querySelector(".closing-waves")!;
         const divider = el.querySelector(".closing-divider")!;
         const page = el.closest(".byeolharu")!;
+        const colors = [...waves.querySelectorAll("stop")].map((stop) => getComputedStyle(stop).stopColor);
         return {
-          sceneImage: getComputedStyle(scene).backgroundImage,
-          landscapeBackground: getComputedStyle(landscape).backgroundImage,
-          sceneBounds: scene.getBoundingClientRect().toJSON(),
+          waveBounds: waves.getBoundingClientRect().toJSON(),
           landscapeBounds: landscape.getBoundingClientRect().toJSON(),
+          wavePaths: waves.querySelectorAll("path").length,
+          waveColors: colors,
           pageBackground: getComputedStyle(page).getPropertyValue("--bg").trim(),
           separatorHeight: divider.getBoundingClientRect().height,
           separatorWidth: divider.getBoundingClientRect().width,
           brandGap: el.querySelector(".closing-brand")!.getBoundingClientRect().top - divider.getBoundingClientRect().bottom,
         };
       });
-      expect(blend.sceneImage).toContain(`moonlit-horizon-${theme}.webp`);
-      expect(blend.landscapeBackground).toContain("radial-gradient");
-      expect(blend.sceneBounds.bottom).toBeCloseTo(blend.landscapeBounds.bottom, 0);
-      expect(blend.sceneBounds.height).toBeGreaterThanOrEqual(width <= 620 ? 70 : 82);
-      await expect(closing.locator(".closing-moonlit-scene")).toHaveAttribute("aria-hidden", "true");
-      await expect(closing.locator(".closing-horizon")).toHaveCount(0);
+      expect(blend.wavePaths).toBe(2);
+      expect(blend.waveColors).toHaveLength(5);
+      expect(blend.waveColors.every((value) => value !== "none" && value !== "")).toBe(true);
+      expect(blend.waveBounds.bottom).toBeCloseTo(blend.landscapeBounds.bottom, 0);
+      expect(blend.waveBounds.height).toBeGreaterThanOrEqual(width <= 620 ? 62 : 70);
+      await expect(closing.locator(".closing-waves")).toHaveAttribute("aria-hidden", "true");
+      await expect(closing.locator(".closing-moonlit-scene")).toHaveCount(0);
+      const expectedWaveLeft = theme === "dark" ? "rgb(69, 64, 93)" : "rgb(224, 213, 240)";
+      expect(blend.waveColors[0]).toBe(expectedWaveLeft);
       expect(blend.pageBackground).toMatch(/^#/);
       expect(blend.separatorHeight).toBe(1);
       expect(blend.separatorWidth).toBeLessThan(width);
