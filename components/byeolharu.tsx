@@ -104,15 +104,38 @@ const REPEAT_PRESETS = [
   { label: "평일", days: WEEKDAYS.slice(0, 5) },
   { label: "주말", days: WEEKDAYS.slice(5) },
 ];
-const HABIT_TEMPLATES: { title: string; icon: string; timeGroup: TimeGroup }[] =
-  [
-    { title: "독서 20분", icon: "📚", timeGroup: "night" },
-    { title: "가벼운 운동", icon: "🏃", timeGroup: "morning" },
-    { title: "물 마시기", icon: "💧", timeGroup: "morning" },
-    { title: "스트레칭", icon: "🧘", timeGroup: "night" },
-    { title: "일찍 잠들기", icon: "🌙", timeGroup: "night" },
-    { title: "하루 기록하기", icon: "✍️", timeGroup: "night" },
-  ];
+const MORE_EMOJIS = [
+  "💊", "🌙", "☕", "❤️", "🥾", "🚶", "🚴", "🏊",
+  "🤸", "🪥", "🧹", "🧺", "🍳", "🪴", "📝", "✅",
+  "📅", "📖", "💌", "🧠", "🗂️", "🙏", "🍎", "🧗",
+];
+const HABIT_TEMPLATES: {
+  title: string;
+  icon: string;
+  timeGroup: TimeGroup;
+  scheduledTime: string;
+}[] = [
+  { title: "독서 20분", icon: "📚", timeGroup: "night", scheduledTime: "21:30" },
+  { title: "가벼운 운동", icon: "🏃", timeGroup: "morning", scheduledTime: "07:30" },
+  { title: "물 마시기", icon: "💧", timeGroup: "morning", scheduledTime: "07:00" },
+  { title: "스트레칭", icon: "🧘", timeGroup: "night", scheduledTime: "22:00" },
+  { title: "일찍 잠들기", icon: "🌙", timeGroup: "night", scheduledTime: "23:00" },
+  { title: "하루 기록하기", icon: "✍️", timeGroup: "night", scheduledTime: "21:00" },
+  { title: "영양제 챙기기", icon: "💊", timeGroup: "morning", scheduledTime: "08:00" },
+  { title: "아침 산책", icon: "🚶", timeGroup: "morning", scheduledTime: "08:00" },
+  { title: "건강한 점심", icon: "🥗", timeGroup: "day", scheduledTime: "12:30" },
+  { title: "10분 산책", icon: "🚶", timeGroup: "day", scheduledTime: "13:00" },
+  { title: "집중 25분", icon: "💻", timeGroup: "day", scheduledTime: "14:00" },
+  { title: "오늘 할 일 정리", icon: "✅", timeGroup: "morning", scheduledTime: "09:00" },
+  { title: "명상 5분", icon: "🧘‍♂️", timeGroup: "night", scheduledTime: "21:30" },
+  { title: "감사 3가지 적기", icon: "🙏", timeGroup: "night", scheduledTime: "22:00" },
+  { title: "영어 10분", icon: "📖", timeGroup: "day", scheduledTime: "12:00" },
+  { title: "공부 30분", icon: "💻", timeGroup: "night", scheduledTime: "20:00" },
+  { title: "책상 정리", icon: "🗂️", timeGroup: "day", scheduledTime: "17:00" },
+  { title: "피부 관리", icon: "🌱", timeGroup: "night", scheduledTime: "22:30" },
+  { title: "내일 준비하기", icon: "📅", timeGroup: "night", scheduledTime: "21:30" },
+  { title: "방 정리하기", icon: "🧹", timeGroup: "day", scheduledTime: "16:00" },
+];
 const uid = () => crypto.randomUUID();
 const timeGroup = (date: Date): TimeGroup =>
   date.getHours() >= 5 && date.getHours() < 11
@@ -309,6 +332,9 @@ function HabitEditor({
   onClose: () => void;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [moreTemplates, setMoreTemplates] = useState(false);
+  const [moreIcons, setMoreIcons] = useState(false);
+  const [timeEdited, setTimeEdited] = useState(false);
   const [draft, setDraft] = useState<HabitSettingsPatch>(() => ({
     title: habit?.title ?? "",
     icon: habit?.icon ?? "🌱",
@@ -317,15 +343,21 @@ function HabitEditor({
     repeatDays: habit?.repeatDays ?? [...WEEKDAYS],
     alarmEnabled: habit?.alarmEnabled ?? false,
   }));
+  const visibleIcons = [...new Set([
+    draft.icon, ...EMOJIS, ...(moreIcons ? MORE_EMOJIS : []),
+  ])];
+  const selectedDays = draft.repeatDays ?? WEEKDAYS;
+  const matchesPreset = (days: number[]) =>
+    WEEKDAYS.filter((day) => selectedDays.includes(day)).join() === days.join();
+
   return (
     <Modal
       title={habit ? "습관 수정하기" : "나를 위한 새로운 습관"}
       onClose={onClose}
     >
-      <p className="modal-description">
-        작은 실천부터, 나만의 속도로 시작해요.
-      </p>
+      {!habit && <p className="modal-description">작은 실천부터, 나만의 속도로 시작해요.</p>}
       <form
+        className="habit-editor-form"
         onSubmit={(event) => {
           event.preventDefault();
           if (draft.title.trim())
@@ -340,47 +372,78 @@ function HabitEditor({
         }}
       >
         {!habit && (
-          <fieldset className="template-field">
-            <legend>바로 시작하기</legend>
-            <div className="template-picker">
-              {HABIT_TEMPLATES.map((template) => (
+          <fieldset className="template-field" aria-label="추천 템플릿">
+            <div className="habit-editor-field-head">
+              <span className="habit-editor-heading">추천 템플릿</span>
+              <button
+                type="button"
+                className="habit-editor-more"
+                aria-expanded={moreTemplates}
+                aria-controls="habit-editor-templates"
+                onClick={() => setMoreTemplates((prev) => !prev)}
+              >
+                {moreTemplates ? "접기" : "더 많은 템플릿 보기"}
+                <ChevronRight size={16} aria-hidden="true" />
+              </button>
+            </div>
+            <div className="template-picker" id="habit-editor-templates">
+              {(moreTemplates ? HABIT_TEMPLATES : HABIT_TEMPLATES.slice(0, 6)).map((template) => (
                 <button
                   type="button"
                   key={template.title}
-                  aria-label={`${template.title} 템플릿`}
+                  aria-label={template.title + " 템플릿"}
                   aria-pressed={
                     draft.title === template.title &&
                     draft.icon === template.icon &&
-                    draft.timeGroup === template.timeGroup &&
-                    WEEKDAYS.every((day) =>
-                      (draft.repeatDays ?? WEEKDAYS).includes(day),
-                    )
+                    draft.timeGroup === template.timeGroup
                   }
-                  onClick={() =>
-                    setDraft((prev) => ({
-                      ...prev,
-                      title: template.title,
-                      icon: template.icon,
-                      timeGroup: template.timeGroup,
-                      repeatDays: [...WEEKDAYS],
-                    }))
-                  }
+                  onClick={() => setDraft((prev) => ({
+                    ...prev,
+                    title: template.title,
+                    icon: template.icon,
+                    timeGroup: template.timeGroup,
+                    // Never overwrite a time the user has chosen, or repeat-day settings.
+                    scheduledTime: timeEdited ? prev.scheduledTime : template.scheduledTime,
+                  }))}
                 >
                   <span aria-hidden="true">{template.icon}</span>
-                  {template.title}
+                  <span>{template.title}</span>
                 </button>
               ))}
             </div>
           </fieldset>
         )}
-        <fieldset>
-          <legend>습관 아이콘</legend>
-          <div className="emoji-picker">
-            {[...new Set([draft.icon, ...EMOJIS])].map((icon) => (
+        <label className="field habit-editor-name">
+          습관 이름
+          <input
+            autoFocus={Boolean(habit)}
+            required
+            maxLength={80}
+            placeholder="예: 하루 10분 책 읽기"
+            value={draft.title}
+            onChange={(e) => setDraft((prev) => ({ ...prev, title: e.target.value }))}
+          />
+        </label>
+        <fieldset className="habit-editor-icons" aria-label="습관 아이콘">
+          <div className="habit-editor-field-head">
+            <span className="habit-editor-heading">아이콘</span>
+            <button
+              type="button"
+              className="habit-editor-more"
+              aria-expanded={moreIcons}
+              aria-controls="habit-editor-icons"
+              onClick={() => setMoreIcons((prev) => !prev)}
+            >
+              {moreIcons ? "접기" : "아이콘 더 보기"}
+              <ChevronRight size={16} aria-hidden="true" />
+            </button>
+          </div>
+          <div className="emoji-picker" id="habit-editor-icons">
+            {visibleIcons.map((icon) => (
               <button
                 type="button"
                 key={icon}
-                aria-label={`${icon} 아이콘`}
+                aria-label={icon + " 아이콘"}
                 aria-pressed={draft.icon === icon}
                 className={draft.icon === icon ? "selected" : ""}
                 onClick={() => setDraft((prev) => ({ ...prev, icon }))}
@@ -390,151 +453,104 @@ function HabitEditor({
             ))}
           </div>
         </fieldset>
-        <label className="field">
-          습관 이름
-          <input
-            autoFocus
-            required
-            maxLength={80}
-            placeholder="예: 하루 10분 책 읽기"
-            value={draft.title}
-            onChange={(e) =>
-              setDraft((prev) => ({ ...prev, title: e.target.value }))
-            }
-          />
-        </label>
-        <fieldset>
-          <legend>실천 시간대</legend>
-          <div className="segmented">
-            {(Object.keys(GROUPS) as TimeGroup[]).map((group) => {
-              const Icon = GROUPS[group].icon;
-              return (
+        <section className="habit-editor-schedule" aria-label="실천 일정">
+          <h3 className="habit-editor-schedule-title">
+            <CalendarDays size={18} aria-hidden="true" /> 실천 일정
+          </h3>
+          <div className="habit-editor-schedule-grid">
+            <fieldset className="habit-editor-time-group">
+              <legend>시간대</legend>
+              <div className="segmented">
+                {(Object.keys(GROUPS) as TimeGroup[]).map((group) => {
+                  const Icon = GROUPS[group].icon;
+                  return (
+                    <button
+                      type="button"
+                      key={group}
+                      className={draft.timeGroup === group ? "selected" : ""}
+                      aria-pressed={draft.timeGroup === group}
+                      onClick={() => setDraft((prev) => ({ ...prev, timeGroup: group }))}
+                    >
+                      <Icon size={15} aria-hidden="true" /> {GROUPS[group].name}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+            <label className="field">
+              예정 시간
+              <input
+                type="time"
+                value={draft.scheduledTime || ""}
+                onChange={(e) => {
+                  setTimeEdited(true);
+                  setDraft((prev) => ({ ...prev, scheduledTime: e.target.value }));
+                }}
+              />
+            </label>
+          </div>
+          <fieldset className="habit-editor-repeat">
+            <legend>반복 요일</legend>
+            <div className="segmented repeat-presets">
+              {REPEAT_PRESETS.map(({ label, days }) => (
                 <button
                   type="button"
-                  className={draft.timeGroup === group ? "selected" : ""}
-                  key={group}
-                  aria-pressed={draft.timeGroup === group}
-                  onClick={() =>
-                    setDraft((prev) => ({ ...prev, timeGroup: group }))
-                  }
+                  key={label}
+                  className={matchesPreset(days) ? "selected" : ""}
+                  aria-pressed={matchesPreset(days)}
+                  onClick={() => setDraft((prev) => ({ ...prev, repeatDays: [...days] }))}
                 >
-                  <Icon size={17} />
-                  {GROUPS[group].name}
+                  {label}
                 </button>
-              );
-            })}
-          </div>
-        </fieldset>
-        <fieldset>
-          <legend>반복 요일</legend>
-          <div className="segmented repeat-presets">
-            {REPEAT_PRESETS.map(({ label, days }) => (
-              <button
-                type="button"
-                key={label}
-                className={
-                  WEEKDAYS.filter((day) =>
-                    (draft.repeatDays ?? WEEKDAYS).includes(day),
-                  ).join() === days.join()
-                    ? "selected"
-                    : ""
-                }
-                aria-pressed={
-                  WEEKDAYS.filter((day) =>
-                    (draft.repeatDays ?? WEEKDAYS).includes(day),
-                  ).join() === days.join()
-                }
-                onClick={() =>
-                  setDraft((prev) => ({ ...prev, repeatDays: [...days] }))
-                }
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <div
-            className="repeat-weekdays"
-            role="group"
-            aria-label="반복할 요일"
-          >
-            {WEEKDAYS.map((day, index) => (
-              <button
-                type="button"
-                key={day}
-                className={
-                  (draft.repeatDays ?? WEEKDAYS).includes(day) ? "selected" : ""
-                }
-                aria-label={`${["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"][index]}`}
-                aria-pressed={(draft.repeatDays ?? WEEKDAYS).includes(day)}
-                onClick={() =>
-                  setDraft((prev) => {
+              ))}
+            </div>
+            {!REPEAT_PRESETS.some(({ days }) => matchesPreset(days)) && (
+              <span className="habit-editor-custom-days">직접 선택</span>
+            )}
+            <div className="repeat-weekdays" role="group" aria-label="반복할 요일">
+              {WEEKDAYS.map((day, index) => (
+                <button
+                  type="button"
+                  key={day}
+                  className={selectedDays.includes(day) ? "selected" : ""}
+                  aria-label={["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"][index]}
+                  aria-pressed={selectedDays.includes(day)}
+                  onClick={() => setDraft((prev) => {
                     const selected = prev.repeatDays ?? WEEKDAYS;
                     const next = selected.includes(day)
                       ? selected.filter((value) => value !== day)
-                      : WEEKDAYS.filter(
-                          (value) => selected.includes(value) || value === day,
-                        );
+                      : WEEKDAYS.filter((value) => selected.includes(value) || value === day);
                     return next.length ? { ...prev, repeatDays: next } : prev;
-                  })
-                }
-              >
-                {["월", "화", "수", "목", "금", "토", "일"][index]}
-              </button>
-            ))}
-          </div>
-        </fieldset>
-        <label className="field">
-          예정 시간
-          <input
-            type="time"
-            value={draft.scheduledTime || ""}
-            onChange={(e) =>
-              setDraft((prev) => ({ ...prev, scheduledTime: e.target.value }))
-            }
-          />
-        </label>
-        <button type="submit" className="primary full">
-          <Check size={18} />
-          {habit ? "수정 완료" : "새 습관 추가하기"}
-        </button>
-        <button type="button" className="text-button full" onClick={onClose}>
-          취소
-        </button>
-        {onDelete &&
-          (confirmDelete ? (
-            <div
-              className="delete-confirmation"
-              role="group"
-              aria-label="습관 삭제 확인"
-            >
-              <p>이 습관을 삭제할까요? 이전 날짜의 기록은 그대로 남아요.</p>
-              <div className="form-row">
-                <button
-                  type="button"
-                  className="secondary full"
-                  onClick={() => setConfirmDelete(false)}
+                  })}
                 >
-                  취소
+                  {["월", "화", "수", "목", "금", "토", "일"][index]}
                 </button>
-                <button
-                  type="button"
-                  className="delete-button"
-                  onClick={onDelete}
-                >
-                  <Trash2 size={16} />
-                  삭제 확인
-                </button>
-              </div>
+              ))}
             </div>
-          ) : (
-            <button
-              type="button"
-              className="delete-button"
-              onClick={() => setConfirmDelete(true)}
-            >
-              <Trash2 size={16} />이 습관 삭제하기
-            </button>
-          ))}
+          </fieldset>
+        </section>
+        {onDelete && (confirmDelete ? (
+          <div className="delete-confirmation" role="group" aria-label="습관 삭제 확인">
+            <p>이 습관을 삭제할까요? 이전 날짜의 기록은 그대로 남아요.</p>
+            <div className="form-row">
+              <button type="button" className="secondary full" onClick={() => setConfirmDelete(false)}>취소</button>
+              <button type="button" className="delete-button" onClick={onDelete}>
+                <Trash2 size={16} /> 삭제 확인
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button type="button" className="delete-button" onClick={() => setConfirmDelete(true)}>
+            <Trash2 size={16} /> 이 습관 삭제하기
+          </button>
+        ))}
+        <div className="habit-editor-footer">
+          <button type="submit" className="primary full">
+            <Check size={18} />
+            {habit ? "수정 완료" : "새 습관 추가하기"}
+          </button>
+          <button type="button" className="text-button full" onClick={onClose}>취소</button>
+        </div>
       </form>
     </Modal>
   );
