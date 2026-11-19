@@ -12,6 +12,7 @@ for (const viewport of [
     await expect(
       page.getByRole("heading", { name: "미온수 한 잔 & 영양제", exact: true }),
     ).toBeVisible();
+    await page.getByRole("tab", { name: "전체", exact: true }).click();
     await expect(
       page.getByText("별하루를 더 가까이", { exact: true }),
     ).toHaveCount(0);
@@ -85,6 +86,7 @@ test("pending habits stay first in each tab and completed habits keep their orig
   const morning = ["미온수 한 잔 & 영양제", "아침 가벼운 러닝 20분"];
   const lunch = "건강한 점심 & 가벼운 산책";
 
+  await page.getByRole("tab", { name: "전체", exact: true }).click();
   await expect.poll(titles).toEqual([book, stretch, ...morning, lunch]);
   await page.getByRole("tab", { name: "밤", exact: true }).click();
   await expect.poll(titles).toEqual([book, stretch]);
@@ -95,6 +97,7 @@ test("pending habits stay first in each tab and completed habits keep their orig
   await expect.poll(titles).toEqual([stretch, ...morning, lunch, book]);
 
   await page.reload();
+  await page.getByRole("tab", { name: "전체", exact: true }).click();
   await expect.poll(titles).toEqual([stretch, ...morning, lunch, book]);
   await page.getByRole("tab", { name: "밤", exact: true }).click();
   await page.getByRole("button", { name: `${book} 1점` }).click();
