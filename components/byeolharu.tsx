@@ -1651,7 +1651,7 @@ export default function Byeolharu() {
                     <div className="normal-habit-list">
                       {compactPending.length > 0 && (
                         <div className="habit-grid normal-pending-list" aria-label="실천할 습관">
-                          {compactPending.map(renderCard)}
+                          {compactPending.map((habit) => renderCard(habit, true))}
                         </div>
                       )}
                       {filtered.length > 0 && compactPending.length === 0 && (
@@ -1671,7 +1671,7 @@ export default function Byeolharu() {
                           </button>
                           {completedOpen && (
                             <div id="normal-completed-list" className="habit-grid normal-completed-list">
-                              {compactCompleted.map(renderCard)}
+                              {compactCompleted.map((habit) => renderCard(habit, true))}
                             </div>
                           )}
                         </section>
