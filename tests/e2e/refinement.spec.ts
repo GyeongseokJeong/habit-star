@@ -95,13 +95,13 @@ test("normal view groups completed habits below pending and preserves their orde
   await expect(fold).toHaveAttribute("aria-expanded", "false");
   await expect(page.locator(".normal-completed-list")).toHaveCount(0);
   await fold.click();
-  await expect.poll(completedTitles).toEqual([...morning, lunch, book]);
+  await expect.poll(completedTitles).toEqual([book]);
 
   await page.getByRole("tab", { name: "전체", exact: true }).click();
   await expect.poll(pendingTitles).toEqual([stretch]);
   await expect(page.locator(".normal-completed-list")).toHaveCount(0);
   await page.locator(".normal-done-toggle").click();
-  await expect.poll(completedTitles).toEqual([book]);
+  await expect.poll(completedTitles).toEqual([...morning, lunch, book]);
 
   await page.reload();
   await page.getByRole("tab", { name: "밤", exact: true }).click();
@@ -110,7 +110,7 @@ test("normal view groups completed habits below pending and preserves their orde
   await page.locator(".normal-done-toggle").click();
   await page.getByRole("button", { name: `${book} 1점` }).click();
   await expect.poll(pendingTitles).toEqual([book, stretch]);
-  await expect(page.locator(".normal-done-toggle")).toBeVisible();
+  await expect(page.locator(".normal-done-toggle")).toHaveCount(0);
 });
 
 test("the three home metrics reflect rating, completion and undo without changing the stage teaser", async ({ page }) => {
