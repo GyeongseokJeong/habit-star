@@ -97,7 +97,10 @@ test("rating a habit in the upcoming list does not transfer keyboard focus", asy
   const upcoming = page.locator(".upcoming-heading + .habit-grid .habit-card").first();
   await expect(upcoming).toBeVisible();
   const title = (await upcoming.locator("h3").innerText()).trim();
-  const star = upcoming.getByRole("button", { name: `${title} 4점` });
+  // Some seeded upcoming habits are already rated 4; pressing that star would undo.
+  const current = await upcoming.locator(".star[aria-pressed='true']").getAttribute("aria-label");
+  const nextRating = current?.endsWith("4점") ? 3 : 4;
+  const star = upcoming.getByRole("button", { name: `${title} ${nextRating}점` });
   await star.focus();
   await page.keyboard.press("Enter");
   await expect(star).toHaveAttribute("aria-pressed", "true");
