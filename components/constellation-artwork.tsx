@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import { getConstellationStage, type ConstellationStage } from "@/lib/constellation/art";
+import { getConstellationArtByStage, getConstellationStage, type ConstellationStage, type ConstellationStageNumber } from "@/lib/constellation/art";
 
 /**
  * Artwork-only visual primitive. No record writes, scoring calculation or card copy.
@@ -11,12 +11,14 @@ import { getConstellationStage, type ConstellationStage } from "@/lib/constellat
  */
 export function ConstellationArtwork({
   points,
+  stage,
   className = "",
 }: {
   points: number;
+  stage?: ConstellationStageNumber;
   className?: string;
 }) {
-  const art = getConstellationStage(points);
+  const art = stage === undefined ? getConstellationStage(points) : getConstellationArtByStage(stage);
   return <ArtworkForStage key={art.stage} art={art} className={className} />;
 }
 
