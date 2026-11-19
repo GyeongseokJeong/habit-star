@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type TouchEvent } from "react";
 import { ChevronLeft, ChevronRight, Maximize2, X } from "lucide-react";
 import { ConstellationArtwork } from "@/components/constellation-artwork";
-import { CONSTELLATION_ART, getConstellationStage, type ConstellationStageNumber } from "@/lib/constellation/art";
+import { CONSTELLATION_ART, type ConstellationStageNumber } from "@/lib/constellation/art";
 import { CONSTELLATION_CAPTIONS, describeConstellationGrowth } from "@/lib/constellation/presentation";
 
 /**
