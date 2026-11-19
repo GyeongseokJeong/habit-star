@@ -130,6 +130,7 @@ test("settings and reflection preserve each other's fields offline", async ({
   await expect(
     card.getByRole("button", { name: "분리 기록 2점" }),
   ).toHaveAttribute("aria-pressed", "true");
+  await page.locator(".normal-done-toggle").click();
   await card.getByRole("heading", { name: "분리 기록" }).click();
   let detail = page.getByRole("dialog", { name: "오늘의 실천 기록" });
   await expect(detail.getByLabel("예정 시간")).toHaveCount(0);
@@ -191,6 +192,7 @@ test("settings and reflection preserve each other's fields offline", async ({
   await context.setOffline(false);
   await page.reload();
   await page.getByRole("tab", { name: "전체", exact: true }).click();
+  await page.locator(".normal-done-toggle").click();
   const persisted = page
     .locator(".habit-card")
     .filter({ has: page.getByRole("heading", { name: "분리 기록 수정" }) });
@@ -272,18 +274,15 @@ test("rapid stars update immediately, keep the card steady, and persist the last
       Array.from(element.parentElement!.children).indexOf(element),
     ),
   ).toBe(beforeIndex);
-  await expect
-    .poll(() =>
-      card.evaluate((element) =>
-        Array.from(element.parentElement!.children).indexOf(element),
-      ),
-    )
-    .toBeGreaterThan(beforeIndex);
+  // Completed cards now leave the pending grid and move into a collapsed group.
+  await expect(page.locator(".normal-done-toggle")).toBeVisible();
+  await expect(card).toHaveCount(0);
   await expect(page.getByText(/기록 완료!|별점 기록을 취소했어요/)).toHaveCount(
     0,
   );
   await context.setOffline(false);
   await page.reload();
+  await page.locator(".normal-done-toggle").click();
   await expect(
     page.getByRole("button", { name: `${title} 4점` }),
   ).toHaveAttribute("aria-pressed", "true");
@@ -307,6 +306,7 @@ test.describe("mobile touch stars", () => {
   test("touching an already rated star clears its fill and completion state", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("tab", { name: "전체", exact: true }).click();
+    await page.locator(".normal-done-toggle").click();
     const card = page.locator(".habit-card").filter({
       has: page.getByRole("heading", { name: "미온수 한 잔 & 영양제" }),
     });
@@ -328,6 +328,7 @@ test.describe("mobile touch stars", () => {
 test("keyboard star focus stays accessible without a filled background tile", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("tab", { name: "전체", exact: true }).click();
+  await page.locator(".normal-done-toggle").click();
   const star = page.getByRole("button", { name: "미온수 한 잔 & 영양제 3점" });
   await star.focus();
   await page.keyboard.press("Tab");
@@ -344,6 +345,7 @@ test("guest storage failure clears after a successful retry without losing the r
   // Otherwise an async startup tab selection can hide the target card mid-test.
   await expect(page.locator(".habit-card").first()).toBeVisible();
   await page.getByRole("tab", { name: "전체", exact: true }).click();
+  await page.locator(".normal-done-toggle").click();
   const readyCard = page.locator(".habit-card").filter({
     has: page.getByRole("heading", { name: "미온수 한 잔 & 영양제" }),
   });
@@ -416,6 +418,7 @@ test("guest storage failure clears after a successful retry without losing the r
   }).toBe(2);
   await page.reload();
   await page.getByRole("tab", { name: "전체", exact: true }).click();
+  await page.locator(".normal-done-toggle").click();
   await expect(page.getByRole("button", { name: "미온수 한 잔 & 영양제 2점" }))
     .toHaveAttribute("aria-pressed", "true");
   await expect(page.locator(".storage-warning")).toHaveCount(0);
