@@ -1356,6 +1356,15 @@ export default function Byeolharu() {
           onViewConstellation={ready ? () => setConstellationOpen(true) : undefined}
           celebratedStage={celebration?.scope === scope && celebration.day === today ? celebration.stage : null}
         />
+        {compactView ? (
+          <section className="compact-metrics" aria-label="오늘의 통계">
+            <span>오늘 <strong>{summary.completed}/{scheduledHabits.length}</strong></span>
+            <span aria-hidden="true">·</span>
+            <span><Star size={13} fill="currentColor" aria-hidden="true" /> <strong>{summary.average ? summary.average.toFixed(1) : "—"}</strong></span>
+            <span aria-hidden="true">·</span>
+            <span>연속 <strong>{streak}일</strong></span>
+          </section>
+        ) : (
         <section className="metrics" aria-label="오늘의 통계">
           <div className="metric completion-metric">
             <div className="metric-label">오늘 전체 실천</div>
@@ -1375,6 +1384,7 @@ export default function Byeolharu() {
             <div className="metric-value">{streak}<span>일</span></div>
           </div>
         </section>
+        )}
         <div className="dashboard-layout">
           <section className="routine-section" aria-label="습관 목록">
             <div className="routine-heading">
@@ -1475,7 +1485,7 @@ export default function Byeolharu() {
                 />
               ) : (
                 <>
-                  <div className="group-description">
+                  {!compactView && <div className="group-description">
                     <span>
                       <span className="live-dot" />
                       {activeTab === "all"
@@ -1487,7 +1497,42 @@ export default function Byeolharu() {
                         ? "별을 눌러 실천의 질을 기록해요"
                         : GROUPS[activeTab].range}
                     </span>
-                  </div>
+                  </div>}
+                  {compactView ? (
+                    <div className="compact-habit-list" aria-label="간편 습관 목록">
+                      {filtered.length > 0 && (
+                        <>
+                          {compactPending.length > 0 && (
+                            <div className="compact-habit-group" aria-label="실천할 습관">
+                              {compactPending.map(renderCompactCard)}
+                            </div>
+                          )}
+                          {compactPending.length === 0 && (
+                            <p className="compact-all-done">오늘의 실천을 모두 마쳤어요 ✨</p>
+                          )}
+                          {compactCompleted.length > 0 && (
+                            <section className="compact-done-group" aria-label="완료한 습관">
+                              <button
+                                type="button"
+                                className="compact-done-toggle"
+                                aria-expanded={compactCompletedOpen}
+                                aria-controls="compact-completed-list"
+                                onClick={() => setCompactCompletedOpen((value) => !value)}
+                              >
+                                <span><CheckCircle2 size={17} aria-hidden="true" /> 완료한 습관 {compactCompleted.length}개</span>
+                                <span>{compactCompletedOpen ? "접기" : "보기"} {compactCompletedOpen ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}</span>
+                              </button>
+                              {compactCompletedOpen && (
+                                <div id="compact-completed-list" className="compact-completed-list">
+                                  {compactCompleted.map(renderCompactCard)}
+                                </div>
+                              )}
+                            </section>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  ) : (
                   <div className="habit-grid">
                     {filtered.map(renderCard)}
                     {!filtered.length && (
@@ -1510,7 +1555,8 @@ export default function Byeolharu() {
                       </div>
                     )}
                   </div>
-                  {restingHabits.filter(
+                  )}
+                  {!compactView && restingHabits.filter(
                     (h) => activeTab === "all" || h.timeGroup === activeTab,
                   ).length > 0 && (
                     <section
@@ -1536,7 +1582,7 @@ export default function Byeolharu() {
                         ))}
                     </section>
                   )}
-                  {upcoming.length > 0 && (
+                  {!compactView && upcoming.length > 0 && (
                     <>
                       <div className="upcoming-heading">
                         <h3>
@@ -1557,7 +1603,7 @@ export default function Byeolharu() {
             </div>
           </section>
         </div>
-        <footer className="closing-footer" aria-label="하루의 마무리">
+        <footer className="closing-footer" aria-label="하루의 마무리" hidden={compactView}>
           <div className="closing-landscape">
             <div className="closing-copy">
               <h2>꾸준함은 완벽함보다 빛나요.</h2>
@@ -1657,6 +1703,8 @@ export default function Byeolharu() {
             onNavigate={setAccountPage}
             theme={theme}
             onThemeChange={setTheme}
+            compactView={compactView}
+            onCompactViewChange={updateCompactView}
             onHelp={() => { setAccountOpen(false); setAccountPage("home"); setHelp(true); }}
             onInstall={installEvent ? () => {
               void (async () => {
