@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  ArrowDownToLine, ArrowLeft, ChevronRight, CheckCircle2, Cloud, CloudOff,
+  ArrowDownToLine, ChevronRight, CheckCircle2, CloudOff,
   Database, Download, RefreshCw, Settings2, ShieldCheck, Sparkles, UserRound,
-  AlertCircle, Clock3, Laptop, Moon, Sun,
+  AlertCircle, Clock3, Laptop, Moon, Sun, LoaderCircle,
 } from "lucide-react";
 import { cloudEnabled } from "@/lib/supabase/client";
 import type { useHabitApp } from "@/lib/habits/use-habit-app";
@@ -12,7 +12,7 @@ import type { Snapshot } from "@/lib/habits/repository";
 import { AuthForm, type AuthMode } from "./auth-form";
 
 type App = ReturnType<typeof useHabitApp>;
-export type AccountPage = "home" | "records" | "settings" | "security" | AuthMode;
+export type AccountPage = "home" | "records" | "import" | "settings" | "security" | AuthMode;
 
 const zoneLabels: Record<string, string> = {
   "Asia/Seoul": "한국 · 서울",
@@ -34,7 +34,19 @@ function guestHasOwnRecords(guest: Snapshot) {
   return Boolean(
     guest.state.hasUserEdits ||
     guest.state.demoConfirmedDailyEntryKeys?.length ||
-    (raw && ["byeolharu_v1_habits", "byeolharu_v1_history", "byeolharu_v1_day"].some((key) => raw[key] != null)),
+    (raw && ["byeolharu_v1_habits", "byeolharu_v1_history"].some((key) => {
+      const value = raw[key];
+      if (!value) return false;
+      try {
+        const parsed: unknown = JSON.parse(value);
+        return Array.isArray(parsed)
+          ? parsed.length > 0
+          : Boolean(parsed && typeof parsed === "object" && Object.keys(parsed).length);
+      } catch {
+        // Corrupt legacy data is recovered through the existing backup flow.
+        return false;
+      }
+    })),
   );
 }
 
@@ -52,7 +64,6 @@ export function AccountPanel({
   const [message, setMessage] = useState("");
   const [preview, setPreview] = useState<Snapshot | null>(null);
   const [guestAvailable, setGuestAvailable] = useState(false);
-  const [guestChecked, setGuestChecked] = useState(false);
   const [timezonePicker, setTimezonePicker] = useState(false);
   const [zoneQuery, setZoneQuery] = useState("");
   const [changingZone, setChangingZone] = useState(false);
@@ -73,32 +84,49 @@ export function AccountPanel({
   const pending = state?.outbox.length ?? 0;
   const status = app.user ? app.status : "이 기기에 기록 저장 중";
   const critical = Boolean(app.error || unresolved || state?.importJournal || /실패|만료|충돌/.test(status));
-  const warning = critical || (app.user && (pending > 0 || /대기/.test(status)));
+  const syncing = app.user && /동기화 중/.test(status);
+  const waiting = app.user && (pending > 0 || /대기/.test(status));
+  const statusTone = critical ? "error" : syncing ? "syncing" : waiting ? "waiting" : "success";
+  const StatusIcon = critical ? AlertCircle : syncing ? LoaderCircle : waiting ? CloudOff : CheckCircle2;
   // An import can finish through conflict resolution or background resume,
   // not only through the "merge" button. Retire its stale preview after verification.
   useEffect(() => {
     if (state?.importReceipt && !state.importJournal) setPreview(null);
   }, [state?.importReceipt?.verifiedAt, state?.importJournal]);
   useEffect(() => {
-    if ((page !== "home" && page !== "records") || !app.user) {
-      setGuestChecked(false);
+    if ((page !== "home" && page !== "records" && page !== "import") || !app.user) {
       setGuestAvailable(false);
       return;
     }
     let mounted = true;
-    setGuestChecked(false);
     void app.previewImport().then((guest) => {
       if (mounted) {
         setGuestAvailable(guestHasOwnRecords(guest));
-        setGuestChecked(true);
       }
     }).catch(() => {
-      if (mounted) setGuestChecked(true);
+      if (mounted) setGuestAvailable(false);
     });
     return () => { mounted = false; };
     // The member identity and destination, not a changing callback identity, gate the scan.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, app.user?.id]);
+
+  useEffect(() => {
+    if (page !== "import" || !app.user) return;
+    let mounted = true;
+    setPreview(null);
+    void app.previewImport().then((guest) => {
+      if (mounted) setPreview(guest);
+    }).catch(() => {
+      if (mounted) setMessage("비회원 기록을 읽지 못했어요. 백업을 확인해주세요.");
+    });
+    return () => { mounted = false; };
+    // Re-read only on entering the dedicated flow or switching identities.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, app.user?.id]);
+  const lastSyncAt = state?.sync?.lastSuccessAt
+    ? new Date(state.sync.lastSuccessAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit" })
+    : null;
 
   const navigate = (to: AccountPage) => {
     setMessage("");
@@ -131,17 +159,33 @@ export function AccountPanel({
     }
   };
 
+  const importPreview = preview ? (
+    <div className="account-import-preview">
+                  <h4>기록 이전 확인</h4>
+                  <p>대상 계정: {app.user?.email ?? "로그인 계정"}</p>
+                  <p>현재 습관 {preview.habits.length}개 · 날짜 {Object.keys(preview.history).length}개 · 기록 {Object.values(preview.history).reduce((n,h)=>n+h.length,0)}개</p>
+                  <p>원본은 보존하고 같은 ID의 다른 내용은 충돌로 남깁니다.</p>
+                  {!!preview.state.migration?.issues.length && !preview.state.recoveryAcknowledged && (
+                    <p role="alert">복구 확인이 필요한 항목 {preview.state.migration.issues.length}개가 있습니다. 비회원 모드에서 백업·확인한 후 이전해주세요.</p>
+                  )}
+                  <div className="account-compact-actions">
+                    <button type="button" className="primary" disabled={app.busy || (!!preview.state.migration?.issues.length && !preview.state.recoveryAcknowledged)} onClick={async () => {
+                      const result = await app.migrate();
+                      if (result?.status === "applied") setPreview(null);
+                      if (page === "import" && result) navigate("records");
+                    }}>이 계정으로 병합</button>
+                    <button type="button" className="text-button" onClick={() => page === "import" ? navigate("home") : setPreview(null)}>나중에</button>
+                  </div>
+                </div>
+  ) : null;
+
   if (page === "login" || page === "signup" || page === "reset") {
     return <div className="account-panel">
-      <button className="account-back" type="button" onClick={() => navigate("home")}><ArrowLeft size={17} /> 내 계정으로</button>
       <AuthForm key={page} mode={page} onModeChange={(next: AuthMode) => navigate(next)} onAuthenticated={() => navigate("home")} />
     </div>;
   }
   return (
     <div className="account-panel account-hub">
-      {page !== "home" && (
-        <button className="account-back" type="button" onClick={() => navigate("home")}><ArrowLeft size={17} /> 내 계정으로</button>
-      )}
       {page === "home" && (
         <>
           <div className="account-hero">
@@ -151,14 +195,14 @@ export function AccountPanel({
               <span>{app.user ? app.user.email : "비회원으로 사용 중"}</span>
             </div>
           </div>
-          <button className={"account-status-card " + (critical ? "is-error" : warning ? "is-warning" : "")} type="button" onClick={() => navigate("records")}>
-            {critical ? <AlertCircle size={20} /> : warning ? <CloudOff size={20} /> : <CheckCircle2 size={20} />}
-            <span><strong>{status}</strong><small>{app.user ? (pending ? "미전송 기록 " + pending + "개 · 기기에 보존됨" : "내 기록 상태 확인하기") : "이 기기에 보관된 기록을 관리할 수 있어요"}</small></span>
-            <ChevronRight size={17} aria-hidden="true" />
-          </button>
+          <div className={"account-status-line is-" + statusTone} role={critical ? "alert" : "status"} aria-live={critical ? "assertive" : "polite"}>
+            <StatusIcon size={18} aria-hidden="true" className={syncing ? "is-spinning" : ""}/>
+            <span>{app.error || status}</span>
+            {critical && <button type="button" onClick={() => navigate("records")}>상태 확인</button>}
+          </div>
           {app.user && guestAvailable && !state?.importReceipt && !state?.importJournal && (
-            <button type="button" className="account-import-prompt" onClick={() => navigate("records")}>
-              <Database size={18} /><span>이 기기에 남아 있는 기록이 있어요<small>기록을 확인하고 가져올 수 있어요</small></span><ChevronRight size={17}/>
+            <button type="button" className="account-import-prompt" onClick={() => navigate("import")}>
+              <Database size={18} aria-hidden="true" /><span>남아 있는 비회원 기록<small>확인 후 내 계정으로 가져오기</small></span><ChevronRight size={17} aria-hidden="true"/>
             </button>
           )}
           {!app.user && cloudEnabled() && (
@@ -169,39 +213,30 @@ export function AccountPanel({
           )}
           {!app.user && !cloudEnabled() && <p className="account-note">클라우드 연결이 아직 설정되지 않았습니다. 비회원 기록은 계속 사용할 수 있어요.</p>}
           <nav className="account-menu" aria-label="계정 메뉴">
-            <button type="button" aria-label="기록 관리" onClick={() => navigate("records")}><Database size={19} /><span>기록 관리<small>동기화 · 백업 · 복원</small></span><ChevronRight size={17} /></button>
+            <button type="button" aria-label="데이터 관리" onClick={() => navigate("records")}><Database size={19} /><span>데이터 관리<small>동기화 · 백업 · 복원</small></span><ChevronRight size={17} /></button>
             <button type="button" aria-label="앱 설정" onClick={() => navigate("settings")}><Settings2 size={19} /><span>앱 설정<small>화면 테마 · 시간대</small></span><ChevronRight size={17} /></button>
             {app.user && <button type="button" aria-label="계정 관리" onClick={() => navigate("security")}><UserRound size={19} /><span>계정 관리<small>계정 정보 · 로그아웃</small></span><ChevronRight size={17} /></button>}
           </nav>
-          <p className="account-footnote">작은 실천, 반짝이는 하루</p>
         </>
       )}
 
       {page === "records" && (
-        <section className="account-detail" aria-label="기록 관리">
-          <h3>기록 관리</h3>
-          <p className="account-detail-hint">나의 작은 실천을 안전하게 간직해요.</p>
-          <div className="account-record-card">
-            <div className="account-record-row"><Database size={18} /><span>기기 저장</span><strong>{state?.localSavedAt ? "저장 완료" : "기록 확인됨"}</strong></div>
-            {app.user && (
-              <>
-                <div className="account-record-row"><Cloud size={18} /><span>클라우드</span><strong>{status}</strong></div>
-                <div className="account-record-row"><Clock3 size={18} /><span>마지막 동기화</span><strong>{state?.sync?.lastSuccessAt ? new Date(state.sync.lastSuccessAt).toLocaleString("ko-KR") : "아직 없음"}</strong></div>
-              </>
-            )}
+        <section className="account-detail" aria-label="데이터 관리">
+          <div className={"account-sync-overview is-" + statusTone} role={critical ? "alert" : "status"}>
+            <div className="account-sync-heading">
+              <StatusIcon size={20} aria-hidden="true" className={syncing ? "is-spinning" : ""}/>
+              <strong>{app.user ? (app.error || status) : "이 기기에 기록을 저장하고 있어요"}</strong>
+            </div>
+            <p>{state?.localSavedAt ? "기기 저장 완료" : "기기 기록 확인됨"}{app.user ? " · " + (status === "클라우드 동기화 완료" ? "클라우드 동기화 완료" : "클라우드 상태 확인 중") : " · 비회원 모드"}</p>
+            {app.user && <div className="account-sync-footer">
+              <span>마지막 성공 · {lastSyncAt ?? "아직 없음"}</span>
+              <button type="button" className="secondary" disabled={app.busy} onClick={() => void app.sync()} aria-label="지금 동기화"><RefreshCw size={16} aria-hidden="true" /> 지금 동기화</button>
+            </div>}
           </div>
-          {app.user && (
-            <>
-              {(pending > 0 || unresolved > 0 || state?.importJournal) && (
-                <p className="account-sync-alert" role="alert">{pending > 0 ? "미전송 기록 " + pending + "개 · 기기 보존 중" : ""}
-                  {unresolved > 0 ? " · 확인할 기록 충돌 " + unresolved + "개" : ""}
-                  {state?.importJournal ? " · 기록 가져오기 확인 필요" : ""}</p>
-              )}
-              <div className="account-inline-action">
-                <span>클라우드 동기화</span>
-                <button type="button" className="secondary" disabled={app.busy} onClick={() => void app.sync()}><RefreshCw size={16} /> 지금 동기화</button>
-              </div>
-            </>
+          {(pending > 0 || unresolved > 0 || state?.importJournal) && (
+            <p className="account-sync-alert" role="alert">{pending > 0 ? "미전송 기록 " + pending + "개 · 기기 보존 중" : ""}
+              {unresolved > 0 ? " · 확인할 기록 충돌 " + unresolved + "개" : ""}
+              {state?.importJournal ? " · 기록 가져오기 확인 필요" : ""}</p>
           )}
           {!!conflicts.length && (
             <section className="account-extra">
@@ -257,56 +292,30 @@ export function AccountPanel({
               {!state.recoveryAcknowledged && <button type="button" className="secondary" onClick={() => void app.acknowledgeRecovery().catch(() => setMessage("백업을 확인해주세요."))}>원본 백업 후 유효한 기록 사용 확인</button>}
             </section>
           )}
-          {app.user && (guestAvailable || !!state?.importJournal) && (
-            <section className="account-extra">
-              <h4>비회원 기록 가져오기</h4>
-              <p>이 기기에 남은 비회원 기록을 먼저 확인한 뒤 병합해요.</p>
-              <button type="button" className="secondary" disabled={app.busy} onClick={async () => {
-                try { setPreview(await app.previewImport()); }
+          {app.user && (
+            <details className="account-advanced-details">
+              <summary>고급 데이터 관리 <ChevronRight size={16} aria-hidden="true"/></summary>
+              <p className="account-note">다른 저장 공간의 비회원 기록을 수동으로 확인할 수 있어요.</p>
+              <button type="button" className="account-action-row" onClick={async () => {
+                try { setGuestAvailable(true); setPreview(await app.previewImport()); }
                 catch { setMessage("비회원 기록을 읽지 못했습니다. 백업을 확인해주세요."); }
-              }}>이 기기의 비회원 기록 가져오기</button>
-              {preview && (
-                <div className="account-import-preview">
-                  <h4>기록 이전 확인</h4>
-                  <p>대상 계정: {app.user.email}</p>
-                  <p>현재 습관 {preview.habits.length}개 · 날짜 {Object.keys(preview.history).length}개 · 기록 {Object.values(preview.history).reduce((n,h)=>n+h.length,0)}개</p>
-                  <p>원본은 보존하고 같은 ID의 다른 내용은 충돌로 남깁니다.</p>
-                  {!!preview.state.migration?.issues.length && !preview.state.recoveryAcknowledged && (
-                    <p role="alert">복구 확인이 필요한 항목 {preview.state.migration.issues.length}개가 있습니다. 비회원 모드에서 백업·확인한 후 이전해주세요.</p>
-                  )}
-                  <div className="account-compact-actions">
-                    <button type="button" className="primary" disabled={app.busy || (!!preview.state.migration?.issues.length && !preview.state.recoveryAcknowledged)} onClick={async () => {
-                      const result = await app.migrate();
-                      if (result?.status === "applied") setPreview(null);
-                    }}>이 계정으로 병합</button>
-                    <button type="button" className="text-button" onClick={() => setPreview(null)}>나중에</button>
-                  </div>
-                </div>
-              )}
-            </section>
-          )}
-          {app.user && guestChecked && !guestAvailable && !state?.importJournal && (
-            <details className="account-restore-details">
-              <summary className="account-action-row"><Database size={18}/><span>다른 비회원 기록 확인하기</span><ChevronRight size={16}/></summary>
-              <p>예전 기기 기록을 확인하거나 가져오기를 다시 시도할 수 있어요. 원본은 보존됩니다.</p>
-              <button type="button" className="secondary" onClick={async () => {
-                try {
-                  const guest = await app.previewImport();
-                  setGuestAvailable(true);
-                  setPreview(guest);
-                } catch {
-                  setMessage("비회원 기록을 읽지 못했습니다. 백업을 확인해주세요.");
-                }
-              }}>이 기기의 비회원 기록 가져오기</button>
+              }}><Database size={18}/><span>이 기기의 비회원 기록 가져오기</span><ChevronRight size={16}/></button>
+              {importPreview}
             </details>
           )}
-          {app.user && !guestChecked && !state?.importJournal && <p className="account-note" role="status">비회원 기록을 확인하고 있어요.</p>}
         </section>
       )}
 
+      {page === "import" && app.user && (
+        <section className="account-detail account-import-flow" aria-label="비회원 기록 가져오기">
+          <p className="account-detail-hint">이 기기의 기록을 확인한 뒤 직접 가져올 수 있어요. 원본은 그대로 보존됩니다.</p>
+          {!preview && !message && <p role="status" className="account-note">가져올 기록을 확인하고 있어요.</p>}
+          {importPreview}
+          {!!state?.importJournal && <button type="button" className="secondary" onClick={() => navigate("records")}>충돌 및 가져오기 상태 확인</button>}
+        </section>
+      )}
       {page === "settings" && (
         <section className="account-detail" aria-label="앱 설정">
-          <h3>앱 설정</h3>
           <p className="account-detail-hint">별하루가 편안하게 느껴지도록 설정해요.</p>
           <div className="account-setting-block">
             <div className="account-setting-heading"><span>화면 테마</span><small>앱에서 선택한 테마를 유지해요</small></div>
@@ -347,7 +356,6 @@ export function AccountPanel({
 
       {page === "security" && app.user && (
         <section className="account-detail" aria-label="계정 관리">
-          <h3>계정 관리</h3>
           <p className="account-detail-hint">내 계정과 로그인 상태를 확인해요.</p>
           <div className="account-record-card">
             <div className="account-record-row"><ShieldCheck size={18}/><span>로그인 계정</span><strong className="account-email">{app.user.email}</strong></div>
