@@ -32,7 +32,6 @@ import {
   Star,
   Sun,
   Sunrise,
-  Target,
   Trash2,
   X,
 } from "lucide-react";
@@ -1162,7 +1161,6 @@ export default function Byeolharu() {
   const growthPoints = useMemo(() => app.snapshot
     ? calculateConstellationGrowth({ ...app.snapshot, habits: visibleHabits }).totalPoints
     : 0, [app.snapshot, visibleHabits]);
-  const growthStage = getConstellationStage(growthPoints).stage;
   const allHistory = {
     ...history,
     ...(today ? { [today]: visibleHabits } : {}),
@@ -1393,65 +1391,27 @@ export default function Byeolharu() {
           </div>
         </div>
         <StarlitHero
-          completed={summary.completed}
-          total={scheduledHabits.length}
+          points={ready ? growthPoints : undefined}
           onViewConstellation={ready ? () => setConstellationOpen(true) : undefined}
-          stage={ready ? growthStage : undefined}
           celebratedStage={celebration?.scope === scope && celebration.day === today ? celebration.stage : null}
         />
         <section className="metrics" aria-label="오늘의 통계">
           <div className="metric completion-metric">
-            <div className="metric-label">
-              <span>
-                <Target size={15} />
-                실천율
-              </span>
-            </div>
+            <div className="metric-label"><span><CheckCheck size={16} aria-hidden="true" />오늘의 실천</span></div>
             <div className="metric-value">
-              {summary.rate}
-              <span>%</span>
-              <span className="progress-track">
-                <span style={{ width: `${summary.rate}%` }} />
-              </span>
+              {summary.completed}<span className="muted">/ {scheduledHabits.length}</span>
             </div>
           </div>
           <div className="metric">
-            <div className="metric-label">
-              <span>
-                <CheckCheck size={16} />
-                실천한 습관
-              </span>
-            </div>
+            <div className="metric-label"><span><Star size={15} aria-hidden="true" />평균 별점</span></div>
             <div className="metric-value">
-              {summary.completed}
-              <span className="muted">/ {scheduledHabits.length}</span>
-              <small>개 완료</small>
-            </div>
-          </div>
-          <div className="metric">
-            <div className="metric-label">
-              <span>
-                <Star size={15} />
-                평균 별점
-              </span>
-            </div>
-            <div className="metric-value">
-              <Star className="metric-star" size={26} fill="currentColor" />
+              <Star className="metric-star" size={26} fill="currentColor" aria-hidden="true" />
               {summary.average ? summary.average.toFixed(1) : "—"}
-              <span className="muted">/ 5.0</span>
             </div>
           </div>
           <div className="metric">
-            <div className="metric-label">
-              <span>
-                <Flame size={15} />
-                연속 실천
-              </span>
-            </div>
-            <div className="metric-value">
-              {streak}
-              <span>일</span>
-            </div>
+            <div className="metric-label"><span><Flame size={15} aria-hidden="true" />연속 실천</span></div>
+            <div className="metric-value">{streak}<span>일</span></div>
           </div>
         </section>
         <div className="dashboard-layout">

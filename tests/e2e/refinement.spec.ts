@@ -101,44 +101,28 @@ test("pending habits stay first in each tab and completed habits keep their orig
   await expect.poll(titles).toEqual([book, stretch]);
 });
 
-test("the hero star brightens with each completed habit and dims when undone", async ({
-  page,
-}) => {
+test("the three home metrics reflect rating, completion and undo without changing the stage teaser", async ({ page }) => {
   await page.setViewportSize({ width: 395, height: 595 });
   await page.goto("/");
-  const hero = page.getByRole("region", { name: "오늘의 별빛" });
-  await expect(hero).toContainText("3 / 5");
-  await expect(hero.locator(".starlit-star")).toHaveCSS("opacity", "0.712");
+  const hero = page.getByRole("region", { name: "나의 별자리 미리보기" });
+  const metrics = page.getByRole("region", { name: "오늘의 통계" });
+  await expect(hero).toContainText("첫 번째 별빛");
+  await expect(metrics.locator(".metric")).toHaveCount(3);
+  await expect(metrics.locator(".completion-metric .metric-value")).toHaveText("3/ 5");
+  await expect(metrics).not.toContainText("실천율");
 
-  await page
-    .getByRole("button", { name: "독서 30분 & TOP 50 책장 1점" })
-    .click();
-  await expect(hero).toContainText("4 / 5");
-  await expect(hero.locator(".starlit-star")).toHaveCSS("opacity", "0.856");
-
+  await page.getByRole("button", { name: "독서 30분 & TOP 50 책장 1점" }).click();
+  await expect(metrics.locator(".completion-metric .metric-value")).toHaveText("4/ 5");
+  await expect(hero).not.toContainText("4 / 5");
   await page.getByRole("button", { name: "취침 전 스트레칭 10분 1점" }).click();
-  await expect(hero).toContainText("5 / 5");
-  await expect(hero).toContainText("오늘의 모든 별이 환하게 빛나요");
-  await expect(hero.locator(".starlit-star")).toHaveCSS("opacity", "1");
-
-  await page
-    .getByRole("button", { name: "독서 30분 & TOP 50 책장 1점" })
-    .click();
-  await expect(hero).toContainText("4 / 5");
-  await expect(hero.locator(".starlit-star")).toHaveCSS("opacity", "0.856");
-
+  await expect(metrics.locator(".completion-metric .metric-value")).toHaveText("5/ 5");
+  await page.getByRole("button", { name: "독서 30분 & TOP 50 책장 1점" }).click();
+  await expect(metrics.locator(".completion-metric .metric-value")).toHaveText("4/ 5");
   await page.getByRole("button", { name: "새 습관 추가", exact: true }).click();
   await page.getByPlaceholder("예: 하루 10분 책 읽기").fill("새로운 작은 습관");
-  await page
-    .getByRole("button", { name: "새 습관 추가하기", exact: true })
-    .click();
-  await expect(hero).toContainText("4 / 6");
-  await expect(hero.locator(".starlit-star")).toHaveCSS("opacity", "0.76");
-  await expect
-    .poll(async () =>
-      page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
-    )
-    .toBe(true);
+  await page.getByRole("button", { name: "새 습관 추가하기", exact: true }).click();
+  await expect(metrics.locator(".completion-metric .metric-value")).toHaveText("4/ 6");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(395);
 });
 
 for (const width of [320, 395]) {
