@@ -65,6 +65,7 @@ test("compact rating reuses existing optimistic save, completion fold and cancel
     has: page.locator(".compact-habit-title", { hasText: title }),
   });
   await expect(finished).toBeVisible();
+  await expect(finished.locator(".compact-habit-row")).toHaveAttribute("aria-label", /실천 완료, 별점 4점/);
   await finished.locator(".compact-habit-row").click();
   await finished.getByRole("button", { name: title + " 4점" }).click();
   await expect(page.locator(".compact-habit-group .compact-habit-card").filter({
