@@ -75,3 +75,33 @@ test("normal-view keyboard rating keeps focus when the completed card moves", as
     connected: document.activeElement?.isConnected === true,
   }))).toEqual({ focused: true, connected: true });
 });
+
+test("completed reflection restores focus to the stable tab when its card folds", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("tab", { name: "밤", exact: true }).click();
+  const opener = page.locator(".normal-pending-list .habit-card .card-content").first();
+  await expect(opener).toBeVisible();
+  await opener.focus();
+  await page.keyboard.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "오늘의 실천 기록" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "단순 체크만 하기" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator(".normal-done-toggle")).toBeVisible();
+  await expect(page.getByRole("tab", { name: "밤", exact: true })).toBeFocused();
+});
+
+test("rating a habit in the upcoming list does not transfer keyboard focus", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("tab", { name: "아침", exact: true }).click();
+  const upcoming = page.locator(".upcoming-heading + .habit-grid .habit-card").first();
+  await expect(upcoming).toBeVisible();
+  const title = (await upcoming.locator("h3").innerText()).trim();
+  const star = upcoming.getByRole("button", { name: `${title} 4점` });
+  await star.focus();
+  await page.keyboard.press("Enter");
+  await expect(star).toHaveAttribute("aria-pressed", "true");
+  // The upcoming list stays in one grid even as its habit's completion changes.
+  await page.waitForTimeout(850);
+  await expect(star).toBeFocused();
+});
