@@ -256,6 +256,12 @@ test("rapid stars update immediately, keep the card steady, and persist the last
   expect(await completion.innerText()).not.toBe(initialCompletion);
   await card.getByRole("button", { name: `${title} 5점` }).click();
   await expect(card).toContainText("미기록");
+  await expect(card).toContainText("실천 전");
+  // Cancelling via the same star must clear *visible* gold fill too, even
+  // while the clicked button retains keyboard focus on mobile browsers.
+  await expect(card.locator(".star.filled")).toHaveCount(0);
+  await card.getByRole("button", { name: `${title} 5점` }).focus();
+  await expect(card.locator(".star.filled")).toHaveCount(0);
   await card.getByRole("button", { name: `${title} 3점` }).click();
   await card.getByRole("button", { name: `${title} 4점` }).click();
   await expect(
@@ -289,4 +295,28 @@ test("rapid stars update immediately, keep the card steady, and persist the last
   await expect(
     page.getByRole("button", { name: `${title} 4점` }),
   ).toHaveAttribute("aria-pressed", "false");
+});
+
+test.describe("mobile touch stars", () => {
+  test.use({
+    hasTouch: true,
+    isMobile: true,
+    viewport: { width: 390, height: 844 },
+  });
+
+  test("touching an already rated star clears its fill and completion state", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("tab", { name: "전체", exact: true }).click();
+    const card = page.locator(".habit-card").filter({
+      has: page.getByRole("heading", { name: "미온수 한 잔 & 영양제" }),
+    });
+    const star = card.getByRole("button", { name: "미온수 한 잔 & 영양제 3점" });
+    await star.tap();
+    await expect(card.locator(".star.filled")).toHaveCount(3);
+    await star.tap();
+    await expect(card).toContainText("실천 전");
+    await expect(card.locator(".star.filled")).toHaveCount(0);
+    await expect(star).toHaveAttribute("aria-pressed", "false");
+    await expect(card.locator(".status-pill")).toHaveCSS("font-size", "10px");
+  });
 });

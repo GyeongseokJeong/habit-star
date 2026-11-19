@@ -195,7 +195,7 @@ export function StarRating({
       className={`star-tray ${large ? "large" : ""}`}
       role="group"
       aria-label={`${label} 별점`}
-      onMouseLeave={() => setHover(0)}
+      onPointerLeave={() => setHover(0)}
     >
       {[1, 2, 3, 4, 5].map((value) => (
         <button
@@ -203,11 +203,14 @@ export function StarRating({
           type="button"
           aria-label={`${label} ${value}점`}
           aria-pressed={rating === value}
-          onMouseEnter={() => setHover(value)}
-          onFocus={() => setHover(value)}
+          onPointerEnter={(event) => {
+            // Touch and keyboard focus must not fake a saved rating.
+            if (event.pointerType === "mouse") setHover(value);
+          }}
           onBlur={() => setHover(0)}
           onClick={(event) => {
             event.stopPropagation();
+            setHover(0);
             if (onSelect) onSelect(value);
             else onRate?.(rating === value ? 0 : value);
           }}
@@ -657,7 +660,7 @@ function HabitCard({
           <span className={`status-pill ${habit.completed ? "done" : ""}`}>
             {habit.completed ? (
               <>
-                <Check size={11} />
+                <Check size={10} aria-hidden="true" />
                 실천 완료
               </>
             ) : (

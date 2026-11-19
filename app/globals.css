@@ -654,11 +654,13 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
 .status-pill {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 7px;
-  border-radius: 6px;
+  gap: 3px;
+  padding: 2px 5px;
+  border-radius: 5px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 10px;
+  line-height: 1.4;
+  white-space: nowrap;
 }
 .status-pill.done {
   background: var(--sage-soft);
