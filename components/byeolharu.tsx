@@ -336,7 +336,7 @@ function HabitEditor({
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [moreTemplates, setMoreTemplates] = useState(false);
-  const [moreIcons, setMoreIcons] = useState(false);
+  const [moreIcons, setMoreIcons] = useState(() => Boolean(habit?.icon && MORE_EMOJIS.includes(habit.icon)));
   const [timeEdited, setTimeEdited] = useState(false);
   const [draft, setDraft] = useState<HabitSettingsPatch>(() => ({
     title: habit?.title ?? "",
@@ -346,9 +346,14 @@ function HabitEditor({
     repeatDays: habit?.repeatDays ?? [...WEEKDAYS],
     alarmEnabled: habit?.alarmEnabled ?? false,
   }));
-  const visibleIcons = [...new Set([
-    draft.icon, ...EMOJIS, ...(moreIcons ? MORE_EMOJIS : []),
-  ])];
+  // Keep built-in icons at stable positions when a selection changes.
+  // Show unknown saved icons at the end without reordering the preset palette.
+  const knownIcon = EMOJIS.includes(draft.icon) || MORE_EMOJIS.includes(draft.icon);
+  const visibleIcons = [
+    ...EMOJIS,
+    ...(moreIcons ? MORE_EMOJIS : []),
+    ...(!knownIcon ? [draft.icon] : []),
+  ];
   const selectedDays = draft.repeatDays ?? WEEKDAYS;
   const matchesPreset = (days: number[]) =>
     WEEKDAYS.filter((day) => selectedDays.includes(day)).join() === days.join();
@@ -400,14 +405,17 @@ function HabitEditor({
                     draft.icon === template.icon &&
                     draft.timeGroup === template.timeGroup
                   }
-                  onClick={() => setDraft((prev) => ({
-                    ...prev,
-                    title: template.title,
-                    icon: template.icon,
-                    timeGroup: template.timeGroup,
-                    // Never overwrite a time the user has chosen, or repeat-day settings.
-                    scheduledTime: timeEdited ? prev.scheduledTime : template.scheduledTime,
-                  }))}
+                  onClick={() => {
+                    if (MORE_EMOJIS.includes(template.icon)) setMoreIcons(true);
+                    setDraft((prev) => ({
+                      ...prev,
+                      title: template.title,
+                      icon: template.icon,
+                      timeGroup: template.timeGroup,
+                      // Never overwrite a time the user has chosen, or repeat-day settings.
+                      scheduledTime: timeEdited ? prev.scheduledTime : template.scheduledTime,
+                    }));
+                  }}
                 >
                   <span aria-hidden="true">{template.icon}</span>
                   <span>{template.title}</span>

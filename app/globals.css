@@ -3179,8 +3179,20 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   margin: 16px 0;
 }
 .habit-editor-form .repeat-weekdays {
+  /* Keep all seven weekdays on one row without shrinking touch targets. */
   grid-template-columns: repeat(7, minmax(44px, 1fr));
-  overflow-x: auto;
+  gap: 4px;
+  overflow-x: visible;
+  padding: 2px 0 4px;
+}
+.habit-editor-form .repeat-weekdays button {
+  min-width: 44px;
+  width: 44px;
+  min-height: 44px;
+  height: 44px;
+  justify-self: center;
+  padding: 0;
+  border-radius: 50%;
 }
 .habit-editor-custom-days {
   display: block;
@@ -3216,9 +3228,7 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
     grid-template-columns: repeat(4, minmax(44px, 1fr));
   }
   .habit-editor-form .repeat-weekdays {
-    grid-template-columns: repeat(4, minmax(44px, 1fr));
-    overflow-x: visible;
-    justify-content: start;
+    grid-template-columns: repeat(7, minmax(44px, 1fr));
   }
   .habit-editor-schedule-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -3230,6 +3240,15 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   .habit-editor-schedule-grid .field input {
     text-align: start;
     padding: 10px 12px;
+  }
+}
+@media (max-width: 360px) {
+  /* The 320px bottom sheet has 16px side padding. Use that space to fit
+     seven 44px circles without wrapping or horizontal scrolling. */
+  .habit-editor-form .repeat-weekdays {
+    margin-left: -16px;
+    margin-right: -16px;
+    gap: 1px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

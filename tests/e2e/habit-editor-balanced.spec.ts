@@ -44,7 +44,9 @@ test("expanded templates and icons fill only the requested fields", async ({ pag
   await dialog.getByRole("button", { name: "영어 10분 템플릿" }).click();
   await expect(dialog.getByLabel("예정 시간")).toHaveValue("08:35");
   await expect(dialog.getByRole("button", { name: "평일", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await dialog.getByRole("button", { name: "아이콘 더 보기" }).click();
+  // A template using an extra icon expands that fixed palette automatically.
+  await expect(dialog.getByRole("button", { name: "아이콘 더 보기" })).toHaveCount(0);
+  await expect(dialog.locator(".habit-editor-icons").getByRole("button", { name: "접기", exact: true })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "🧹 아이콘" })).toBeVisible();
   await dialog.getByRole("button", { name: "🧹 아이콘" }).click();
   await dialog.getByRole("button", { name: "새 습관 추가하기" }).click();
