@@ -274,7 +274,12 @@ for (const theme of ["light", "dark"] as const) {
       const target = await stars.boundingBox();
       expect(target!.width).toBeGreaterThanOrEqual(44);
       expect(target!.height).toBeGreaterThanOrEqual(44);
+      // CSS focus-visible is keyboard modality dependent; a programmatic
+      // focus() alone should not be treated as a visible keyboard ring.
       await stars.focus();
+      await page.keyboard.press("Tab");
+      await page.keyboard.press("Shift+Tab");
+      await expect(stars).toBeFocused();
       await expect(stars).toHaveCSS("outline-style", "solid");
     });
   }
