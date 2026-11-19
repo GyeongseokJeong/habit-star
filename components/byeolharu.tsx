@@ -1322,8 +1322,11 @@ export default function Byeolharu() {
             )).find((button) =>
               button.closest(".habit-card")?.getAttribute("data-habit-id") !== id,
             );
-            const fallback = document.querySelector<HTMLButtonElement>(".normal-done-toggle")
-              ?? document.getElementById("tab-" + activeTab);
+            // Undo may remove the last completed group entirely. The tab always survives.
+            const fallback = habit.rating === value
+              ? document.getElementById("tab-" + activeTab)
+              : (document.querySelector<HTMLButtonElement>(".normal-done-toggle")
+                ?? document.getElementById("tab-" + activeTab));
             (next ?? fallback)?.focus();
             normalFocusTimer.current = null;
           }, 600);
