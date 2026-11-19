@@ -17,7 +17,7 @@ for (const width of [320, 390, 430]) {
       }),
     );
     expect(Math.max(...dimensions.map((day) => day.top)) - Math.min(...dimensions.map((day) => day.top))).toBeLessThan(2);
-    expect(dimensions.every((day) => day.height >= 44)).toBe(true);
+    expect(dimensions.every((day) => day.height >= 44 && day.width >= 44)).toBe(true);
     expect(dimensions.every((day, index) => index === 0 || day.left > dimensions[index - 1].left)).toBe(true);
     expect(await days.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
     expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
