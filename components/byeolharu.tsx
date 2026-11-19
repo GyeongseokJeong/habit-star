@@ -12,8 +12,6 @@ import {
 import {
   ArrowDownToLine,
   ArrowRight,
-  Bell,
-  BellOff,
   Check,
   CheckCheck,
   ChevronLeft,
@@ -296,35 +294,6 @@ function Modal({
   );
 }
 
-function ReminderToggle({
-  checked,
-  onChange,
-}: {
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-}) {
-  return (
-    <div className="alarm-field">
-      <span>
-        <Bell size={16} /> 루틴 알림
-      </span>
-      <button
-        type="button"
-        role="switch"
-        aria-label="루틴 알림"
-        aria-checked={checked}
-        className={`reminder-switch${checked ? " is-on" : ""}`}
-        onClick={() => onChange(!checked)}
-      >
-        <span className="reminder-switch-thumb" aria-hidden="true">
-          <svg viewBox="0 0 24 24" focusable="false">
-            <circle cx="12" cy="12" r="12" fill="currentColor" />
-          </svg>
-        </span>
-      </button>
-    </div>
-  );
-}
 
 function HabitEditor({
   habit,
@@ -514,24 +483,16 @@ function HabitEditor({
             ))}
           </div>
         </fieldset>
-        <div className="form-row">
-          <label className="field">
-            예정 시간
-            <input
-              type="time"
-              value={draft.scheduledTime || ""}
-              onChange={(e) =>
-                setDraft((prev) => ({ ...prev, scheduledTime: e.target.value }))
-              }
-            />
-          </label>
-          <ReminderToggle
-            checked={draft.alarmEnabled}
-            onChange={(alarmEnabled) =>
-              setDraft((prev) => ({ ...prev, alarmEnabled }))
+        <label className="field">
+          예정 시간
+          <input
+            type="time"
+            value={draft.scheduledTime || ""}
+            onChange={(e) =>
+              setDraft((prev) => ({ ...prev, scheduledTime: e.target.value }))
             }
           />
-        </div>
+        </label>
         <button type="submit" className="primary full">
           <Check size={18} />
           {habit ? "수정 완료" : "새 습관 추가하기"}
@@ -682,13 +643,11 @@ function HabitCard({
   onRate,
   onOpen,
   onEdit,
-  onAlarm,
 }: {
   habit: Habit;
   onRate: (id: string, rating: number) => void;
   onOpen: () => void;
   onEdit: () => void;
-  onAlarm: () => void;
 }) {
   return (
     <article className={`habit-card ${habit.completed ? "is-completed" : ""}`}>
@@ -743,17 +702,6 @@ function HabitCard({
             <span>미기록</span>
           )}
         </span>
-        <button
-          className={`icon-button small alarm ${habit.alarmEnabled ? "enabled" : ""}`}
-          aria-label={`${habit.title} 알림 ${habit.alarmEnabled ? "끄기" : "켜기"}`}
-          aria-pressed={habit.alarmEnabled}
-          onClick={(event) => {
-            event.stopPropagation();
-            onAlarm();
-          }}
-        >
-          {habit.alarmEnabled ? <Bell size={15} /> : <BellOff size={15} />}
-        </button>
       </div>
     </article>
   );
@@ -899,12 +847,9 @@ export default function Byeolharu() {
   const [editing, setEditing] = useState<Habit | "new" | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [toast, setToast] = useState("");
-  const [notification, setNotification] = useState<Habit | null>(null);
-  const [notificationMenu, setNotificationMenu] = useState(false);
   const [help, setHelp] = useState(false);
   const [pastDate, setPastDate] = useState<string | null>(null);
   const [installEvent, setInstallEvent] = useState<InstallEvent | null>(null);
-  const [testPending, setTestPending] = useState(false);
   const [storageWarning, setStorageWarning] = useState(false);
   const [ratingOverrides, setRatingOverrides] = useState<
     Map<string, { rating: number; scope: string; day: string }>
@@ -921,11 +866,7 @@ export default function Byeolharu() {
   const scope = app.user?.id ?? "guest";
   const activeScope = useRef(scope);
   activeScope.current = scope;
-  const audio = useRef<AudioContext | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const testTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const fired = useRef(new Set<string>());
-  const currentDay = useRef("");
   const showToast = useCallback((message: string) => {
     setToast(message);
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -934,7 +875,6 @@ export default function Byeolharu() {
 
   useEffect(() => {
     const date = new Date();
-    const key = dateKey(date);
     try {
       if (
         (localStorage.getItem("byeolharu_v2_theme") ??
@@ -944,7 +884,6 @@ export default function Byeolharu() {
     } catch {
       setStorageWarning(true);
     }
-    currentDay.current = key;
     setNow(date);
     setMonth(new Date(date.getFullYear(), date.getMonth(), 1));
     const clock = setInterval(() => setNow(new Date()), 1000);
@@ -959,11 +898,9 @@ export default function Byeolharu() {
       clearInterval(clock);
       window.removeEventListener("beforeinstallprompt", install);
       if (toastTimer.current) clearTimeout(toastTimer.current);
-      if (testTimer.current) clearTimeout(testTimer.current);
       if (celebrationTimer.current) clearTimeout(celebrationTimer.current);
       for (const timer of reorderTimers.current.values()) clearTimeout(timer);
       reorderTimers.current.clear();
-      void audio.current?.close();
     };
   }, []);
 
@@ -987,30 +924,9 @@ export default function Byeolharu() {
     }
   }, [theme, ready]);
 
-  const chime = useCallback(() => {
-    try {
-      if (!audio.current) audio.current = new AudioContext();
-      const ctx = audio.current;
-      void ctx.resume();
-      [659.25, 830.61].forEach((frequency, index) => {
-        const oscillator = ctx.createOscillator();
-        const gain = ctx.createGain();
-        const start = ctx.currentTime + index * 0.2;
-        oscillator.type = "sine";
-        oscillator.frequency.value = frequency;
-        gain.gain.setValueAtTime(0, start);
-        gain.gain.linearRampToValueAtTime(0.16, start + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.001, start + 1.3);
-        oscillator.connect(gain);
-        gain.connect(ctx.destination);
-        oscillator.start(start);
-        oscillator.stop(start + 1.4);
-      });
-    } catch {
-      /* Audio may be unavailable until the first user gesture. The visual reminder still works. */
-    }
-  }, []);
-
+  // Keep the current-day rollover for scheduled habits and history.
+  // In-app reminder notifications are intentionally deferred until a
+  // reliable, background-capable notification channel is available.
   useEffect(() => {
     if (!ready || !now) return;
     const actualDay = dateKey(
@@ -1019,36 +935,8 @@ export default function Byeolharu() {
     );
     if (actualDay !== app.snapshot?.day) {
       void app.ensureDay().catch(() => setStorageWarning(true));
-      return;
     }
-    const day = app.snapshot?.day ?? actualDay;
-    if (day !== currentDay.current) {
-      currentDay.current = day;
-      fired.current.clear();
-      return;
-    }
-    const time = app.user
-      ? new Intl.DateTimeFormat("en-GB", {
-          timeZone: app.snapshot?.state.timezone,
-          hour: "2-digit",
-          minute: "2-digit",
-          hourCycle: "h23",
-        }).format(now)
-      : `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-    const due = habits.find(
-      (h) =>
-        h.alarmEnabled &&
-        isScheduled(h, day) &&
-        !h.completed &&
-        h.scheduledTime === time &&
-        !fired.current.has(`${day}-${h.id}-${time}`),
-    );
-    if (due) {
-      fired.current.add(`${day}-${due.id}-${time}`);
-      setNotification(due);
-      chime();
-    }
-  }, [now, habits, ready, chime]);
+  }, [ready, now, app.user, app.snapshot?.day, app.snapshot?.state.timezone]);
 
   const showStageCelebration = (stage: number, actionScope: string, actionDay: string) => {
     if (activeScope.current !== actionScope) return;
@@ -1263,35 +1151,6 @@ export default function Byeolharu() {
       onRate={handleRateHabit}
       onOpen={() => setDetailId(habit.id)}
       onEdit={() => setEditing(habit)}
-      onAlarm={() => {
-        void (async () => {
-          await setHabits((prev) =>
-            prev.map((h) =>
-              h.id === habit.id
-                ? applyHabitSettings(h, {
-                    title: h.title,
-                    icon: h.icon,
-                    timeGroup: h.timeGroup,
-                    repeatDays: h.repeatDays,
-                    scheduledTime: h.scheduledTime,
-                    alarmEnabled: !h.alarmEnabled,
-                  })
-                : h,
-            ),
-          );
-          if (!habit.alarmEnabled) {
-            try {
-              if (!audio.current) audio.current = new AudioContext();
-              void audio.current.resume();
-            } catch {}
-          }
-          showToast(
-            habit.alarmEnabled
-              ? "루틴 알림을 껐어요."
-              : "루틴 알림을 켰어요. 앱을 열어두면 알려드릴게요.",
-          );
-        })().catch(() => {});
-      }}
     />
   );
 
@@ -1331,55 +1190,6 @@ export default function Byeolharu() {
               <span className={storageWarning ? "warning-dot" : "saved-dot"} />
               {storageWarning ? "저장 확인 필요" : app.status}
             </span>
-            <div className="notification-wrap">
-              <button
-                className={`icon-button ${notificationMenu ? "active" : ""}`}
-                aria-expanded={notificationMenu}
-                aria-label="알림 메뉴"
-                onClick={() => setNotificationMenu((prev) => !prev)}
-              >
-                <Bell size={19} />
-                <span className="bell-dot" />
-              </button>
-              {notificationMenu && (
-                <div className="notification-menu">
-                  <h3>
-                    <Bell size={16} />
-                    루틴 알림
-                  </h3>
-                  <p>
-                    예정된 시간에 작은 실천을 알려드려요.
-                    <br />
-                    앱을 열어둔 동안 알림이 울려요.
-                  </p>
-                  <button
-                    className="secondary full"
-                    disabled={testPending || !scheduledHabits.length}
-                    onClick={() => {
-                      try {
-                        if (!audio.current) audio.current = new AudioContext();
-                        void audio.current.resume();
-                      } catch {}
-                      setTestPending(true);
-                      testTimer.current = setTimeout(() => {
-                        setNotification(
-                          scheduledHabits.find((h) => !h.completed) ||
-                            scheduledHabits[0],
-                        );
-                        chime();
-                        setTestPending(false);
-                        setNotificationMenu(false);
-                      }, 3000);
-                    }}
-                  >
-                    {testPending
-                      ? "잠시 후 알림이 도착해요…"
-                      : "3초 뒤 테스트 알림 발송"}
-                  </button>
-                  <small>첫 클릭으로 알림 소리가 활성화됩니다.</small>
-                </div>
-              )}
-            </div>
             <button
               className="icon-button"
               aria-label={
@@ -1786,12 +1596,6 @@ export default function Byeolharu() {
               확인 후 진행하며, 오프라인 기록은 연결 후 전송해요. 설정한 요일에
               루틴이 나타나고 이전 기록은 달력에 남아요.
             </p>
-            <h4>가벼운 루틴 알림</h4>
-            <p>
-              앱이 열려 있는 동안 예정된 시간에 알림을 보내요. 소리를 들으려면
-              알림 테스트를 한 번 눌러주세요. 앱이 닫힌 상태의 백그라운드 알림은
-              지원하지 않아요.
-            </p>
             <button className="primary full" onClick={() => setHelp(false)}>
               좋아요, 시작해볼게요
               <ArrowRight size={17} />
@@ -1833,39 +1637,6 @@ export default function Byeolharu() {
             ))}
           </div>
         </Modal>
-      )}
-      {notification && (
-        <div className="push-banner" role="alert">
-          <span className="push-icon">
-            <Bell size={21} />
-          </span>
-          <button
-            className="push-content"
-            onClick={() => {
-              if (habits.some((h) => h.id === notification.id))
-                setDetailId(notification.id);
-              setNotification(null);
-            }}
-          >
-            <small>
-              {notification.scheduledTime
-                ? `[${notification.scheduledTime}] `
-                : ""}
-              루틴 알림
-            </small>
-            <strong>{notification.title}</strong>
-            <span>
-              실천할 시간이에요! 지금 별점 기록하기 <ArrowRight size={13} />
-            </span>
-          </button>
-          <button
-            className="icon-button"
-            aria-label="알림 닫기"
-            onClick={() => setNotification(null)}
-          >
-            <X size={17} />
-          </button>
-        </div>
       )}
       {toast && (
         <div className="toast" role="status">

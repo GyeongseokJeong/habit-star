@@ -81,7 +81,7 @@ async function checkControls(page: Page, theme: "light" | "dark") {
       },
       targets: [
         ...modal.querySelectorAll<HTMLElement>(
-          ".emoji-picker button, .segmented button, .repeat-weekdays button, .reminder-switch",
+          ".emoji-picker button, .segmented button, .repeat-weekdays button",
         ),
       ].map((element) => {
         const rect = element.getBoundingClientRect();
@@ -118,50 +118,18 @@ async function checkControls(page: Page, theme: "light" | "dark") {
   await expect(unselected).toHaveAttribute("aria-pressed", "false");
 }
 
-test("reminder switch remains visible in forced colors", async ({ page }) => {
+test("hidden reminder affordances do not distract from keyboard-accessible editor controls in forced colors", async ({ page }) => {
   await page.emulateMedia({ forcedColors: "active" });
   await page.goto("/");
+  await expect(page.getByRole("button", { name: "알림 메뉴" })).toHaveCount(0);
   await page.getByRole("button", { name: "새 습관 추가", exact: true }).click();
-  const toggle = page.getByRole("switch", { name: "루틴 알림" });
-  const track = toggle;
-  const thumb = track.locator(".reminder-switch-thumb");
-  await expect(track).toHaveCSS("border-top-width", "2px");
-  await expect(thumb).toBeVisible();
-  const colors = await track.evaluate((element) => {
-    const thumb = element.querySelector(".reminder-switch-thumb")!;
-    const probe = document.createElement("span");
-    document.body.append(probe);
-    const systemColor = (keyword: string) => {
-      probe.style.color = keyword;
-      return getComputedStyle(probe).color;
-    };
-    const result = {
-      forcedColors: matchMedia("(forced-colors: active)").matches,
-      offTrack: getComputedStyle(element).backgroundColor,
-      offThumb: getComputedStyle(thumb.querySelector("circle")!).fill,
-      canvas: systemColor("Canvas"),
-      canvasText: systemColor("CanvasText"),
-      highlight: systemColor("Highlight"),
-      highlightText: systemColor("HighlightText"),
-    };
-    probe.remove();
-    return result;
-  });
-  expect(colors.forcedColors).toBe(true);
-  expect(colors.offTrack).toBe(colors.canvas);
-  expect(colors.offThumb).toBe(colors.canvasText);
-  await toggle.click();
-  await expect(toggle).toHaveAttribute("aria-checked", "true");
-  await expect(track).toHaveCSS("background-color", colors.highlight);
-  await expect(thumb.locator("circle")).toHaveCSS("fill", colors.highlightText);
-  await expect
-    .poll(() =>
-      thumb.evaluate(
-        (element) =>
-          new DOMMatrixReadOnly(getComputedStyle(element).transform).m41,
-      ),
-    )
-    .toBe(24);
+  const dialog = page.getByRole("dialog", { name: "나를 위한 새로운 습관" });
+  await expect(dialog.getByRole("switch", { name: "루틴 알림" })).toHaveCount(0);
+  const selection = dialog.getByRole("button", { name: "아침", exact: true });
+  await selection.focus();
+  await page.keyboard.press("Space");
+  await expect(selection).toHaveAttribute("aria-pressed", "true");
+  await expect(dialog.getByLabel("예정 시간")).toBeVisible();
 });
 
 for (const width of [320, 390, 430]) {
@@ -242,180 +210,57 @@ for (const width of [320, 390, 430]) {
   });
 }
 
-for (const theme of ["light", "dark"] as const) {
-  for (const width of [320, 395]) {
-    test(`alarm switch geometry, motion and saved state in ${theme} at ${width}px`, async ({
-      page,
-    }) => {
-      await page.setViewportSize({ width, height: 549 });
-      await page.emulateMedia({
-        colorScheme: theme === "light" ? "dark" : "light",
-      });
-      await page.goto("/");
-      await expect(
-        page.getByRole("button", { name: "새 습관 추가", exact: true }),
-      ).toBeEnabled();
-      if (theme === "dark") {
-        await page.getByRole("button", { name: "다크 모드로 전환" }).click();
-      }
-      await page
-        .getByRole("button", { name: "새 습관 추가", exact: true })
-        .click();
-      const switchInput = page
-        .getByRole("dialog", { name: "나를 위한 새로운 습관" })
-        .getByRole("switch", { name: "루틴 알림" });
-      const geometry = async () =>
-        switchInput.evaluate((button) => {
-          const box = button.getBoundingClientRect();
-          const track = getComputedStyle(button);
-          const thumbElement = button.querySelector(".reminder-switch-thumb")!;
-          const thumb = getComputedStyle(thumbElement);
-          const thumbBox = thumbElement.getBoundingClientRect();
-          return {
-            checked: button.getAttribute("aria-checked"),
-            target: [box.width, box.height],
-            border: track.borderTopWidth,
-            clip: track.backgroundClip,
-            radius: track.borderTopLeftRadius,
-            boxSizing: track.boxSizing,
-            colorScheme: track.colorScheme,
-            track: [track.width, track.height, track.backgroundColor],
-            thumb: [
-              thumb.width,
-              thumb.height,
-              thumb.left,
-              thumb.top,
-              thumb.backgroundColor,
-              getComputedStyle(thumbElement.querySelector("circle")!).fill,
-            ],
-            travel: new DOMMatrixReadOnly(thumb.transform).m41,
-            thumbOffset: [thumbBox.left - box.left, thumbBox.top - box.top],
-            duration: thumb.transitionDuration,
-            overflow: document.documentElement.scrollWidth > innerWidth,
-          };
-        });
-      await expect(switchInput).toHaveAttribute("aria-checked", "false");
-      const off = await geometry();
-      expect(off.target).toEqual([56, 44]);
-      expect(off.border).toBe("6px");
-      expect(off.clip).toBe("padding-box");
-      expect(off.radius).toBe("22px");
-      expect(off.boxSizing).toBe("border-box");
-      expect(off.colorScheme).toBe(theme);
-      expect(off.track).toEqual([
-        "56px",
-        "44px",
-        theme === "light" ? "rgb(133, 139, 149)" : "rgb(102, 113, 131)",
-      ]);
-      expect(off.thumb).toEqual([
-        "24px",
-        "24px",
-        "4px",
-        "4px",
-        "rgba(0, 0, 0, 0)",
-        "rgb(255, 255, 255)",
-      ]);
-      expect(off.travel).toBe(0);
-      expect(off.thumbOffset).toEqual([4, 10]);
-      expect(off.duration).toBe("0.18s");
-      expect(off.overflow).toBe(false);
+// Keep one data-preservation regression: notification controls are hidden, but
+// editing a habit must not erase its previously saved alarmEnabled setting.
+test("deferred reminder data survives editing and reload on a narrow dark screen", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 549 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "다크 모드로 전환" }).click();
+  await page.getByRole("tab", { name: "전체", exact: true }).click();
 
-      await switchInput.click();
-      await expect(switchInput).toHaveAttribute("aria-checked", "true");
-      await expect.poll(async () => (await geometry()).travel).toBe(24);
-      expect((await geometry()).thumbOffset).toEqual([28, 10]);
-      expect((await geometry()).thumb[5]).toBe("rgb(255, 255, 255)");
-      expect((await geometry()).clip).toBe("padding-box");
-      expect((await geometry()).border).toBe("6px");
-      expect((await geometry()).track[2]).toBe(
-        theme === "light" ? "rgb(98, 84, 126)" : "rgb(105, 90, 133)",
-      );
-      await switchInput.focus();
-      await page.keyboard.press("Space");
-      await expect(switchInput).toHaveAttribute("aria-checked", "false");
-      await expect.poll(async () => (await geometry()).travel).toBe(0);
-      await expect(switchInput).toHaveCSS("outline-style", "solid");
-      await page.keyboard.press("Enter");
-      await expect(switchInput).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("button", { name: "알림 메뉴" })).toHaveCount(0);
+  await expect(page.locator(".habit-card").first().getByRole("button", { name: /알림/ })).toHaveCount(0);
 
-      await page.emulateMedia({ reducedMotion: "reduce" });
-      await switchInput.click();
-      await expect(switchInput).toHaveAttribute("aria-checked", "false");
-      await switchInput.click();
-      await expect(switchInput).toHaveAttribute("aria-checked", "true");
-      expect((await geometry()).travel).toBe(24);
-      expect((await geometry()).duration).toBe("0s");
-      await page
-        .getByPlaceholder("예: 하루 10분 책 읽기")
-        .fill(`알림 스위치 ${theme} ${width}`);
-      await page
-        .getByRole("button", { name: "새 습관 추가하기", exact: true })
-        .click();
-      const editSavedHabit = page.getByRole("button", {
-        name: `알림 스위치 ${theme} ${width} 수정`,
-        exact: true,
-      });
-      await expect(editSavedHabit).toBeVisible();
-      await page.reload();
-      await editSavedHabit.click();
-      await expect(
-        page.getByRole("dialog", { name: "나를 위한 새로운 습관" }),
-      ).not.toBeVisible();
-      await expect(
-        page.getByRole("button", {
-          name: `알림 스위치 ${theme} ${width} 수정`,
-          exact: true,
-        }),
-      ).toBeVisible();
-      await page.reload();
-      await page
-        .getByRole("button", {
-          name: `알림 스위치 ${theme} ${width} 수정`,
-          exact: true,
-        })
-        .click();
-      await expect(
-        page.getByRole("switch", { name: "루틴 알림" }),
-      ).toHaveAttribute("aria-checked", "true");
-      await expect
-        .poll(() =>
-          page
-            .getByRole("dialog", { name: "습관 수정하기" })
-            .getByRole("switch", { name: "루틴 알림" })
-            .evaluate(
-              (button) =>
-                new DOMMatrixReadOnly(
-                  getComputedStyle(
-                    button.querySelector(".reminder-switch-thumb")!,
-                  ).transform,
-                ).m41,
-            ),
-        )
-        .toBe(24);
-      await page
-        .getByRole("dialog", { name: "습관 수정하기" })
-        .getByRole("button", { name: "닫기" })
-        .click();
-      await page
-        .getByRole("heading", { name: `알림 스위치 ${theme} ${width}` })
-        .click();
-      const detail = page.getByRole("dialog", { name: "오늘의 실천 기록" });
-      await expect(
-        detail.getByRole("switch", { name: "루틴 알림" }),
-      ).toHaveCount(0);
-      await expect(detail.getByLabel("예정 시간")).toHaveCount(0);
-      await detail.getByRole("button", { name: "닫기" }).click();
-      await page
-        .getByRole("button", {
-          name: `알림 스위치 ${theme} ${width} 수정`,
-          exact: true,
-        })
-        .click();
-      await expect(
-        page
-          .getByRole("dialog", { name: "습관 수정하기" })
-          .getByRole("switch", { name: "루틴 알림" }),
-      ).toHaveAttribute("aria-checked", "true");
+  await page.getByRole("button", { name: "미온수 한 잔 & 영양제 수정", exact: true }).click();
+  const editor = page.getByRole("dialog", { name: "습관 수정하기" });
+  await expect(editor.getByRole("switch", { name: "루틴 알림" })).toHaveCount(0);
+  await editor.getByLabel("예정 시간").fill("08:30");
+  await editor.getByRole("button", { name: "수정 완료" }).click();
+  await expect(page.locator(".habit-card").filter({ has: page.getByRole("heading", { name: "미온수 한 잔 & 영양제" }) })).toContainText("08:30");
+
+  // Wait for the local write to finish before reloading. The screen can update
+  // optimistically before IndexedDB does, especially on slower CI runners.
+  const readSavedHabit = () => page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("byeolharu-v2");
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
     });
-  }
-}
+    try {
+      const tx = db.transaction("scopes", "readonly");
+      const state = await new Promise<{ entities: Record<string, { kind: string; data: { title?: string; alarmEnabled?: boolean; scheduledTime?: string } }> }>((resolve, reject) => {
+        const request = tx.objectStore("scopes").get("guest");
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      return Object.values(state.entities)
+        .filter((entry) => entry.kind === "habits")
+        .map((entry) => entry.data)
+        .find((habit) => habit.title === "미온수 한 잔 & 영양제");
+    } finally {
+      db.close();
+    }
+  });
+  await expect.poll(readSavedHabit).toMatchObject({ alarmEnabled: true, scheduledTime: "08:30" });
+  await page.reload();
+  expect(await readSavedHabit()).toMatchObject({ alarmEnabled: true, scheduledTime: "08:30" });
+
+  await page.getByRole("tab", { name: "전체", exact: true }).click();
+  await expect(page.getByRole("button", { name: "알림 메뉴" })).toHaveCount(0);
+  const star = page.getByRole("button", { name: "미온수 한 잔 & 영양제 1점" });
+  const target = await star.boundingBox();
+  expect(target).not.toBeNull();
+  expect(target!.width).toBeGreaterThanOrEqual(44);
+  expect(target!.height).toBeGreaterThanOrEqual(44);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+});
