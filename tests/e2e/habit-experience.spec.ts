@@ -324,3 +324,15 @@ test.describe("mobile touch stars", () => {
     await expect(card.locator(".status-pill")).toHaveCSS("font-size", "10px");
   });
 });
+
+test("keyboard star focus stays accessible without a filled background tile", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("tab", { name: "전체", exact: true }).click();
+  const star = page.getByRole("button", { name: "미온수 한 잔 & 영양제 3점" });
+  await star.focus();
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Shift+Tab");
+  await expect(star).toBeFocused();
+  await expect(star).toHaveCSS("outline-style", "solid");
+  await expect(star).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+});
