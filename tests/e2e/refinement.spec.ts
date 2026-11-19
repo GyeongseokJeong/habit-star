@@ -170,19 +170,13 @@ for (const width of [320, 395]) {
         page.getByRole("tab", { name: "달력" }),
       ).toContainText("달력");
       await expect(page.locator(".matrix-panel")).toHaveCount(1);
-      await expect(page.locator(".little-note")).toContainText(
-        "꾸준함은 완벽함보다 빛나요.",
-      );
-      await expect(page.locator(".little-note")).toContainText(
-        "별 하나여도, 소중한 오늘이에요.",
-      );
+      const closing = page.locator(".closing-footer");
+      await expect(closing).toContainText("꾸준함은 완벽함보다 빛나요.");
+      await expect(closing.locator(".closing-copy p")).toBeVisible();
+      await expect(page.locator(".little-note, .gentle-note, .site-footer")).toHaveCount(0);
       await expect
-        .poll(() =>
-          page
-            .locator(".little-note")
-            .evaluate((note) => note.getBoundingClientRect().height),
-        )
-        .toBeLessThan(150);
+        .poll(() => closing.evaluate((footer) => footer.getBoundingClientRect().height))
+        .toBeLessThan(190);
       await page.getByRole("tab", { name: "전체" }).click();
       await expect(page.locator(".matrix-panel")).toHaveCount(0);
     }
