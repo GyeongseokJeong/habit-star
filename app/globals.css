@@ -2554,7 +2554,7 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   justify-content: center;
   align-items: center;
   gap: 2px;
-  margin: 5px auto 0;
+  margin: 2px auto 0;
   max-width: 350px;
 }
 .constellation-gallery-arrow,
@@ -2580,8 +2580,8 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   gap: 0;
 }
 .constellation-gallery-step {
-  flex-basis: 31px;
-  width: 31px;
+  flex-basis: 44px;
+  width: 44px;
   height: 44px;
 }
 .constellation-gallery-step > span {
@@ -2739,14 +2739,14 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
 }
 @media (max-width: 620px) {
   .modal.wide:has(.constellation-growth-view) {
-    width: 100%;
-    max-width: 100%;
-    padding: 14px 16px;
+    width: calc(100% - 24px);
+    max-width: calc(100% - 24px);
+    padding: 13px 16px;
     margin: 0;
     border-radius: 22px;
   }
-  .modal.wide:has(.constellation-growth-view) .modal-top { top: -14px; }
-  .constellation-card { padding: 12px 10px 14px; }
+  .modal.wide:has(.constellation-growth-view) .modal-top { top: -13px; }
+  .constellation-card { padding: 11px 10px 12px; }
 }
 
 
