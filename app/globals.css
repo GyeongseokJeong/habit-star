@@ -1015,8 +1015,11 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   overflow: hidden;
   padding: 14px 12px 0;
   background:
-    radial-gradient(ellipse 57% 48% at 27% 83%, var(--closing-sky-plum), transparent 100%),
-    radial-gradient(ellipse 46% 44% at 82% 90%, var(--closing-sky-rose), transparent 100%);
+    /* A page-colored fade avoids a horizontal seam below the distant hills. */
+    linear-gradient(180deg, transparent 55%, var(--bg) 100%),
+    /* Keep sky highlights inside the scenery instead of clipping at its sides. */
+    radial-gradient(ellipse 38% 51% at 39% 78%, var(--closing-sky-plum), transparent 100%),
+    radial-gradient(ellipse 32% 47% at 70% 80%, var(--closing-sky-rose), transparent 100%);
   color: #f4e5cf;
 }
 .closing-landscape::before {
@@ -1057,6 +1060,9 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   width: 100%;
   height: 34px;
   pointer-events: none;
+  /* Fade both landscape ends into the page without dimming the text. */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
 }
 .closing-divider {
   width: min(calc(100% - 48px), 520px);
