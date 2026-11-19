@@ -258,6 +258,7 @@ test("install action is only in settings when a real prompt is available", async
 }) => {
   await page.goto("/");
   await page.getByRole("tab", { name: "전체", exact: true }).click();
+  await page.locator(".normal-done-toggle").click();
   await expect(
     page.getByRole("heading", { name: "미온수 한 잔 & 영양제", exact: true }),
   ).toBeVisible();
