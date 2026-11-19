@@ -289,3 +289,75 @@ test("home teaser remains readable without artwork and opens by keyboard", async
   await page.keyboard.press("Space");
   await expect(page.getByRole("dialog", { name: "나의 별자리" })).toBeVisible();
 });
+
+
+test("earned-stage gallery navigates only unlocked art and preserves live growth", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: /나의 별자리 STAGE 1/ })).toBeVisible();
+  await seedConstellationPoints(page, 20);
+  await page.getByRole("button", { name: /나의 별자리 STAGE 3/ }).click();
+  const dialog = page.getByRole("dialog", { name: "나의 별자리" });
+  await expect(dialog.getByRole("heading", { name: "별빛의 연결" })).toBeVisible();
+  await expect(dialog.getByText("20점", { exact: true })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: /Stage 4/ })).toHaveCount(0);
+  await dialog.getByRole("button", { name: "이전 별자리" }).click();
+  await expect(dialog.getByRole("heading", { name: "별이 모이는 밤" })).toBeVisible();
+  await expect(dialog.getByText("7 ~ 19점 · 지난 별자리")).toBeVisible();
+  await expect(dialog.getByText("20점", { exact: true })).toBeVisible();
+  await expect(dialog.getByRole("progressbar", { name: /Stage 4/ })).toHaveAttribute("aria-valuenow", "20");
+  await dialog.getByRole("button", { name: /별이 모이는 밤 원화 크게 보기/ }).click();
+  const zoom = page.getByRole("dialog", { name: "별이 모이는 밤 원화 확대 감상" });
+  await expect(zoom.locator("[data-constellation-stage='2']")).toBeVisible();
+  await zoom.getByRole("button", { name: "확대 감상 닫기" }).click();
+  await dialog.getByRole("button", { name: "Stage 1 첫 번째 별빛" }).click();
+  await expect(dialog.getByRole("heading", { name: "첫 번째 별빛" })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "이전 별자리" })).toBeDisabled();
+  await dialog.getByRole("button", { name: "현재 별자리로" }).click();
+  await expect(dialog.getByRole("heading", { name: "별빛의 연결" })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "다음 별자리" })).toBeDisabled();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: /나의 별자리 STAGE 3/ }).click();
+  await expect(page.getByRole("dialog", { name: "나의 별자리" }).getByRole("heading", { name: "별빛의 연결" })).toBeVisible();
+});
+
+test("gallery supports horizontal touch swipes and keeps vertical gestures available", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: /나의 별자리 STAGE 1/ })).toBeVisible();
+  await seedConstellationPoints(page, 20);
+  await page.getByRole("button", { name: /나의 별자리 STAGE 3/ }).click();
+  const dialog = page.getByRole("dialog", { name: "나의 별자리" });
+  const art = dialog.getByRole("button", { name: "별빛의 연결 원화 크게 보기" });
+  await art.dispatchEvent("touchstart", { touches: [{ clientX: 50, clientY: 160 }] });
+  await art.dispatchEvent("touchend", { changedTouches: [{ clientX: 140, clientY: 170 }] });
+  await expect(dialog.getByRole("heading", { name: "별이 모이는 밤" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: /원화 확대 감상/ })).toHaveCount(0);
+  const previousArt = dialog.getByRole("button", { name: "별이 모이는 밤 원화 크게 보기" });
+  await previousArt.dispatchEvent("touchstart", { touches: [{ clientX: 120, clientY: 160 }] });
+  await previousArt.dispatchEvent("touchend", { changedTouches: [{ clientX: 130, clientY: 250 }] });
+  await expect(dialog.getByRole("heading", { name: "별이 모이는 밤" })).toBeVisible();
+});
+
+test("constellation modal keeps four rounded corners on mobile and honors reduced motion", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: /나의 별자리 STAGE 1/ })).toBeVisible();
+  await seedConstellationPoints(page, 7);
+  await page.getByRole("button", { name: /나의 별자리 STAGE 2/ }).click();
+  const dialog = page.getByRole("dialog", { name: "나의 별자리" });
+  const style = await dialog.evaluate((el) => {
+    const css = getComputedStyle(el);
+    const bounds = el.getBoundingClientRect();
+    return { topLeft: css.borderTopLeftRadius, bottomLeft: css.borderBottomLeftRadius, bottomRight: css.borderBottomRightRadius, margin: bounds.left, right: window.innerWidth - bounds.right };
+  });
+  expect(parseFloat(style.topLeft)).toBeGreaterThanOrEqual(20);
+  expect(parseFloat(style.bottomLeft)).toBeGreaterThanOrEqual(20);
+  expect(parseFloat(style.bottomRight)).toBeGreaterThanOrEqual(20);
+  expect(style.margin).toBeGreaterThan(0);
+  expect(style.right).toBeGreaterThan(0);
+  await dialog.getByRole("button", { name: "이전 별자리" }).click();
+  await expect(dialog.locator(".constellation-gallery-enter")).toHaveCSS("animation-name", "none");
+  await expect(dialog.getByRole("heading", { name: "첫 번째 별빛" })).toBeVisible();
+});
