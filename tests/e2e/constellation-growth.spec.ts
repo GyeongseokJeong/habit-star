@@ -313,7 +313,11 @@ test("earned-stage gallery navigates only unlocked art and preserves live growth
   await dialog.getByRole("button", { name: "Stage 1 첫 번째 별빛" }).click();
   await expect(dialog.getByRole("heading", { name: "첫 번째 별빛" })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "이전 별자리" })).toBeDisabled();
-  await dialog.getByRole("button", { name: "현재 별자리로" }).click();
+  const returnButton = dialog.getByRole("button", { name: "현재 별자리로" });
+  const returnBounds = await returnButton.boundingBox();
+  expect(returnBounds).not.toBeNull();
+  expect(returnBounds!.height).toBeGreaterThanOrEqual(44);
+  await returnButton.click();
   await expect(dialog.getByRole("heading", { name: "별빛의 연결" })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "다음 별자리" })).toBeDisabled();
   await page.keyboard.press("Escape");
@@ -358,6 +362,19 @@ test("stage gallery dot selectors have 44px touch targets without overflow at 32
   const steps = dialog.locator(".constellation-gallery-step");
   await expect(steps).toHaveCount(3);
   for (const button of await steps.all()) {
+    const colors = await button.evaluate((element) => {
+      const dot = element.querySelector("span")!;
+      const target = getComputedStyle(dot).backgroundColor;
+      const theme = element.closest(".byeolharu")!;
+      const token = element.getAttribute("aria-pressed") === "true" ? "--selection-bg" : "--control-bg";
+      const probe = document.createElement("span");
+      probe.style.backgroundColor = `var(${token})`;
+      theme.appendChild(probe);
+      const expected = getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      return { target, expected };
+    });
+    expect(colors.target).toBe(colors.expected);
     const bounds = await button.boundingBox();
     expect(bounds).not.toBeNull();
     expect(bounds!.width).toBeGreaterThanOrEqual(44);
