@@ -19,7 +19,7 @@ describe("smart startup routine tabs", () => {
   });
 
   it("uses member timezone instead of device timezone", () => {
-    const utcNoon = new Date("2026-11-19T12:30:00Z");
+    const utcNoon = new Date("2026-11-19T14:30:00Z");
     expect(currentTimeGroup(utcNoon, "Asia/Seoul")).toBe("night");
     expect(currentTimeGroup(utcNoon, "America/Los_Angeles")).toBe("morning");
   });
