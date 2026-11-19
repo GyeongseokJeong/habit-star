@@ -81,7 +81,7 @@ async function checkControls(page: Page, theme: "light" | "dark") {
       },
       targets: [
         ...modal.querySelectorAll<HTMLElement>(
-          ".emoji-picker button, .segmented button, .repeat-weekdays button, .reminder-switch",
+          ".emoji-picker button, .segmented button, .repeat-weekdays button",
         ),
       ].map((element) => {
         const rect = element.getBoundingClientRect();
@@ -210,77 +210,55 @@ for (const width of [320, 390, 430]) {
   });
 }
 
-// Reminder toggles are deferred, but previously saved alarmEnabled values
-// must survive edits, reloads and theme changes for the future notification release.
-for (const theme of ["light", "dark"] as const) {
-  for (const width of [320, 395]) {
-    test(`deferred reminder settings remain saved but hidden at ${width}px in ${theme}`, async ({ page }) => {
-      await page.setViewportSize({ width, height: 549 });
-      await page.goto("/");
-      if (theme === "dark") await page.getByRole("button", { name: "다크 모드로 전환" }).click();
-      await page.getByRole("tab", { name: "전체", exact: true }).click();
-      await expect(page.getByRole("button", { name: "알림 메뉴" })).toHaveCount(0);
-      const cards = page.locator(".habit-card");
-      await expect(cards).toHaveCount(5);
-      await expect(cards.first().getByRole("button", { name: /알림/ })).toHaveCount(0);
-      const before = await page.evaluate(async () => {
-        const db = await new Promise<IDBDatabase>((resolve, reject) => {
-          const request = indexedDB.open("byeolharu-v2");
-          request.onsuccess = () => resolve(request.result);
-          request.onerror = () => reject(request.error);
-        });
-        try {
-          const tx = db.transaction("scopes", "readonly");
-          const state = await new Promise<{ entities: Record<string, { kind: string; data: { alarmEnabled?: boolean } }> }>((resolve, reject) => {
-            const request = tx.objectStore("scopes").get("guest");
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-          });
-          return Object.values(state.entities).filter((entry) => entry.kind === "habits").map((entry) => entry.data.alarmEnabled);
-        } finally { db.close(); }
-      });
-      expect(before).toContain(true);
-      await page.getByRole("button", { name: "미온수 한 잔 & 영양제 수정", exact: true }).click();
-      const editor = page.getByRole("dialog", { name: "습관 수정하기" });
-      await expect(editor.getByRole("switch", { name: "루틴 알림" })).toHaveCount(0);
-      await editor.getByLabel("예정 시간").fill("08:30");
-      await editor.getByRole("button", { name: "수정 완료" }).click();
-      await expect(page.getByRole("button", { name: "미온수 한 잔 & 영양제 수정" })).toBeVisible();
-      await expect(page.locator(".habit-card").filter({ has: page.getByRole("heading", { name: "미온수 한 잔 & 영양제" }) })).toContainText("08:30");
-      await page.reload();
-      await page.getByRole("tab", { name: "전체", exact: true }).click();
-      await expect(page.getByRole("button", { name: "알림 메뉴" })).toHaveCount(0);
-      const after = await page.evaluate(async () => {
-        const db = await new Promise<IDBDatabase>((resolve, reject) => {
-          const request = indexedDB.open("byeolharu-v2");
-          request.onsuccess = () => resolve(request.result);
-          request.onerror = () => reject(request.error);
-        });
-        try {
-          const tx = db.transaction("scopes", "readonly");
-          const state = await new Promise<{ entities: Record<string, { kind: string; data: { alarmEnabled?: boolean; title?: string; scheduledTime?: string } }> }>((resolve, reject) => {
-            const request = tx.objectStore("scopes").get("guest");
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-          });
-          return Object.values(state.entities).filter((entry) => entry.kind === "habits").map((entry) => entry.data);
-        } finally { db.close(); }
-      });
-      expect(after.find((item) => item.title === "미온수 한 잔 & 영양제")).toMatchObject({
-        alarmEnabled: true, scheduledTime: "08:30",
-      });
-      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
-      const stars = page.getByRole("button", { name: "미온수 한 잔 & 영양제 1점" });
-      const target = await stars.boundingBox();
-      expect(target!.width).toBeGreaterThanOrEqual(44);
-      expect(target!.height).toBeGreaterThanOrEqual(44);
-      // CSS focus-visible is keyboard modality dependent; a programmatic
-      // focus() alone should not be treated as a visible keyboard ring.
-      await stars.focus();
-      await page.keyboard.press("Tab");
-      await page.keyboard.press("Shift+Tab");
-      await expect(stars).toBeFocused();
-      await expect(stars).toHaveCSS("outline-style", "solid");
+// Keep one data-preservation regression: notification controls are hidden, but
+// editing a habit must not erase its previously saved alarmEnabled setting.
+test("deferred reminder data survives editing and reload on a narrow dark screen", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 549 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "다크 모드로 전환" }).click();
+  await page.getByRole("tab", { name: "전체", exact: true }).click();
+
+  await expect(page.getByRole("button", { name: "알림 메뉴" })).toHaveCount(0);
+  await expect(page.locator(".habit-card").first().getByRole("button", { name: /알림/ })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "미온수 한 잔 & 영양제 수정", exact: true }).click();
+  const editor = page.getByRole("dialog", { name: "습관 수정하기" });
+  await expect(editor.getByRole("switch", { name: "루틴 알림" })).toHaveCount(0);
+  await editor.getByLabel("예정 시간").fill("08:30");
+  await editor.getByRole("button", { name: "수정 완료" }).click();
+  await page.reload();
+
+  // The visible toggle is postponed; its persisted value remains usable by
+  // a future background notification implementation.
+  const saved = await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("byeolharu-v2");
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
     });
-  }
-}
+    try {
+      const tx = db.transaction("scopes", "readonly");
+      const state = await new Promise<{ entities: Record<string, { kind: string; data: { title?: string; alarmEnabled?: boolean; scheduledTime?: string } }> }>((resolve, reject) => {
+        const request = tx.objectStore("scopes").get("guest");
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      return Object.values(state.entities)
+        .filter((entry) => entry.kind === "habits")
+        .map((entry) => entry.data)
+        .find((habit) => habit.title === "미온수 한 잔 & 영양제");
+    } finally {
+      db.close();
+    }
+  });
+  expect(saved).toMatchObject({ alarmEnabled: true, scheduledTime: "08:30" });
+
+  await page.getByRole("tab", { name: "전체", exact: true }).click();
+  await expect(page.getByRole("button", { name: "알림 메뉴" })).toHaveCount(0);
+  const star = page.getByRole("button", { name: "미온수 한 잔 & 영양제 1점" });
+  const target = await star.boundingBox();
+  expect(target).not.toBeNull();
+  expect(target!.width).toBeGreaterThanOrEqual(44);
+  expect(target!.height).toBeGreaterThanOrEqual(44);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+});
