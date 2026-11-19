@@ -672,10 +672,11 @@ function HabitCard({
   onEdit,
 }: {
   habit: Habit;
-  onRate: (id: string, rating: number) => void;
+  onRate: (id: string, rating: number, fromKeyboard: boolean) => void;
   onOpen: () => void;
   onEdit: () => void;
 }) {
+  const keyboardRating = useRef(false);
   return (
     <article className={`habit-card ${habit.completed ? "is-completed" : ""}`}>
       <div className="card-top">
@@ -713,11 +714,21 @@ function HabitCard({
           {GROUPS[habit.timeGroup].name} 루틴
         </span>
       </button>
-      <div className="card-rating">
+      <div
+        className="card-rating"
+        onKeyDownCapture={(event) => {
+          if ((event.key === "Enter" || event.key === " ") &&
+            (event.target as HTMLElement).closest(".star-tray")) keyboardRating.current = true;
+        }}
+        onPointerDownCapture={() => { keyboardRating.current = false; }}
+      >
         <StarRating
           label={habit.title}
           rating={habit.rating}
-          onSelect={(value) => onRate(habit.id, value)}
+          onSelect={(value) => {
+            onRate(habit.id, value, keyboardRating.current);
+            keyboardRating.current = false;
+          }}
         />
         <span className="rating-number">
           {habit.rating ? (
@@ -947,6 +958,7 @@ export default function Byeolharu() {
   const [compactExpandedId, setCompactExpandedId] = useState<string | null>(null);
   const compactCollapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const compactFocusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const normalFocusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [now, setNow] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("all");
   // Resolve once per loaded identity, unless the user has navigated manually.
@@ -1016,6 +1028,7 @@ export default function Byeolharu() {
       if (celebrationTimer.current) clearTimeout(celebrationTimer.current);
       if (compactCollapseTimer.current) clearTimeout(compactCollapseTimer.current);
       if (compactFocusTimer.current) clearTimeout(compactFocusTimer.current);
+      if (normalFocusTimer.current) clearTimeout(normalFocusTimer.current);
       for (const timer of reorderTimers.current.values()) clearTimeout(timer);
       reorderTimers.current.clear();
     };
@@ -1291,7 +1304,23 @@ export default function Byeolharu() {
     <HabitCard
       key={habit.id}
       habit={habit}
-      onRate={handleRateHabit}
+      onRate={(id, value, fromKeyboard) => {
+        handleRateHabit(id, value);
+        if (normalFocusTimer.current) clearTimeout(normalFocusTimer.current);
+        if (fromKeyboard) {
+          // Reordering after 700ms removes the focused star: advance focus while
+          // the old card is still mounted. Pointer/touch recording is unaffected.
+          normalFocusTimer.current = setTimeout(() => {
+            const next = Array.from(document.querySelectorAll<HTMLElement>(
+              ".normal-pending-list .habit-card .card-rating button",
+            )).find((button) => !button.closest(".habit-card")?.contains(document.activeElement));
+            const fallback = document.querySelector<HTMLButtonElement>(".normal-done-toggle")
+              ?? document.getElementById("tab-" + activeTab);
+            (next ?? fallback)?.focus();
+            normalFocusTimer.current = null;
+          }, 600);
+        }
+      }}
       onOpen={() => setDetailId(habit.id)}
       onEdit={() => setEditing(habit)}
     />
