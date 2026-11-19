@@ -993,14 +993,17 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
 .expanded .calendar-grid {
   gap: 5px;
 }
-/* B3.4: a quiet, space-efficient ending after the last routine card.
-   It has no action surface: instructions live in the Account Hub instead. */
+/* B3.6: the emotional closing is part of the page, not a separate image card.
+   Keep both themes' sky translucent and make the front hill equal --bg so no
+   rectangular edge or hard color seam appears above the brand signature. */
 .closing-footer {
   width: min(100%, 900px);
-  margin: 20px auto 0;
+  margin: 18px auto 0;
   text-align: center;
-  --closing-hill-back: #322b48;
-  --closing-hill-front: #171d29;
+  --closing-hill-back: #393049;
+  --closing-hill-front: var(--bg);
+  --closing-sky-plum: rgb(150 112 197 / 20%);
+  --closing-sky-rose: rgb(197 131 154 / 12%);
 }
 .closing-landscape {
   position: relative;
@@ -1008,13 +1011,12 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   display: grid;
   align-items: start;
   justify-items: center;
-  height: 120px;
+  height: 104px;
   overflow: hidden;
-  padding: 19px 12px 0;
+  padding: 14px 12px 0;
   background:
-    radial-gradient(ellipse at 85% 100%, #b98a7042, transparent 33%),
-    radial-gradient(ellipse at 14% 98%, #8468a538, transparent 42%),
-    linear-gradient(180deg, #111729, #211c32 88%, #2a233d);
+    radial-gradient(ellipse 57% 48% at 27% 83%, var(--closing-sky-plum), transparent 100%),
+    radial-gradient(ellipse 46% 44% at 82% 90%, var(--closing-sky-rose), transparent 100%);
   color: #f4e5cf;
 }
 .closing-landscape::before {
@@ -1053,45 +1055,53 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   left: 0;
   display: block;
   width: 100%;
-  height: 39px;
+  height: 34px;
   pointer-events: none;
+}
+.closing-divider {
+  width: min(calc(100% - 48px), 520px);
+  height: 1px;
+  margin: 4px auto 0;
+  background: linear-gradient(90deg, transparent, var(--line) 20%, var(--line) 80%, transparent);
 }
 .closing-brand {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 35px;
-  margin-top: 8px;
+  min-height: 34px;
+  margin-top: 6px;
   color: var(--muted);
   font-size: 12px;
   font-weight: 600;
 }
 .closing-brand svg { color: var(--accent); }
 @media (max-width: 620px) {
-  .closing-footer { margin-top: 20px; }
-  .closing-landscape { height: 112px; padding-top: 18px; }
-  .closing-horizon { height: 32px; }
-  .closing-brand { margin-top: 6px; min-height: 34px; }
+  .closing-footer { margin-top: 16px; }
+  .closing-landscape { height: 96px; padding-top: 14px; }
+  .closing-horizon { height: 30px; }
+  .closing-brand { min-height: 32px; }
 }
 @media (max-width: 340px) {
   .closing-copy h2 { font-size: 16px; letter-spacing: -.8px; }
   .closing-copy p { font-size: 11px; }
 }
-/* A light-theme version uses the same sunset artwork but no inverted text. */
-.byeolharu.light .closing-landscape {
-  background:
-    radial-gradient(ellipse at 85% 100%, #c9a17e69, transparent 34%),
-    radial-gradient(ellipse at 14% 98%, #a68dbd69, transparent 42%),
-    linear-gradient(180deg, #f1ebf2, #e5d7e9 80%, #d8c0dd);
-  color: #392a48;
-}
-.byeolharu.light .closing-copy h2 { color: #392a48; }
-.byeolharu.light .closing-copy p { color: #51445f; }
+/* The same translucent landscape adapts to the underlying light surface. */
 .byeolharu.light .closing-footer {
-  --closing-hill-back: #b6a3c5;
-  --closing-hill-front: #e7dbe9;
+  --closing-hill-back: #ddd0e7;
+  --closing-sky-plum: rgb(151 120 190 / 22%);
+  --closing-sky-rose: rgb(225 163 156 / 17%);
 }
+.byeolharu.light .closing-copy h2 { color: #554577; }
+.byeolharu.light .closing-copy p { color: #645d79; }
+/* Retain the correct dark first paint before the stored theme hydrates. */
+html[data-byeolharu-theme="dark"] .byeolharu.light .closing-footer {
+  --closing-hill-back: #393049;
+  --closing-sky-plum: rgb(150 112 197 / 20%);
+  --closing-sky-rose: rgb(197 131 154 / 12%);
+}
+html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy h2 { color: #f4e5cf; }
+html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d9e7; }
 
 /* B3.5 compact view: only a display preference; existing record cards stay unchanged. */
 .compact-view .compact-metrics {
