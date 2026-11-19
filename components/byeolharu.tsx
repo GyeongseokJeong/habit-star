@@ -1196,10 +1196,14 @@ export default function Byeolharu() {
   // A newly signed-in member may publish an empty, unhydrated local snapshot
   // before the initial cloud pull. Wait for hydrated member data so that
   // both the actual routines and the account timezone decide the first tab.
+  // The cloud pull sets hydrated before ensureDay seeds today\'s entries.
   // Re-resolve for a new identity only if the user has not navigated manually.
   useEffect(() => {
     if (!now || !app.snapshot || tabChosenManually.current) return;
-    if (app.user && !app.snapshot.state.hydrated) return;
+    if (app.user && (
+      !app.snapshot.state.hydrated ||
+      !Object.prototype.hasOwnProperty.call(app.snapshot.history, app.snapshot.day)
+    )) return;
     const identity = app.user?.id ?? "guest";
     if (startupTabResolved.current === identity) return;
     startupTabResolved.current = identity;
