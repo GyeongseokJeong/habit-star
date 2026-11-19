@@ -690,7 +690,7 @@ test("fresh member resolves startup tab only after cloud hydration, unless manua
         await expect(second.getByRole("tab", { name: "전체", exact: true }))
           .toHaveAttribute("aria-selected", "true");
         if (manuallyNavigate) {
-          await second.getByRole("tab", { name: "별점 매트릭스" }).click();
+          await second.getByRole("tab", { name: "달력" }).click();
         }
 
         let release!: () => void;
@@ -712,7 +712,7 @@ test("fresh member resolves startup tab only after cloud hydration, unless manua
           await pulling;
           await second.getByRole("button", { name: "닫기", exact: true }).click();
           await expect(second.getByRole("tab", {
-            name: manuallyNavigate ? "별점 매트릭스" : "전체", exact: true,
+            name: manuallyNavigate ? "달력" : "전체", exact: true,
           })).toHaveAttribute("aria-selected", "true");
         } finally {
           release();
@@ -721,7 +721,7 @@ test("fresh member resolves startup tab only after cloud hydration, unless manua
           timeout: 30000,
         });
         await expect(second.getByRole("tab", {
-          name: manuallyNavigate ? "별점 매트릭스" : currentPeriod,
+          name: manuallyNavigate ? "달력" : currentPeriod,
           exact: true,
         })).toHaveAttribute("aria-selected", "true");
         if (manuallyNavigate) {
