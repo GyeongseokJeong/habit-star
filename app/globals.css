@@ -993,47 +993,21 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
 .expanded .calendar-grid {
   gap: 5px;
 }
-/* B3.6: the emotional closing is part of the page, not a separate image card.
-   Keep both themes' sky translucent and make the front hill equal --bg so no
-   rectangular edge or hard color seam appears above the brand signature. */
+/* B3.8: user-approved moonlit horizon, cropped from the selected visual mockup.
+   The scene is decorative, the message remains selectable HTML text, and the
+   transparent artwork blends into the existing page surface without a box. */
 .closing-footer {
   width: min(100%, 900px);
   margin: 18px auto 0;
   text-align: center;
-  --closing-hill-back: #393049;
-  --closing-hill-front: var(--bg);
-  --closing-sky-plum: rgb(150 112 197 / 20%);
-  --closing-sky-rose: rgb(197 131 154 / 12%);
 }
 .closing-landscape {
   position: relative;
   isolation: isolate;
-  display: grid;
-  align-items: start;
-  justify-items: center;
-  height: 104px;
+  height: 144px;
+  padding: 12px 12px 0;
   overflow: hidden;
-  padding: 14px 12px 0;
-  background:
-    /* A page-colored fade avoids a horizontal seam below the distant hills. */
-    linear-gradient(180deg, transparent 55%, var(--bg) 100%),
-    /* Keep sky highlights inside the scenery instead of clipping at its sides. */
-    radial-gradient(ellipse 38% 51% at 39% 78%, var(--closing-sky-plum), transparent 100%),
-    radial-gradient(ellipse 32% 47% at 70% 80%, var(--closing-sky-rose), transparent 100%);
-  color: #f4e5cf;
-}
-.closing-landscape::before {
-  content: "";
-  position: absolute;
-  inset: 8px 20px 25px;
-  z-index: -1;
-  opacity: .85;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 13% 50%, #e6bf8f 0 1px, transparent 2px),
-    radial-gradient(circle at 29% 24%, #c9a6d8 0 1px, transparent 2px),
-    radial-gradient(circle at 75% 27%, #e6bf8f 0 1px, transparent 2px),
-    radial-gradient(circle at 91% 48%, #f4cb9b 0 1px, transparent 2px);
+  background: radial-gradient(ellipse 55% 42% at 50% 93%, rgb(138 103 169 / 12%), transparent);
 }
 .closing-copy { position: relative; z-index: 1; }
 .closing-copy h2 {
@@ -1052,17 +1026,13 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   line-height: 1.45;
   word-break: keep-all;
 }
-.closing-horizon {
+.closing-moonlit-scene {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  display: block;
-  width: 100%;
-  height: 34px;
+  z-index: 0;
+  inset: auto 0 0;
+  height: 84px;
+  background: url("/assets/footer/moonlit-horizon-dark.webp") center bottom / 100% 100% no-repeat;
   pointer-events: none;
-  /* Fade both landscape ends into the page without dimming the text. */
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
 }
 .closing-divider {
   width: min(calc(100% - 48px), 520px);
@@ -1084,27 +1054,25 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
 .closing-brand svg { color: var(--accent); }
 @media (max-width: 620px) {
   .closing-footer { margin-top: 16px; }
-  .closing-landscape { height: 96px; padding-top: 14px; }
-  .closing-horizon { height: 30px; }
+  .closing-landscape { height: 126px; padding-top: 12px; }
+  .closing-moonlit-scene { height: 72px; }
   .closing-brand { min-height: 32px; }
 }
 @media (max-width: 340px) {
   .closing-copy h2 { font-size: 16px; letter-spacing: -.8px; }
   .closing-copy p { font-size: 11px; }
 }
-/* The same translucent landscape adapts to the underlying light surface. */
-.byeolharu.light .closing-footer {
-  --closing-hill-back: #ddd0e7;
-  --closing-sky-plum: rgb(151 120 190 / 22%);
-  --closing-sky-rose: rgb(225 163 156 / 17%);
+.byeolharu.light .closing-landscape {
+  background: radial-gradient(ellipse 55% 42% at 50% 93%, rgb(161 129 197 / 11%), transparent);
+}
+.byeolharu.light .closing-moonlit-scene {
+  background-image: url("/assets/footer/moonlit-horizon-light.webp");
 }
 .byeolharu.light .closing-copy h2 { color: #554577; }
 .byeolharu.light .closing-copy p { color: #645d79; }
-/* Retain the correct dark first paint before the stored theme hydrates. */
-html[data-byeolharu-theme="dark"] .byeolharu.light .closing-footer {
-  --closing-hill-back: #393049;
-  --closing-sky-plum: rgb(150 112 197 / 20%);
-  --closing-sky-rose: rgb(197 131 154 / 12%);
+/* The stored OS-independent theme takes precedence during the first paint. */
+html[data-byeolharu-theme="dark"] .byeolharu.light .closing-moonlit-scene {
+  background-image: url("/assets/footer/moonlit-horizon-dark.webp");
 }
 html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy h2 { color: #f4e5cf; }
 html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d9e7; }

@@ -1752,18 +1752,7 @@ export default function Byeolharu() {
                 ? "오늘도 한 걸음, 잘 해내고 있어요."
                 : "작은 시작도 충분히 소중해요."}</p>
             </div>
-            <svg className="closing-horizon" viewBox="0 0 320 42" preserveAspectRatio="none" aria-hidden="true">
-              <defs>
-                <linearGradient id="closing-horizon-glow" x1="0%" x2="100%" y1="0%" y2="0%">
-                  <stop offset="0%" stopColor="#8660BA" />
-                  <stop offset="65%" stopColor="#D4A8BD" />
-                  <stop offset="100%" stopColor="#F0B976" />
-                </linearGradient>
-              </defs>
-              <path d="M0 24 Q42 10 92 26 T202 25 T320 17" fill="none" stroke="url(#closing-horizon-glow)" strokeWidth="1.2" />
-              <path d="M0 24 Q42 10 92 26 T202 25 T320 17 V42 H0Z" fill="var(--closing-hill-back)" />
-              <path d="M0 32 Q80 14 158 34 T320 28 V42 H0Z" fill="var(--closing-hill-front)" />
-            </svg>
+            <div className="closing-moonlit-scene" aria-hidden="true" />
           </div>
           <div className="closing-divider" aria-hidden="true" />
           <div className="closing-brand"><Sparkles size={16} aria-hidden="true" /> 별하루</div>
