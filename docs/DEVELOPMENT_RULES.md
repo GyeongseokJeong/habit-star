@@ -11,6 +11,14 @@ Analyze(코드·호출 경로·영향 확인) → Design(철학·기존 UI·데�
 | 데이터/인증/동기화 | 위 검사 + `pnpm test:db --postgres`                       | 실제 로컬 Supabase 환경에서 `pnpm test:db`, `pnpm test:e2e:cloud`; 기존 데이터·오프라인·계정 격리 |
 | 배포               | `pnpm build`, `pnpm test:e2e:production`, CI verify/cloud | 운영 백업·복구·PWA·환경변수 확인, 기존 v0.app Publish 유지                                        |
 
+## Vercel 연동과 PR 품질 검사
+
+- GitHub Actions `CI / verify`, `CI / cloud`는 PR 및 `main`에서 그대로 실행하며 코드 품질의 기준으로 유지한다. GitHub Actions 자체에는 Vercel 배포 검사가 없다.
+- 루트 `vercel.json`의 `git.deploymentEnabled`에서 `main`만 자동 배포하고 다른 브랜치의 Preview 자동 배포는 중단한다. `main`이 Vercel 프로젝트의 Production Branch인지 프로젝트별로 확인한다. v0.app의 Publish 및 수동 배포 동작은 이 설정만으로 보장되지 않으며 별도로 확인한다.
+- 배포 플랫폼의 `Vercel – habit-star`, `Vercel – habit-star-pwa-development` 상태는 GitHub Actions 검사가 아니라 Vercel GitHub 연동에서 발행한 외부 상태다. GitHub Branch protection에 필수 검사로 지정돼 있다면 저장소 관리자가 해당 두 검사만 해제해야 한다. 이 변경은 `vercel.json` 또는 CI YAML로 대신할 수 없다.
+- 개발용 Vercel 프로젝트가 같은 저장소의 `main`에도 반응한다면 프로젝트 Git 연결/Production Branch 설정에서 불필요한 중복 자동 배포를 별도로 제한한다. 저장소의 단일 `vercel.json`은 프로젝트마다 다른 배포 정책을 독립 지정하지 못한다.
+- `vercel.json` 정책이 실제 연동 프로젝트에 적용됐는지 Preview 브랜치와 `main` 각각에 대해 새 커밋 시 확인한다. 오래된 실패 상태는 자동으로 삭제되지 않는다. Vercel 상태가 여전히 PR에 발생하면 Vercel 프로젝트 Git 설정을 다시 확인한다. CI 실패를 가리거나 필수 검사를 무작정 비활성화하지 않는다.
+
 ## 브라우저 호환성 증거 절차
 
 호환성 문제는 **Unresolved → Reproduced → Root Cause Confirmed → Fixed → Device Verified → Closed** 순으로 관리한다. Deferred는 해결 상태가 아니라 작업 우선순위 표시다. 각 단계는 기기·OS/브라우저 버전과 강제 다크 설정·앱 테마, 재현 증거, 이전 수정 이력, 코드/브라우저 원인 비교, 수정 커밋과 회귀 테스트, 해당 실기기의 수정 후 결과를 근거로 전환한다. 원인 가설만으로 Root Cause Confirmed/Fixed/Closed로 옮기지 않는다. 실기기를 구할 수 없다면 Device Verified/Closed로 옮기지 않는다.
