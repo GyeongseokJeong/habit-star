@@ -329,13 +329,21 @@ test("gallery supports horizontal touch swipes and keeps vertical gestures avail
   await page.getByRole("button", { name: /나의 별자리 STAGE 3/ }).click();
   const dialog = page.getByRole("dialog", { name: "나의 별자리" });
   const art = dialog.getByRole("button", { name: "별빛의 연결 원화 크게 보기" });
-  await art.dispatchEvent("touchstart", { touches: [{ clientX: 50, clientY: 160 }] });
-  await art.dispatchEvent("touchend", { changedTouches: [{ clientX: 140, clientY: 170 }] });
+  await art.evaluate((el) => {
+    const start = new Touch({ identifier: 1, target: el, clientX: 50, clientY: 160 });
+    const end = new Touch({ identifier: 1, target: el, clientX: 140, clientY: 170 });
+    el.dispatchEvent(new TouchEvent("touchstart", { bubbles: true, touches: [start], changedTouches: [start] }));
+    el.dispatchEvent(new TouchEvent("touchend", { bubbles: true, touches: [], changedTouches: [end] }));
+  });
   await expect(dialog.getByRole("heading", { name: "별이 모이는 밤" })).toBeVisible();
   await expect(page.getByRole("dialog", { name: /원화 확대 감상/ })).toHaveCount(0);
   const previousArt = dialog.getByRole("button", { name: "별이 모이는 밤 원화 크게 보기" });
-  await previousArt.dispatchEvent("touchstart", { touches: [{ clientX: 120, clientY: 160 }] });
-  await previousArt.dispatchEvent("touchend", { changedTouches: [{ clientX: 130, clientY: 250 }] });
+  await previousArt.evaluate((el) => {
+    const start = new Touch({ identifier: 2, target: el, clientX: 120, clientY: 160 });
+    const end = new Touch({ identifier: 2, target: el, clientX: 130, clientY: 250 });
+    el.dispatchEvent(new TouchEvent("touchstart", { bubbles: true, touches: [start], changedTouches: [start] }));
+    el.dispatchEvent(new TouchEvent("touchend", { bubbles: true, touches: [], changedTouches: [end] }));
+  });
   await expect(dialog.getByRole("heading", { name: "별이 모이는 밤" })).toBeVisible();
 });
 
