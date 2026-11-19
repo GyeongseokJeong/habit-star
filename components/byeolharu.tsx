@@ -943,7 +943,7 @@ export default function Byeolharu() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [compactView, setCompactView] = useState(false);
   const [compactPreferenceLoaded, setCompactPreferenceLoaded] = useState(false);
-  const [compactCompletedOpen, setCompactCompletedOpen] = useState(false);
+  const [completedOpen, setCompletedOpen] = useState(false);
   const [compactExpandedId, setCompactExpandedId] = useState<string | null>(null);
   const compactCollapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const compactFocusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1052,7 +1052,7 @@ export default function Byeolharu() {
 
   const updateCompactView = (enabled: boolean) => {
     setCompactView(enabled);
-    setCompactCompletedOpen(false);
+    setCompletedOpen(false);
     setCompactExpandedId(null);
   };
 
@@ -1250,7 +1250,7 @@ export default function Byeolharu() {
     (habit) => heldCompletion.get(habit.id) ?? habit.completed,
   );
   useEffect(() => {
-    setCompactCompletedOpen(false);
+    setCompletedOpen(false);
     setCompactExpandedId(null);
   }, [activeTab, today, scope]);
 
@@ -1583,14 +1583,14 @@ export default function Byeolharu() {
                               <button
                                 type="button"
                                 className="compact-done-toggle"
-                                aria-expanded={compactCompletedOpen}
+                                aria-expanded={completedOpen}
                                 aria-controls="compact-completed-list"
-                                onClick={() => setCompactCompletedOpen((value) => !value)}
+                                onClick={() => setCompletedOpen((value) => !value)}
                               >
                                 <span><CheckCircle2 size={17} aria-hidden="true" /> 완료한 습관 {compactCompleted.length}개</span>
-                                <span>{compactCompletedOpen ? "접기" : "보기"} {compactCompletedOpen ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}</span>
+                                <span>{completedOpen ? "접기" : "보기"} {completedOpen ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}</span>
                               </button>
-                              {compactCompletedOpen && (
+                              {completedOpen && (
                                 <div id="compact-completed-list" className="compact-completed-list">
                                   {compactCompleted.map(renderCompactCard)}
                                 </div>
@@ -1601,28 +1601,54 @@ export default function Byeolharu() {
                       )}
                     </div>
                   ) : (
-                  <div className="habit-grid">
-                    {filtered.map(renderCard)}
-                    {!filtered.length && (
-                      <div className="empty-state">
-                        <Leaf size={25} />
-                        <h3>
-                          {ready
-                            ? habits.length
-                              ? "오늘 예정된 습관이 없어요"
-                              : "아직 등록된 습관이 없어요"
-                            : "오늘의 루틴을 준비하고 있어요"}
-                        </h3>
-                        <p>가볍게 시작할 수 있는 작은 약속을 만들어보세요.</p>
-                        <button
-                          className="text-button"
-                          onClick={() => setEditing("new")}
-                        >
-                          <Plus size={15} />첫 습관 추가하기
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                    <div className="normal-habit-list">
+                      {compactPending.length > 0 && (
+                        <div className="habit-grid normal-pending-list" aria-label="실천할 습관">
+                          {compactPending.map(renderCard)}
+                        </div>
+                      )}
+                      {filtered.length > 0 && compactPending.length === 0 && (
+                        <p className="normal-all-done">오늘의 실천을 모두 마쳤어요 ✨</p>
+                      )}
+                      {compactCompleted.length > 0 && (
+                        <section className="normal-completed-group" aria-label="완료한 습관">
+                          <button
+                            type="button"
+                            className="normal-done-toggle"
+                            aria-expanded={completedOpen}
+                            aria-controls="normal-completed-list"
+                            onClick={() => setCompletedOpen((value) => !value)}
+                          >
+                            <span><CheckCircle2 size={18} aria-hidden="true" /> 완료한 습관 {compactCompleted.length}개</span>
+                            <span>{completedOpen ? "접기" : "보기"} {completedOpen ? <ChevronUp size={17} aria-hidden="true" /> : <ChevronDown size={17} aria-hidden="true" />}</span>
+                          </button>
+                          {completedOpen && (
+                            <div id="normal-completed-list" className="habit-grid normal-completed-list">
+                              {compactCompleted.map(renderCard)}
+                            </div>
+                          )}
+                        </section>
+                      )}
+                      {!filtered.length && (
+                        <div className="empty-state">
+                          <Leaf size={25} />
+                          <h3>
+                            {ready
+                              ? habits.length
+                                ? "오늘 예정된 습관이 없어요"
+                                : "아직 등록된 습관이 없어요"
+                              : "오늘의 루틴을 준비하고 있어요"}
+                          </h3>
+                          <p>가볍게 시작할 수 있는 작은 약속을 만들어보세요.</p>
+                          <button
+                            className="text-button"
+                            onClick={() => setEditing("new")}
+                          >
+                            <Plus size={15} />첫 습관 추가하기
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   )}
                   {!compactView && restingHabits.filter(
                     (h) => activeTab === "all" || h.timeGroup === activeTab,
