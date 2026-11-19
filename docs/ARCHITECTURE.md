@@ -4,7 +4,7 @@ Next.js 16 App Router + React 19 + TypeScript. `app/page.tsx`에서 클라이언
 
 ## 습관 설정과 날짜별 기록
 
-Habit Configuration은 `title`, `icon`, `timeGroup`, `repeatDays`, `scheduledTime`, `alarmEnabled`만, Daily Reflection은 해당 날짜의 `rating`, `completed`, `memo`만 변경한다. 카드의 빠른 별점은 기록 경로를, 알림 버튼은 설정 경로를 사용한다. 저장 시 화면의 전체 Habit을 병합하지 않고 허용 필드만 반영한다. 기존 Habit 모델과 `habit_entries` 날짜별 스냅샷은 유지하며, 설정 변경은 오늘의 기록을 보존하고 과거 스냅샷은 수정하지 않는다. 단순 체크(`completed: true`, `rating: 0`)는 미실천과 다르다. 새 기능에서도 두 화면의 책임을 혼합하지 않는다.
+Habit Configuration은 `title`, `icon`, `timeGroup`, `repeatDays`, `scheduledTime`, `alarmEnabled`만, Daily Reflection은 해당 날짜의 `rating`, `completed`, `memo`만 변경한다. 카드의 빠른 별점은 날짜별 기록 경로를 사용한다. B3.2에서는 실효성 있는 백그라운드 알림이 마련될 때까지 카드의 알림 버튼, 습관 편집의 알림 스위치, 상단 알림 메뉴 및 화면 내부 알림 배너를 표시하지 않는다. 기존 `alarmEnabled` 값과 `scheduledTime`은 설정·로컬 기록·클라우드 동기화 구조에서 유지하며 편집 저장 시에도 보존한다. 새로운 푸시 기능이 제공되는 것처럼 안내하지 않는다. 저장 시 화면의 전체 Habit을 병합하지 않고 허용 필드만 반영한다. 기존 Habit 모델과 `habit_entries` 날짜별 스냅샷은 유지하며, 설정 변경은 오늘의 기록을 보존하고 과거 스냅샷은 수정하지 않는다. 단순 체크(`completed: true`, `rating: 0`)는 미실천과 다르다. 새 기능에서도 두 화면의 책임을 혼합하지 않는다.
 
 ## 저장·인증·동기화
 
