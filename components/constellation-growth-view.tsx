@@ -1,44 +1,143 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { Maximize2, X } from "lucide-react";
+import { useEffect, useRef, useState, type CSSProperties, type TouchEvent } from "react";
+import { ChevronLeft, ChevronRight, Maximize2, X } from "lucide-react";
 import { ConstellationArtwork } from "@/components/constellation-artwork";
-import { describeConstellationGrowth } from "@/lib/constellation/presentation";
+import { CONSTELLATION_ART, type ConstellationStageNumber } from "@/lib/constellation/art";
+import { CONSTELLATION_CAPTIONS, describeConstellationGrowth } from "@/lib/constellation/presentation";
 
 /**
- * V3.2 signature presentation: approved art and separately rendered text/frame.
- * Read-only; no updates to completion, history, or sync state.
+ * Read-only gallery. Unlocked artwork follows the current, record-derived Stage;
+ * gallery selection never modifies habit history, scoring or cloud state.
  */
 export function ConstellationGrowthView({ points }: { points: number }) {
-  const { art, caption, range, next, progressPercent, remainingPoints, extraGlow } =
+  const { art, next, progressPercent, remainingPoints, extraGlow } =
     describeConstellationGrowth(points);
+  const currentStage = art.stage;
+  const [selectedStage, setSelectedStage] = useState<ConstellationStageNumber>(currentStage);
+  const [departure, setDeparture] = useState<{ stage: ConstellationStageNumber; direction: number; id: number } | null>(null);
   const [zoomOpen, setZoomOpen] = useState(false);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const lastSwipeAt = useRef(0);
+  const transitionId = useRef(0);
+  const galleryStage = Math.min(selectedStage, currentStage) as ConstellationStageNumber;
+  const selectedArt = CONSTELLATION_ART[galleryStage - 1];
+  // Three adjacent selectors always fit with 44px touch targets, even at 320px.
+  const windowStart = Math.max(1, Math.min(galleryStage - 1, currentStage - 2));
+  const visibleStages = CONSTELLATION_ART.filter(
+    (item) => item.stage <= currentStage && item.stage >= windowStart && item.stage < windowStart + 3,
+  );
+  const caption = CONSTELLATION_CAPTIONS[selectedArt.stage];
+  const range = selectedArt.max === null ? `${selectedArt.min}점 이상` : `${selectedArt.min} ~ ${selectedArt.max}점`;
   const style = {
-    "--constellation-extra-glow": extraGlow,
+    "--constellation-extra-glow": galleryStage === 6 ? extraGlow : 0,
   } as CSSProperties;
+
+  useEffect(() => {
+    if (!departure) return;
+    const id = window.setTimeout(() => setDeparture((previous) => previous?.id === departure.id ? null : previous), 340);
+    return () => window.clearTimeout(id);
+  }, [departure]);
+
+  // In case records were undone while the gallery is open, never show a locked Stage.
+  useEffect(() => {
+    if (selectedStage > currentStage) {
+      setSelectedStage(currentStage);
+      setDeparture(null);
+    }
+  }, [currentStage, selectedStage]);
+
+  function selectStage(stage: number) {
+    if (stage < 1 || stage > currentStage || stage === galleryStage) return;
+    const nextStage = stage as ConstellationStageNumber;
+    transitionId.current += 1;
+    setDeparture({ stage: galleryStage, direction: Math.sign(stage - galleryStage), id: transitionId.current });
+    setSelectedStage(nextStage);
+  }
+
+  function handleTouchStart(event: TouchEvent<HTMLButtonElement>) {
+    if (event.touches.length !== 1) return;
+    touchStart.current = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+
+  }
+
+  function handleTouchEnd(event: TouchEvent<HTMLButtonElement>) {
+    if (!touchStart.current || event.changedTouches.length !== 1) return;
+    const deltaX = event.changedTouches[0].clientX - touchStart.current.x;
+    const deltaY = event.changedTouches[0].clientY - touchStart.current.y;
+    touchStart.current = null;
+    if (Math.abs(deltaX) < 45 || Math.abs(deltaX) <= Math.abs(deltaY) * 1.3) return;
+    lastSwipeAt.current = Date.now();
+    selectStage(galleryStage + (deltaX < 0 ? 1 : -1));
+  }
 
   return (
     <section className="constellation-growth-view" aria-label="별자리 성장 현황">
       <div className="constellation-card" style={style}>
-        <div className="constellation-card-heading">
-          <span className="constellation-stage-mark">STAGE {art.stage}</span>
-          <h3 className="constellation-card-title">{art.title}</h3>
-          <p className="constellation-score-range">{range}</p>
+        <div className="constellation-card-heading" aria-live="polite" aria-atomic="true">
+          <span className="constellation-stage-mark">STAGE {selectedArt.stage}</span>
+          <h3 className="constellation-card-title">{selectedArt.title}</h3>
+          <p className="constellation-score-range">{range}{galleryStage !== currentStage ? " · 지난 별자리" : ""}</p>
         </div>
 
         <button
           type="button"
           className="constellation-art-trigger"
-          aria-label={`${art.title} 원화 크게 보기`}
-          onClick={() => setZoomOpen(true)}
+          aria-label={`${selectedArt.title} 원화 크게 보기`}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={() => { touchStart.current = null; }}
+          onClick={() => {
+            // Browsers may or may not synthesize a click after a swipe.
+            // A time-bounded guard avoids swallowing the next genuine tap.
+            if (Date.now() - lastSwipeAt.current < 350) return;
+            setZoomOpen(true);
+          }}
         >
-          <ConstellationArtwork points={points} className="constellation-scene" />
+          <div key={`current-${galleryStage}-${transitionId.current}`} className={departure ? `constellation-gallery-enter ${departure.direction > 0 ? "forward" : "backward"}` : ""}>
+            <ConstellationArtwork points={points} stage={selectedArt.stage} className="constellation-scene" />
+          </div>
+          {departure && departure.stage <= currentStage && (
+            <div key={`previous-${departure.id}`} className={`constellation-gallery-exit ${departure.direction > 0 ? "forward" : "backward"}`} aria-hidden="true">
+              <ConstellationArtwork points={points} stage={departure.stage} className="constellation-scene" />
+            </div>
+          )}
+          {departure && <span key={`glimmer-${departure.id}`} className="constellation-gallery-glimmer" aria-hidden="true" />}
           <span className="constellation-expand-hint" aria-hidden="true">
             <Maximize2 size={14} /> 크게 보기
           </span>
         </button>
 
-        {art.stage === 6 && (
+        {currentStage > 1 && (
+          <nav className="constellation-gallery-navigation" aria-label="획득한 별자리 탐색">
+            <button type="button" className="constellation-gallery-arrow" aria-label="이전 별자리" disabled={galleryStage === 1} onClick={() => selectStage(galleryStage - 1)}>
+              <ChevronLeft size={20} aria-hidden="true" />
+            </button>
+            <div className="constellation-gallery-steps" role="group" aria-label={`획득한 단계 ${currentStage}개, 이전·다음 화살표로 모두 탐색 가능`}>
+              {visibleStages.map((item) => (
+                <button
+                  type="button"
+                  key={item.stage}
+                  className={`constellation-gallery-step${item.stage === galleryStage ? " is-active" : ""}`}
+                  aria-label={`Stage ${item.stage} ${item.title}${item.stage === currentStage ? " (현재 단계)" : ""}`}
+                  aria-pressed={item.stage === galleryStage}
+                  onClick={() => selectStage(item.stage)}
+                >
+                  <span aria-hidden="true" />
+                </button>
+              ))}
+            </div>
+            <button type="button" className="constellation-gallery-arrow" aria-label="다음 별자리" disabled={galleryStage === currentStage} onClick={() => selectStage(galleryStage + 1)}>
+              <ChevronRight size={20} aria-hidden="true" />
+            </button>
+          </nav>
+        )}
+        {galleryStage !== currentStage && (
+          <button type="button" className="constellation-gallery-return" onClick={() => selectStage(currentStage)}>
+            현재 별자리로
+          </button>
+        )}
+        {galleryStage === 6 && (
           <span className="constellation-afterglow" aria-hidden="true">
             {Array.from({ length: 8 }, (_, index) => <span key={index} />)}
           </span>
@@ -76,7 +175,8 @@ export function ConstellationGrowthView({ points }: { points: number }) {
       {zoomOpen && (
         <ConstellationZoom
           points={points}
-          title={art.title}
+          stage={selectedArt.stage}
+          title={selectedArt.title}
           onClose={() => setZoomOpen(false)}
         />
       )}
@@ -86,10 +186,12 @@ export function ConstellationGrowthView({ points }: { points: number }) {
 
 function ConstellationZoom({
   points,
+  stage,
   title,
   onClose,
 }: {
   points: number;
+  stage: ConstellationStageNumber;
   title: string;
   onClose: () => void;
 }) {
@@ -128,7 +230,7 @@ function ConstellationZoom({
             <X size={20} aria-hidden="true" />
           </button>
         </div>
-        <ConstellationArtwork points={points} className="constellation-zoom-art" />
+        <ConstellationArtwork points={points} stage={stage} className="constellation-zoom-art" />
       </div>
     </dialog>
   );
