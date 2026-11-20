@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#19242a">
+  <title>별하루 — Android 비회원 테스트</title>
+  <link rel="stylesheet" href="./app.css">
+  <script>
+    try {
+      const theme = localStorage.getItem("byeolharu_v2_theme") || localStorage.getItem("byeolharu_v1_theme");
+      if (theme === "dark") document.documentElement.dataset.byeolharuTheme = "dark";
+    } catch {}
+  </script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <div id="byeolharu-root"><p style="padding:24px">별하루 준비 중…</p></div>
+</body>
+</html>
