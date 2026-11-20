@@ -3864,6 +3864,6 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 
 
 /* Keep the full 2:3 artwork visible even on 320px devices. */
-@media (max-width: 360px) {
+@media (max-width: 379px) {
   .starlight-share-artwork { width: 41.5% !important; }
 }
