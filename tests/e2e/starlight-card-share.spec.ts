@@ -62,7 +62,9 @@ test("V5 STEP 3 offers a real PNG File through Web Share, without losing transie
   await share.click();
   await expect(share).toBeEnabled();
   await expect(preview.getByRole("status")).not.toContainText("공유하지 못했어요");
-  shares = await page.evaluate(() => (window as Window & { __shareCalls?: unknown[] }).__shareCalls ?? []);
+  shares = await page.evaluate(() => (window as Window & {
+    __shareCalls?: Array<{ filename: string; type: string; size: number; active: boolean; title: string }>;
+  }).__shareCalls ?? []);
   expect(shares).toHaveLength(2);
   await expect(preview.locator(".starlight-share-card")).toBeVisible();
 
