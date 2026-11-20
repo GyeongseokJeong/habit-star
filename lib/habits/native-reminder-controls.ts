@@ -10,5 +10,7 @@ export type NativeReminderControls = {
   busy: boolean;
   status: string;
   onEnabledChange: (next: boolean) => Promise<void>;
+  onInspectPending: () => Promise<void>;
+  diagnostic: string;
   onSnapshot: (snapshot: Snapshot | null) => void;
 };
