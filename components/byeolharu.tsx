@@ -1843,6 +1843,7 @@ export default function Byeolharu({ nativeReminders }: { nativeReminders?: Nativ
               : undefined
           }
           onClose={() => setEditing(null)}
+          nativeAlarmEditor={Boolean(nativeReminders)}
         />
       )}
       {detail && (
