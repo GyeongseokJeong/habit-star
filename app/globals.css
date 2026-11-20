@@ -3709,51 +3709,87 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   outline: 2px solid var(--sage);
   outline-offset: 2px;
 }
+/* V5 share-ready 4:5 artwork-first card.
+   Stage art is reused unaltered in the foreground; its blurred duplicate
+   is purely decorative, not a replacement for the approved original. */
 .starlight-preview-screen {
   display: grid;
   justify-items: center;
-  gap: 12px;
-  padding: 4px 0 10px;
   width: 100%;
+  padding: 4px 0 8px;
 }
 .starlight-share-card {
   position: relative;
+  isolation: isolate;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
-  gap: 6px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: clamp(5px, 1.6vw, 9px);
   width: min(100%, 368px);
   aspect-ratio: 4 / 5;
-  padding: clamp(12px, 4.8%, 20px);
+  padding: clamp(12px, 4.6%, 18px);
   overflow: hidden;
-  border: 1px solid #b79bce;
+  border: 1px solid #ad93bd;
   border-radius: 21px;
-  background:
-    radial-gradient(ellipse 90% 46% at 49% 68%, #4634679c, transparent 80%),
-    linear-gradient(165deg, #0d1433 6%, #0b102a 54%, #151b43 100%);
+  background: linear-gradient(170deg, #0e1430 3%, #111637 55%, #1c1a46 100%);
   color: #fff3df;
-  box-shadow: inset 0 0 0 1px #d6b6ea25, 0 12px 32px #080d2025;
+  box-shadow: inset 0 0 0 1px #d6b6ea22, 0 10px 24px #080d201f;
   text-align: center;
+}
+.starlight-share-card::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 18% -12% 7%;
+  pointer-events: none;
+  background-image: var(--starlight-stage-art);
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  filter: blur(28px) saturate(.78);
+  opacity: .21;
+  transform: scale(1.12);
+}
+.starlight-share-card::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, #0d133530 0%, transparent 40%, #12173580 72%, #121735d9 100%);
 }
 .starlight-share-head {
   position: relative;
   z-index: 1;
 }
-.starlight-share-kicker {
-  display: block;
-  color: #e6c28c;
-  font-size: clamp(8px, 2vw, 10px);
-  letter-spacing: 1.4px;
-  font-weight: 700;
+.starlight-share-brand {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0;
+  color: #f5d7a3;
+  font-size: clamp(12px, 3.4vw, 15px);
+}
+.starlight-share-brand > span {
+  color: #eac17a;
+  font-size: clamp(14px, 4vw, 18px);
+}
+.starlight-share-brand strong { font-weight: 700; }
+.starlight-share-brand small {
+  color: #e7d8c1;
+  font-size: clamp(7px, 1.9vw, 9px);
+  letter-spacing: 1px;
+  font-weight: 500;
 }
 .starlight-share-head h3 {
-  margin: 6px 0 0;
+  margin: 7px 0 0;
   color: #fff3df;
   font-size: clamp(14px, 4vw, 19px);
   line-height: 1.45;
   letter-spacing: -.35px;
   font-weight: 650;
 }
-.starlight-share-head h3 span { color: #f6cf8e; }
+.starlight-share-head h3 span { color: #f1c989; }
 .starlight-share-sky {
   display: flex;
   min-height: 0;
@@ -3763,61 +3799,71 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   overflow: hidden;
 }
 .starlight-share-artwork {
-  width: min(44%, 150px) !important;
+  width: min(48%, 166px) !important;
   height: auto;
   max-width: 100%;
-  max-height: 100%;
-  border-radius: 11px !important;
+  max-height: none;
+  flex: 0 0 auto;
   border: 1px solid #e7c39338;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 22px #0c0c281f;
 }
+.starlight-share-artwork img { object-fit: contain !important; }
 .starlight-share-stage {
-  margin: 4px 0 0;
-  color: #e9c88d;
-  font-size: clamp(9px, 2.5vw, 11px);
-  font-weight: 600;
+  position: relative;
+  z-index: 1;
+  margin: 2px 0 0;
+  color: #f2d39e;
+  font-size: clamp(11px, 2.8vw, 13px);
+  font-weight: 650;
   flex-shrink: 0;
 }
 .starlight-share-metrics {
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin: 0;
-  padding: 10px 0 7px;
-  border-top: 1px solid #e3c69836;
+  padding: clamp(7px, 2.1vw, 11px) 0 2px;
+  border-top: 1px solid #e3c69845;
 }
-.starlight-share-metrics > div { display: grid; gap: 3px; min-width: 0; }
-.starlight-share-metrics > div + div { border-left: 1px solid #e3c69836; }
+.starlight-share-metrics > div {
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  min-width: 0;
+}
+.starlight-share-metrics > div + div { border-left: 1px solid #e3c69840; }
 .starlight-share-metrics dt {
-  color: #cfc8dc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: #e2d6e9;
   font-size: clamp(9px, 2.5vw, 11px);
+}
+.starlight-share-metrics dt svg {
+  width: clamp(10px, 3vw, 13px);
+  height: clamp(10px, 3vw, 13px);
+  color: #efc786;
+  stroke-width: 2;
 }
 .starlight-share-metrics dd {
   margin: 0;
   color: #fff1d2;
-  font-size: clamp(15px, 4.2vw, 20px);
+  font-size: clamp(17px, 4.8vw, 23px);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.starlight-share-metrics dd span { padding-left: 2px; font-size: 11px; font-weight: 500; }
-.starlight-share-brand {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 5px;
-  margin: 0;
-  color: #f5d7a3;
-  font-size: 13px;
-  font-weight: 700;
-}
-.starlight-share-brand small {
-  color: #e6d9c9;
-  font-size: 8px;
-  letter-spacing: 1px;
+.starlight-share-metrics dd span {
+  padding-left: 2px;
+  font-size: clamp(10px, 2.7vw, 12px);
   font-weight: 500;
 }
-.starlight-preview-footnote {
-  color: var(--muted);
-  font-size: 12px;
-  margin: 0;
-  text-align: center;
+
+
+/* Keep the full 2:3 artwork visible even on 320px devices. */
+@media (max-width: 379px) {
+  .starlight-share-artwork { width: 41.5% !important; }
 }
