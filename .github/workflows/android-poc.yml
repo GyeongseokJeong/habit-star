@@ -5,12 +5,14 @@ on:
     branches:
       - app/feat/android-shell-poc
       - app/feat/habit-reminder-scheduler-step5
+      - app/feat/scoped-reminder-integration-step6
     paths:
       - "mobile/**"
       - ".github/workflows/android-poc.yml"
   pull_request:
     branches:
       - app/main
+      - app/feat/habit-reminder-scheduler-step5
     paths:
       - "mobile/**"
       - ".github/workflows/android-poc.yml"
