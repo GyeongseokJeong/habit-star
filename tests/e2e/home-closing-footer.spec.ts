@@ -54,7 +54,7 @@ for (const width of [320, 390, 430, 1365]) {
       expect(blend.nearPathCount).toBe(1);
       expect(blend.glintPathCount).toBe(0);
       expect(blend.waveMask).toContain("linear-gradient");
-      expect(blend.waveMask).toMatch(/(?:transparent|rgba\\(0,\\s*0,\\s*0,\\s*0\\))/);
+      expect(blend.waveMask).toContain("8%");
       expect(blend.colors).toHaveLength(6);
       expect(blend.colors.every((value) => value !== "" && value !== "none")).toBe(true);
       expect(blend.colors[0]).toBe(theme === "dark" ? "rgb(81, 66, 117)" : "rgb(199, 179, 240)");
