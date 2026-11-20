@@ -20,7 +20,7 @@ for (const width of [320, 390, 430]) {
         return [box.width, box.height];
       }),
     );
-    expect(targetSizes.every(([w, h]) => w >= 44 && h >= 44)).toBe(true);
+    expect(targetSizes.filter(([w, h]) => w < 44 || h < 44)).toEqual([]);
     const footer = dialog.locator(".habit-editor-footer");
     await dialog.evaluate((element) => { element.scrollTop = element.scrollHeight; });
     await expect(footer.getByRole("button", { name: "새 습관 추가하기" })).toBeVisible();
