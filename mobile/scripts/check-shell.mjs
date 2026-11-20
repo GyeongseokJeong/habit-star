@@ -14,7 +14,7 @@ for (const name of ["@capacitor/core", "@capacitor/android", "@capacitor/cli"]) 
 }
 assert.match(html, /<head>/i, "Capacitor bridge requires an HTML head");
 assert.match(html, /lang="ko"/, "The fallback must remain usable in Korean");
-assert.match(config, /webDir:\s*"www"/);
+assert.match(config, /webDir:\s*packagedGuest\s*\?\s*"www-packaged-guest"\s*:\s*"www"/);
 assert.match(config, /BYEOLHARU_POC_REMOTE_DEBUG/, "Remote loading must require explicit opt-in");
 assert.match(config, /const productionOrigin = "https:\/\/habit-star-fawn\.vercel\.app"/, "Only the explicitly approved HTTPS origin is allowed");
 assert.match(config, /io\.github\.gyeongseokjeong\.byeolharu\.webviewpoc/, "Remote debug requires its own Android app ID");
