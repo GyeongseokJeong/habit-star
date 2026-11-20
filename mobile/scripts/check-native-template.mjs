@@ -9,6 +9,9 @@ const java = readFileSync(resolve(root, "native/MainActivity.java.template"), "u
 const patcher = readFileSync(resolve(root, "scripts/patch-android.mjs"), "utf8");
 
 assert.match(java, /extends BridgeActivity/);
+for (const method of ["onResume", "onPause", "onDestroy"]) {
+  assert.match(java, new RegExp(`public void ${method}\\(\\)`), `Capacitor BridgeActivity requires public ${method}`);
+}
 assert.match(java, /getOnBackPressedDispatcher\(\)/);
 assert.match(java, /view\.canGoBack\(\)/);
 assert.match(java, /view\.goBack\(\)/);
