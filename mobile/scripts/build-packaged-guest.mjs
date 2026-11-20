@@ -17,6 +17,7 @@ mkdirSync(out, {recursive:true});
 // First-party static resources (artwork, PWA icons, emoji, etc.).
 cpSync(resolve(root, "public"), out, {recursive:true});
 copyFileSync(resolve(mobile, "packaged-guest/index.html"), resolve(out, "index.html"));
+copyFileSync(resolve(mobile, "packaged-guest/safe-area.css"), resolve(out, "safe-area.css"));
 
 // Browser-only React code. Disable server-auth client initialization for the
 // first guest-only Android APK. No credentials are embedded in the package.
