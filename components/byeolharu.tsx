@@ -672,13 +672,47 @@ function HabitDetail({
   );
 }
 
+/** Show the time group only when the active tab does not already provide that context. */
+function HabitTimeMeta({
+  habit,
+  showTimeGroup,
+  compact = false,
+}: {
+  habit: Habit;
+  showTimeGroup: boolean;
+  compact?: boolean;
+}) {
+  return (
+    <span className={compact ? "compact-habit-time" : "time-badge"}>
+      {habit.scheduledTime ? (
+        <>
+          <Clock3 size={compact ? 13 : 12} aria-hidden="true" />
+          <span>{habit.scheduledTime}</span>
+        </>
+      ) : (
+        <span>자유롭게</span>
+      )}
+      {showTimeGroup && (
+        <>
+          {compact
+            ? <span aria-hidden="true">·</span>
+            : <span className="time-divider" aria-hidden="true" />}
+          <span>{GROUPS[habit.timeGroup].name}{compact ? "" : " 루틴"}</span>
+        </>
+      )}
+    </span>
+  );
+}
+
 function HabitCard({
   habit,
+  showTimeGroup,
   onRate,
   onOpen,
   onEdit,
 }: {
   habit: Habit;
+  showTimeGroup: boolean;
   onRate: (id: string, rating: number, fromKeyboard: boolean) => void;
   onOpen: () => void;
   onEdit: () => void;
@@ -689,16 +723,12 @@ function HabitCard({
       <div className="card-top">
         <span className={`habit-emoji ${habit.timeGroup}`}>{habit.icon}</span>
         <div className="card-actions">
-          <span className={`status-pill ${habit.completed ? "done" : ""}`}>
-            {habit.completed ? (
-              <>
-                <Check size={10} aria-hidden="true" />
-                실천 완료
-              </>
-            ) : (
-              "실천 전"
-            )}
-          </span>
+          {habit.completed && (
+            <span className="status-pill done">
+              <Check size={10} aria-hidden="true" />
+              실천 완료
+            </span>
+          )}
           <button
             className="icon-button small"
             aria-label={`${habit.title} 수정`}
@@ -714,12 +744,7 @@ function HabitCard({
       <button className="card-content" onClick={onOpen}>
         <h3>{habit.title}</h3>
         {habit.memo && <p>{habit.memo}</p>}
-        <span className="time-badge">
-          <Clock3 size={12} />
-          {habit.scheduledTime || "자유롭게"}
-          <span className="time-divider" />
-          {GROUPS[habit.timeGroup].name} 루틴
-        </span>
+        <HabitTimeMeta habit={habit} showTimeGroup={showTimeGroup} />
       </button>
       <div
         className="card-rating"
@@ -756,6 +781,7 @@ function HabitCard({
 /** Compact rows reuse the existing rating and edit handlers without duplicating storage. */
 function CompactHabitCard({
   habit,
+  showTimeGroup,
   expanded,
   onToggle,
   onRate,
@@ -763,6 +789,7 @@ function CompactHabitCard({
   onEdit,
 }: {
   habit: Habit;
+  showTimeGroup: boolean;
   expanded: boolean;
   onToggle: () => void;
   onRate: (value: number, fromKeyboard: boolean) => void;
@@ -813,10 +840,7 @@ function CompactHabitCard({
             />
           </div>
           <div className="compact-habit-extras">
-            <span className="compact-habit-time">
-              <Clock3 size={13} aria-hidden="true" />
-              {habit.scheduledTime || "자유롭게"} · {GROUPS[habit.timeGroup].name}
-            </span>
+            <HabitTimeMeta habit={habit} showTimeGroup={showTimeGroup} compact />
             <div className="compact-habit-actions">
               <button type="button" onClick={onOpen}>기록 상세</button>
               <button type="button" onClick={onEdit} aria-label={habit.title + " 수정"}><Pencil size={15} aria-hidden="true" />수정</button>
@@ -1315,6 +1339,7 @@ export default function Byeolharu() {
     <HabitCard
       key={habit.id}
       habit={habit}
+      showTimeGroup={activeTab === "all" || activeTab !== habit.timeGroup}
       onRate={(id, value, fromKeyboard) => {
         handleRateHabit(id, value);
         if (normalFocusTimer.current) clearTimeout(normalFocusTimer.current);
@@ -1353,6 +1378,7 @@ export default function Byeolharu() {
     <CompactHabitCard
       key={habit.id}
       habit={habit}
+      showTimeGroup={activeTab === "all" || activeTab !== habit.timeGroup}
       expanded={compactExpandedId === habit.id}
       onToggle={() => setCompactExpandedId((previous) => previous === habit.id ? null : habit.id)}
       onRate={(value, fromKeyboard) => {
