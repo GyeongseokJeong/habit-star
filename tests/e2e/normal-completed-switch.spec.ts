@@ -91,20 +91,24 @@ test("completed reflection restores focus to the stable tab when its card folds"
   await expect(page.getByRole("tab", { name: "밤", exact: true })).toBeFocused();
 });
 
-test("rating a habit in the upcoming list does not transfer keyboard focus", async ({ page }) => {
+test("keyboard completing an upcoming habit returns focus before the preview disappears", async ({ page }) => {
   await page.goto("/");
+  await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
+  await page.getByRole("tab", { name: "낮", exact: true }).click();
+  // Seeded daytime habit is completed: undo to create a pending morning preview.
+  await page.locator(".normal-done-toggle").click();
+  const completed = page.locator(".normal-completed-list .habit-card").first();
+  const title = (await completed.locator("h3").innerText()).trim();
+  await completed.getByRole("button", { name: title + " 4점" }).click();
+  await expect(page.locator(".normal-pending-list .habit-card")).toHaveCount(1, { timeout: 5000 });
   await page.getByRole("tab", { name: "아침", exact: true }).click();
-  const upcoming = page.locator(".upcoming-heading + .habit-grid .habit-card").first();
-  await expect(upcoming).toBeVisible();
-  const title = (await upcoming.locator("h3").innerText()).trim();
-  // Some seeded upcoming habits are already rated 4; pressing that star would undo.
-  const current = await upcoming.locator(".star[aria-pressed='true']").getAttribute("aria-label");
-  const nextRating = current?.endsWith("4점") ? 3 : 4;
-  const star = upcoming.getByRole("button", { name: `${title} ${nextRating}점` });
+  const upcoming = page.locator(".upcoming-heading + .habit-grid .habit-card");
+  await expect(upcoming).toHaveCount(1);
+  const star = upcoming.first().getByRole("button", { name: title + " 4점" });
   await star.focus();
   await page.keyboard.press("Enter");
   await expect(star).toHaveAttribute("aria-pressed", "true");
-  // The upcoming list stays in one grid even as its habit's completion changes.
-  await page.waitForTimeout(850);
-  await expect(star).toBeFocused();
+  // After held completion settles, the preview is no longer relevant.
+  await expect(upcoming).toHaveCount(0, { timeout: 5000 });
+  await expect(page.getByRole("tab", { name: "아침", exact: true })).toBeFocused();
 });

@@ -1269,6 +1269,12 @@ export default function Byeolharu() {
   const compactCompleted = filtered.filter(
     (habit) => heldCompletion.get(habit.id) ?? habit.completed,
   );
+  // Completion feedback is scoped to the selected tab, not the entire day.
+  const completionMessage = activeTab === "all"
+    ? "오늘의 실천을 모두 마쳤어요 ✨"
+    : activeTab === "matrix"
+      ? ""
+      : `${GROUPS[activeTab].name} 루틴을 모두 마쳤어요 ✨`;
   useEffect(() => {
     setCompletedOpen(false);
     setCompactExpandedId(null);
@@ -1277,19 +1283,17 @@ export default function Byeolharu() {
   const upcoming =
     activeTab !== "all" && activeTab !== "matrix"
       ? scheduledHabits
+          // A preview is for pending actions only. Completed habits remain
+          // available in their own tab and in All's completed fold.
           .filter(
             (h) =>
               h.timeGroup ===
-              (activeTab === "morning"
-                ? "day"
-                : activeTab === "day"
-                  ? "night"
-                  : "morning"),
-          )
-          .sort(
-            (a, b) =>
-              Number(heldCompletion.get(a.id) ?? a.completed) -
-              Number(heldCompletion.get(b.id) ?? b.completed),
+                (activeTab === "morning"
+                  ? "day"
+                  : activeTab === "day"
+                    ? "night"
+                    : "morning") &&
+              !(heldCompletion.get(h.id) ?? h.completed),
           )
       : [];
   let streak = 0;
@@ -1315,9 +1319,9 @@ export default function Byeolharu() {
         handleRateHabit(id, value);
         if (normalFocusTimer.current) clearTimeout(normalFocusTimer.current);
         const movesGroup = (heldCompletion.get(id) ?? habit.completed) !== (habit.rating === value ? false : true);
-        if (grouped && fromKeyboard && movesGroup) {
-          // Transfer focus only when the card will unmount across completion groups.
-          // Avoid interrupting editing between nonzero ratings in the same group.
+        if (fromKeyboard && movesGroup) {
+          // A completed upcoming card also disappears. Transfer focus before
+          // the 700ms held-completion window ends, without affecting rating edits.
           normalFocusTimer.current = setTimeout(() => {
             const activeCard = document.activeElement?.closest(".habit-card");
             if (activeCard?.getAttribute("data-habit-id") !== id) {
@@ -1325,12 +1329,14 @@ export default function Byeolharu() {
               return;
             }
             const next = Array.from(document.querySelectorAll<HTMLElement>(
-              ".normal-pending-list .habit-card .card-rating button",
+              grouped
+                ? ".normal-pending-list .habit-card .card-rating button"
+                : ".upcoming-heading + .habit-grid .habit-card .card-rating button",
             )).find((button) =>
               button.closest(".habit-card")?.getAttribute("data-habit-id") !== id,
             );
-            // Undo may remove the last completed group entirely. The tab always survives.
-            const fallback = habit.rating === value
+            // The selected tab survives when the final pending/preview card goes away.
+            const fallback = !grouped || habit.rating === value
               ? document.getElementById("tab-" + activeTab)
               : (document.querySelector<HTMLButtonElement>(".normal-done-toggle")
                 ?? document.getElementById("tab-" + activeTab));
@@ -1623,7 +1629,7 @@ export default function Byeolharu() {
                             </div>
                           )}
                           {compactPending.length === 0 && (
-                            <p className="compact-all-done">오늘의 실천을 모두 마쳤어요 ✨</p>
+                            <p className="compact-all-done">{completionMessage}</p>
                           )}
                           {compactCompleted.length > 0 && (
                             <section className="compact-done-group" aria-label="완료한 습관">
@@ -1655,7 +1661,7 @@ export default function Byeolharu() {
                         </div>
                       )}
                       {filtered.length > 0 && compactPending.length === 0 && (
-                        <p className="normal-all-done">오늘의 실천을 모두 마쳤어요 ✨</p>
+                        <p className="normal-all-done">{completionMessage}</p>
                       )}
                       {compactCompleted.length > 0 && (
                         <section className="normal-completed-group" aria-label="완료한 습관">
