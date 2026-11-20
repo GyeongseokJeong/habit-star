@@ -6,6 +6,7 @@ on:
       - app/feat/android-shell-poc
       - app/feat/habit-reminder-scheduler-step5
       - app/feat/scoped-reminder-integration-step6
+      - app/feat/reminder-lifecycle-step7
     paths:
       - "mobile/**"
       - ".github/workflows/android-poc.yml"
@@ -13,6 +14,7 @@ on:
     branches:
       - app/main
       - app/feat/habit-reminder-scheduler-step5
+      - app/feat/scoped-reminder-integration-step6
     paths:
       - "mobile/**"
       - ".github/workflows/android-poc.yml"
