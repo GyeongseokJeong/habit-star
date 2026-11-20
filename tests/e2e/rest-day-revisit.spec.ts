@@ -2,12 +2,6 @@ import { expect, test } from "@playwright/test";
 
 test.use({ timezoneId: "Asia/Seoul" });
 
-const habit = {
-  id: "saturday-reading", title: "토요일 독서", icon: "📚",
-  timeGroup: "night" as const, repeatDays: [6],
-  alarmEnabled: false, completed: false, rating: 0, memo: "",
-};
-
 async function seedSaturdayHabit(page: import("@playwright/test").Page, compact: boolean) {
   await page.clock.setFixedTime(new Date("2026-11-20T09:00:00+09:00"));
   await page.addInitScript(({ compact }) => {
