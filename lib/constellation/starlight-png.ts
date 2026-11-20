@@ -39,6 +39,28 @@ async function waitForStageArtwork(card: HTMLElement): Promise<void> {
   await image.decode();
 }
 
+async function stageArtAsDataUrl(card: HTMLElement): Promise<string> {
+  const image = card.querySelector<HTMLImageElement>("[data-constellation-stage] img");
+  if (!image?.currentSrc && !image?.src) {
+    throw new Error("별자리 원화 주소를 찾을 수 없습니다.");
+  }
+  const response = await fetch(image.currentSrc || image.src);
+  if (!response.ok) throw new Error("별자리 이미지 배경을 준비하지 못했습니다.");
+  const blob = await response.blob();
+  if (!blob.type.startsWith("image/")) {
+    throw new Error("별자리 이미지 형식이 올바르지 않습니다.");
+  }
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") resolve(reader.result);
+      else reject(new Error("별자리 이미지 배경을 변환하지 못했습니다."));
+    };
+    reader.onerror = () => reject(new Error("별자리 이미지 배경을 변환하지 못했습니다."));
+    reader.readAsDataURL(blob);
+  });
+}
+
 export async function renderStarlightPng(card: HTMLElement): Promise<Blob> {
   if (!card.classList.contains("starlight-share-card")) {
     throw new Error("별빛 카드 영역을 찾을 수 없습니다.");
@@ -52,14 +74,26 @@ export async function renderStarlightPng(card: HTMLElement): Promise<Blob> {
 
   // The library is downloaded only when the user explicitly requests a PNG.
   const { toBlob } = await import("html-to-image");
-  const result = await toBlob(card, {
-    canvasWidth: STARLIGHT_PNG_WIDTH,
-    canvasHeight: STARLIGHT_PNG_HEIGHT,
-    pixelRatio: 1,
-    backgroundColor: "#0e1430",
-    preferredFontFormat: "woff2",
-    cacheBust: true,
-  });
+  // html-to-image embeds <img> assets but cannot automatically rewrite URL
+  // references in ::before background rules. Temporarily supply the loaded
+  // approved artwork as an inline data URL so the cloned pseudo-element keeps
+  // the same subtle nebula glow as the actual preview.
+  const originalArtVariable = card.style.getPropertyValue("--starlight-stage-art");
+  const embeddedArt = await stageArtAsDataUrl(card);
+  let result: Blob | null = null;
+  try {
+    card.style.setProperty("--starlight-stage-art", `url("${embeddedArt}")`);
+    result = await toBlob(card, {
+      canvasWidth: STARLIGHT_PNG_WIDTH,
+      canvasHeight: STARLIGHT_PNG_HEIGHT,
+      pixelRatio: 1,
+      backgroundColor: "#0e1430",
+      preferredFontFormat: "woff2",
+      cacheBust: true,
+    });
+  } finally {
+    card.style.setProperty("--starlight-stage-art", originalArtVariable);
+  }
   if (!result || result.type !== "image/png" || result.size === 0) {
     throw new Error("이미지를 생성하지 못했습니다.");
   }
