@@ -2472,7 +2472,8 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.modal.wide:has(.constellation-growth-view) {
+.modal.wide:has(.constellation-growth-view),
+.modal.wide:has(.starlight-preview-screen) {
   position: fixed;
   top: 50%;
   left: 50%;
@@ -2488,11 +2489,13 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   overflow-x: hidden;
   overflow-y: auto;
 }
-.modal.wide:has(.constellation-growth-view)::before {
+.modal.wide:has(.constellation-growth-view)::before,
+.modal.wide:has(.starlight-preview-screen)::before {
   content: none;
   display: none;
 }
-.modal.wide:has(.constellation-growth-view) .modal-top {
+.modal.wide:has(.constellation-growth-view) .modal-top,
+.modal.wide:has(.starlight-preview-screen) .modal-top {
   position: sticky;
   top: -18px;
   z-index: 5;
@@ -2825,14 +2828,16 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   .constellation-art-trigger { width: min(100%, 300px); }
 }
 @media (max-width: 620px) {
-  .modal.wide:has(.constellation-growth-view) {
+  .modal.wide:has(.constellation-growth-view),
+.modal.wide:has(.starlight-preview-screen) {
     width: calc(100% - 24px);
     max-width: calc(100% - 24px);
     padding: 13px 16px;
     margin: 0;
     border-radius: 22px;
   }
-  .modal.wide:has(.constellation-growth-view) .modal-top { top: -13px; }
+  .modal.wide:has(.constellation-growth-view) .modal-top,
+.modal.wide:has(.starlight-preview-screen) .modal-top { top: -13px; }
   .constellation-card { padding: 11px 10px 12px; }
 }
 
@@ -3677,4 +3682,142 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   .weekly-reflection-emoji { flex-basis: 44px; width: 44px; height: 44px; font-size: 24px; }
   .weekly-reflection-card-info h3 { font-size: 15px; }
   .weekly-reflection-record { margin-left: auto; }
+}
+
+/* V5.0 STEP 1 — 4:5 read-only starlight-card preview.
+   The original 2:3 Stage artwork is contained, never cropped or rewritten. */
+.constellation-share-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  margin: 12px auto 0;
+  padding: 10px 14px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--control-border);
+  border-radius: 13px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.constellation-share-entry > svg:first-child { color: var(--sage); }
+.constellation-share-entry > span { flex: 1; text-align: left; }
+.constellation-share-entry > svg:last-child { color: var(--muted); }
+.constellation-share-entry:focus-visible {
+  outline: 2px solid var(--sage);
+  outline-offset: 2px;
+}
+.starlight-preview-screen {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 4px 0 10px;
+  width: 100%;
+}
+.starlight-share-card {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  gap: 6px;
+  width: min(100%, 368px);
+  aspect-ratio: 4 / 5;
+  padding: clamp(12px, 4.8%, 20px);
+  overflow: hidden;
+  border: 1px solid #b79bce;
+  border-radius: 21px;
+  background:
+    radial-gradient(ellipse 90% 46% at 49% 68%, #4634679c, transparent 80%),
+    linear-gradient(165deg, #0d1433 6%, #0b102a 54%, #151b43 100%);
+  color: #fff3df;
+  box-shadow: inset 0 0 0 1px #d6b6ea25, 0 12px 32px #080d2025;
+  text-align: center;
+}
+.starlight-share-head {
+  position: relative;
+  z-index: 1;
+}
+.starlight-share-kicker {
+  display: block;
+  color: #e6c28c;
+  font-size: clamp(8px, 2vw, 10px);
+  letter-spacing: 1.4px;
+  font-weight: 700;
+}
+.starlight-share-head h3 {
+  margin: 6px 0 0;
+  color: #fff3df;
+  font-size: clamp(14px, 4vw, 19px);
+  line-height: 1.45;
+  letter-spacing: -.35px;
+  font-weight: 650;
+}
+.starlight-share-head h3 span { color: #f6cf8e; }
+.starlight-share-sky {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.starlight-share-artwork {
+  width: auto !important;
+  height: min(100%, 242px);
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 11px !important;
+  border: 1px solid #e7c39338;
+}
+.starlight-share-stage {
+  margin: 4px 0 0;
+  color: #e9c88d;
+  font-size: clamp(9px, 2.5vw, 11px);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.starlight-share-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  padding: 10px 0 7px;
+  border-top: 1px solid #e3c69836;
+}
+.starlight-share-metrics > div { display: grid; gap: 3px; min-width: 0; }
+.starlight-share-metrics > div + div { border-left: 1px solid #e3c69836; }
+.starlight-share-metrics dt {
+  color: #cfc8dc;
+  font-size: clamp(9px, 2.5vw, 11px);
+}
+.starlight-share-metrics dd {
+  margin: 0;
+  color: #fff1d2;
+  font-size: clamp(15px, 4.2vw, 20px);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.starlight-share-metrics dd span { padding-left: 2px; font-size: 11px; font-weight: 500; }
+.starlight-share-brand {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 5px;
+  margin: 0;
+  color: #f5d7a3;
+  font-size: 13px;
+  font-weight: 700;
+}
+.starlight-share-brand small {
+  color: #e6d9c9;
+  font-size: 8px;
+  letter-spacing: 1px;
+  font-weight: 500;
+}
+.starlight-preview-footnote {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 0;
+  text-align: center;
 }
