@@ -27,6 +27,21 @@ for (const size of [320, 390] as const) {
     const card = preview.locator(".starlight-share-card");
     const save = preview.getByRole("button", { name: "이미지 저장" });
     await expect(save).toBeEnabled();
+    // Verify that the original Stage art is embedded into the ::before
+    // background reference during export, not just into its foreground <img>.
+    await page.evaluate(() => {
+      const card = document.querySelector<HTMLElement>(".starlight-share-card");
+      if (!card) throw new Error("preview card not found");
+      const state = window as Window & { __starlightEmbeddedBackground?: boolean };
+      state.__starlightEmbeddedBackground = false;
+      const observer = new MutationObserver(() => {
+        if (card.style.getPropertyValue("--starlight-stage-art").includes("data:image/")) {
+          state.__starlightEmbeddedBackground = true;
+          observer.disconnect();
+        }
+      });
+      observer.observe(card, { attributes: true, attributeFilter: ["style"] });
+    });
     const downloadPromise = page.waitForEvent("download", { timeout: 90_000 });
     await save.click();
     const download = await downloadPromise;
@@ -34,6 +49,9 @@ for (const size of [320, 390] as const) {
     const downloadPath = await download.path();
     expect(downloadPath).toBeTruthy();
     await assertPng(downloadPath!);
+    expect(await page.evaluate(() =>
+      (window as Window & { __starlightEmbeddedBackground?: boolean }).__starlightEmbeddedBackground,
+    )).toBe(true);
     await expect(preview.getByRole("status")).toContainText("저장을 요청했어요");
     await expect(card).toContainText("Stage 1");
     await expect(preview.getByRole("button", { name: /공유/ })).toHaveCount(0);
