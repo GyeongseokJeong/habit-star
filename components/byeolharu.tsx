@@ -1517,7 +1517,7 @@ export default function Byeolharu() {
           </div>
         </div>
       </header>
-      <main id="main" className="main-container">
+      <main id="main" className={`main-container ${reflectionOpen ? "reflection-main" : ""}`}>
         {reflectionOpen ? (
           <WeeklyReflectionView
             reflection={weeklyReflection}

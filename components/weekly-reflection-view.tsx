@@ -24,9 +24,9 @@ export function WeeklyReflectionView({
   return (
     <section className="weekly-reflection" aria-label="최근 7일 돌아보기">
       <div className="weekly-reflection-header">
-        <button type="button" id="weekly-reflection-back" className="weekly-reflection-back" onClick={onBack}>
+        <button type="button" id="weekly-reflection-back" className="weekly-reflection-back" aria-label="달력으로 돌아가기" onClick={onBack}>
           <ArrowLeft size={19} aria-hidden="true" />
-          <span>달력으로 돌아가기</span>
+          <span>달력으로</span>
         </button>
         <h1>최근 7일 돌아보기</h1>
         <p>{reflection ? `${shortDate(reflection.startDay)} – ${shortDate(reflection.endDay)}` : "기록을 살펴보고 있어요"}</p>
@@ -59,7 +59,7 @@ export function WeeklyReflectionView({
                 <div className="weekly-reflection-card-bottom">
                   {habit.todayScheduled && !habit.todayCompleted ? (
                     <>
-                      <span><CalendarDays size={15} aria-hidden="true" /> 오늘 예정된 습관</span>
+                      <span><CalendarDays size={15} aria-hidden="true" /> 오늘 예정</span>
                       <button type="button" className="weekly-reflection-record" onClick={() => onRecord(habit.id)}>
                         오늘 기록하기 <ArrowRight size={16} aria-hidden="true" />
                       </button>
@@ -92,7 +92,11 @@ export function WeeklyReflectionView({
         </div>
       )}
       {reflection && (
-        <p className="weekly-reflection-closing">다시 시작하는 하루도 충분히 빛나요.</p>
+        <p className="weekly-reflection-closing">
+          <span className="weekly-reflection-glint left" aria-hidden="true"><Sparkles size={13} /></span>
+          다시 시작하는 하루도 충분히 빛나요.
+          <span className="weekly-reflection-glint right" aria-hidden="true"><Sparkles size={10} /></span>
+        </p>
       )}
     </section>
   );
