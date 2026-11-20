@@ -4,7 +4,8 @@ test.use({ timezoneId: "Asia/Seoul" });
 
 for (const [localTime, tab] of [
   ["08:30", "아침"],
-  ["13:30", "낮"],
+  // No seeded daytime routine in V5.3; start on All instead.
+  ["13:30", "전체"],
   ["20:30", "밤"],
 ] as const) {
   test(`startup at ${localTime} selects existing ${tab} tab without adding controls`, async ({ page }) => {
