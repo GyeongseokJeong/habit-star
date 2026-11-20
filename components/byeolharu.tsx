@@ -1703,7 +1703,7 @@ export default function Byeolharu() {
               <div className="first-habit-hint" role="note">
                 <Leaf size={16} aria-hidden="true" />
                 <span className="first-habit-hint-copy">나만의 첫 습관을 만들어볼까요? <span>‘새 습관 추가’에서 시작해요.</span></span>
-                <button type="button" className="first-habit-hint-close" onClick={dismissFirstHint} aria-label="시작 안내 닫기">
+                <button type="button" className="first-habit-hint-close" onClick={dismissFirstHint} aria-label="시작 안내 숨기기">
                   <X size={16} aria-hidden="true" />
                 </button>
               </div>
