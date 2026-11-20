@@ -95,7 +95,8 @@ test("foreign ID collision and duplicate IDs reject before effects", () => {
   const wanted=plan();
   const conflict={id:wanted.notifications[0].id,extra:{kind:REMINDER_KIND,scope:"guest"}};
   assert.throws(()=>diffScopedNotifications([conflict],wanted),/충돌/);
-  assert.throws(()=>diffScopedNotifications([conflict,conflict],wanted),/중복/);
+  const own=toNativeNotification(wanted.notifications[0],scope);
+  assert.throws(()=>diffScopedNotifications([own,own],wanted),/중복/);
 });
 
 test("native adapter never silently requests permission", async () => {
