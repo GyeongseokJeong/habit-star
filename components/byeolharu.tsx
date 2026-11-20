@@ -990,7 +990,7 @@ export default function Byeolharu() {
   const [compactView, setCompactView] = useState(false);
   const [compactPreferenceLoaded, setCompactPreferenceLoaded] = useState(false);
   const [completedOpen, setCompletedOpen] = useState(false);
-  const [completedGroupNudge, setCompletedGroupNudge] = useState(false);
+  // Alternate two identical CSS animations to restart on rapid completions.\n  const [completedGroupNudge, setCompletedGroupNudge] = useState<0 | 1 | 2>(0);
   const completedGroupNudgeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const completedGroupBaseline = useRef<{ key: string; count: number; ready: boolean } | null>(null);
   const [compactExpandedId, setCompactExpandedId] = useState<string | null>(null);
@@ -1320,16 +1320,19 @@ export default function Byeolharu() {
       clearTimeout(completedGroupNudgeTimer.current);
       completedGroupNudgeTimer.current = null;
     }
-    setCompletedGroupNudge(false);
     if (previous?.key !== completedGroupKey ||
         !previous.ready || !completionDataReady ||
-        compactCompleted.length <= previous.count || activeTab === "matrix") return;
+        compactCompleted.length <= previous.count || activeTab === "matrix") {
+      setCompletedGroupNudge(0);
+      return;
+    }
 
-    // The card moved only after the existing 700ms held-completion period.
-    // Highlight its destination, never open the group or move focus.
-    setCompletedGroupNudge(true);
+    // Toggling between two distinct animation names makes each additional
+    // completion restart the CSS animation, even when React batches updates.
+    // Do not reset to 0 first: React could batch 0 -> 1 back into the old 1.
+    setCompletedGroupNudge((current) => current === 1 ? 2 : 1);
     completedGroupNudgeTimer.current = setTimeout(() => {
-      setCompletedGroupNudge(false);
+      setCompletedGroupNudge(0);
       completedGroupNudgeTimer.current = null;
     }, 1100);
   }, [completedGroupKey, completionDataReady, compactCompleted.length, activeTab]);
@@ -1727,7 +1730,7 @@ export default function Byeolharu() {
                             <section className="compact-done-group" aria-label="완료한 습관">
                               <button
                                 type="button"
-                                className={`compact-done-toggle ${completedGroupNudge ? "completion-nudge" : ""}`}
+                                className={`compact-done-toggle ${completedGroupNudge ? `completion-nudge completion-nudge-${completedGroupNudge}` : ""}`}
                                 aria-expanded={completedOpen}
                                 aria-controls="compact-completed-list"
                                 onClick={() => setCompletedOpen((value) => !value)}
@@ -1759,7 +1762,7 @@ export default function Byeolharu() {
                         <section className="normal-completed-group" aria-label="완료한 습관">
                           <button
                             type="button"
-                            className={`normal-done-toggle ${completedGroupNudge ? "completion-nudge" : ""}`}
+                            className={`normal-done-toggle ${completedGroupNudge ? `completion-nudge completion-nudge-${completedGroupNudge}` : ""}`}
                             aria-expanded={completedOpen}
                             aria-controls="normal-completed-list"
                             onClick={() => setCompletedOpen((value) => !value)}
