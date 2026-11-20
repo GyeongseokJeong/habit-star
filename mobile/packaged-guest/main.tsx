@@ -1,12 +1,117 @@
-/**
- * STEP 9 first-party guest-only runtime: reuse the actual Byeolharu UI.
- * Cloud is intentionally compiled out. This is not the release app and
- * it must never load remote WebView code or production identity data.
- */
-import React from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { Capacitor } from "@capacitor/core";
+import { LocalNotifications } from "@capacitor/local-notifications";
 import Byeolharu from "../../components/byeolharu";
+import type { Snapshot } from "../../lib/habits/repository";
+import type { NativeReminderControls } from "../../lib/habits/native-reminder-controls";
+import { createReminderLifecycle } from "../notifications/reminder-lifecycle.js";
+
+// This module is bundled into the isolated Android guest APK only.
+// The website's Next.js entrypoint never imports Capacitor or native controls.
+const OPT_IN_KEY = "byeolharu_android_guest_reminders_optin_v1";
+const isAndroid = Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
+const lifecycle = isAndroid ? createReminderLifecycle({ localNotifications: LocalNotifications }) : null;
+const identity = { kind: "guest" as const, verified: true };
+
+function GuestNativeApp() {
+  const [enabled, setEnabled] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState("");
+  const snapshot = useRef<Snapshot | null>(null);
+  const enabledRef = useRef(false);
+  const busyRef = useRef(false);
+  const mounted = useRef(false);
+  const operation = useRef(Promise.resolve());
+
+  const schedule = useCallback((value: boolean, next: Snapshot | null) => {
+    if (!lifecycle) return Promise.resolve();
+    const context = { identity, optIn: value, snapshot: next && {
+      day: next.day,
+      habits: next.habits.map(h => ({ ...h, repeatDays: h.repeatDays ? [...h.repeatDays] : undefined })),
+    }};
+    const task = operation.current.then(async () => {
+      if (!mounted.current) return;
+      const result = await lifecycle.sync(context);
+      if (mounted.current) {
+        if (result.status === "permission-required") setStatus("Android 알림 권한을 확인해 주세요.");
+        else if (result.status === "snapshot-not-ready") setStatus("오늘 기록을 불러온 후 다시 확인해 주세요.");
+        else if (result.status === "updated" || result.status === "unchanged") setStatus("습관 알림이 설정되었어요.");
+        else if (result.status === "disabled") setStatus("");
+      }
+    });
+    operation.current = task.catch(() => {});
+    return task;
+  }, []);
+
+  useEffect(() => {
+    mounted.current = true;
+    // A previously enabled device setting may survive a process restart.
+    // Restore it only in this isolated package; never ask permissions here.
+    try {
+      const saved = localStorage.getItem(OPT_IN_KEY) === "1";
+      enabledRef.current = saved;
+      setEnabled(saved);
+      void schedule(saved, snapshot.current).catch(() => setStatus("알림을 확인하지 못했어요."));
+    } catch {
+      void schedule(false, null);
+    }
+    return () => { mounted.current = false; };
+  }, [schedule]);
+
+  const onSnapshot = useCallback((next: Snapshot | null) => {
+    snapshot.current = next;
+    // React's committed snapshot is the only scheduling source.
+    if (mounted.current && enabledRef.current) {
+      void schedule(true, next).catch(() => setStatus("알림 예약을 갱신하지 못했어요."));
+    }
+  }, [schedule]);
+
+  const onEnabledChange = useCallback(async (next: boolean) => {
+    if (!lifecycle || busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    try {
+      if (next) {
+        if (!snapshot.current) {
+          setStatus("오늘 습관 기록을 준비한 후 다시 시도해 주세요.");
+          return;
+        }
+        const permission = await LocalNotifications.requestPermissions();
+        if (permission.display !== "granted") {
+          setStatus("휴대폰 설정에서 알림 권한을 허용해 주세요.");
+          return;
+        }
+      }
+      // On disable, clear pending reminders before persisting the opt-out.
+      await schedule(next, snapshot.current);
+      localStorage.setItem(OPT_IN_KEY, next ? "1" : "0");
+      enabledRef.current = next;
+      setEnabled(next);
+      if (!next) setStatus("습관 알림을 껐어요.");
+    } catch {
+      setStatus("알림 변경에 실패했습니다. 다시 시도해 주세요.");
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  }, [schedule]);
+
+  useEffect(() => {
+    const resume = () => {
+      if (document.visibilityState === "visible" && enabledRef.current)
+        void schedule(true, snapshot.current).catch(() => setStatus("알림을 확인하지 못했어요."));
+    };
+    document.addEventListener("visibilitychange", resume);
+    return () => document.removeEventListener("visibilitychange", resume);
+  }, [schedule]);
+
+  const nativeReminders: NativeReminderControls | undefined = isAndroid
+    ? { enabled, busy, status, onEnabledChange, onSnapshot }
+    : undefined;
+  return <Byeolharu nativeReminders={nativeReminders} />;
+}
 
 const root = document.getElementById("byeolharu-root");
 if (!root) throw new Error("Byeolharu app root missing");
-createRoot(root).render(<React.StrictMode><Byeolharu /></React.StrictMode>);
+createRoot(root).render(<GuestNativeApp />);
