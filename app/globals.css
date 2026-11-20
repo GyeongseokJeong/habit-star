@@ -3691,9 +3691,9 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   align-items: center;
   gap: 10px;
   width: 100%;
-  min-height: 48px;
-  margin: 12px auto 0;
-  padding: 10px 14px;
+  min-height: 44px;
+  margin: 4px auto 0;
+  padding: 8px 14px;
   background: var(--surface);
   color: var(--ink);
   border: 1px solid var(--control-border);
