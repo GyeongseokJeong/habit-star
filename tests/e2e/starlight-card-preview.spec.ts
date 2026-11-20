@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
   await page.clock.setFixedTime(new Date("2026-11-19T20:00:00+09:00"));
 });
 
-for (const width of [320, 390, 430]) {
+for (const width of [320, 375, 390, 430]) {
   for (const theme of ["light", "dark"] as const) {
     test(`V5 STEP 1 preview is read-only, 4:5 and navigable at ${width}px in ${theme}`, async ({ page }) => {
       await page.setViewportSize({ width, height: 820 });
