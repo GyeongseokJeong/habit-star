@@ -55,3 +55,51 @@ jobs:
           path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 3
+
+  android-webview-preview:
+    # A separate, opt-in artifact. No preview URL -> no remote-loading APK.
+    if: ${{ vars.BYEOLHARU_APP_STAGING_URL != '' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 35
+    env:
+      BYEOLHARU_POC_REMOTE_DEBUG: "1"
+      BYEOLHARU_POC_URL: ${{ vars.BYEOLHARU_APP_STAGING_URL }}
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.22.1"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Verify Android SDK
+        run: |
+          test -n "$ANDROID_HOME"
+          test -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+      - name: Install pinned Capacitor
+        run: npm install --no-package-lock --no-audit --no-fund
+      - name: Check staging HTTPS and anonymous homepage
+        run: |
+          npm run check
+          node scripts/check-preview-origin.mjs
+      - name: Generate Android project
+        run: npm run android:init
+      - name: Sync HTTPS WebView debug configuration
+        run: npm run android:sync
+      - name: Compile staging WebView debug APK
+        run: ./gradlew assembleDebug --no-daemon
+        working-directory: mobile/android
+      - name: Upload staging WebView debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: byeolharu-android-webview-preview-debug
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 3
