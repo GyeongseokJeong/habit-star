@@ -4,6 +4,12 @@ name: Android Shell PoC
 # pull requests touching native/shared UI run cross-platform regressions.
 on:
   workflow_dispatch:
+    inputs:
+      legacy_diagnostics:
+        description: "Build the five historical PoC APKs (default: only current packaged guest)"
+        type: boolean
+        required: false
+        default: false
   pull_request:
     branches:
       - main
@@ -17,6 +23,7 @@ on:
 
 jobs:
   android-debug:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.legacy_diagnostics == true }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -58,6 +65,7 @@ jobs:
           retention-days: 3
 
   android-webview-production-poc:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.legacy_diagnostics == true }}
     # Debug-only, separately installed package. It loads the user's existing
     # public web service and must not be used for member-data testing.
     runs-on: ubuntu-latest
@@ -106,6 +114,7 @@ jobs:
           retention-days: 3
 
   android-local-notification-poc:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.legacy_diagnostics == true }}
     # Dedicated Android app. No production website or account data is loaded.
     runs-on: ubuntu-latest
     permissions:
@@ -152,6 +161,7 @@ jobs:
           retention-days: 3
 
   android-habit-reminder-step5:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.legacy_diagnostics == true }}
     # Isolated Android demo application. Never loads website, personal data or Supabase.
     runs-on: ubuntu-latest
     permissions:
@@ -199,6 +209,7 @@ jobs:
           retention-days: 3
 
   android-reminder-integration-step8:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.legacy_diagnostics == true }}
     # Fully isolated bundled test app; no remote web, Supabase, or real account.
     runs-on: ubuntu-latest
     permissions:
@@ -282,6 +293,7 @@ jobs:
         run: |
           npm run check
           npm run packaged-guest:build
+          npm run packaged-guest:verify
           test -s www-packaged-guest/app.js
           test -s www-packaged-guest/app.css
         working-directory: mobile
@@ -308,10 +320,12 @@ jobs:
         working-directory: mobile/android
       - name: Assert compiled APK includes Android reboot receiver and notification permissions
         run: node mobile/scripts/check-guest-boot-manifest.mjs
-      - name: Upload packaged guest APK
+      - name: Upload packaged guest APK and build provenance
         uses: actions/upload-artifact@v4
         with:
           name: byeolharu-android-packaged-guest-step9-debug
-          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            mobile/android/app/build/outputs/apk/debug/app-debug.apk
+            mobile/www-packaged-guest/build-info.json
           if-no-files-found: error
           retention-days: 3

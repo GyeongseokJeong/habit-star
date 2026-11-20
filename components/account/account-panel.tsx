@@ -7,6 +7,7 @@ import {
   AlertCircle, Clock3, Laptop, Moon, Sun, LoaderCircle,
 } from "lucide-react";
 import { cloudEnabled } from "@/lib/supabase/client";
+import { APP_BUILD_INFO } from "@/lib/build-info";
 import type { useHabitApp } from "@/lib/habits/use-habit-app";
 import type { Snapshot } from "@/lib/habits/repository";
 import type { NativeReminderControls } from "@/lib/habits/native-reminder-controls";
@@ -435,6 +436,9 @@ export function AccountPanel({
             )}
           </div>
           {onInstall && <button type="button" className="account-action-row" onClick={onInstall}><ArrowDownToLine size={18}/><span>별하루 앱 설치</span><ChevronRight size={16}/></button>}
+          <p className="account-note" data-testid="build-info" aria-label="앱 빌드 정보">
+            {nativeReminders ? "Android" : "Web"} · v{APP_BUILD_INFO.version} · 빌드 {APP_BUILD_INFO.shortSha}
+          </p>
         </section>
       )}
 
