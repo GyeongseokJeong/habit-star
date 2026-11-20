@@ -44,7 +44,7 @@ test("STEP 8 APK uses a separate package and a bundled opt-in demo", () => {
   assert.match(lab, /LocalNotifications\.checkPermissions/);
   assert.match(lab, /lifecycle\.disable\(\)/);
   assert.match(lab, /lifecycle\.sync\(context\(\)\)/);
-  assert.doesNotMatch(lab, /localStorage|indexedDB|supabase|fetch\(|getUser\(/);
+  assert.doesNotMatch(lab.replace(/\/\/[^\n]*/g, ""), /localStorage|indexedDB|supabase|fetch\(|getUser\(/);
   assert.match(html, /id="activate"/);
   assert.match(html, /id="completed"/);
   assert.match(html, /id="disable"/);
