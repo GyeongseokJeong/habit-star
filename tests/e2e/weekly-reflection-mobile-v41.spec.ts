@@ -99,7 +99,7 @@ for (const width of [320, 390, 430]) {
 
       const card = page.locator(".weekly-reflection-card").filter({ hasText: "V4.1 물 마시기" });
       await expect(card).toBeVisible();
-      await expect(card).toContainText("확인된 예정일 6일 · 완료 기록 0일");
+      await expect(card).toContainText("지난 7일 · 확인된 예정일 6일 중 완료 0일");
       await expect(card).toContainText("오늘 예정");
       await expect(card).not.toContainText("오늘 예정된 습관");
 
@@ -245,19 +245,22 @@ test("V4.5 returning after recording a habit acknowledges recovery without rewri
   await page.getByRole("button", { name: "최근 7일 돌아보기" }).click();
   const card = page.locator(".weekly-reflection-card").filter({ hasText: "V4.1 물 마시기" });
   await expect(page.getByRole("heading", { name: "다시 이어갈 습관" })).toBeVisible();
-  await expect(card).toContainText("확인된 예정일 6일 · 완료 기록 0일");
+  await expect(card).toContainText("지난 7일 · 확인된 예정일 6일 중 완료 0일");
   await card.getByRole("button", { name: "오늘 기록하기" }).click();
   const modal = page.getByRole("dialog", { name: "오늘의 실천 기록" });
   await expect(modal).toContainText("V4.1 물 마시기");
   await modal.getByRole("button", { name: "단순 체크만 하기" }).click();
   await expect(modal).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "오늘도 다시 이어갔어요" })).toBeVisible();
-  await expect(card).toContainText("오늘 다시 이어갔어요.");
-  await expect(card).toContainText("확인된 예정일 6일 · 완료 기록 0일");
+  await expect(card).toContainText("오늘 실천 완료");
+  await expect(card.locator(".weekly-reflection-completed svg")).toHaveCount(1);
+  await expect(page.getByText("놓쳤던 습관 1개를 오늘 실천했어요.")).toBeVisible();
+  await expect(card).toContainText("지난 7일 · 확인된 예정일 6일 중 완료 0일");
   await expect(card.getByRole("button", { name: "오늘 기록하기" })).toHaveCount(0);
   await page.reload();
   await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
   await page.getByRole("tab", { name: "달력", exact: true }).click();
   await page.getByRole("button", { name: "최근 7일 돌아보기" }).click();
   await expect(page.getByRole("heading", { name: "오늘도 다시 이어갔어요" })).toBeVisible();
+  await expect(card).toContainText("오늘 실천 완료");
 });

@@ -3601,6 +3601,14 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   font-size: 12px;
 }
 .weekly-reflection-card-bottom > span svg { flex: none; color: var(--selection-bg); }
+/* V4.6: a checkmark is a completion state, not a rating or another CTA. */
+.weekly-reflection-card-bottom > .weekly-reflection-completed {
+  color: var(--sage);
+  font-weight: 600;
+}
+.weekly-reflection-card-bottom > .weekly-reflection-completed svg {
+  color: var(--sage);
+}
 .weekly-reflection-record {
   display: inline-flex;
   align-items: center;
