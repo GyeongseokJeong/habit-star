@@ -1,0 +1,85 @@
+/*
+ * Android packaged guest only: do not apply these overrides to the public
+ * Next.js/PWA website. Capacitor 8 SystemBars supplies --safe-area-inset-*
+ * when older Samsung WebView versions cannot resolve CSS env() correctly.
+ *
+ * With viewport-fit=cover we own safe-area layout exactly once. max(), not
+ * addition, avoids double-counting both sources of the same physical inset.
+ */
+:root {
+  --byeolharu-native-top: max(
+    var(--safe-area-inset-top, 0px),
+    env(safe-area-inset-top, 0px)
+  );
+  --byeolharu-native-bottom: max(
+    var(--safe-area-inset-bottom, 0px),
+    env(safe-area-inset-bottom, 0px)
+  );
+  --byeolharu-native-left: max(
+    var(--safe-area-inset-left, 0px),
+    env(safe-area-inset-left, 0px)
+  );
+  --byeolharu-native-right: max(
+    var(--safe-area-inset-right, 0px),
+    env(safe-area-inset-right, 0px)
+  );
+}
+
+/* Keep the status-bar background integrated with the app header while
+ * pushing all interactive header contents below the native status bar. */
+.site-header {
+  height: calc(76px + var(--byeolharu-native-top));
+  padding-top: var(--byeolharu-native-top);
+  padding-left: var(--byeolharu-native-left);
+  padding-right: var(--byeolharu-native-right);
+}
+
+/* Last footer/habit must scroll entirely above the navigation bar. */
+.byeolharu {
+  padding-bottom: calc(16px + var(--byeolharu-native-bottom));
+}
+
+/* Fixed UI is viewport-relative and cannot inherit the document padding. */
+.skip-link:focus {
+  top: calc(10px + var(--byeolharu-native-top));
+}
+.toast {
+  bottom: calc(24px + var(--byeolharu-native-bottom));
+}
+.storage-warning {
+  padding-bottom: calc(12px + var(--byeolharu-native-bottom));
+  padding-left: calc(20px + var(--byeolharu-native-left));
+  padding-right: calc(20px + var(--byeolharu-native-right));
+}
+
+/* Fullscreen constellation artwork keeps its controls out of the bars. */
+.constellation-zoom {
+  padding-top: max(16px, var(--byeolharu-native-top));
+  padding-bottom: max(16px, var(--byeolharu-native-bottom));
+  padding-left: max(16px, var(--byeolharu-native-left));
+  padding-right: max(16px, var(--byeolharu-native-right));
+}
+
+@media (max-width: 620px) {
+  .site-header {
+    height: calc(68px + var(--byeolharu-native-top));
+  }
+  /* The account sheet is truly fullscreen; padding inside its viewport
+   * prevents its header and bottom actions from falling under system bars. */
+  dialog.modal.account-screen {
+    padding-top: var(--byeolharu-native-top);
+    padding-bottom: var(--byeolharu-native-bottom);
+    padding-left: var(--byeolharu-native-left);
+    padding-right: var(--byeolharu-native-right);
+  }
+  dialog.modal.account-screen .modal-top {
+    padding-top: 10px;
+  }
+  dialog.modal.account-screen .account-screen-body {
+    padding-bottom: 24px;
+  }
+  /* Other sheets anchor to the bottom of the viewport. */
+  dialog.modal:not(.account-screen) {
+    padding-bottom: max(24px, calc(12px + var(--byeolharu-native-bottom)));
+  }
+}
