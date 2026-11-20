@@ -44,27 +44,52 @@ try {
     const fallback=await page.locator("#byeolharu-root").innerText().catch(()=>"(root missing)");
     throw new Error("Packaged app did not mount after 12s. Root: "+fallback.slice(0,300)+"\nErrors: "+errors.join("\n")+"\nFailed resources: "+requests.join(", "));
   }
-  // Simulate a Samsung edge-to-edge WebView that injects its native insets
-  // as --safe-area-inset-* CSS variables (e.g. 32 px status, 24 px nav).
-  await page.evaluate(() => {
-    document.documentElement.style.setProperty("--safe-area-inset-top","32px");
-    document.documentElement.style.setProperty("--safe-area-inset-bottom","24px");
-  });
-  const layout = await page.evaluate(() => {
-    const header=document.querySelector(".site-header");
-    const brand=document.querySelector(".site-header .brand");
-    const root=document.querySelector(".byeolharu");
+  // Native Android now insets the actual WebView viewport. In the browser
+  // fallback that viewport has zero inset, so do not add dummy CSS padding.
+  const header = await page.evaluate(() => {
+    const el = document.querySelector(".site-header");
+    const brand = document.querySelector(".site-header .brand");
+    const root = document.querySelector(".byeolharu");
     return {
-      height:header.getBoundingClientRect().height,
-      brandTop:brand.getBoundingClientRect().top,
-      rootBottom:parseFloat(getComputedStyle(root).paddingBottom),
-      top:parseFloat(getComputedStyle(header).paddingTop),
+      height: el.getBoundingClientRect().height,
+      topPadding: parseFloat(getComputedStyle(el).paddingTop),
+      brandTop: brand.getBoundingClientRect().top,
+      bottomPadding: parseFloat(getComputedStyle(root).paddingBottom)
     };
   });
-  assert.ok(layout.top>=32,"Android status-bar safe-area CSS was not applied: "+JSON.stringify(layout));
-  assert.ok(layout.brandTop>=32,"Logo would overlap Android status bar: "+JSON.stringify(layout));
-  assert.ok(layout.height>=99,"Header must grow by the system inset: "+JSON.stringify(layout));
-  assert.ok(layout.rootBottom>=40,"Last habit must scroll above Android nav bar: "+JSON.stringify(layout));
+  assert.equal(header.height,68,"Packaged Android header uses safe-viewport height");
+  assert.equal(header.topPadding,0,"Native inset must not be added again via CSS");
+  assert.ok(header.brandTop>=0,"Logo must remain inside the safe WebView viewport");
+  assert.ok(header.bottomPadding>=16,"Scroll content needs footer breathing room");
+
+  // Reproduce the user's second screenshot: open the habit editor and scroll
+  // to the bottom. The dialog background must be opaque and reach viewport
+  // bottom so the underlying routine tabs never show below the actions.
+  await page.locator(".add-button").first().click();
+  const dialog=page.locator("dialog.modal:has(.habit-editor-form)");
+  await dialog.waitFor({state:"visible",timeout:5000});
+  await dialog.evaluate(el => { el.scrollTop=el.scrollHeight; });
+  const layout=await page.evaluate(() => {
+    const sheet=document.querySelector("dialog.modal:has(.habit-editor-form)");
+    const footer=sheet.querySelector(".habit-editor-footer");
+    const bounds=sheet.getBoundingClientRect();
+    const footerBounds=footer.getBoundingClientRect();
+    return {
+      viewportBottom:window.innerHeight,
+      dialogBottom:bounds.bottom,
+      footerBottom:footerBounds.bottom,
+      sheetBackground:getComputedStyle(sheet).backgroundColor,
+      footerBackground:getComputedStyle(footer).backgroundColor,
+    };
+  });
+  assert.ok(Math.abs(layout.viewportBottom-layout.dialogBottom)<2,
+    "Habit editor must reach the viewport bottom: "+JSON.stringify(layout));
+  assert.ok(layout.footerBottom<=layout.dialogBottom+1,
+    "Sticky actions must remain inside the opaque editor sheet: "+JSON.stringify(layout));
+  assert.notEqual(layout.sheetBackground,"rgba(0, 0, 0, 0)",
+    "Habit editor sheet cannot be transparent");
+  assert.notEqual(layout.footerBackground,"rgba(0, 0, 0, 0)",
+    "Sticky action footer cannot be transparent");
   if(errors.length)throw new Error("Packaged app runtime exceptions: "+errors.join("\n"));
   console.log("PASS: first-party guest UI mounted from packaged assets, no JS startup errors");
 } finally {
