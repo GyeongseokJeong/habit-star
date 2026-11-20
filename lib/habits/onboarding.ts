@@ -25,11 +25,12 @@ export function getFirstUseState(snapshot: Snapshot, isMember: boolean) {
     (entity) => entity.kind === "habit_entries" && !sampleIds.has(entity.id),
   );
   // Legacy guests with actual data must never see the sample-only introduction.
-  // A fresh demo remains eligible until the first intentional edit or creation.
+  // A fresh demo stays eligible after an example is explored; only a real
+  // user-created habit or non-example history ends the invitation.
   const showHint = hydrated && (
     isMember
       ? !hasCreatedHabit && !hasUserHistory
-      : demo && !snapshot.state.hasUserEdits && !hasCreatedHabit
+      : demo && !hasCreatedHabit && !hasUserHistory
   );
   const hasRealCompletion = entities.some(
     (entity) => entity.kind === "habit_entries" && !entity.deleted &&
