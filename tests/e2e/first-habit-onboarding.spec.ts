@@ -29,7 +29,7 @@ for (const width of [320, 390, 430]) {
       await expect(card.locator(".habit-sample-badge")).toHaveCount(0);
       await expect(card.locator(".star-tray button")).toHaveCount(5);
       await card.getByRole("button", { name: "독서 20분 3점" }).click();
-      await expect(page.locator(".normal-done-toggle")).toHaveAttribute("aria-expanded", "true");
+      await expect(page.locator(".normal-done-toggle")).toHaveAttribute("aria-expanded", "false");
       await expect(card.locator(".habit-first-practice")).toHaveText("첫 실천이에요! 작은 시작이 빛나요.");
       await expect(card.getByRole("button", { name: "독서 20분 3점" })).toHaveAttribute("aria-pressed", "true");
       expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
