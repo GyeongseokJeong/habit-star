@@ -7,14 +7,18 @@ test("new guest begins with only two demos and can clear them without touching t
   await page.goto("/");
   await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
   await page.getByRole("tab", { name: "전체", exact: true }).click();
-  await expect(page.locator(".habit-sample-badge")).toHaveCount(2);
   await expect(page.locator(".sample-cleanup-strip")).toContainText("예시 습관 2개");
+  // One completed example is inside the existing collapsed completed group.
+  await expect(page.locator(".habit-sample-badge")).toHaveCount(1);
+  await page.locator(".normal-done-toggle").click();
+  await expect(page.locator(".habit-sample-badge")).toHaveCount(2);
+  await page.locator(".normal-done-toggle").click();
 
   await page.getByRole("button", { name: "예시 한 번에 정리" }).click();
   const modal = page.getByRole("dialog", { name: "예시 습관 정리" });
   await expect(modal.getByText("직접 만든 습관은 그대로 남아요.", { exact: false })).toBeVisible();
   await modal.getByRole("button", { name: "취소" }).click();
-  await expect(page.locator(".habit-sample-badge")).toHaveCount(2);
+  await expect(page.locator(".sample-cleanup-strip")).toContainText("예시 습관 2개");
   await page.getByRole("button", { name: "예시 한 번에 정리" }).click();
   await modal.getByRole("button", { name: "예시만 정리하기" }).click();
   await expect(modal).toHaveCount(0);
@@ -50,7 +54,11 @@ test("compact view can clear demos without leaving a phantom completion group", 
   await page.addInitScript(() => localStorage.setItem("byeolharu_compact_view_v1", "1"));
   await page.goto("/");
   await page.getByRole("tab", { name: "전체", exact: true }).click();
+  await expect(page.locator(".sample-cleanup-strip")).toContainText("예시 습관 2개");
+  await expect(page.locator(".compact-sample-badge")).toHaveCount(1);
+  await page.locator(".compact-done-toggle").click();
   await expect(page.locator(".compact-sample-badge")).toHaveCount(2);
+  await page.locator(".compact-done-toggle").click();
   await page.getByRole("button", { name: "예시 한 번에 정리" }).click();
   await page.getByRole("dialog", { name: "예시 습관 정리" }).getByRole("button", { name: "예시만 정리하기" }).click();
   await expect(page.locator(".compact-sample-badge, .compact-done-toggle")).toHaveCount(0);
