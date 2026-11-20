@@ -42,6 +42,7 @@ for (const width of [320, 390, 430, 1365]) {
           farPathCount: waves.querySelectorAll(".closing-wave-far").length,
           nearPathCount: waves.querySelectorAll(".closing-wave-near").length,
           glintPathCount: waves.querySelectorAll(".closing-wave-glint").length,
+          waveMask: getComputedStyle(waves).maskImage || getComputedStyle(waves).webkitMaskImage,
           colors,
           waveNearBottomColor: getComputedStyle(waves.querySelector(".closing-wave-near-bottom")!).stopColor,
           pageBackground: getComputedStyle(page).getPropertyValue("--bg").trim(),
@@ -51,7 +52,9 @@ for (const width of [320, 390, 430, 1365]) {
       });
       expect(blend.farPathCount).toBe(1);
       expect(blend.nearPathCount).toBe(1);
-      expect(blend.glintPathCount).toBe(1);
+      expect(blend.glintPathCount).toBe(0);
+      expect(blend.waveMask).toContain("linear-gradient");
+      expect(blend.waveMask).toMatch(/(?:transparent|rgba\\(0,\\s*0,\\s*0,\\s*0\\))/);
       expect(blend.colors).toHaveLength(6);
       expect(blend.colors.every((value) => value !== "" && value !== "none")).toBe(true);
       expect(blend.colors[0]).toBe(theme === "dark" ? "rgb(81, 66, 117)" : "rgb(199, 179, 240)");
