@@ -97,7 +97,7 @@ test("first-use hint can be dismissed without changing habits, even after reload
   await page.goto("/");
   await expect(page.locator(".first-habit-hint")).toBeVisible();
   const cardsBefore = await page.locator(".habit-card").count();
-  await page.getByRole("button", { name: "시작 안내 닫기" }).click();
+  await page.getByRole("button", { name: "시작 안내 숨기기" }).click();
   await expect(page.locator(".first-habit-hint")).toHaveCount(0);
   await expect(page.locator(".habit-card")).toHaveCount(cardsBefore);
   await page.reload();
@@ -134,7 +134,7 @@ test("first actual completion stays visible before fold and never celebrates aga
   await expect(card).toBeVisible();
   await expect(card.locator(".habit-first-practice")).toBeVisible();
   await expect(card).toHaveCount(0, { timeout: 5000 });
-  await page.getByRole("button", { name: /완료한 습관 1개/ }).click();
+  await page.locator(".normal-done-toggle").click();
   const completed = page.locator(".normal-completed-list .habit-card").filter({
     has: page.getByRole("heading", { name: "첫 기록 유지", exact: true }),
   });
