@@ -1,0 +1,347 @@
+name: Android Shell PoC
+
+on:
+  push:
+    branches:
+      - app/feat/android-shell-poc
+      - app/feat/habit-reminder-scheduler-step5
+      - app/feat/scoped-reminder-integration-step6
+      - app/feat/reminder-lifecycle-step7
+      - app/feat/native-reminder-integration-lab-step8
+      - app/feat/packaged-guest-ui-step9
+      - app/feat/guest-native-reminders-step10
+      - app/feat/notification-resume-recovery-step11
+      - app/feat/native-resume-reconcile-step12
+      - app/fix/packaged-guest-startup-stall
+      - app/fix/android-system-bar-safe-area
+      - app/feat/guest-reminder-diagnostics-step13
+      - app/feat/reminder-consistency-audit-step14
+      - app/feat/reminder-manual-repair-step15
+      - app/feat/android-reboot-permission-validation-step16
+      - app/fix/android-notification-permission-clarity-step17
+      - app/feat/android-notification-settings-cleanup-step18
+      - app/fix/android-permission-toggle-reattempt-step18
+      - app/chore/android-release-readiness-step19
+      - app/integration/android-guest-step20
+      - app/review/android-shared-boundary-step21
+    paths:
+      - "mobile/**"
+      - ".github/workflows/android-poc.yml"
+  pull_request:
+    branches:
+      - app/main
+      - app/feat/habit-reminder-scheduler-step5
+      - app/feat/scoped-reminder-integration-step6
+      - app/feat/reminder-lifecycle-step7
+      - app/feat/native-reminder-integration-lab-step8
+      - app/feat/packaged-guest-ui-step9
+      - app/feat/guest-native-reminders-step10
+    paths:
+      - "mobile/**"
+      - ".github/workflows/android-poc.yml"
+
+jobs:
+  android-debug:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.22.1"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Verify Android SDK
+        run: |
+          test -n "$ANDROID_HOME"
+          test -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+      - name: Install pinned Capacitor
+        run: npm install --no-package-lock --no-audit --no-fund
+      - name: Verify PoC safety boundaries
+        run: npm run check
+      - name: Generate Android project
+        run: npm run android:init
+      - name: Sync local placeholder
+        run: npm run android:sync
+      - name: Compile debug APK
+        run: ./gradlew assembleDebug --no-daemon
+        working-directory: mobile/android
+      - name: Upload debug artifact (not a release build)
+        uses: actions/upload-artifact@v4
+        with:
+          name: byeolharu-android-shell-debug-poc
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 3
+
+  android-webview-production-poc:
+    # Debug-only, separately installed package. It loads the user's existing
+    # public web service and must not be used for member-data testing.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 35
+    env:
+      BYEOLHARU_POC_REMOTE_DEBUG: "1"
+      BYEOLHARU_POC_URL: "https://habit-star-fawn.vercel.app"
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.22.1"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Verify Android SDK
+        run: |
+          test -n "$ANDROID_HOME"
+          test -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+      - name: Install pinned Capacitor
+        run: npm install --no-package-lock --no-audit --no-fund
+      - name: Verify anonymous website only
+        run: |
+          npm run check
+          node scripts/check-webview-origin.mjs
+      - name: Generate isolated Android app
+        run: npm run android:init
+      - name: Sync remote WebView configuration
+        run: npm run android:sync
+      - name: Compile WebView debug APK
+        run: ./gradlew assembleDebug --no-daemon
+        working-directory: mobile/android
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: byeolharu-android-existing-web-debug
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 3
+
+  android-local-notification-poc:
+    # Dedicated Android app. No production website or account data is loaded.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 35
+    env:
+      BYEOLHARU_POC_NOTIFICATIONS: "1"
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.22.1"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Verify Android SDK
+        run: |
+          test -n "$ANDROID_HOME"
+          test -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+      - name: Install pinned Android notification dependencies
+        run: npm install --no-package-lock --no-audit --no-fund
+      - name: Unit checks and offline notification test screen
+        run: |
+          npm run check
+          npm run notifications:prepare
+      - name: Generate standalone Android project
+        run: npm run android:init
+      - name: Sync Capacitor native notification plugin
+        run: npm run android:sync
+      - name: Compile local notification PoC APK
+        run: ./gradlew assembleDebug --no-daemon
+        working-directory: mobile/android
+      - name: Upload notification PoC debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: byeolharu-android-notification-debug
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 3
+
+  android-habit-reminder-step5:
+    # Isolated Android demo application. Never loads website, personal data or Supabase.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 35
+    env:
+      BYEOLHARU_POC_NOTIFICATIONS: "1"
+      BYEOLHARU_POC_REMINDER_STEP5: "1"
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.22.1"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Verify Android SDK
+        run: |
+          test -n "$ANDROID_HOME"
+          test -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+      - name: Install exact Android dependencies
+        run: npm install --no-package-lock --no-audit --no-fund
+      - name: Run PoC checks and prepare STEP 5 assets
+        run: |
+          npm run check
+          npm run notifications:prepare
+      - name: Generate isolated Android application
+        run: npm run android:init
+      - name: Sync native notification plugin
+        run: npm run android:sync
+      - name: Compile STEP 5 debug APK
+        run: ./gradlew assembleDebug --no-daemon
+        working-directory: mobile/android
+      - name: Upload STEP 5 debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: byeolharu-android-habit-reminder-step5-debug
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 3
+
+  android-reminder-integration-step8:
+    # Fully isolated bundled test app; no remote web, Supabase, or real account.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 35
+    env:
+      BYEOLHARU_POC_NOTIFICATIONS: "1"
+      BYEOLHARU_POC_INTEGRATION_STEP8: "1"
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.22.1"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Verify Android SDK
+        run: |
+          test -n "$ANDROID_HOME"
+          test -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+      - name: Install exact Android dependencies
+        run: npm install --no-package-lock --no-audit --no-fund
+      - name: Run tests and bundle isolated STEP 8 page
+        run: |
+          npm run check
+          npm run notifications:prepare
+      - name: Generate standalone Android application
+        run: npm run android:init
+      - name: Sync native plugins
+        run: npm run android:sync
+      - name: Compile STEP 8 debug APK
+        run: ./gradlew assembleDebug --no-daemon
+        working-directory: mobile/android
+      - name: Upload STEP 8 debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: byeolharu-android-reminder-integration-step8-debug
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 3
+
+  android-packaged-guest-step9:
+    # Bundles actual first-party Byeolharu React UI, no remote WebView, no live account.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 40
+    env:
+      BYEOLHARU_POC_PACKAGED_GUEST: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history required to compute merge-base with app/main
+      - name: Verify Android integration diff stays within approved file paths
+        run: |
+          git fetch --no-tags origin app/main:refs/remotes/origin/app/main
+          node mobile/scripts/check-integration-scope.mjs --assert-scope
+        working-directory: .
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.25.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.22.1"
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Verify Android SDK
+        run: |
+          test -n "$ANDROID_HOME"
+          test -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+      - name: Install first-party web dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Android dependencies
+        run: npm install --no-package-lock --no-audit --no-fund
+        working-directory: mobile
+      - name: Verify Android checks and package actual guest UI
+        run: |
+          npm run check
+          npm run packaged-guest:build
+          test -s www-packaged-guest/app.js
+          test -s www-packaged-guest/app.css
+        working-directory: mobile
+      - name: Install Chromium for packaged guest startup smoke test
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Prove bundled React UI mounts without fatal browser errors
+        run: node mobile/scripts/smoke-packaged-guest.mjs
+      - name: Upload startup failure screenshot
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: byeolharu-packaged-guest-startup-debug
+          path: mobile/www-packaged-guest/startup-failure.png
+          if-no-files-found: ignore
+          retention-days: 3
+      - name: Generate Android project
+        run: npm run android:init
+        working-directory: mobile
+      - name: Sync bundled guest UI
+        run: npm run android:sync
+        working-directory: mobile
+      - name: Compile packaged guest APK
+        run: ./gradlew assembleDebug --no-daemon
+        working-directory: mobile/android
+      - name: Assert compiled APK includes Android reboot receiver and notification permissions
+        run: node mobile/scripts/check-guest-boot-manifest.mjs
+      - name: Upload packaged guest APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: byeolharu-android-packaged-guest-step9-debug
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 3
