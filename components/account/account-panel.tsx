@@ -360,7 +360,15 @@ export function AccountPanel({
                   onClick={() => void nativeReminders.onEnabledChange(!nativeReminders.enabled)}
                 ><span className="compact-switch-track" aria-hidden="true"><span className="compact-switch-thumb" /></span></button>
               </div>
-              {!!nativeReminders.status && <p className="account-note" role="status">{nativeReminders.status}</p>}
+              {nativeReminders.enabled && nativeReminders.permissionState === "denied" && (
+                <p className="account-note" role="status">
+                  <strong>기기 알림 권한 차단됨</strong> · 습관 알림 설정은 유지되지만 현재 알림이 표시되지 않아요.
+                  휴대폰 설정 → 앱 → 별하루 → 알림에서 허용해 주세요.
+                </p>
+              )}
+              {!!nativeReminders.status && !(nativeReminders.enabled && nativeReminders.permissionState === "denied") && (
+                <p className="account-note" role="status">{nativeReminders.status}</p>
+              )}
               <button
                 type="button"
                 className="secondary"
