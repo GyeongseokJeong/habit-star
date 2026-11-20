@@ -13,6 +13,10 @@ const remoteDebug = process.env.BYEOLHARU_POC_REMOTE_DEBUG === "1";
 const notificationsPoc = process.env.BYEOLHARU_POC_NOTIFICATIONS === "1";
 const reminderStep5 = process.env.BYEOLHARU_POC_REMINDER_STEP5 === "1";
 const integrationStep8 = process.env.BYEOLHARU_POC_INTEGRATION_STEP8 === "1";
+const packagedGuest = process.env.BYEOLHARU_POC_PACKAGED_GUEST === "1";
+if (packagedGuest && (remoteDebug || notificationsPoc || reminderStep5 || integrationStep8)) {
+  throw new Error("STEP 9 packaged guest app must be isolated from remote or notification demo modes.");
+}
 if (integrationStep8 && (!notificationsPoc || reminderStep5 || remoteDebug)) {
   throw new Error("STEP 8 must be an isolated notification app.");
 }
@@ -37,7 +41,9 @@ if (remoteDebug && configuredOrigin) {
 
 const config: CapacitorConfig = {
   // Different app IDs keep separate WebView storage and allow installing both PoCs.
-  appId: integrationStep8
+  appId: packagedGuest
+    ? "io.github.gyeongseokjeong.byeolharu.packagedgueststep9"
+    : integrationStep8
     ? "io.github.gyeongseokjeong.byeolharu.integrationstep8"
     : reminderStep5
     ? "io.github.gyeongseokjeong.byeolharu.reminderstep5"
@@ -46,7 +52,9 @@ const config: CapacitorConfig = {
     : remoteDebug
       ? "io.github.gyeongseokjeong.byeolharu.webviewpoc"
       : "io.github.gyeongseokjeong.byeolharu.poc",
-  appName: integrationStep8
+  appName: packagedGuest
+    ? "별하루 비회원 STEP 9"
+    : integrationStep8
     ? "별하루 STEP 8 통합 테스트"
     : reminderStep5
     ? "별하루 습관 알림 STEP 5"
@@ -55,7 +63,7 @@ const config: CapacitorConfig = {
     : remoteDebug
       ? "별하루 WebView PoC"
       : "별하루 PoC",
-  webDir: "www",
+  webDir: packagedGuest ? "www-packaged-guest" : "www",
   ...(remoteDebug
     ? { server: { url: productionOrigin, cleartext: false } }
     : {}),
