@@ -10,6 +10,7 @@ import { createReminderLifecycle } from "../notifications/reminder-lifecycle.js"
 import { guestReminderAction } from "../notifications/guest-reminder-readiness.js";
 import { createResumeDispatcher } from "../notifications/native-resume-refresh.js";
 import { summarizeGuestPending } from "../notifications/guest-reminder-diagnostics.js";
+import { auditGuestReminders } from "../notifications/guest-reminder-audit.js";
 
 // This module is bundled into the isolated Android guest APK only.
 // The website's Next.js entrypoint never imports Capacitor or native controls.
@@ -23,6 +24,7 @@ function GuestNativeApp() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [diagnostic, setDiagnostic] = useState("");
+  const [auditStatus, setAuditStatus] = useState("");
   const snapshot = useRef<Snapshot | null>(null);
   const enabledRef = useRef(false);
   const busyRef = useRef(false);
@@ -177,8 +179,48 @@ function GuestNativeApp() {
     }
   }, []);
 
+  const onAuditPending = useCallback(async () => {
+    if (!isAndroid || busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    try {
+      // This is an observation only: no permission dialog, scheduling, or
+      // mutations. The latest committed snapshot is the comparison source.
+      const [permissions, queue] = await Promise.all([
+        LocalNotifications.checkPermissions(),
+        LocalNotifications.getPending(),
+      ]);
+      const report = auditGuestReminders({
+        snapshot: snapshot.current,
+        optIn: enabledRef.current,
+        pending: queue.notifications,
+        permission: permissions.display,
+        now: new Date(),
+      });
+      const message = {
+        disabled: "알림 사용이 꺼져 있고 대기 예약도 없어요.",
+        "unexpected-pending": "알림을 껐지만 남은 예약이 있어요. 알림 끄기를 다시 적용해 주세요.",
+        "permission-required": "Android 알림 권한이 필요해요. 기기 설정을 확인해 주세요.",
+        "snapshot-not-ready": "오늘 습관 기록 로딩이 완료된 뒤 비교할 수 있어요.",
+        synced: "습관 설정과 Android 예약이 일치해요.",
+        "out-of-sync": "습관 설정과 Android 예약이 달라요. 앱을 다시 열어 갱신 상태를 확인해 주세요.",
+      }[report.status] ?? "예약 상태를 확인할 수 없어요.";
+      const counts = report.expectedCount === null
+        ? "Android 실제 예약 " + report.actualCount + "건"
+        : "예상 " + report.expectedCount + "건 · 실제 " + report.actualCount +
+          "건 · 추가/변경 필요 " + report.missingCount + "건 · 취소 필요 " + report.staleCount + "건";
+      setAuditStatus(message + " " + counts +
+        (report.truncated ? " · 최대 예약 건수에 도달했어요." : ""));
+    } catch {
+      setAuditStatus("예약 비교에 실패했습니다. 습관 데이터와 기기 설정을 확인해 주세요.");
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  }, []);
+
   const nativeReminders: NativeReminderControls | undefined = isAndroid
-    ? { enabled, busy, status, diagnostic, onInspectPending, onEnabledChange, onSnapshot }
+    ? { enabled, busy, status, diagnostic, auditStatus, onInspectPending, onAuditPending, onEnabledChange, onSnapshot }
     : undefined;
   return <Byeolharu nativeReminders={nativeReminders} />;
 }
