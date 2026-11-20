@@ -1,6 +1,6 @@
 import { ArrowLeft, ArrowRight, CalendarDays, Sparkles, Star } from "lucide-react";
 import { StarlitClosingFooter } from "@/components/starlit-closing-footer";
-import type { WeeklyReflection } from "@/lib/habits/weekly-reflection";
+import { summarizeTodayRecovery, type WeeklyReflection } from "@/lib/habits/weekly-reflection";
 
 function shortDate(day: string) {
   const [, month, date] = day.split("-").map(Number);
@@ -22,6 +22,9 @@ export function WeeklyReflectionView({
   onBack: () => void;
   onRecord: (habitId: string) => void;
 }) {
+  const recovery = reflection?.status === "restart"
+    ? summarizeTodayRecovery(reflection.recommendations)
+    : null;
   return (
     <section className="weekly-reflection" aria-label="최근 7일 돌아보기">
       <div className="weekly-reflection-header">
@@ -44,11 +47,13 @@ export function WeeklyReflectionView({
       ) : reflection.status === "restart" ? (
         <>
           <div className="weekly-reflection-intro">
-            <h2>🌱 다시 이어갈 습관</h2>
-            <p>작은 실천부터 다시 시작해 봐요.</p>
+            <h2>{recovery?.allCompletedToday ? "✨ 오늘도 다시 이어갔어요" : "🌱 다시 이어갈 습관"}</h2>
+            <p>{recovery?.allCompletedToday
+              ? "오늘의 실천을 기록했어요. 작은 시작이 이어지고 있어요."
+              : "작은 실천부터 다시 시작해 봐요."}</p>
           </div>
           <div className="weekly-reflection-list">
-            {reflection.recommendations.map((habit) => (
+            {recovery?.ordered.map((habit) => (
               <article key={habit.id} className="weekly-reflection-card">
                 <div className="weekly-reflection-card-top">
                   <span className="weekly-reflection-emoji" aria-hidden="true">{habit.icon}</span>

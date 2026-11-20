@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateWeeklyReflection, nextScheduledDay, shiftDay } from "../lib/habits/weekly-reflection";
+import { calculateWeeklyReflection, nextScheduledDay, shiftDay, summarizeTodayRecovery } from "../lib/habits/weekly-reflection";
 import { entityKey, type Habit, type Entity } from "../lib/habits/domain";
 import type { Snapshot, State } from "../lib/habits/repository";
 
@@ -132,4 +132,46 @@ describe("weekly reflection V1", () => {
   it("returns the correct next date for a habit scheduled once per week", () => {
     expect(nextScheduledDay(habit("once", false, [1]), TODAY)).toBe("2026-11-23");
   });
+  it("keeps the historical top two fixed but presents a pending action before a recovered habit", () => {
+    const a = habit("a", true);
+    const b = habit("b", false);
+    const history = Object.fromEntries(days.map(day => [day, [habit("a"), habit("b")]]));
+    const result = calculateWeeklyReflection(snapshot([a, b], history));
+    expect(result.recommendations.map(item => item.id)).toEqual(["a", "b"]);
+    expect(result.recommendations[0].completedDays).toBe(0);
+    const today = summarizeTodayRecovery(result.recommendations);
+    expect(today.ordered.map(item => item.id)).toEqual(["b", "a"]);
+    expect(today.completedToday).toBe(1);
+    expect(today.allCompletedToday).toBe(false);
+    expect(today.ordered[1].completedDays).toBe(0);
+    // Reverting today's record restores the original order and action.
+    const reverted = calculateWeeklyReflection(snapshot([habit("a"), b], history));
+    expect(summarizeTodayRecovery(reverted.recommendations).ordered.map(item => item.id)).toEqual(["a", "b"]);
+  });
+
+  it("celebrates only when every historically recommended habit is completed today", () => {
+    const history = Object.fromEntries(days.map(day => [
+      day, [habit("a"), habit("b")],
+    ]));
+    const none = calculateWeeklyReflection(snapshot([habit("a"), habit("b")], history));
+    expect(summarizeTodayRecovery(none.recommendations).allCompletedToday).toBe(false);
+    const all = calculateWeeklyReflection(snapshot([habit("a", true), habit("b", true)], history));
+    expect(all.status).toBe("restart");
+    expect(summarizeTodayRecovery(all.recommendations)).toMatchObject({
+      completedToday: 2, allCompletedToday: true,
+    });
+    expect(all.recommendations.map(item => item.completedDays)).toEqual([0, 0]);
+    expect(summarizeTodayRecovery([]).allCompletedToday).toBe(false);
+  });
+
+  it("places available action first, future scheduled habit second, recovered habit last", () => {
+    const a = { ...habit("a"), observedDays: 5, completedDays: 1, missedDays: 4,
+      lastCompletedDay: null, todayScheduled: false, todayCompleted: false, nextScheduledDay: "2026-11-23" };
+    const b = { ...a, id: "b", todayScheduled: true };
+    const c = { ...a, id: "c", todayScheduled: true, todayCompleted: true };
+    const result = summarizeTodayRecovery([c, a, b]);
+    expect(result.ordered.map(x => x.id)).toEqual(["b", "a", "c"]);
+    expect(result.completedToday).toBe(1);
+  });
+
 });
