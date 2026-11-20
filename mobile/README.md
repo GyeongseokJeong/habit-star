@@ -560,3 +560,52 @@ Native plugin is built only into the packaged guest debug Android APK;
 other demo flavors are unmodified. Verify on Galaxy: revoke permission,
 resume app to see OFF, tap ON, open system settings, grant permission,
 resume app to see ON, then verify retained queue and reminder delivery.
+
+
+## STEP 19 — Android release preflight and stacked PR integration map
+
+The existing packaged-guest Android APK is an isolated debug PoC, NOT a Play
+store release build. `npm run release:readiness` prints a machine-readable
+read-only checklist with hard release blockers and manual approval gates.
+`node scripts/check-android-release-readiness.mjs --assert-ready` exits nonzero
+until the structural blockers are addressed. Neither command reads signing
+secrets, alters storage, signs packages, merges PRs, or publishes anything.
+
+### Existing stacked dependency order (all Draft as of 2026-11-20)
+
+67 -> 74 -> 76 -> 77 -> 78 -> 81 -> 83 -> 86 -> 89 -> 90 -> 92 -> 95 -> 97
+-> 99 -> 100 -> 102 -> 104 -> 106 -> STEP19.
+
+These are sequential branch dependencies, not independent release PRs.
+Review and merge bottom-up only after testing and explicit authorization.
+Do not squash/merge a descendant into app/main before the base is integrated
+and do not accidentally merge the PoC into the public website `main`.
+
+### Decision log before an actual Play distribution
+
+1. Freeze a permanent release application ID, public app name, icons and
+   versionCode/versionName. The currently installed `.packagedgueststep9`
+   package is not the final release ID; changing the ID creates a separate
+   Android app/storage boundary and cannot in-place update the PoC.
+2. Decide the release product boundary: local guest app only vs signed-in
+   cloud sync. The present APK intentionally targets local guest records.
+3. Commit a versioned native release Android project rather than generating
+   it with `cap add android` each time. Keep release and debug package modes
+   intentionally separate and preserve native system-bar/permission fixes.
+4. Configure a reproducible signed release AAB build and upload key kept
+   outside source control. Test through Play internal testing and verify
+   the final manifest, target SDK and app signing setup.
+5. Complete Play Console disclosures: privacy policy, Data Safety, store
+   listing, app access, notifications/permissions and relevant declarations.
+6. Validate onboarding, reminder permission, Doze/reboot/notification
+   behaviors, backup/migration boundaries, and light/dark UI on devices.
+7. Pass all Android/web/cloud checks, then obtain explicit approval for PR
+   stack integration and release candidate preparation. Never publish from
+   this diagnostic-only STEP19 branch.
+
+### Verified facts vs remaining gates
+
+Current 6 Android debug jobs and verify/cloud checks passed on STEP18 PR
+#106. Galaxy confirmation for the new permission-toggle workflow is still
+required. Existing local reminders and system-bar fixes have prior device
+evidence, but no signed release AAB, final ID, or Play submission exists.
