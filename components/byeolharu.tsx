@@ -51,10 +51,6 @@ import { AccountPanel } from "@/components/account/account-panel";
 import { StarlitHero } from "@/components/starlit-hero";
 import { initialRoutineTab, startupDataReady } from "@/lib/habits/time-tab";
 import { getFirstUseState, canCelebrateFirstPractice } from "@/lib/habits/onboarding";
-const FIRST_PRACTICE_FEEDBACK_MS = 3400;
-const FIRST_PRACTICE_HOLD_MS = 3600;
-const FIRST_PRACTICE_SEEN_KEY = "byeolharu_first_practice_celebrated_v1:";
-const FIRST_HINT_DISMISS_KEY = "byeolharu_first_habit_hint_dismissed_v1:";
 import { sortHabitsForDisplay } from "@/lib/habits/display-order";
 import { ConstellationGrowthView } from "@/components/constellation-growth-view";
 import { calculateConstellationGrowth, earnedStageFromCompletion } from "@/lib/constellation/growth";
@@ -63,6 +59,10 @@ import { calculateWeeklyReflection } from "@/lib/habits/weekly-reflection";
 import { WeeklyReflectionView } from "@/components/weekly-reflection-view";
 import { StarlitClosingFooter } from "@/components/starlit-closing-footer";
 export type { Habit, TimeGroup } from "@/lib/habits/domain";
+const FIRST_PRACTICE_FEEDBACK_MS = 3400;
+const FIRST_PRACTICE_HOLD_MS = 3600;
+const FIRST_PRACTICE_SEEN_KEY = "byeolharu_first_practice_celebrated_v1:";
+const FIRST_HINT_DISMISS_KEY = "byeolharu_first_habit_hint_dismissed_v1:";
 type Tab = "all" | TimeGroup | "matrix";
 type InstallEvent = Event & {
   prompt: () => Promise<void>;
@@ -1298,8 +1298,8 @@ export default function Byeolharu() {
         memo: "",
       };
       await setHabits((prev) => [...prev, newHabit]);
-      // Existing return-to-All behavior ensures the new card is visible when
-      // scheduled today. On a rest day, explain why no card is shown yet.
+      // Preserve the existing return-to-All behavior. Explain rest days rather
+      // than implying the newly created habit will appear in today's list.
       tabChosenManually.current = true;
       setActiveTab("all");
       const scheduledToday = app.snapshot?.day
