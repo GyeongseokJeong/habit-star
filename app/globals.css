@@ -3812,7 +3812,7 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 .starlight-share-stage {
   position: relative;
   z-index: 1;
-  margin: 5px 0 0;
+  margin: 2px 0 0;
   color: #f2d39e;
   font-size: clamp(11px, 2.8vw, 13px);
   font-weight: 650;
@@ -3865,5 +3865,5 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 
 /* Keep the full 2:3 artwork visible even on 320px devices. */
 @media (max-width: 360px) {
-  .starlight-share-artwork { width: 43% !important; }
+  .starlight-share-artwork { width: 41.5% !important; }
 }
