@@ -15,6 +15,7 @@ on:
       - app/fix/packaged-guest-startup-stall
       - app/fix/android-system-bar-safe-area
       - app/feat/guest-reminder-diagnostics-step13
+      - app/feat/reminder-consistency-audit-step14
     paths:
       - "mobile/**"
       - ".github/workflows/android-poc.yml"
