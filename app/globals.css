@@ -3799,11 +3799,11 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   overflow: hidden;
 }
 .starlight-share-artwork {
-  width: min(57%, 190px) !important;
+  width: min(48%, 166px) !important;
   height: auto;
   max-width: 100%;
-  max-height: calc(100% - 21px);
-  flex-shrink: 1;
+  max-height: none;
+  flex: 0 0 auto;
   border: 1px solid #e7c39338;
   border-radius: 10px !important;
   box-shadow: 0 4px 22px #0c0c281f;
@@ -3862,3 +3862,8 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   font-weight: 500;
 }
 
+
+/* Keep the full 2:3 artwork visible even on 320px devices. */
+@media (max-width: 360px) {
+  .starlight-share-artwork { width: 43% !important; }
+}
