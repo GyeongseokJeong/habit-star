@@ -173,7 +173,8 @@ test("V4.2 small viewport scrolls to footer after the habit card without overlap
     document: document.documentElement.scrollHeight,
     overflowX: document.documentElement.scrollWidth > window.innerWidth,
   }));
-  expect(bounds.footerTop).toBeGreaterThan(bounds.cardBottom);
+  // Adjacent blocks may share an exact pixel boundary without overlapping.
+  expect(bounds.footerTop).toBeGreaterThanOrEqual(bounds.cardBottom);
   expect(bounds.document).toBeGreaterThan(bounds.viewport);
   expect(bounds.overflowX).toBe(false);
 
