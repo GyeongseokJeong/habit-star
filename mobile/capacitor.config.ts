@@ -12,6 +12,10 @@ const productionOrigin = "https://habit-star-fawn.vercel.app";
 const remoteDebug = process.env.BYEOLHARU_POC_REMOTE_DEBUG === "1";
 const notificationsPoc = process.env.BYEOLHARU_POC_NOTIFICATIONS === "1";
 const reminderStep5 = process.env.BYEOLHARU_POC_REMINDER_STEP5 === "1";
+const integrationStep8 = process.env.BYEOLHARU_POC_INTEGRATION_STEP8 === "1";
+if (integrationStep8 && (!notificationsPoc || reminderStep5 || remoteDebug)) {
+  throw new Error("STEP 8 must be an isolated notification app.");
+}
 if (reminderStep5 && !notificationsPoc) throw new Error("STEP 5 requires isolated notifications mode.");
 if (remoteDebug && notificationsPoc) {
   throw new Error("Notification PoC must be isolated from the remote website.");
@@ -33,14 +37,18 @@ if (remoteDebug && configuredOrigin) {
 
 const config: CapacitorConfig = {
   // Different app IDs keep separate WebView storage and allow installing both PoCs.
-  appId: reminderStep5
+  appId: integrationStep8
+    ? "io.github.gyeongseokjeong.byeolharu.integrationstep8"
+    : reminderStep5
     ? "io.github.gyeongseokjeong.byeolharu.reminderstep5"
     : notificationsPoc
     ? "io.github.gyeongseokjeong.byeolharu.notificationpoc"
     : remoteDebug
       ? "io.github.gyeongseokjeong.byeolharu.webviewpoc"
       : "io.github.gyeongseokjeong.byeolharu.poc",
-  appName: reminderStep5
+  appName: integrationStep8
+    ? "별하루 STEP 8 통합 테스트"
+    : reminderStep5
     ? "별하루 습관 알림 STEP 5"
     : notificationsPoc
     ? "별하루 알림 PoC"
