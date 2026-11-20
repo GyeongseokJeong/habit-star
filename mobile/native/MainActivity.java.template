@@ -1,0 +1,122 @@
+package __PACKAGE__;
+
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.webkit.WebView;
+import androidx.activity.OnBackPressedCallback;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
+import com.getcapacitor.BridgeActivity;
+
+/**
+ * Debug-only native navigation for the existing 별하루 WebView.
+ * No JS interfaces, app secrets, session changes, or WebView reloads.
+ */
+public class MainActivity extends BridgeActivity {
+    private static final long THEME_CHECK_INTERVAL_MS = 1800L;
+
+    // Back mirrors the existing React dialog controls; never calls dialog.close()
+    // directly because React owns the modal lifecycle.
+    private static final String DISMISS_DIALOG_JS =
+        "(function(){" +
+        "var dialog=document.querySelector('dialog[open]');" +
+        "if(!dialog)return false;" +
+        "var back=dialog.querySelector('button.modal-back');" +
+        "var close=dialog.querySelector('.modal-top button[aria-label=\\\"닫기\\\"]');" +
+        "var action=back||close;" +
+        "if(!action)return false;" +
+        "action.click();return true;" +
+        "})()";
+
+    private static final String READ_THEME_JS =
+        "(function(){" +
+        "var app=document.querySelector('.byeolharu');" +
+        "if(app)return app.classList.contains('dark')?'dark':'light';" +
+        "return document.documentElement.dataset.byeolharuTheme==='dark'?'dark':'unknown';" +
+        "})()";
+
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private boolean foreground;
+    private boolean backPending;
+    private Boolean lastLightBars;
+    private final Runnable themeSync = new Runnable() {
+        @Override public void run() {
+            if (!foreground) return;
+            syncSystemBarContrast();
+            handler.postDelayed(this, THEME_CHECK_INTERVAL_MS);
+        }
+    };
+
+    @Override
+    protected void onCreate(Bundle state) {
+        super.onCreate(state);
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override public void handleOnBackPressed() {
+                handleNativeBack();
+            }
+        });
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        foreground = true;
+        handler.removeCallbacks(themeSync);
+        handler.post(themeSync);
+    }
+
+    @Override
+    protected void onPause() {
+        foreground = false;
+        handler.removeCallbacks(themeSync);
+        super.onPause();
+    }
+
+    @Override
+    protected void onDestroy() {
+        handler.removeCallbacks(themeSync);
+        super.onDestroy();
+    }
+
+    private WebView currentWebView() {
+        return getBridge() == null ? null : getBridge().getWebView();
+    }
+
+    private void handleNativeBack() {
+        if (backPending) return;
+        final WebView view = currentWebView();
+        if (view == null) {
+            finish();
+            return;
+        }
+        backPending = true;
+        view.evaluateJavascript(DISMISS_DIALOG_JS, result -> {
+            backPending = false;
+            if (isFinishing() || isDestroyed()) return;
+            if ("true".equals(result)) return;
+            if (view.canGoBack()) {
+                view.goBack();
+            } else {
+                // Android root-back should return to the launcher, not clear data.
+                finish();
+            }
+        });
+    }
+
+    private void syncSystemBarContrast() {
+        final WebView view = currentWebView();
+        if (view == null) return;
+        view.evaluateJavascript(READ_THEME_JS, result -> {
+            if (!foreground || isFinishing() || isDestroyed()) return;
+            if (!"\\\"light\\\"".equals(result) && !"\\\"dark\\\"".equals(result)) return;
+            boolean light = "\\\"light\\\"".equals(result);
+            if (lastLightBars != null && lastLightBars == light) return;
+            lastLightBars = light;
+            WindowInsetsControllerCompat controller =
+                WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+            controller.setAppearanceLightStatusBars(light);
+            controller.setAppearanceLightNavigationBars(light);
+        });
+    }
+}
