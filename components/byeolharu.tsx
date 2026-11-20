@@ -1460,7 +1460,7 @@ export default function Byeolharu() {
   );
 
   return (
-    <div className={`byeolharu ${theme} ${compactView ? "compact-view" : ""}`}>
+    <div className={`byeolharu ${theme} ${compactView ? "compact-view" : ""} ${reflectionOpen ? "reflection-layout" : ""}`}>
       <a href="#main" className="skip-link">
         본문으로 건너뛰기
       </a>
