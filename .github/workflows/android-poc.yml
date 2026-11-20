@@ -12,6 +12,7 @@ on:
       - app/feat/guest-native-reminders-step10
       - app/feat/notification-resume-recovery-step11
       - app/feat/native-resume-reconcile-step12
+      - app/fix/packaged-guest-startup-stall
     paths:
       - "mobile/**"
       - ".github/workflows/android-poc.yml"
@@ -296,6 +297,18 @@ jobs:
           test -s www-packaged-guest/app.js
           test -s www-packaged-guest/app.css
         working-directory: mobile
+      - name: Install Chromium for packaged guest startup smoke test
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Prove bundled React UI mounts without fatal browser errors
+        run: node mobile/scripts/smoke-packaged-guest.mjs
+      - name: Upload startup failure screenshot
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: byeolharu-packaged-guest-startup-debug
+          path: mobile/www-packaged-guest/startup-failure.png
+          if-no-files-found: ignore
+          retention-days: 3
       - name: Generate Android project
         run: npm run android:init
         working-directory: mobile
