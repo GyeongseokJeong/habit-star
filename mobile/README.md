@@ -609,3 +609,27 @@ Current 6 Android debug jobs and verify/cloud checks passed on STEP18 PR
 #106. Galaxy confirmation for the new permission-toggle workflow is still
 required. Existing local reminders and system-bar fixes have prior device
 evidence, but no signed release AAB, final ID, or Play submission exists.
+
+
+## STEP 20 — Android integration boundary gate (read-only)
+
+CI compares **the entire latest Android stack** to `origin/app/main` by
+running `node mobile/scripts/check-integration-scope.mjs --assert-scope`.
+The packaged guest Android build fetches the latest `app/main` to avoid a
+one-commit-only comparison. The gate accepts `mobile/` source files, the
+isolated Android workflow, and seven explicitly reviewed shared code files:
+
+- `app/globals.css`
+- `components/account/account-panel.tsx`
+- `components/byeolharu.tsx`
+- `lib/habits/native-reminder-controls.ts`
+- `lib/habits/use-habit-app.ts`
+- `tests/e2e/habit-editor-balanced.spec.ts`
+- `tsconfig.json`
+
+Any unexpected web, authentication, database, production workflow, generated
+Gradle output, env secret or signing key path fails the integration gate.
+The seven shared files are **review-required, not automatically approved**.
+Passing CI does not mean the 205 accumulated commits should immediately be
+merged. Keep the entire PR stack Draft until an explicit review and merge
+decision. This tool never merges branches or changes records.
