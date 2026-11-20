@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, CalendarDays, Sparkles, Star } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarDays, CheckCircle2, Sparkles, Star } from "lucide-react";
 import { StarlitClosingFooter } from "@/components/starlit-closing-footer";
 import { summarizeTodayRecovery, type WeeklyReflection } from "@/lib/habits/weekly-reflection";
 
@@ -49,8 +49,10 @@ export function WeeklyReflectionView({
           <div className="weekly-reflection-intro">
             <h2>{recovery?.allCompletedToday ? "✨ 오늘도 다시 이어갔어요" : "🌱 다시 이어갈 습관"}</h2>
             <p>{recovery?.allCompletedToday
-              ? "오늘의 실천을 기록했어요. 작은 시작이 이어지고 있어요."
-              : "작은 실천부터 다시 시작해 봐요."}</p>
+              ? `놓쳤던 습관 ${recovery.completedToday}개를 오늘 실천했어요.`
+              : recovery?.completedToday
+                ? `놓쳤던 습관 ${recovery.completedToday}개를 오늘 실천했어요.`
+                : "작은 실천부터 다시 시작해 봐요."</p>
           </div>
           <div className="weekly-reflection-list">
             {recovery?.ordered.map((habit) => (
@@ -59,7 +61,7 @@ export function WeeklyReflectionView({
                   <span className="weekly-reflection-emoji" aria-hidden="true">{habit.icon}</span>
                   <div className="weekly-reflection-card-info">
                     <h3>{habit.title}</h3>
-                    <p>확인된 예정일 {habit.observedDays}일 · 완료 기록 {habit.completedDays}일</p>
+                    <p>지난 7일 · 확인된 예정일 {habit.observedDays}일 중 완료 {habit.completedDays}일</p>
                   </div>
                 </div>
                 <div className="weekly-reflection-card-bottom">
@@ -70,8 +72,8 @@ export function WeeklyReflectionView({
                         오늘 기록하기 <ArrowRight size={16} aria-hidden="true" />
                       </button>
                     </>
-                  ) : habit.todayScheduled && habit.todayCompleted ? (
-                    <span><Star size={16} aria-hidden="true" /> 오늘 다시 이어갔어요.</span>
+                  ) : habit.todayCompleted ? (
+                    <span className="weekly-reflection-completed"><CheckCircle2 size={16} aria-hidden="true" /> 오늘 실천 완료</span>
                   ) : habit.nextScheduledDay ? (
                     <span><CalendarDays size={15} aria-hidden="true" /> 다음 예정일 · {nextDateLabel(habit.nextScheduledDay)}</span>
                   ) : (
