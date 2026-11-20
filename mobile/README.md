@@ -427,3 +427,20 @@ Galaxy verification under gesture and three-button navigation; screenshots
 should be taken during scroll and with the editor at its lowest scroll point.
 
 Install the new APK as an update; do not delete local guest test records.
+
+
+## STEP 13 — packaged guest reminder queue inspection
+
+In the Android-only account > App Settings screen, tap **알림 예약 확인**
+to see Android permission, how many guest-owned reminders are queued, how
+many are still scheduled today, and the next recognized reservation time.
+This is strictly read-only: it does not request a permission, change any
+habit records, or create/cancel notifications. Unknown native timestamps
+are identified separately rather than inventing a time. All other accounts'
+reservations and unrelated notifications are excluded from the report.
+
+The existing guest opt-in switch still controls actual scheduling. Use
+this diagnostic to verify reservation state after habit edits/completions,
+app restart, and explicit opt-out on the Samsung Galaxy. The report is a
+snapshot from Android and does not prove the notification will arrive on
+an exact minute; device battery policy can delay delivery.
