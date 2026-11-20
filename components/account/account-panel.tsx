@@ -369,35 +369,43 @@ export function AccountPanel({
               {!!nativeReminders.status && !(nativeReminders.enabled && nativeReminders.permissionState === "denied") && (
                 <p className="account-note" role="status">{nativeReminders.status}</p>
               )}
-              <button
-                type="button"
-                className="secondary"
-                disabled={nativeReminders.busy}
-                onClick={() => void nativeReminders.onInspectPending()}
-              >알림 예약 확인</button>
-              {!!nativeReminders.diagnostic && (
-                <p className="account-note" role="status">{nativeReminders.diagnostic}</p>
-              )}
-              <button
-                type="button"
-                className="secondary"
-                disabled={nativeReminders.busy}
-                onClick={() => void nativeReminders.onAuditPending()}
-              >습관 설정과 예약 비교</button>
-              {!!nativeReminders.auditStatus && (
-                <p className="account-note" role="status">{nativeReminders.auditStatus}</p>
-              )}
-              {nativeReminders.repairAvailable && (
-                <button
-                  type="button"
-                  className="secondary"
-                  disabled={nativeReminders.busy}
-                  onClick={() => void nativeReminders.onRepairPending()}
-                >알림 예약 다시 맞추기</button>
-              )}
-              {!!nativeReminders.repairStatus && (
-                <p className="account-note" role="status">{nativeReminders.repairStatus}</p>
-              )}
+              <details className="android-reminder-details">
+                <summary>알림 예약 및 문제 해결 <ChevronRight size={16} aria-hidden="true" /></summary>
+                <div className="android-reminder-details-body">
+                  <p className="account-note">예약이 궁금하거나 알림이 오지 않을 때 확인해요.</p>
+                  <div className="android-reminder-detail-actions">
+                    <button
+                      type="button"
+                      className="secondary"
+                      disabled={nativeReminders.busy}
+                      onClick={() => void nativeReminders.onInspectPending()}
+                    >알림 예약 확인</button>
+                    <button
+                      type="button"
+                      className="secondary"
+                      disabled={nativeReminders.busy}
+                      onClick={() => void nativeReminders.onAuditPending()}
+                    >습관 설정과 예약 비교</button>
+                  </div>
+                  {!!nativeReminders.diagnostic && (
+                    <p className="account-note" role="status">{nativeReminders.diagnostic}</p>
+                  )}
+                  {!!nativeReminders.auditStatus && (
+                    <p className="account-note" role="status">{nativeReminders.auditStatus}</p>
+                  )}
+                  {nativeReminders.repairAvailable && (
+                    <button
+                      type="button"
+                      className="secondary"
+                      disabled={nativeReminders.busy}
+                      onClick={() => void nativeReminders.onRepairPending()}
+                    >알림 예약 다시 맞추기</button>
+                  )}
+                  {!!nativeReminders.repairStatus && (
+                    <p className="account-note" role="status">{nativeReminders.repairStatus}</p>
+                  )}
+                </div>
+              </details>
             </div>
           )}
           <div className="account-setting-block">
