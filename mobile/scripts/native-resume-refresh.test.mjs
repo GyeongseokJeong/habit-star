@@ -33,5 +33,6 @@ test("native package refreshes real repository snapshot before scheduling", () =
   assert.match(store,/window\.addEventListener\("byeolharu:native-resume", nativeResume\)/);
   assert.match(store,/window\.removeEventListener\("byeolharu:native-resume", nativeResume\)/);
   assert.match(store,/await r\.ensureDay\(\);\s*await refresh\(r\)/);
+  assert.match(entry,/else if \(snapshot\.current\)/, "already-loaded guest snapshot must be reconciled after opt-in restoration");
   assert.doesNotMatch(entry,/setInterval\(/);
 });
