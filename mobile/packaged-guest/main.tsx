@@ -26,6 +26,10 @@ function GuestNativeApp() {
   const busyRef = useRef(false);
   const mounted = useRef(false);
   const operation = useRef(Promise.resolve());
+  useEffect(() => {
+    // Mark the first committed React screen, not merely successful JS parsing.
+    (window as Window & { __byeolharuStartupReady?: boolean }).__byeolharuStartupReady = true;
+  }, []);
 
   const schedule = useCallback((value: boolean, next: Snapshot | null) => {
     if (!lifecycle) return Promise.resolve();
