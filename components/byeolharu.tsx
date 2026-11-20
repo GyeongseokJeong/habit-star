@@ -503,7 +503,13 @@ function HabitEditor({
                 value={draft.scheduledTime || ""}
                 onChange={(e) => {
                   setTimeEdited(true);
-                  setDraft((prev) => ({ ...prev, scheduledTime: e.target.value, alarmEnabled: e.target.value ? prev.alarmEnabled : false }));
+                  setDraft((prev) => ({
+                    ...prev,
+                    scheduledTime: e.target.value,
+                    // Web habit editing keeps its previous behavior; only the
+                    // native reminder editor enforces a time before opt-in.
+                    ...(nativeAlarmEditor && !e.target.value ? { alarmEnabled: false } : {}),
+                  }));
                 }}
               />
             </label>
