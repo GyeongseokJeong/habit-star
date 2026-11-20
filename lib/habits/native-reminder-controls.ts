@@ -7,6 +7,7 @@ import type { Snapshot } from "./repository";
  */
 export type NativeReminderControls = {
   enabled: boolean;
+  active: boolean;
   permissionState: "unknown" | "granted" | "denied";
   busy: boolean;
   status: string;
