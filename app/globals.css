@@ -993,7 +993,7 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
 .expanded .calendar-grid {
   gap: 5px;
 }
-/* B4.1: approved compact ambient ending — final seamless refinements. One scene, no independent footer card.
+/* B4.2: approved compact ambient ending — unobtrusive overscan and soft boundaries. One scene, no independent footer card.
    The message overlays the night/dawn horizon and the brand lives inside it. */
 .closing-footer {
   width: min(100%, 900px);
@@ -1019,19 +1019,19 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   overflow: hidden;
   background:
     /* A restrained glow joins the message to the distant hills. */
-    radial-gradient(ellipse 74% 64% at 52% 69%, var(--closing-sky-glow), transparent 100%);
+    radial-gradient(ellipse 78% 73% at 52% 64%, var(--closing-sky-glow), transparent 100%);
 }
 .closing-waves {
   position: absolute;
-  inset: auto 0 0;
-  width: 100%;
+  inset: auto auto 0 -3%;
+  width: 106%;
   height: 102px;
   display: block;
   z-index: -1;
   pointer-events: none;
-  /* Only the landscape fades at the sides; copy and signature stay crisp. */
-  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 8%, #000 92%, transparent 100%);
-  mask-image: linear-gradient(90deg, transparent 0%, #000 8%, #000 92%, transparent 100%);
+  /* The overscan stays transparent at the crop boundary, without fading copy or brand. */
+  -webkit-mask-image: linear-gradient(90deg, transparent 0% 4%, #000 15% 85%, transparent 96% 100%);
+  mask-image: linear-gradient(90deg, transparent 0% 4%, #000 15% 85%, transparent 96% 100%);
 }
 .closing-wave-far-left { stop-color: var(--closing-wave-far-left); }
 .closing-wave-far-middle { stop-color: var(--closing-wave-far-middle); }
