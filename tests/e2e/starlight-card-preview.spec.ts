@@ -51,6 +51,23 @@ for (const width of [320, 390, 430]) {
   }
 }
 
+test("V5 returning from preview reveals the restored focus on a short viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: /나의 별자리 STAGE 1/ })).toBeVisible();
+  await page.getByRole("button", { name: /나의 별자리 STAGE 1/ }).click();
+  const dialog = page.getByRole("dialog", { name: "나의 별자리" });
+  const entry = dialog.getByRole("button", { name: "별빛 카드 만들기" });
+  await entry.scrollIntoViewIfNeeded();
+  await entry.click();
+  const preview = page.getByRole("dialog", { name: "별빛 카드" });
+  await expect(preview).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeVisible();
+  await expect(entry).toBeFocused();
+  await expect(entry).toBeInViewport();
+});
+
 test("V5 preview always uses the current earned stage, not a browsed earlier stage", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
