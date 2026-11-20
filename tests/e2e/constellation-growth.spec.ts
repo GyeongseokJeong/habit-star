@@ -241,7 +241,7 @@ test("constellation stays readable in dark theme without changing the home compl
   const hero = page.getByRole("region", { name: "나의 별자리 미리보기" });
   const completion = page.locator(".completion-metric .metric-value");
   await expect(hero).toContainText("첫 번째 별빛");
-  await expect(completion).toHaveText("3/ 5");
+  await expect(completion).toHaveText("1/ 2");
   await page.getByRole("button", { name: "다크 모드로 전환" }).click();
   await page.getByRole("button", { name: /나의 별자리 STAGE 1/ }).click();
   const dialog = page.getByRole("dialog", { name: "나의 별자리" });
@@ -250,7 +250,7 @@ test("constellation stays readable in dark theme without changing the home compl
   await expect(dialog.getByRole("progressbar", { name: /Stage 2/ })).toHaveAttribute("aria-valuenow", "0");
   await page.keyboard.press("Escape");
   await expect(hero).toContainText("첫 번째 별빛");
-  await expect(completion).toHaveText("3/ 5");
+  await expect(completion).toHaveText("1/ 2");
 });
 
 for (const width of [320, 360, 390, 430]) {

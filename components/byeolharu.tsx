@@ -157,6 +157,8 @@ const timeGroup = (date: Date): TimeGroup =>
       : "night";
 const initialHabits = (): Habit[] =>
   [
+    // One completed and one pending example are enough to demonstrate both
+    // states without asking a new user to clean up five sample routines.
     {
       title: "미온수 한 잔 & 영양제",
       icon: "💧",
@@ -168,26 +170,6 @@ const initialHabits = (): Habit[] =>
       memo: "일어나자마자 상쾌하게 비타민 충전",
     },
     {
-      title: "아침 가벼운 러닝 20분",
-      icon: "🏃‍♂️",
-      timeGroup: "morning",
-      scheduledTime: "07:30",
-      alarmEnabled: true,
-      completed: true,
-      rating: 4,
-      memo: "날씨 쌀쌀했지만 2.2km 완주",
-    },
-    {
-      title: "건강한 점심 & 가벼운 산책",
-      icon: "🥗",
-      timeGroup: "day",
-      scheduledTime: "12:30",
-      alarmEnabled: true,
-      completed: true,
-      rating: 4,
-      memo: "과식 안 하고 15분 햇볕 쬐기",
-    },
-    {
       title: "독서 30분 & TOP 50 책장",
       icon: "📚",
       timeGroup: "night",
@@ -197,17 +179,8 @@ const initialHabits = (): Habit[] =>
       rating: 0,
       memo: "",
     },
-    {
-      title: "취침 전 스트레칭 10분",
-      icon: "🧘‍♂️",
-      timeGroup: "night",
-      scheduledTime: "22:30",
-      alarmEnabled: true,
-      completed: false,
-      rating: 0,
-      memo: "",
-    },
   ].map((h) => ({ ...h, id: uid() }) as Habit);
+
 export function StarRating({
   rating,
   onRate,
@@ -1014,6 +987,8 @@ export default function Byeolharu() {
   const firstPracticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const firstPracticeSeen = useRef(new Set<string>());
   const [hintDismissal, setHintDismissal] = useState<{ scope: string; dismissed: boolean } | null>(null);
+  const [sampleCleanupOpen, setSampleCleanupOpen] = useState(false);
+  const [sampleCleanupBusy, setSampleCleanupBusy] = useState(false);
   const celebrationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [compactView, setCompactView] = useState(false);
@@ -1330,6 +1305,29 @@ export default function Byeolharu() {
     [app.snapshot, app.user]);
   const showFirstHint = !!firstUse?.showHint &&
     hintDismissal?.scope === scope && !hintDismissal.dismissed;
+  // IDs come from the original local-demo migration, never from title
+  // matching. User-created habits and member records must remain untouched.
+  const sampleHabits = !app.user
+    ? habits.filter((habit) => firstUse?.sampleIds.has(habit.id))
+    : [];
+  const handleClearSampleHabits = async () => {
+    if (sampleCleanupBusy || app.user || !app.snapshot || !sampleHabits.length) return;
+    const sampleIds = new Set(sampleHabits.map((habit) => habit.id));
+    const actionScope = scope;
+    setSampleCleanupBusy(true);
+    try {
+      await setHabits((previous) => previous.filter((habit) => !sampleIds.has(habit.id)));
+      if (activeScope.current !== actionScope) return;
+      tabChosenManually.current = true;
+      setActiveTab("all");
+      setSampleCleanupOpen(false);
+      showToast(`예시 습관 ${sampleIds.size}개를 정리했어요.`);
+    } catch {
+      showToast("예시 정리에 실패했어요. 다시 시도해 주세요.");
+    } finally {
+      setSampleCleanupBusy(false);
+    }
+  };
   const visibleHabits = useMemo(() => habits.map((habit) => {
     const override = ratingOverrides.get(habit.id);
     return override?.scope === scope && override.day === today
@@ -1744,6 +1742,14 @@ export default function Byeolharu() {
                 <Plus size={17} />새 습관 추가
               </button>
             </div>
+            {sampleHabits.length > 0 && (
+              <div className="sample-cleanup-strip">
+                <span>예시 습관 {sampleHabits.length}개</span>
+                <button type="button" onClick={() => setSampleCleanupOpen(true)}>
+                  예시 한 번에 정리
+                </button>
+              </div>
+            )}
             <div className="tabs" role="tablist" aria-label="시간대별 루틴">
               {(
                 [
@@ -2000,6 +2006,26 @@ export default function Byeolharu() {
         </>
         )}
       </main>
+      {sampleCleanupOpen && (
+        <Modal
+          title="예시 습관 정리"
+          onClose={() => { if (!sampleCleanupBusy) setSampleCleanupOpen(false); }}
+          fallbackFocusId="tab-all"
+        >
+          <p className="modal-description">예시 습관 {sampleHabits.length}개를 한 번에 정리할까요?</p>
+          <p className="sample-cleanup-description">
+            직접 만든 습관은 그대로 남아요. 예시에 직접 남겼던 과거 기록도 보존됩니다.
+          </p>
+          <div className="sample-cleanup-actions">
+            <button type="button" className="delete-button" disabled={sampleCleanupBusy}
+              onClick={() => { void handleClearSampleHabits(); }}>
+              {sampleCleanupBusy ? "정리 중…" : "예시만 정리하기"}
+            </button>
+            <button type="button" className="secondary" disabled={sampleCleanupBusy}
+              onClick={() => setSampleCleanupOpen(false)}>취소</button>
+          </div>
+        </Modal>
+      )}
       {editing && (
         <HabitEditor
           key={editing === "new" ? "new" : editing.id}
