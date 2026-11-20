@@ -1204,7 +1204,7 @@ export default function Byeolharu() {
         heldCompletionRef.current = nextHeld;
         setHeldCompletion(nextHeld);
         reorderTimers.current.delete(id);
-      }, 700),
+      }, firstCompletion ? 1900 : 700),
     );
 
     const previousWrite = ratingWrites.current.get(id) ?? Promise.resolve();
@@ -1954,6 +1954,21 @@ export default function Byeolharu() {
               app.snapshot, !!app.user, detail, data.completed,
             );
             void (async () => {
+              if (firstCompletion) {
+                const held = new Map(heldCompletionRef.current);
+                held.set(detail.id, false);
+                heldCompletionRef.current = held;
+                setHeldCompletion(held);
+                const priorTimer = reorderTimers.current.get(detail.id);
+                if (priorTimer) clearTimeout(priorTimer);
+                reorderTimers.current.set(detail.id, setTimeout(() => {
+                  const next = new Map(heldCompletionRef.current);
+                  next.delete(detail.id);
+                  heldCompletionRef.current = next;
+                  setHeldCompletion(next);
+                  reorderTimers.current.delete(detail.id);
+                }, 1900));
+              }
               await setHabits((prev) =>
                 prev.map((h) =>
                   h.id === detail.id ? applyDailyRecord(h, data) : h,
