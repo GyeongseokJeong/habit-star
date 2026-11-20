@@ -401,3 +401,29 @@ Device-specific nav modes (Samsung three-button and gesture navigation),
 light/dark theme, modal, scrolling, keyboard, rotation and display cutout
 still require Galaxy real-device verification. Install an update without
 clearing application storage when verifying an existing package.
+
+
+## Galaxy screenshot follow-up — native viewport + opaque sheet correction
+
+The follow-up Samsung screenshots showed that PR #92's CSS-only inset fix was
+insufficient: content still painted under both system bars, and the new-habit
+editor exposed the underlying tabs below its sticky action area. The debug
+packaged guest now handles the system bar and cutout insets in the native
+`MainActivity`'s Android content root (real device pixels), leaving the
+WebView content viewport inside the system bars. For this package alone,
+`SystemBars.insetsHandling` is set to `disable` so Capacitor's CSS fallback
+is not applied again. Other demo APK packages retain their old behavior.
+
+The Android-only `safe-area.css` no longer adds the top/bottom system inset:
+its header uses the normal viewport height, while the new habit editor is
+anchored to the bottom of that **already safe viewport** as an opaque sheet.
+The sticky form actions and underlying modal background are both opaque.
+
+Tests: native Java template assertions verify package scoping, window insets,
+and clearing only handled system-bar/cutout insets; bundled Chromium smoke
+verifies the real React header and that an opened, scrolled editor reaches the
+bottom of the viewport with opaque background. This is not a substitute for
+Galaxy verification under gesture and three-button navigation; screenshots
+should be taken during scroll and with the editor at its lowest scroll point.
+
+Install the new APK as an update; do not delete local guest test records.
