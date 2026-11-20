@@ -19,6 +19,7 @@ test("notification operations require explicit user taps and avoid existing web 
   assert.match(source, /LocalNotifications\.schedule\(/);
   assert.match(source, /LocalNotifications\.cancel\(/);
   assert.match(source, /30_000/);
+  assert.match(source, /isExactNotification: false/, "PoC must not request exact alarm settings");
   assert.doesNotMatch(source, /indexedDB|supabase|fetch\(|localStorage|service_role/);
   assert.match(html, /id="permission"/);
   assert.match(html, /id="schedule"/);
