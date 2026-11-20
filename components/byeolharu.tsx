@@ -1962,6 +1962,16 @@ export default function Byeolharu() {
                 const priorTimer = reorderTimers.current.get(detail.id);
                 if (priorTimer) clearTimeout(priorTimer);
                 reorderTimers.current.set(detail.id, setTimeout(() => {
+                  // Closing the detail dialog may restore focus into the held
+                  // card. Its eventual move into the collapsed group must not
+                  // strand keyboard focus on the document body.
+                  const focusedCard = document.activeElement?.closest<HTMLElement>("[data-habit-id]");
+                  if (focusedCard?.dataset.habitId === detail.id) {
+                    const survivingControl = document.querySelector<HTMLButtonElement>(
+                      compactView ? ".compact-done-toggle" : ".normal-done-toggle",
+                    ) ?? document.getElementById("tab-" + activeTab);
+                    survivingControl?.focus();
+                  }
                   const next = new Map(heldCompletionRef.current);
                   next.delete(detail.id);
                   heldCompletionRef.current = next;
