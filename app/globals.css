@@ -1362,6 +1362,48 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   font-size: 13px;
   text-align: center;
 }
+/* V5.2: resting habits remain discoverable without expanding normal cards. */
+.compact-resting-group {
+  margin-top: 4px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.compact-resting-group > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 48px;
+  padding: 9px 11px;
+  color: var(--body);
+  cursor: pointer;
+  list-style: none;
+}
+.compact-resting-group > summary::-webkit-details-marker { display: none; }
+.compact-resting-group > summary span { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; }
+.compact-resting-group > summary span svg { color: var(--sage); }
+.compact-resting-group[open] > summary > svg { transform: rotate(180deg); }
+.compact-resting-group > summary:focus-visible,
+.compact-resting-list button:focus-visible { outline: 2px solid var(--sage); outline-offset: -2px; }
+.compact-resting-list { padding: 0 10px 10px; display: grid; gap: 6px; }
+.compact-resting-list button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--body);
+  text-align: left;
+  cursor: pointer;
+}
+.compact-resting-list button span:nth-child(2) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.empty-state.is-resting { padding: 24px 16px; }
+
 /* The 56x44 touch target is invisible; only the 44x26 track is drawn.
    This prevents an oversized capsule in mobile settings, including Samsung Internet. */
 .compact-setting-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
