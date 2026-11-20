@@ -379,6 +379,17 @@ export function AccountPanel({
               {!!nativeReminders.auditStatus && (
                 <p className="account-note" role="status">{nativeReminders.auditStatus}</p>
               )}
+              {nativeReminders.repairAvailable && (
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={nativeReminders.busy}
+                  onClick={() => void nativeReminders.onRepairPending()}
+                >알림 예약 다시 맞추기</button>
+              )}
+              {!!nativeReminders.repairStatus && (
+                <p className="account-note" role="status">{nativeReminders.repairStatus}</p>
+              )}
             </div>
           )}
           <div className="account-setting-block">
