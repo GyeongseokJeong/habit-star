@@ -223,25 +223,33 @@ export function useHabitApp(samples: () => Habit[]) {
       void tick();
     }, 30000);
     const online = () => {
-        retryAt.current = 0;
-        void tick();
-      },
-      visible = () => {
-        if (document.visibilityState === "visible") void tick();
-      };
-    // Packaged Android guest app dispatches this only after native resume.
-    // Repository rollover and loading happen before reminder reconciliation.
-    const nativeResume = () => { void tick(); };
+      retryAt.current = 0;
+      void tick();
+    };
+    // Android native resume and browser visibility changes may arrive together.
+    // Coalesce foreground-triggered reloads; timed and online refreshes remain
+    // independent so normal web behavior is not altered.
+    let lastForegroundTick = -Infinity;
+    const foregroundTick = () => {
+      const now = Date.now();
+      if (now - lastForegroundTick < 800) return;
+      lastForegroundTick = now;
+      void tick();
+    };
+    const nativeResume = foregroundTick;
+    const visibleOnce = () => {
+      if (document.visibilityState === "visible") foregroundTick();
+    };
     window.addEventListener("byeolharu:native-resume", nativeResume);
     window.addEventListener("online", online);
-    document.addEventListener("visibilitychange", visible);
+    document.addEventListener("visibilitychange", visibleOnce);
     return () => {
       disposed = true;
       ++epoch.current;
       clearInterval(timer);
       window.removeEventListener("byeolharu:native-resume", nativeResume);
       window.removeEventListener("online", online);
-      document.removeEventListener("visibilitychange", visible);
+      document.removeEventListener("visibilitychange", visibleOnce);
       unsubscribe?.();
       subscription?.unsubscribe();
       engine.current?.stop();
