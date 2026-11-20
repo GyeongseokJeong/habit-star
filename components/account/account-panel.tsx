@@ -355,15 +355,15 @@ export function AccountPanel({
                   className="compact-setting-toggle"
                   role="switch"
                   aria-label="습관 알림"
-                  aria-checked={nativeReminders.enabled}
-                  disabled={nativeReminders.busy}
-                  onClick={() => void nativeReminders.onEnabledChange(!nativeReminders.enabled)}
+                  aria-checked={nativeReminders.enabled && nativeReminders.permissionState === "granted"}
+                  disabled={nativeReminders.busy || (nativeReminders.enabled && nativeReminders.permissionState === "unknown")}
+                  onClick={() => void nativeReminders.onEnabledChange(!(nativeReminders.enabled && nativeReminders.permissionState === "granted"))}
                 ><span className="compact-switch-track" aria-hidden="true"><span className="compact-switch-thumb" /></span></button>
               </div>
               {nativeReminders.enabled && nativeReminders.permissionState === "denied" && (
                 <p className="account-note" role="status">
-                  <strong>기기 알림 권한 차단됨</strong> · 습관 알림 설정은 유지되지만 현재 알림이 표시되지 않아요.
-                  휴대폰 설정 → 앱 → 별하루 → 알림에서 허용해 주세요.
+                  <strong>기기 알림 권한 차단됨</strong> · 알림을 받을 수 없어 스위치가 꺼져 있어요.
+                  다시 켜면 휴대폰 알림 권한을 설정할 수 있어요. 기존 습관과 예약은 유지돼요.
                 </p>
               )}
               {!!nativeReminders.status && !(nativeReminders.enabled && nativeReminders.permissionState === "denied") && (
