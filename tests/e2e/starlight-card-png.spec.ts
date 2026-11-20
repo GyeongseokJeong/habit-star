@@ -67,6 +67,8 @@ test("V5 STEP 2 exports earned Stage 6 art and works in dark mode", async ({ pag
   await page.setViewportSize({ width: 390, height: 844 });
   await page.clock.setFixedTime(new Date("2026-11-20T20:00:00+09:00"));
   await page.goto("/");
+  // The IndexedDB scopes store is created during initial app hydration.
+  await expect(page.getByRole("button", { name: /나의 별자리 STAGE 1/ })).toBeVisible();
   await seedConstellationPoints(page, 200);
   await page.getByRole("button", { name: "다크 모드로 전환" }).click();
   await page.getByRole("button", { name: /나의 별자리 STAGE 6/ }).click();
