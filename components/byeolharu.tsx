@@ -990,6 +990,9 @@ export default function Byeolharu() {
   const [compactView, setCompactView] = useState(false);
   const [compactPreferenceLoaded, setCompactPreferenceLoaded] = useState(false);
   const [completedOpen, setCompletedOpen] = useState(false);
+  const [completedGroupNudge, setCompletedGroupNudge] = useState(false);
+  const completedGroupNudgeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const completedGroupBaseline = useRef<{ key: string; count: number; ready: boolean } | null>(null);
   const [compactExpandedId, setCompactExpandedId] = useState<string | null>(null);
   const compactCollapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const compactFocusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1064,6 +1067,7 @@ export default function Byeolharu() {
       if (compactCollapseTimer.current) clearTimeout(compactCollapseTimer.current);
       if (compactFocusTimer.current) clearTimeout(compactFocusTimer.current);
       if (normalFocusTimer.current) clearTimeout(normalFocusTimer.current);
+      if (completedGroupNudgeTimer.current) clearTimeout(completedGroupNudgeTimer.current);
       for (const timer of reorderTimers.current.values()) clearTimeout(timer);
       reorderTimers.current.clear();
     };
@@ -1300,6 +1304,35 @@ export default function Byeolharu() {
   const compactCompleted = filtered.filter(
     (habit) => heldCompletion.get(habit.id) ?? habit.completed,
   );
+  // Emphasize only a rise in the rendered completed-group count.
+  // Isolate the baseline by date, account, tab and display mode so initial
+  // hydration, reloads and navigation never look like new achievements.
+  const completedGroupKey = `${scope}:${today}:${activeTab}:${compactView ? "compact" : "normal"}`;
+  const completionDataReady = ready && (!app.user || app.snapshot?.state.hydrated === true);
+  useEffect(() => {
+    const previous = completedGroupBaseline.current;
+    completedGroupBaseline.current = {
+      key: completedGroupKey,
+      count: compactCompleted.length,
+      ready: completionDataReady,
+    };
+    if (completedGroupNudgeTimer.current) {
+      clearTimeout(completedGroupNudgeTimer.current);
+      completedGroupNudgeTimer.current = null;
+    }
+    setCompletedGroupNudge(false);
+    if (previous?.key !== completedGroupKey ||
+        !previous.ready || !completionDataReady ||
+        compactCompleted.length <= previous.count || activeTab === "matrix") return;
+
+    // The card moved only after the existing 700ms held-completion period.
+    // Highlight its destination, never open the group or move focus.
+    setCompletedGroupNudge(true);
+    completedGroupNudgeTimer.current = setTimeout(() => {
+      setCompletedGroupNudge(false);
+      completedGroupNudgeTimer.current = null;
+    }, 1100);
+  }, [completedGroupKey, completionDataReady, compactCompleted.length, activeTab]);
   // Completion feedback is scoped to the selected tab, not the entire day.
   const completionMessage = activeTab === "all"
     ? "오늘의 실천을 모두 마쳤어요 ✨"
@@ -1694,7 +1727,7 @@ export default function Byeolharu() {
                             <section className="compact-done-group" aria-label="완료한 습관">
                               <button
                                 type="button"
-                                className="compact-done-toggle"
+                                className={`compact-done-toggle ${completedGroupNudge ? "completion-nudge" : ""}`}
                                 aria-expanded={completedOpen}
                                 aria-controls="compact-completed-list"
                                 onClick={() => setCompletedOpen((value) => !value)}
@@ -1726,7 +1759,7 @@ export default function Byeolharu() {
                         <section className="normal-completed-group" aria-label="완료한 습관">
                           <button
                             type="button"
-                            className="normal-done-toggle"
+                            className={`normal-done-toggle ${completedGroupNudge ? "completion-nudge" : ""}`}
                             aria-expanded={completedOpen}
                             aria-controls="normal-completed-list"
                             onClick={() => setCompletedOpen((value) => !value)}
