@@ -82,3 +82,13 @@ test("detail-first completion never strands keyboard focus when its card folds",
   expect(active.tag).not.toBe("BODY");
   expect(active.tag).toBe("BUTTON");
 });
+
+test("compact example label is announced to assistive technology", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("byeolharu_compact_view_v1", "1"));
+  await page.goto("/");
+  await expect(page.locator(".compact-habit-list")).toBeVisible();
+  await page.getByRole("tab", { name: "전체", exact: true }).click();
+  const row = page.locator(".compact-habit-row").filter({ hasText: "독서 30분 & TOP 50 책장" });
+  await expect(row).toHaveAttribute("aria-label", /독서 30분 & TOP 50 책장, 예시 습관/);
+  await expect(row.locator(".compact-sample-badge")).toHaveText("예시");
+});
