@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Download, Share2 } from "lucide-react";
 import { Flame, Layers3, Star } from "lucide-react";
-import { convertStarlightPngToJpeg, downloadStarlightPng, renderStarlightPng, starlightJpegFilename, starlightPngFilename } from "@/lib/constellation/starlight-png";
+import { downloadStarlightPng, renderStarlightPng, starlightPngFilename } from "@/lib/constellation/starlight-png";
 import { ConstellationArtwork } from "@/components/constellation-artwork";
 import { getConstellationStage } from "@/lib/constellation/art";
 
@@ -33,7 +33,6 @@ export function StarlightCardPreview({
   const shareFileRef = useRef<File | null>(null);
   const preparationIdRef = useRef(0);
   const [saving, setSaving] = useState(false);
-  const [savingJpeg, setSavingJpeg] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [shareState, setShareState] = useState<"checking" | "preparing" | "ready" | "unsupported" | "failed">("checking");
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; text: string } | null>(null);
@@ -93,7 +92,7 @@ export function StarlightCardPreview({
   }, [cacheKey]);
 
   async function handleSave() {
-    if (!cardRef.current || saving || sharing || savingJpeg) return;
+    if (!cardRef.current || saving || sharing) return;
     setSaving(true);
     setFeedback(null);
     try {
@@ -110,24 +109,6 @@ export function StarlightCardPreview({
     }
   }
 
-  async function handleJpegSave() {
-    if (!cardRef.current || saving || sharing || savingJpeg) return;
-    setSavingJpeg(true);
-    setFeedback(null);
-    try {
-      const jpeg = await convertStarlightPngToJpeg(await getPng());
-      downloadStarlightPng(jpeg, starlightJpegFilename(stage.stage));
-      setFeedback({ kind: "success", text: "JPG 이미지 저장을 요청했어요." });
-    } catch (error) {
-      setFeedback({
-        kind: "error",
-        text: error instanceof Error ? error.message : "JPG 저장에 실패했습니다. 다시 시도해 주세요.",
-      });
-    } finally {
-      setSavingJpeg(false);
-    }
-  }
-
   function handleShareError(error: unknown) {
     if (error && typeof error === "object" && "name" in error && error.name === "AbortError") {
       // Closing the system share chooser is a normal user decision.
@@ -141,16 +122,15 @@ export function StarlightCardPreview({
 
   function handleShare() {
     const file = shareFileRef.current;
-    if (!file || shareState !== "ready" || saving || savingJpeg || sharing || typeof navigator.share !== "function") return;
+    if (!file || shareState !== "ready" || saving || sharing || typeof navigator.share !== "function") return;
     setSharing(true);
     setFeedback(null);
     // IMPORTANT: invoke share() synchronously from this click event. Awaiting
     // PNG creation here would lose the transient user activation on mobile.
     try {
       const task = navigator.share({ files: [file], title: "별하루 별빛 카드" });
-      void task.then(() => {
-        setFeedback({ kind: "success", text: "공유 요청을 전달했어요." });
-      }).catch(handleShareError).finally(() => setSharing(false));
+      // A resolved share promise does not mean the target app posted the image.
+      void task.catch(handleShareError).finally(() => setSharing(false));
     } catch (error) {
       handleShareError(error);
       setSharing(false);
@@ -200,7 +180,7 @@ export function StarlightCardPreview({
         <button
           type="button"
           className="starlight-save-button"
-          disabled={saving || savingJpeg || sharing}
+          disabled={saving || sharing}
           aria-busy={saving}
           onClick={handleSave}
         >
@@ -211,7 +191,7 @@ export function StarlightCardPreview({
           <button
             type="button"
             className="starlight-share-button"
-            disabled={shareState === "preparing" || saving || savingJpeg || sharing}
+            disabled={shareState === "preparing" || saving || sharing}
             aria-busy={shareState === "preparing" || sharing}
             onClick={shareState === "failed" ? prepareShare : handleShare}
           >
@@ -226,21 +206,6 @@ export function StarlightCardPreview({
           </button>
         )}
       </div>
-      <details className="starlight-instagram-help">
-        <summary>인스타그램에서 게시 화면이 안 열리나요?</summary>
-        <p>인스타그램 앱이 열려도 게시 화면으로 연결되지 않을 수 있어요. 이미지를 저장한 다음 인스타그램에서 + → 게시물로 직접 선택해 보세요.</p>
-        <p>같은 문제가 반복되면 JPG 이미지로도 비교할 수 있어요. JPG가 문제 해결을 보장하지는 않습니다.</p>
-        <button
-          type="button"
-          className="starlight-jpeg-save-button"
-          disabled={saving || savingJpeg || sharing}
-          aria-busy={savingJpeg}
-          onClick={handleJpegSave}
-        >
-          <Download size={17} aria-hidden="true" />
-          {savingJpeg ? "JPG 준비 중…" : "JPG로 저장"}
-        </button>
-      </details>
       {shareState === "unsupported" && (
         <p className="starlight-share-hint">이 환경에서는 이미지를 저장한 뒤 공유해 주세요.</p>
       )}

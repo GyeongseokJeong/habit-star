@@ -137,3 +137,31 @@ test("V5 approved artwork stays intact at Stage 6 with a single current Stage la
   const dimensions = await card.boundingBox();
   expect(dimensions!.height / dimensions!.width).toBeCloseTo(1.25, 1);
 });
+
+for (const size of [{ width: 320, height: 640 }, { width: 390, height: 844 }]) {
+  test(`V5 minimal preview starts at the card top after switching from a scrolled growth detail at ${size.width}x${size.height}`, async ({ page }) => {
+    await page.setViewportSize(size);
+    await page.goto("/");
+    await expect(page.getByRole("button", { name: /나의 별자리 STAGE 1/ })).toBeVisible();
+    await page.getByRole("button", { name: /나의 별자리 STAGE 1/ }).click();
+    const growth = page.getByRole("dialog", { name: "나의 별자리" });
+    const entry = growth.getByRole("button", { name: "별빛 카드 만들기" });
+    await entry.scrollIntoViewIfNeeded();
+    await entry.click();
+    const preview = page.getByRole("dialog", { name: "별빛 카드" });
+    const card = preview.locator(".starlight-share-card");
+    const header = preview.locator(".modal-top");
+    await expect(card).toBeVisible();
+    const cardRect = await card.boundingBox();
+    const headerRect = await header.boundingBox();
+    expect(cardRect).not.toBeNull();
+    expect(headerRect).not.toBeNull();
+    // Unlike the expanded Instagram help, the compact view should open with
+    // its card beginning below the sticky title rather than already clipped.
+    expect(cardRect!.y).toBeGreaterThanOrEqual(headerRect!.y + headerRect!.height - 12);
+    expect(cardRect!.y).toBeLessThan(size.height);
+    await expect(preview.locator(".starlight-instagram-help")).toHaveCount(0);
+    await expect(preview.locator(".starlight-actions button")).toHaveCount(1);
+    await expect(preview.locator(".starlight-share-card")).toHaveCSS("aspect-ratio", "4 / 5");
+  });
+}
