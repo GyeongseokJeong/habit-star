@@ -69,7 +69,8 @@ test("V5 Instagram fallback uses the earned Stage 6 instead of a gallery-selecte
   await seedConstellationPoints(page, 200);
   await page.getByRole("button", { name: /나의 별자리 STAGE 6/ }).click();
   const detail = page.getByRole("dialog", { name: "나의 별자리" });
-  await detail.getByRole("button", { name: /Stage 1 첫 번째 별빛/ }).click();
+  // Stage 6's gallery window displays the nearby Stage 4-6 thumbnails.
+  await detail.getByRole("button", { name: /Stage 4 나의 작은 별자리/ }).click();
   await detail.getByRole("button", { name: "별빛 카드 만들기" }).click();
   const preview = page.getByRole("dialog", { name: "별빛 카드" });
   await expect(preview.locator("[data-constellation-stage='6']")).toBeVisible();
