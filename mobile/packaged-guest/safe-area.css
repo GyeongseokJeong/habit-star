@@ -76,3 +76,52 @@ html, body, #byeolharu-root {
     padding-bottom: 24px;
   }
 }
+
+/* STEP 18: diagnostics stay discoverable without dominating ordinary
+ * Account > App Settings. Applied only in the bundled Android guest APK.
+ * The native details element supplies keyboard/screen-reader semantics. */
+.account-panel .android-reminder-details {
+  margin: 10px 0 0;
+  border-top: 1px solid var(--line);
+}
+.account-panel .android-reminder-details > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 10px 0;
+  cursor: pointer;
+  color: var(--body);
+  font-size: 13px;
+  font-weight: 550;
+}
+.account-panel .android-reminder-details > summary::-webkit-details-marker {
+  display: none;
+}
+.account-panel .android-reminder-details[open] > summary > svg {
+  transform: rotate(90deg);
+}
+.account-panel .android-reminder-details-body {
+  display: grid;
+  gap: 10px;
+  padding: 2px 0 12px;
+}
+.account-panel .android-reminder-details-body .account-note {
+  margin: 0;
+}
+.account-panel .android-reminder-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.account-panel .android-reminder-detail-actions > button {
+  flex: 1 1 145px;
+  min-height: 44px;
+  padding: 10px 12px;
+  font-size: 12px;
+}
+.account-panel .android-reminder-details-body > button.secondary {
+  min-height: 44px;
+  justify-self: start;
+}
