@@ -10,6 +10,7 @@ on:
       - app/feat/native-reminder-integration-lab-step8
       - app/feat/packaged-guest-ui-step9
       - app/feat/guest-native-reminders-step10
+      - app/feat/notification-resume-recovery-step11
     paths:
       - "mobile/**"
       - ".github/workflows/android-poc.yml"
@@ -21,6 +22,7 @@ on:
       - app/feat/reminder-lifecycle-step7
       - app/feat/native-reminder-integration-lab-step8
       - app/feat/packaged-guest-ui-step9
+      - app/feat/guest-native-reminders-step10
     paths:
       - "mobile/**"
       - ".github/workflows/android-poc.yml"
