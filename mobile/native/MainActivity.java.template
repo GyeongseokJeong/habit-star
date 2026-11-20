@@ -23,7 +23,7 @@ public class MainActivity extends BridgeActivity {
         "var dialog=document.querySelector('dialog[open]');" +
         "if(!dialog)return false;" +
         "var back=dialog.querySelector('button.modal-back');" +
-        "var close=dialog.querySelector('.modal-top button[aria-label=\\\"닫기\\\"]');" +
+        "var close=dialog.querySelector('.modal-top button:last-child');" +
         "var action=back||close;" +
         "if(!action)return false;" +
         "action.click();return true;" +
@@ -109,8 +109,8 @@ public class MainActivity extends BridgeActivity {
         if (view == null) return;
         view.evaluateJavascript(READ_THEME_JS, result -> {
             if (!foreground || isFinishing() || isDestroyed()) return;
-            if (!"\\\"light\\\"".equals(result) && !"\\\"dark\\\"".equals(result)) return;
-            boolean light = "\\\"light\\\"".equals(result);
+            if (result == null || (!result.contains("light") && !result.contains("dark"))) return;
+            boolean light = result.contains("light");
             if (lastLightBars != null && lastLightBars == light) return;
             lastLightBars = light;
             WindowInsetsControllerCompat controller =
