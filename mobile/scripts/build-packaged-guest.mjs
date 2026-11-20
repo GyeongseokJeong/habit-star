@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { sourceBuildInfo } from "./build-info.mjs";
 import { cpSync, copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,12 +13,14 @@ assert.notEqual(process.env.BYEOLHARU_POC_NOTIFICATIONS, "1", "STEP 9 is separat
 const mobile = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const root = resolve(mobile, "..");
 const out = resolve(mobile, "www-packaged-guest");
+const provenance = sourceBuildInfo(root);
 rmSync(out, {recursive:true,force:true});
 mkdirSync(out, {recursive:true});
 // First-party static resources (artwork, PWA icons, emoji, etc.).
 cpSync(resolve(root, "public"), out, {recursive:true});
 copyFileSync(resolve(mobile, "packaged-guest/index.html"), resolve(out, "index.html"));
 copyFileSync(resolve(mobile, "packaged-guest/safe-area.css"), resolve(out, "safe-area.css"));
+writeFileSync(resolve(out, "build-info.json"), JSON.stringify(provenance, null, 2) + "\n");
 
 // Browser-only React code. Disable server-auth client initialization for the
 // first guest-only Android APK. No credentials are embedded in the package.
@@ -35,6 +38,8 @@ await build({
   target: "es2022",
   define: {
     "process.env.NODE_ENV": '"production"',
+    "process.env.NEXT_PUBLIC_APP_VERSION": JSON.stringify(provenance.version),
+    "process.env.NEXT_PUBLIC_BUILD_SHA": JSON.stringify(provenance.sourceSha),
     "process.env.NEXT_PUBLIC_CLOUD_ENABLED": '"false"',
     "process.env.NEXT_PUBLIC_SUPABASE_URL": '""',
     "process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": '""',
@@ -57,4 +62,4 @@ assert.ok(js.length > 30000,"Actual application bundle appears empty");
 assert.ok(!js.includes("service_role"),"Do not embed server credentials");
 const html=readFileSync(resolve(out,"index.html"),"utf8");
 assert.ok(!/https?:\/\/[^"'\s]+/.test(html),"Packaged shell may not load remote scripts");
-console.log("STEP 9 actual Byeolharu guest UI bundle prepared: "+js.length+" bytes JS; "+result.css.length+" bytes CSS");
+console.log("Packaged Byeolharu guest UI: "+js.length+" bytes JS, "+result.css.length+" bytes CSS; source "+provenance.sourceSha.slice(0, 8));

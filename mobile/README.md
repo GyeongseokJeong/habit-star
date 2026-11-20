@@ -1,3 +1,27 @@
+# 별하루 Android 개발 안내 (통합 이후)
+
+> 2026-11-21: 웹과 Android는 **같은 `main` 소스**를 사용합니다. 아래 STEP 1~22 기록은 역사적인 실험 노트이며, 현재 병합·빌드 지침으로 사용하지 않습니다. Android 네이티브 알림 및 기존 테스트 앱 데이터 경계는 유지합니다.
+
+## 현재 권장 빌드 경로
+- 공통 React 화면·습관 로직·CSS는 `main`에서 관리합니다.
+- 현재 사용자 검증 대상은 `android-packaged-guest-step9` 한 개이며, GitHub Actions의 **Android Shell PoC** 워크플로가 PR에서 해당 APK와 회귀 검사를 실행합니다.
+- 수동 빌드는 GitHub Actions → Android Shell PoC → Run workflow → `main`을 선택하고, `legacy_diagnostics=false`(기본값)로 실행합니다.
+- 오래된 디버그/웹뷰/알림 데모 5개는 문제 재현이 필요한 경우에만 `legacy_diagnostics=true`로 함께 빌드합니다.
+- APK artifact에는 `app-debug.apk`와 `build-info.json`이 들어 있습니다. JSON의 `sourceSha`는 실제 체크아웃된 커밋이며, `version`은 웹 루트 `package.json`과 같습니다.
+- 웹과 Android의 앱 설정 하단에서 `플랫폼 · 버전 · 빌드 SHA`를 확인할 수 있습니다. 실제 설치 APK는 업데이트해야 새 버전이 반영됩니다.
+- `main` push에서는 기존 웹 CI가 실행되고, Android APK는 **수동 실행 또는 PR 검사**로만 생성됩니다.
+
+## 안전 정책
+- 현재 패키징 앱은 **비회원 전용 테스트 APK**입니다. 클라우드 로그인·Supabase 연결은 의도적으로 꺼져 있습니다.
+- 임시 `packagedgueststep9` Android applicationId와 디버그 서명을 바꾸거나 앱을 삭제하면 기존 테스트 기록이 이전되지 않을 수 있습니다.
+- 별도 안정성 검증 전까지 Android 테스트 앱 데이터·알림 예약·정식 Play 서명·배포는 손대지 않습니다.
+- 이전 `app/main` 대상 통합 scope 검사는 PR #120 이후 사용하지 않습니다. `main` 기준 공유 UI 경계 테스트와 빌드 메타데이터 검증을 사용합니다.
+- 과거 Draft PR은 모두 종료되어도 브랜치와 기록은 안전 검토 후 별도로 정리합니다.
+
+---
+
+## 이전 Android 실험 기록 (참고용)
+
 # 별하루 Android 셸 PoC (Capacitor 8)
 
 **이 폴더는 Play Store 출시용 앱이 아닙니다.** 기존 웹 서비스 `main`과 별개인
