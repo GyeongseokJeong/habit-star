@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Capacitor } from "@capacitor/core";
+import { Capacitor, registerPlugin } from "@capacitor/core";
 import { App } from "@capacitor/app";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import Byeolharu from "../../components/byeolharu";
@@ -14,12 +14,15 @@ import { auditGuestReminders } from "../notifications/guest-reminder-audit.js";
 import { repairGuestReminders } from "../notifications/guest-reminder-repair.js";
 import { reminderPermissionPresentation } from "../notifications/guest-reminder-permission-view.js";
 
+
 // This module is bundled into the isolated Android guest APK only.
 // The website's Next.js entrypoint never imports Capacitor or native controls.
 const OPT_IN_KEY = "byeolharu_android_guest_reminders_optin_v1";
 const isAndroid = Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
 const lifecycle = isAndroid ? createReminderLifecycle({ localNotifications: LocalNotifications }) : null;
 const identity = { kind: "guest" as const, verified: true };
+type DeviceSettings = { openNotificationSettings: () => Promise<void> };
+const deviceSettings = isAndroid ? registerPlugin<DeviceSettings>("ByeolharuDeviceSettings") : null;
 
 function GuestNativeApp() {
   const [enabled, setEnabled] = useState(false);
@@ -129,10 +132,20 @@ function GuestNativeApp() {
           setStatus("오늘 습관 기록을 준비한 후 다시 시도해 주세요.");
           return;
         }
+        // The toggle is visually OFF when Android denies permission even if
+        // the user's previous opt-in remains saved. A new ON press may attempt
+        // the runtime permission request, then open the *actual* Android app
+        // settings if that system prompt is no longer available.
         const permission = await LocalNotifications.requestPermissions();
         setPermissionState(permission.display === "granted" ? "granted" : "denied");
         if (permission.display !== "granted") {
-          setStatus("휴대폰 설정에서 알림 권한을 허용해 주세요.");
+          try {
+            if (!deviceSettings) throw new Error("Android settings bridge unavailable");
+            await deviceSettings.openNotificationSettings();
+            setStatus("휴대폰 알림 설정에서 별하루 알림을 허용해 주세요.");
+          } catch {
+            setStatus("휴대폰 설정 → 앱 → 별하루 → 알림에서 허용해 주세요.");
+          }
           return;
         }
       }
