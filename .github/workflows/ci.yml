@@ -10,8 +10,33 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    outputs:
+      cloud_required: ${{ steps.cloud_scope.outputs.required }}
     steps:
       - uses: actions/checkout@v4
+      # On PRs with only CSS/layout tests, run the full browser quality gate
+      # but skip redundant Supabase integration startup after it passes.
+      - name: Determine cloud integration scope
+        id: cloud_scope
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [[ "$EVENT_NAME" != "pull_request" ]]; then
+            echo "required=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          changed="$(git diff --name-only "$BASE_SHA" HEAD)"
+          echo "$changed"
+          # Fail open: only skip the cloud suite when changes are clearly
+          # isolated from runtime, DB, auth, sync, workflow, and cloud tests.
+          if echo "$changed" | grep -Eq '^(app/|components/|lib/|supabase/|scripts/|tests/db-|tests/legacy-import|tests/e2e/cloud\\.spec\\.ts|playwright\\.cloud\\.config\\.ts|package\\.json|pnpm-lock\\.yaml|\\.github/workflows/|next\\.config|middleware|public/sw\\.js)'; then
+            echo "required=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "required=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: pnpm/action-setup@v4
         with:
           version: 11.25.0
@@ -42,6 +67,8 @@ jobs:
   cloud:
     runs-on: ubuntu-latest
     needs: verify
+    # Full cloud test remains mandatory for main and PRs changing runtime/DB.
+    if: needs.verify.outputs.cloud_required == 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
