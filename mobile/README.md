@@ -117,6 +117,54 @@ Android가 프로세스를 종료하는 상황까지 데이터 무손실이 확�
 Node에서 검증하고, Android CI는 실제 네이티브 Java 컴파일을 확인합니다.
 **디버그 APK 빌드 성공은 실기기 동작 합격을 대체하지 않습니다.**
 
+## STEP 4 — 독립 Android 로컬 알림 PoC (실기기 확인 전)
+
+**기존 운영 웹사이트/계정/습관 데이터/앱 설정을 변경하지 않습니다.**
+별도의 앱 ID `io.github.gyeongseokjeong.byeolharu.notificationpoc`를 가진
+`별하루 알림 PoC`를 만들고, Capacitor Local Notifications 8.3.1을
+네이티브 Android 프로젝트에 동기화합니다. 원격 `server.url`을 사용하지
+않으며, 단독 번들 `notifications/` 화면만 열립니다.
+
+GitHub Actions `Android Shell PoC`의
+`android-local-notification-poc` 작업이 성공하면
+`byeolharu-android-notification-debug` 산출물을 받을 수 있습니다.
+
+### Galaxy 테스트 절차
+
+1. 새로운 알림 PoC APK를 설치합니다. 이전 WebView PoC와 **별도 앱**이며
+   두 앱을 함께 설치할 수 있습니다.
+2. **알림 권한 확인·요청**을 누르고, 팝업이 나타나면 허용합니다.
+   거부했다면 Android 설정에서 직접 허용 여부를 확인합니다.
+3. **30초 후 테스트 알림 예약**을 누릅니다. 예약된 시각이 화면에 나타납니다.
+4. 홈으로 나가 30초 정도 지난 뒤 알림 패널에서 별하루 알림을 확인합니다.
+   Android 배터리 절전/Doze/기기 제조사 정책 때문에 정확한 30초 전달은 보장하지
+   않으며, 늦거나 전달되지 않으면 실제 시간을 기록합니다.
+5. 다시 실행해 **예약된 알림 확인** 및 **예약 취소** 기능을 점검합니다.
+6. 알림 권한을 끈 뒤 예약 요청했을 때 앱이 무리하게 진행하지 않는지 확인합니다.
+
+실기기에서 확인할 결과: [ ] 권한 요청, [ ] 백그라운드 수신,
+[ ] 앱 종료 후 수신, [ ] 예약 취소, [ ] 거부 시 안내, [ ] 재부팅 후 동작(후속).
+
+이 실험은 **테스트 알림 ID 7301 한 건만** 예약하며 같은 ID를 새 예약 전에
+취소합니다. 기존 알림을 관리하거나 실제 습관별 알림을 예약하지 않습니다.
+정밀 알람 권한은 요청하지 않습니다. 정해진 시각의 습관 알림,
+요일 반복, 시간대 변경, 앱 재부팅 후 복구, 데이터 이전 등은
+실기기 검증 후에 설계합니다.
+
+로컬 재현은 새 `android/` 프로젝트에서:
+```sh
+cd mobile
+npm install --no-package-lock
+BYEOLHARU_POC_NOTIFICATIONS=1 npm run notifications:prepare
+BYEOLHARU_POC_NOTIFICATIONS=1 npm run android:init
+BYEOLHARU_POC_NOTIFICATIONS=1 npm run android:sync
+BYEOLHARU_POC_NOTIFICATIONS=1 npm run android:open
+```
+이 모드는 `mobile/www/index.html`을 일시적으로 알림 테스트 화면으로
+교체합니다. GitHub Actions는 일회용 체크아웃에서 수행하므로 웹 운영 자산이나
+다른 앱에 전파되지 않습니다. 개발 머신에서는 원래 파일을 Git에서 복원하거나
+별도 작업 디렉터리를 이용하세요.
+
 ## 지금 검증할 것
 | 영역 | 합격 기준 |
 |---|---|
