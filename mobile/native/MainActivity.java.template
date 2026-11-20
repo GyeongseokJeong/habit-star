@@ -56,6 +56,10 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     protected void onCreate(Bundle state) {
+        // Capacitor requires registering custom plugins before super.onCreate.
+        if (getPackageName().endsWith(".packagedgueststep9")) {
+            registerPlugin(ByeolharuDeviceSettingsPlugin.class);
+        }
         super.onCreate(state);
         if (getPackageName().endsWith(".packagedgueststep9")) {
             installNativeSystemBarInsets();
