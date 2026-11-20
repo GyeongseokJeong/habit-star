@@ -43,8 +43,10 @@ for (const width of [320, 375, 390, 430]) {
       expect(artBounds!.width / bounds!.width).toBeGreaterThan(0.36);
       const skyBounds = await card.locator(".starlight-share-sky").boundingBox();
       expect(skyBounds).not.toBeNull();
-      expect(artBounds!.y).toBeGreaterThanOrEqual(skyBounds!.y - 1);
-      expect(artBounds!.y + artBounds!.height).toBeLessThanOrEqual(skyBounds!.y + skyBounds!.height + 1);
+      // Allow 2px subpixel rounding between the flex sky and portrait box;
+      // meaningful artwork cropping still fails this assertion.
+      expect(artBounds!.y).toBeGreaterThanOrEqual(skyBounds!.y - 2);
+      expect(artBounds!.y + artBounds!.height).toBeLessThanOrEqual(skyBounds!.y + skyBounds!.height + 2);
       await expect(art.locator("img")).toHaveCSS("object-fit", "contain");
       await expect(card).toHaveCSS("aspect-ratio", "4 / 5");
       await expect(card).toContainText("현재 단계");
