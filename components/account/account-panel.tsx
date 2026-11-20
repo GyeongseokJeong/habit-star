@@ -9,6 +9,7 @@ import {
 import { cloudEnabled } from "@/lib/supabase/client";
 import type { useHabitApp } from "@/lib/habits/use-habit-app";
 import type { Snapshot } from "@/lib/habits/repository";
+import type { NativeReminderControls } from "@/lib/habits/native-reminder-controls";
 import { AuthForm, type AuthMode } from "./auth-form";
 
 type App = ReturnType<typeof useHabitApp>;
@@ -51,7 +52,7 @@ function guestHasOwnRecords(guest: Snapshot) {
 }
 
 export function AccountPanel({
-  app, page, onNavigate, theme, onThemeChange, compactView, onCompactViewChange, onHelp, onInstall,
+  app, page, onNavigate, theme, onThemeChange, compactView, onCompactViewChange, onHelp, onInstall, nativeReminders,
 }: {
   app: App;
   page: AccountPage;
@@ -62,6 +63,7 @@ export function AccountPanel({
   onCompactViewChange: (enabled: boolean) => void;
   onHelp: () => void;
   onInstall?: () => void;
+  nativeReminders?: NativeReminderControls;
 }) {
   const state = app.snapshot?.state;
   const [message, setMessage] = useState("");
@@ -341,6 +343,26 @@ export function AccountPanel({
               ><span className="compact-switch-track" aria-hidden="true"><span className="compact-switch-thumb" /></span></button>
             </div>
           </div>
+          {nativeReminders && (
+            <div className="account-setting-block">
+              <div className="compact-setting-row">
+                <span className="account-setting-heading">
+                  <span>습관 알림</span>
+                  <small>Android 앱에서 선택한 습관을 알려드려요</small>
+                </span>
+                <button
+                  type="button"
+                  className="compact-setting-toggle"
+                  role="switch"
+                  aria-label="습관 알림"
+                  aria-checked={nativeReminders.enabled}
+                  disabled={nativeReminders.busy}
+                  onClick={() => void nativeReminders.onEnabledChange(!nativeReminders.enabled)}
+                ><span className="compact-switch-track" aria-hidden="true"><span className="compact-switch-thumb" /></span></button>
+              </div>
+              {!!nativeReminders.status && <p className="account-note" role="status">{nativeReminders.status}</p>}
+            </div>
+          )}
           <div className="account-setting-block">
             <div className="account-setting-heading"><span>시간대</span><small>{app.user ? "습관 기록의 날짜 기준" : "기기의 시간대를 사용해요"}</small></div>
             <div className="account-timezone-row"><Clock3 size={19}/><span><strong>{zoneName(state?.timezone ?? deviceZone)}</strong><small>{state?.timezone ?? deviceZone}</small></span>
