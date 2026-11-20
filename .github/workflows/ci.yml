@@ -30,13 +30,29 @@ jobs:
           git fetch --no-tags --depth=1 origin "$BASE_SHA"
           changed="$(git diff --name-only "$BASE_SHA" HEAD)"
           echo "$changed"
-          # Fail open: only skip the cloud suite when changes are clearly
-          # isolated from runtime, DB, auth, sync, workflow, and cloud tests.
-          if echo "$changed" | grep -Eq '^(app/|components/|lib/|supabase/|scripts/|tests/db-|tests/legacy-import|tests/e2e/cloud[.]spec[.]ts|playwright[.]cloud[.]config[.]ts|package[.]json|pnpm-lock[.]yaml|[.]github/workflows/|next[.]config|middleware|public/sw[.]js)'; then
-            echo "required=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "required=false" >> "$GITHUB_OUTPUT"
-          fi
+          # Explicit allowlist: skip only presentation styles/docs and
+          # non-cloud browser regression specs. Any other file (including
+          # proxy.ts, auth/config/runtime, DB, workflow, build and lockfiles)
+          # must run the real-Supabase integration gate.
+          required=false
+          while IFS= read -r file; do
+            [[ -z "$file" ]] && continue
+            case "$file" in
+              *.css|*.md)
+                ;;
+              tests/e2e/*.spec.ts)
+                case "$file" in
+                  tests/e2e/cloud.spec.ts|tests/e2e/production.spec.ts)
+                    required=true
+                    ;;
+                esac
+                ;;
+              *)
+                required=true
+                ;;
+            esac
+          done <<< "$changed"
+          echo "required=$required" >> "$GITHUB_OUTPUT"
       - uses: pnpm/action-setup@v4
         with:
           version: 11.25.0
