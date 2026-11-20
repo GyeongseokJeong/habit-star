@@ -32,3 +32,20 @@ test("STEP 5 is a separate package with bundled assets, not remote website mode"
   assert.match(prep, /reminder-step5-main\.js/);
   assert.match(prep, /reminder-step5\.html/);
 });
+
+test("STEP 8 APK uses a separate package and a bundled opt-in demo", () => {
+  const lab = readFileSync(resolve(root, "notifications/reminder-step8-main.js"), "utf8");
+  const html = readFileSync(resolve(root, "notifications/reminder-step8.html"), "utf8");
+  assert.match(config, /byeolharu\.integrationstep8/);
+  assert.match(config, /integrationStep8 && \(!notificationsPoc \|\| reminderStep5 \|\| remoteDebug\)/);
+  assert.match(prep, /notifications\/reminder-step8-main\.js/);
+  assert.match(prep, /notifications\/reminder-step8\.html/);
+  assert.match(lab, /optIn=false|optIn = false/);
+  assert.match(lab, /LocalNotifications\.checkPermissions/);
+  assert.match(lab, /lifecycle\.disable\(\)/);
+  assert.match(lab, /lifecycle\.sync\(context\(\)\)/);
+  assert.doesNotMatch(lab, /localStorage|indexedDB|supabase|fetch\(|getUser\(/);
+  assert.match(html, /id="activate"/);
+  assert.match(html, /id="completed"/);
+  assert.match(html, /id="disable"/);
+});
