@@ -1,0 +1,23 @@
+{
+  "name": "byeolharu-android-shell-poc",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Android-only Capacitor shell experiment. Not a release build.",
+  "scripts": {
+    "check": "node scripts/check-shell.mjs",
+    "android:init": "cap add android",
+    "android:sync": "cap sync android",
+    "android:open": "cap open android",
+    "android:run": "cap run android"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.6.2",
+    "@capacitor/core": "8.6.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.6.2"
+  },
+  "engines": {
+    "node": ">=24.22.1 <25"
+  }
+}
