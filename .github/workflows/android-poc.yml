@@ -17,6 +17,7 @@ on:
       - app/feat/guest-reminder-diagnostics-step13
       - app/feat/reminder-consistency-audit-step14
       - app/feat/reminder-manual-repair-step15
+      - app/feat/android-reboot-permission-validation-step16
     paths:
       - "mobile/**"
       - ".github/workflows/android-poc.yml"
@@ -322,6 +323,8 @@ jobs:
       - name: Compile packaged guest APK
         run: ./gradlew assembleDebug --no-daemon
         working-directory: mobile/android
+      - name: Assert compiled APK includes Android reboot receiver and notification permissions
+        run: node mobile/scripts/check-guest-boot-manifest.mjs
       - name: Upload packaged guest APK
         uses: actions/upload-artifact@v4
         with:
