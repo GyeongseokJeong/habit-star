@@ -9,7 +9,7 @@ async function setCompact(page: import("@playwright/test").Page) {
   await page.getByRole("button", { name: "닫기" }).click();
 }
 
-test("all time tabs and calendar keep a consistent 16px content gap in both views", async ({ page }) => {
+test("all time tabs and calendar keep each view’s approved content gap", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
@@ -23,8 +23,10 @@ test("all time tabs and calendar keep a consistent 16px content gap in both view
         const panel = document.querySelector("#routine-panel")!.getBoundingClientRect();
         return panel.top - tabs.bottom;
       });
-      expect(distance, `${mode} / ${label} spacing`).toBeGreaterThanOrEqual(15.5);
-      expect(distance, `${mode} / ${label} spacing`).toBeLessThanOrEqual(16.5);
+      // B4.4 tightens only the normal mobile view; compact keeps its 16px rhythm.
+      const expected = mode === "normal" ? 12 : 16;
+      expect(distance, `${mode} / ${label} spacing`).toBeGreaterThanOrEqual(expected - 0.5);
+      expect(distance, `${mode} / ${label} spacing`).toBeLessThanOrEqual(expected + 0.5);
     }
   }
 });

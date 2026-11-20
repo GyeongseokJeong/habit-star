@@ -2357,6 +2357,21 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   .card-rating {
     gap: 4px;
   }
+  /* B4.4: tighten only the normal-view mobile rhythm. Preserve compact view,
+     all touch targets, card internals, and the approved closing landscape. */
+  .byeolharu:not(.compact-view) .dashboard-layout {
+    margin-top: 16px;
+  }
+  .byeolharu:not(.compact-view) .routine-heading {
+    margin-bottom: 12px;
+  }
+  .byeolharu:not(.compact-view) .tabs + #routine-panel {
+    margin-top: 12px;
+  }
+  .byeolharu:not(.compact-view) .habit-grid,
+  .byeolharu:not(.compact-view) .normal-habit-list {
+    gap: 10px;
+  }
   .sidebar {
     display: flex;
   }

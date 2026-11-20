@@ -2,6 +2,9 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: false,
+  // CI runners have four cores. Three isolated browser workers shorten the
+  // growing E2E suite without weakening or removing any regression tests.
+  workers: process.env.CI ? 3 : undefined,
   testIgnore: ["**/cloud.spec.ts", "**/production.spec.ts"],
   use: {
     baseURL: "http://localhost:3000",
