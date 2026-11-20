@@ -56,16 +56,16 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
-  android-webview-preview:
-    # A separate, opt-in artifact. No preview URL -> no remote-loading APK.
-    if: ${{ vars.BYEOLHARU_APP_STAGING_URL != '' }}
+  android-webview-production-poc:
+    # Debug-only, separately installed package. It loads the user's existing
+    # public web service and must not be used for member-data testing.
     runs-on: ubuntu-latest
     permissions:
       contents: read
     timeout-minutes: 35
     env:
       BYEOLHARU_POC_REMOTE_DEBUG: "1"
-      BYEOLHARU_POC_URL: ${{ vars.BYEOLHARU_APP_STAGING_URL }}
+      BYEOLHARU_POC_URL: "https://habit-star-fawn.vercel.app"
     defaults:
       run:
         working-directory: mobile
@@ -85,21 +85,21 @@ jobs:
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0" "platform-tools"
       - name: Install pinned Capacitor
         run: npm install --no-package-lock --no-audit --no-fund
-      - name: Check staging HTTPS and anonymous homepage
+      - name: Verify anonymous website only
         run: |
           npm run check
-          node scripts/check-preview-origin.mjs
-      - name: Generate Android project
+          node scripts/check-webview-origin.mjs
+      - name: Generate isolated Android app
         run: npm run android:init
-      - name: Sync HTTPS WebView debug configuration
+      - name: Sync remote WebView configuration
         run: npm run android:sync
-      - name: Compile staging WebView debug APK
+      - name: Compile WebView debug APK
         run: ./gradlew assembleDebug --no-daemon
         working-directory: mobile/android
-      - name: Upload staging WebView debug APK
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: byeolharu-android-webview-preview-debug
+          name: byeolharu-android-existing-web-debug
           path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 3
