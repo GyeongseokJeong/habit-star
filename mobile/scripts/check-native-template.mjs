@@ -8,6 +8,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const java = readFileSync(resolve(root, "native/MainActivity.java.template"), "utf8");
 const patcher = readFileSync(resolve(root, "scripts/patch-android.mjs"), "utf8");
 const config = readFileSync(resolve(root, "capacitor.config.ts"), "utf8");
+const settingsJava = readFileSync(resolve(root, "native/ByeolharuDeviceSettingsPlugin.java.template"), "utf8");
 
 assert.match(java, /extends BridgeActivity/);
 for (const method of ["onResume", "onPause", "onDestroy"]) {
@@ -30,6 +31,17 @@ assert.match(java, /\.setInsets\(types, Insets\.NONE\)/);
 assert.match(config, /packagedGuest \? \{ plugins: \{ SystemBars: \{ insetsHandling: "disable"/, "The guest WebView must not add CSS system insets on top of native viewport padding");
 
 assert.match(patcher, /startsWith\("io\.github\.gyeongseokjeong\.byeolharu\."\)/);
+assert.match(java, /registerPlugin\(ByeolharuDeviceSettingsPlugin\.class\)/);
+assert.ok(java.indexOf("registerPlugin(ByeolharuDeviceSettingsPlugin.class)") < java.indexOf("super.onCreate(state)"),
+  "Capacitor plugin must be registered before bridge initialization");
+assert.match(settingsJava, /@CapacitorPlugin\(name = "ByeolharuDeviceSettings"\)/);
+assert.match(settingsJava, /Settings\.ACTION_APP_NOTIFICATION_SETTINGS/);
+assert.match(settingsJava, /Settings\.EXTRA_APP_PACKAGE/);
+assert.match(settingsJava, /getContext\(\)\.getPackageName\(\)/);
+assert.match(settingsJava, /call\.resolve\(\)/);
+assert.match(patcher, /targetPackage\.endsWith\("\.packagedgueststep9"\)/);
+assert.match(patcher, /ByeolharuDeviceSettingsPlugin\.java\.template/);
+
 
 function javaStringConstant(name) {
   const anchor = `private static final String ${name} =`;
