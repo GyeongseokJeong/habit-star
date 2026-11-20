@@ -7,6 +7,7 @@ import { runInNewContext } from "node:vm";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const java = readFileSync(resolve(root, "native/MainActivity.java.template"), "utf8");
 const patcher = readFileSync(resolve(root, "scripts/patch-android.mjs"), "utf8");
+const config = readFileSync(resolve(root, "capacitor.config.ts"), "utf8");
 
 assert.match(java, /extends BridgeActivity/);
 for (const method of ["onResume", "onPause", "onDestroy"]) {
@@ -26,6 +27,7 @@ assert.match(java, /WindowInsetsCompat\.Type\.systemBars\(\)/);
 assert.match(java, /WindowInsetsCompat\.Type\.displayCutout\(\)/);
 assert.match(java, /content\.setPadding\(bars\.left, bars\.top, bars\.right, bars\.bottom\)/);
 assert.match(java, /\.setInsets\(types, Insets\.NONE\)/);
+assert.match(config, /packagedGuest \? \{ plugins: \{ SystemBars: \{ insetsHandling: "disable"/, "The guest WebView must not add CSS system insets on top of native viewport padding");
 
 assert.match(patcher, /startsWith\("io\.github\.gyeongseokjeong\.byeolharu\."\)/);
 
