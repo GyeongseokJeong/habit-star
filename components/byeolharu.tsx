@@ -1158,9 +1158,8 @@ export default function Byeolharu() {
   const celebrateFirstPractice = (id: string, actionScope: string, actionDay: string) => {
     if (activeScope.current !== actionScope) return;
     setFirstPractice({ id, scope: actionScope, day: actionDay });
-    // In the standard view completed cards are folded: reveal the *first*
-    // successful action, without changing later normal completion behavior.
-    setCompletedOpen(true);
+    // Preserve the existing completed fold. The first-record cue remains in
+    // the card and can be seen while it moves or if the user opens the fold.
     if (firstPracticeTimer.current) clearTimeout(firstPracticeTimer.current);
     firstPracticeTimer.current = setTimeout(() => setFirstPractice(null), 4800);
   };
