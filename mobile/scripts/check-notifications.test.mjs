@@ -1,0 +1,26 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+const root = resolve(import.meta.dirname, "..");
+const config = readFileSync(resolve(root, "capacitor.config.ts"), "utf8");
+const source = readFileSync(resolve(root, "notifications/main.js"), "utf8");
+const html = readFileSync(resolve(root, "notifications/index.html"), "utf8");
+const prep = readFileSync(resolve(root, "scripts/prepare-notification-poc.mjs"), "utf8");
+
+test("test APK has isolated Android package and cannot combine remote mode", () => {
+  assert.match(config, /byeolharu\.notificationpoc/);
+  assert.match(config, /remoteDebug && notificationsPoc/);
+  assert.match(prep, /BYEOLHARU_POC_NOTIFICATIONS/);
+});
+test("notification operations require explicit user taps and avoid existing web data", () => {
+  assert.match(source, /requestPermissions\(\)/);
+  assert.match(source, /LocalNotifications\.schedule\(/);
+  assert.match(source, /LocalNotifications\.cancel\(/);
+  assert.match(source, /30_000/);
+  assert.doesNotMatch(source, /indexedDB|supabase|fetch\(|localStorage|service_role/);
+  assert.match(html, /id="permission"/);
+  assert.match(html, /id="schedule"/);
+  assert.match(html, /id="cancel"/);
+});
