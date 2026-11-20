@@ -122,7 +122,14 @@ for (const { width, height } of [
         }
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
         if (width === 390 && height === 844) {
-          expect(await dialog.evaluate((element) => element.scrollHeight - element.clientHeight)).toBeLessThanOrEqual(2);
+          // V5 adds a deliberate 44px preview entry below the approved artwork.
+          // Preserve the art geometry and allow a short scroll to reach it
+          // instead of shrinking the user's approved 2:3 illustrations.
+          const overflow = await dialog.evaluate((element) => element.scrollHeight - element.clientHeight);
+          expect(overflow).toBeLessThanOrEqual(80);
+          const previewEntry = dialog.getByRole("button", { name: "별빛 카드 만들기" });
+          await previewEntry.scrollIntoViewIfNeeded();
+          await expect(previewEntry).toBeInViewport();
         }
         if (width === 320 && height === 640) {
           await dialog.locator(".constellation-growth-summary").scrollIntoViewIfNeeded();
