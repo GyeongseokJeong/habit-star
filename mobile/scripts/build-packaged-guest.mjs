@@ -28,6 +28,8 @@ await build({
   platform: "browser",
   format: "iife",
   bundle: true,
+  // Browser-only compatibility for third-party modules using Node process.
+  inject: [resolve(mobile, "packaged-guest/browser-process-shim.js")],
   minify: true,
   target: "es2022",
   define: {
