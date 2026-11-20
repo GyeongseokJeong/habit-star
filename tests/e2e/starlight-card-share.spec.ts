@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 
 test.use({ timezoneId: "Asia/Seoul", acceptDownloads: true });
@@ -16,7 +18,7 @@ test("V5 STEP 3 offers a real PNG File through Web Share, without losing transie
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {
     const state = window as Window & {
-      __shareCalls?: Array<{ filename: string; type: string; size: number; active: boolean; title: string }>;
+      __shareCalls?: Array<{ filename: string; type: string; size: number; active: boolean; title: string; sha256: string }>;
       __shareAbort?: boolean;
     };
     state.__shareCalls = [];
@@ -29,14 +31,19 @@ test("V5 STEP 3 offers a real PNG File through Web Share, without losing transie
       value: async (data: ShareData) => {
         const file = data.files?.[0];
         if (!file) throw new Error("missing shared file");
+        // Read activation synchronously; awaiting blob bytes would lose it.
+        const active = navigator.userActivation?.isActive ?? false;
+        if (state.__shareAbort) throw new DOMException("Share cancelled", "AbortError");
+        const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+        const sha256 = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
         state.__shareCalls!.push({
           filename: file.name,
           type: file.type,
           size: file.size,
           title: data.title ?? "",
-          active: navigator.userActivation?.isActive ?? false,
+          active,
+          sha256,
         });
-        if (state.__shareAbort) throw new DOMException("Share cancelled", "AbortError");
       },
     });
   });
@@ -48,7 +55,7 @@ test("V5 STEP 3 offers a real PNG File through Web Share, without losing transie
   await share.click();
   await expect(preview.getByRole("status")).toContainText("공유 요청을 전달했어요");
   let shares = await page.evaluate(() => (window as Window & {
-    __shareCalls?: Array<{ filename: string; type: string; size: number; active: boolean; title: string }>;
+    __shareCalls?: Array<{ filename: string; type: string; size: number; active: boolean; title: string; sha256: string }>;
   }).__shareCalls ?? []);
   expect(shares).toHaveLength(1);
   expect(shares[0].filename).toBe("byeolharu-starlight-stage-1.png");
@@ -56,6 +63,7 @@ test("V5 STEP 3 offers a real PNG File through Web Share, without losing transie
   expect(shares[0].size).toBeGreaterThan(20_000);
   expect(shares[0].title).toBe("별하루 별빛 카드");
   expect(shares[0].active).toBe(true);
+  expect(shares[0].sha256).toMatch(/^[a-f0-9]{64}$/);
 
   // User cancellation should be silent and leave both actions available.
   await page.evaluate(() => { (window as Window & { __shareAbort?: boolean }).__shareAbort = true; });
@@ -63,15 +71,22 @@ test("V5 STEP 3 offers a real PNG File through Web Share, without losing transie
   await expect(share).toBeEnabled();
   await expect(preview.getByRole("status")).not.toContainText("공유하지 못했어요");
   shares = await page.evaluate(() => (window as Window & {
-    __shareCalls?: Array<{ filename: string; type: string; size: number; active: boolean; title: string }>;
+    __shareCalls?: Array<{ filename: string; type: string; size: number; active: boolean; title: string; sha256: string }>;
   }).__shareCalls ?? []);
-  expect(shares).toHaveLength(2);
+  // A cancelled share is not a sent image and must not corrupt the cached PNG.
+  expect(shares).toHaveLength(1);
   await expect(preview.locator(".starlight-share-card")).toBeVisible();
 
   // Save fallback remains available even when the share chooser was cancelled.
   const download = page.waitForEvent("download", { timeout: 90_000 });
   await preview.getByRole("button", { name: "이미지 저장" }).click();
-  expect((await download).suggestedFilename()).toBe("byeolharu-starlight-stage-1.png");
+  const saved = await download;
+  expect(saved.suggestedFilename()).toBe("byeolharu-starlight-stage-1.png");
+  const savedBytes = await readFile((await saved.path())!);
+  const savedSha256 = createHash("sha256").update(savedBytes).digest("hex");
+  expect(savedSha256).toBe(shares[0].sha256);
+  expect(savedBytes.readUInt32BE(16)).toBe(1080);
+  expect(savedBytes.readUInt32BE(20)).toBe(1350);
 });
 
 test("V5 STEP 3 keeps save available when native file sharing is not supported", async ({ page }) => {
