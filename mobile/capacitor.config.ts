@@ -10,6 +10,10 @@ import type { CapacitorConfig } from "@capacitor/cli";
  */
 const productionOrigin = "https://habit-star-fawn.vercel.app";
 const remoteDebug = process.env.BYEOLHARU_POC_REMOTE_DEBUG === "1";
+const notificationsPoc = process.env.BYEOLHARU_POC_NOTIFICATIONS === "1";
+if (remoteDebug && notificationsPoc) {
+  throw new Error("Notification PoC must be isolated from the remote website.");
+}
 const configuredOrigin = process.env.BYEOLHARU_POC_URL?.trim();
 
 if (configuredOrigin && !remoteDebug) {
@@ -27,10 +31,16 @@ if (remoteDebug && configuredOrigin) {
 
 const config: CapacitorConfig = {
   // Different app IDs keep separate WebView storage and allow installing both PoCs.
-  appId: remoteDebug
-    ? "io.github.gyeongseokjeong.byeolharu.webviewpoc"
-    : "io.github.gyeongseokjeong.byeolharu.poc",
-  appName: remoteDebug ? "별하루 WebView PoC" : "별하루 PoC",
+  appId: notificationsPoc
+    ? "io.github.gyeongseokjeong.byeolharu.notificationpoc"
+    : remoteDebug
+      ? "io.github.gyeongseokjeong.byeolharu.webviewpoc"
+      : "io.github.gyeongseokjeong.byeolharu.poc",
+  appName: notificationsPoc
+    ? "별하루 알림 PoC"
+    : remoteDebug
+      ? "별하루 WebView PoC"
+      : "별하루 PoC",
   webDir: "www",
   ...(remoteDebug
     ? { server: { url: productionOrigin, cleartext: false } }
