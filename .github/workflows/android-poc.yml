@@ -23,6 +23,7 @@ on:
       - app/fix/android-permission-toggle-reattempt-step18
       - app/chore/android-release-readiness-step19
       - app/integration/android-guest-step20
+      - app/review/android-shared-boundary-step21
     paths:
       - "mobile/**"
       - ".github/workflows/android-poc.yml"
