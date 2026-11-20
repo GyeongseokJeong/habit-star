@@ -16,6 +16,7 @@ on:
       - app/fix/android-system-bar-safe-area
       - app/feat/guest-reminder-diagnostics-step13
       - app/feat/reminder-consistency-audit-step14
+      - app/feat/reminder-manual-repair-step15
     paths:
       - "mobile/**"
       - ".github/workflows/android-poc.yml"
