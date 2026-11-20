@@ -11,6 +11,7 @@ import { guestReminderAction } from "../notifications/guest-reminder-readiness.j
 import { createResumeDispatcher } from "../notifications/native-resume-refresh.js";
 import { summarizeGuestPending } from "../notifications/guest-reminder-diagnostics.js";
 import { auditGuestReminders } from "../notifications/guest-reminder-audit.js";
+import { repairGuestReminders } from "../notifications/guest-reminder-repair.js";
 
 // This module is bundled into the isolated Android guest APK only.
 // The website's Next.js entrypoint never imports Capacitor or native controls.
@@ -25,6 +26,9 @@ function GuestNativeApp() {
   const [status, setStatus] = useState("");
   const [diagnostic, setDiagnostic] = useState("");
   const [auditStatus, setAuditStatus] = useState("");
+  const [repairAvailable, setRepairAvailable] = useState(false);
+  const [repairStatus, setRepairStatus] = useState("");
+  const auditRevision = useRef(0);
   const snapshot = useRef<Snapshot | null>(null);
   const enabledRef = useRef(false);
   const busyRef = useRef(false);
@@ -92,6 +96,8 @@ function GuestNativeApp() {
 
   const onSnapshot = useCallback((next: Snapshot | null) => {
     snapshot.current = next;
+    auditRevision.current += 1;
+    setRepairAvailable(false);
     // React's committed snapshot is the only scheduling source.
     if (mounted.current && enabledRef.current) {
       void schedule(true, next).catch(() => setStatus("알림 예약을 갱신하지 못했어요."));
@@ -102,6 +108,8 @@ function GuestNativeApp() {
     if (!lifecycle || busyRef.current) return;
     busyRef.current = true;
     setBusy(true);
+    auditRevision.current += 1;
+    setRepairAvailable(false);
     try {
       if (next) {
         if (guestReminderAction(true, snapshot.current) !== "sync") {
@@ -183,6 +191,9 @@ function GuestNativeApp() {
     if (!isAndroid || busyRef.current) return;
     busyRef.current = true;
     setBusy(true);
+    const revision = ++auditRevision.current;
+    setRepairAvailable(false);
+    setRepairStatus("");
     try {
       // This is an observation only: no permission dialog, scheduling, or
       // mutations. The latest committed snapshot is the comparison source.
@@ -209,8 +220,11 @@ function GuestNativeApp() {
         ? "Android 실제 예약 " + report.actualCount + "건"
         : "예상 " + report.expectedCount + "건 · 실제 " + report.actualCount +
           "건 · 추가/변경 필요 " + report.missingCount + "건 · 취소 필요 " + report.staleCount + "건";
-      setAuditStatus(message + " " + counts +
-        (report.truncated ? " · 최대 예약 건수에 도달했어요." : ""));
+      if (revision === auditRevision.current) {
+        setAuditStatus(message + " " + counts +
+          (report.truncated ? " · 최대 예약 건수에 도달했어요." : ""));
+        setRepairAvailable(report.status === "out-of-sync" && enabledRef.current);
+      }
     } catch {
       setAuditStatus("예약 비교에 실패했습니다. 습관 데이터와 기기 설정을 확인해 주세요.");
     } finally {
@@ -219,8 +233,43 @@ function GuestNativeApp() {
     }
   }, []);
 
+  const onRepairPending = useCallback(async () => {
+    if (!isAndroid || busyRef.current || !repairAvailable) return;
+    busyRef.current = true;
+    setBusy(true);
+    setRepairAvailable(false);
+    setRepairStatus("");
+    try {
+      // Previous audit can become stale. The repair engine rechecks current
+      // opt-in, today's committed snapshot, Android permission and pending.
+      const result = await repairGuestReminders({
+        localNotifications: LocalNotifications,
+        snapshot: snapshot.current,
+        optIn: enabledRef.current,
+        now: new Date(),
+      });
+      const message = {
+        repaired: "알림 예약을 현재 습관 설정에 맞춰 갱신했어요.",
+        "already-synced": "이미 습관 설정과 알림 예약이 일치해요.",
+        disabled: "알림을 켠 후에 예약을 복구할 수 있어요.",
+        "permission-required": "Android 알림 권한을 먼저 허용해 주세요.",
+        "snapshot-not-ready": "오늘 습관 기록이 준비된 뒤 다시 시도해 주세요.",
+      }[result.status] ?? "알림 복구 결과를 확인할 수 없어요.";
+      setRepairStatus(message +
+        ((result.status === "repaired") ? " 새 예약 " + result.added + "건 · 기존 예약 정리 " + result.cancelled + "건" : ""));
+      // The audit may have changed while performing native writes.
+      ++auditRevision.current;
+      setAuditStatus("복구 후 예약을 다시 비교해 확인할 수 있어요.");
+    } catch {
+      setRepairStatus("예약 복구 중 오류가 발생했어요. 예약 비교 후 다시 시도해 주세요.");
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  }, [repairAvailable]);
+
   const nativeReminders: NativeReminderControls | undefined = isAndroid
-    ? { enabled, busy, status, diagnostic, auditStatus, onInspectPending, onAuditPending, onEnabledChange, onSnapshot }
+    ? { enabled, busy, status, diagnostic, auditStatus, repairAvailable, repairStatus, onInspectPending, onAuditPending, onRepairPending, onEnabledChange, onSnapshot }
     : undefined;
   return <Byeolharu nativeReminders={nativeReminders} />;
 }
