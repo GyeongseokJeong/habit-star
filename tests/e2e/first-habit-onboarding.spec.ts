@@ -51,3 +51,34 @@ test("rating a seeded example is not a first real practice", async ({ page }) =>
   await sample.getByRole("button", { name: "독서 30분 & TOP 50 책장 3점" }).click();
   await expect(page.locator(".habit-first-practice")).toHaveCount(0);
 });
+
+test("detail-first completion never strands keyboard focus when its card folds", async ({ page }) => {
+  await page.clock.setFixedTime(new Date("2026-11-20T09:00:00+09:00"));
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
+  await page.getByRole("tab", { name: "전체", exact: true }).click();
+  await page.getByRole("button", { name: "새 습관 추가", exact: true }).click();
+  const create = page.getByRole("dialog", { name: "나를 위한 새로운 습관" });
+  await create.getByPlaceholder("예: 하루 10분 책 읽기").fill("키보드 첫 실천");
+  await create.getByRole("button", { name: "새 습관 추가하기" }).click();
+  const card = page.locator(".habit-card").filter({
+    has: page.getByRole("heading", { name: "키보드 첫 실천", exact: true }),
+  });
+  await card.locator(".card-content").focus();
+  await page.keyboard.press("Enter");
+  const detail = page.getByRole("dialog", { name: "오늘의 실천 기록" });
+  await expect(detail).toBeVisible();
+  await detail.getByRole("button", { name: "단순 체크만 하기" }).click();
+  await expect(detail).toHaveCount(0);
+  await expect(card.locator(".habit-first-practice")).toBeVisible();
+  // The standard completed group stays collapsed, but the focus must not
+  // fall through to body once the held card moves after its brief cue.
+  await expect(card).toHaveCount(0, { timeout: 5000 });
+  await expect(page.locator(".normal-done-toggle")).toHaveAttribute("aria-expanded", "false");
+  const active = await page.evaluate(() => ({
+    tag: document.activeElement?.tagName,
+    focused: document.activeElement?.id,
+  }));
+  expect(active.tag).not.toBe("BODY");
+  expect(active.tag).toBe("BUTTON");
+});
