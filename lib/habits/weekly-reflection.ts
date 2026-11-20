@@ -135,3 +135,35 @@ export function calculateWeeklyReflection(
 
   return { startDay, endDay, status, recommendations, encouragingHabit };
 }
+
+export type TodayRecoverySummary = {
+  /** The historical top two never change solely because today's status changes. */
+  ordered: HabitReflection[];
+  completedToday: number;
+  allCompletedToday: boolean;
+};
+
+/**
+ * Presentation-only order for an already selected historical recommendation.
+ * Today's available actions first, next opportunities second, today's successes
+ * last. Do not change yesterday's counts, thresholds or selected habit IDs.
+ */
+export function summarizeTodayRecovery(
+  recommendations: readonly HabitReflection[],
+): TodayRecoverySummary {
+  const ordered = recommendations
+    .map((item, index) => ({
+      item,
+      index,
+      priority: item.todayCompleted ? 2 : item.todayScheduled ? 0 : 1,
+    }))
+    .sort((a, b) => a.priority - b.priority || a.index - b.index)
+    .map(({ item }) => item);
+  const completedToday = recommendations.filter((item) => item.todayCompleted).length;
+  return {
+    ordered,
+    completedToday,
+    allCompletedToday: recommendations.length > 0 &&
+      completedToday === recommendations.length,
+  };
+}
