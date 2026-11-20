@@ -379,3 +379,25 @@ on smoke-test failure. Preserve app data; do not uninstall just to retry.
 
 This browser check does not prove Samsung Android WebView native behavior;
 inspect adb logcat/Chrome remote inspect if the APK still fails on device.
+
+
+## Android edge-to-edge safe-area correction (Samsung Galaxy)
+
+On the packaged guest APK, status bar icons were painted over the header logo,
+and Android navigation buttons over the last habit card. This is a runtime
+layout issue even when Gradle compiles successfully. Only the bundled Android
+guest shell loads `mobile/packaged-guest/safe-area.css`, after the real web
+stylesheet. It uses Capacitor 8's `SystemBars.insetsHandling = "css"` with
+`--safe-area-inset-*` values and `env(safe-area-inset-*)` fallback.
+
+The header grows by the top inset (rather than simply moving the logo), and
+the scroll page keeps an extra bottom inset. Fullscreen account sheets,
+regular bottom sheets and floating overlays also respect the relevant edges.
+The standalone website and WebView/notification PoCs retain their styles.
+
+The bundled browser smoke test injects example 32 px top / 24 px bottom
+system insets and asserts the header, logo and bottom spacing are safe.
+Device-specific nav modes (Samsung three-button and gesture navigation),
+light/dark theme, modal, scrolling, keyboard, rotation and display cutout
+still require Galaxy real-device verification. Install an update without
+clearing application storage when verifying an existing package.
