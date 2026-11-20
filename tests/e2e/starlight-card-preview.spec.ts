@@ -37,10 +37,14 @@ for (const width of [320, 390, 430]) {
       await expect(art).toBeVisible();
       const artBounds = await art.boundingBox();
       expect(artBounds).not.toBeNull();
-      // The approved portrait Stage image remains intact, and occupies
-      // at least half the card's width rather than the former 44%-of-sky.
+      // Artwork must retain the approved 2:3 geometry. The blurred copy
+      // increases visual presence without stretching or cropping the original.
       expect(artBounds!.height / artBounds!.width).toBeCloseTo(1.5, 1);
-      expect(artBounds!.width / bounds!.width).toBeGreaterThan(0.48);
+      expect(artBounds!.width / bounds!.width).toBeGreaterThan(0.36);
+      const skyBounds = await card.locator(".starlight-share-sky").boundingBox();
+      expect(skyBounds).not.toBeNull();
+      expect(artBounds!.y).toBeGreaterThanOrEqual(skyBounds!.y - 1);
+      expect(artBounds!.y + artBounds!.height).toBeLessThanOrEqual(skyBounds!.y + skyBounds!.height + 1);
       await expect(art.locator("img")).toHaveCSS("object-fit", "contain");
       await expect(card).toHaveCSS("aspect-ratio", "4 / 5");
       await expect(card).toContainText("현재 단계");
