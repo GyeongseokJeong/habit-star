@@ -990,6 +990,10 @@ export default function Byeolharu() {
   const [compactView, setCompactView] = useState(false);
   const [compactPreferenceLoaded, setCompactPreferenceLoaded] = useState(false);
   const [completedOpen, setCompletedOpen] = useState(false);
+  // Alternate two identical CSS animations to restart on rapid completions.
+  const [completedGroupNudge, setCompletedGroupNudge] = useState<0 | 1 | 2>(0);
+  const completedGroupNudgeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const completedGroupBaseline = useRef<{ key: string; count: number; ready: boolean } | null>(null);
   const [compactExpandedId, setCompactExpandedId] = useState<string | null>(null);
   const compactCollapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const compactFocusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1064,6 +1068,7 @@ export default function Byeolharu() {
       if (compactCollapseTimer.current) clearTimeout(compactCollapseTimer.current);
       if (compactFocusTimer.current) clearTimeout(compactFocusTimer.current);
       if (normalFocusTimer.current) clearTimeout(normalFocusTimer.current);
+      if (completedGroupNudgeTimer.current) clearTimeout(completedGroupNudgeTimer.current);
       for (const timer of reorderTimers.current.values()) clearTimeout(timer);
       reorderTimers.current.clear();
     };
@@ -1300,6 +1305,38 @@ export default function Byeolharu() {
   const compactCompleted = filtered.filter(
     (habit) => heldCompletion.get(habit.id) ?? habit.completed,
   );
+  // Emphasize only a rise in the rendered completed-group count.
+  // Isolate the baseline by date, account, tab and display mode so initial
+  // hydration, reloads and navigation never look like new achievements.
+  const completedGroupKey = `${scope}:${today}:${activeTab}:${compactView ? "compact" : "normal"}`;
+  const completionDataReady = ready && (!app.user || app.snapshot?.state.hydrated === true);
+  useEffect(() => {
+    const previous = completedGroupBaseline.current;
+    completedGroupBaseline.current = {
+      key: completedGroupKey,
+      count: compactCompleted.length,
+      ready: completionDataReady,
+    };
+    if (completedGroupNudgeTimer.current) {
+      clearTimeout(completedGroupNudgeTimer.current);
+      completedGroupNudgeTimer.current = null;
+    }
+    if (previous?.key !== completedGroupKey ||
+        !previous.ready || !completionDataReady ||
+        compactCompleted.length <= previous.count || activeTab === "matrix") {
+      setCompletedGroupNudge(0);
+      return;
+    }
+
+    // Toggling between two distinct animation names makes each additional
+    // completion restart the CSS animation, even when React batches updates.
+    // Do not reset to 0 first: React could batch 0 -> 1 back into the old 1.
+    setCompletedGroupNudge((current) => current === 1 ? 2 : 1);
+    completedGroupNudgeTimer.current = setTimeout(() => {
+      setCompletedGroupNudge(0);
+      completedGroupNudgeTimer.current = null;
+    }, 1100);
+  }, [completedGroupKey, completionDataReady, compactCompleted.length, activeTab]);
   // Completion feedback is scoped to the selected tab, not the entire day.
   const completionMessage = activeTab === "all"
     ? "오늘의 실천을 모두 마쳤어요 ✨"
@@ -1694,7 +1731,7 @@ export default function Byeolharu() {
                             <section className="compact-done-group" aria-label="완료한 습관">
                               <button
                                 type="button"
-                                className="compact-done-toggle"
+                                className={`compact-done-toggle ${completedGroupNudge ? `completion-nudge completion-nudge-${completedGroupNudge}` : ""}`}
                                 aria-expanded={completedOpen}
                                 aria-controls="compact-completed-list"
                                 onClick={() => setCompletedOpen((value) => !value)}
@@ -1726,7 +1763,7 @@ export default function Byeolharu() {
                         <section className="normal-completed-group" aria-label="완료한 습관">
                           <button
                             type="button"
-                            className="normal-done-toggle"
+                            className={`normal-done-toggle ${completedGroupNudge ? `completion-nudge completion-nudge-${completedGroupNudge}` : ""}`}
                             aria-expanded={completedOpen}
                             aria-controls="normal-completed-list"
                             onClick={() => setCompletedOpen((value) => !value)}

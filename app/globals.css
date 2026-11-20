@@ -1383,6 +1383,59 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 .normal-done-toggle > span:first-child svg { color: var(--sage); }
 .normal-done-toggle > span:last-child { color: var(--muted); font-size: 12px; font-weight: 400; }
 .normal-done-toggle:focus-visible { outline: 2px solid var(--sage); outline-offset: 2px; }
+/* Small, one-time destination cue after a habit moves into the completed fold.
+   Use the existing sage tokens, without changing layout, height or focus. */
+/* Distinct animation names ensure a second completion restarts the pulse.
+   Both keyframes are intentionally identical; alternating classes never remount
+   a focused button or change the completed-group's expanded state. */
+.normal-done-toggle.completion-nudge-1,
+.compact-done-toggle.completion-nudge-1 {
+  animation: completed-group-nudge-1 1100ms ease-out both;
+}
+.normal-done-toggle.completion-nudge-2,
+.compact-done-toggle.completion-nudge-2 {
+  animation: completed-group-nudge-2 1100ms ease-out both;
+}
+@keyframes completed-group-nudge-1 {
+  0% {
+    border-color: var(--line);
+    box-shadow: 0 0 0 0 transparent;
+    background: var(--surface);
+  }
+  18% {
+    border-color: var(--sage);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--sage) 13%, transparent);
+    background: color-mix(in srgb, var(--sage-soft) 38%, var(--surface));
+  }
+  100% {
+    border-color: var(--line);
+    box-shadow: 0 0 0 0 transparent;
+    background: var(--surface);
+  }
+}
+@keyframes completed-group-nudge-2 {
+  0% {
+    border-color: var(--line);
+    box-shadow: 0 0 0 0 transparent;
+    background: var(--surface);
+  }
+  18% {
+    border-color: var(--sage);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--sage) 13%, transparent);
+    background: color-mix(in srgb, var(--sage-soft) 38%, var(--surface));
+  }
+  100% {
+    border-color: var(--line);
+    box-shadow: 0 0 0 0 transparent;
+    background: var(--surface);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .normal-done-toggle.completion-nudge,
+  .compact-done-toggle.completion-nudge {
+    animation: none;
+  }
+}
 .normal-completed-list { margin-top: 10px !important; }
 .normal-completed-list .habit-card {
   border-color: color-mix(in srgb, var(--line) 85%, var(--bg));
