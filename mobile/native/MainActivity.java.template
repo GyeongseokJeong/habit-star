@@ -59,7 +59,7 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
-    protected void onResume() {
+    public void onResume() {
         super.onResume();
         foreground = true;
         handler.removeCallbacks(themeSync);
@@ -67,14 +67,14 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
-    protected void onPause() {
+    public void onPause() {
         foreground = false;
         handler.removeCallbacks(themeSync);
         super.onPause();
     }
 
     @Override
-    protected void onDestroy() {
+    public void onDestroy() {
         handler.removeCallbacks(themeSync);
         super.onDestroy();
     }
