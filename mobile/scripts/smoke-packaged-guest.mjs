@@ -68,7 +68,13 @@ try {
   await page.locator(".add-button").first().click();
   const dialog=page.locator("dialog.modal:has(.habit-editor-form)");
   await dialog.waitFor({state:"visible",timeout:5000});
-  await dialog.evaluate(el => { el.scrollTop=el.scrollHeight; });
+  // The shared modal has a 180ms translateY entrance animation. A geometry
+  // assertion during that animation measures the sheet ~7px below the edge
+  // even though it correctly lands flush after animation completion.
+  await dialog.evaluate(async el => {
+    await Promise.all(el.getAnimations().map(animation => animation.finished.catch(() => {})));
+    el.scrollTop=el.scrollHeight;
+  });
   const layout=await page.evaluate(() => {
     const sheet=document.querySelector("dialog.modal:has(.habit-editor-form)");
     const footer=sheet.querySelector(".habit-editor-footer");
