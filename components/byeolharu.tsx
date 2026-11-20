@@ -1778,11 +1778,6 @@ export default function Byeolharu() {
                 d="M0 76 C55 56 102 64 153 78 S251 88 306 70 S383 65 420 74 V104 H0Z"
                 fill="url(#closing-wave-foreground)"
               />
-              <path
-                className="closing-wave-glint"
-                d="M186 75 C229 82 274 64 309 68 S374 64 400 72"
-                fill="none"
-              />
               <g className="closing-sky-sparks">
                 <path d="M42 29 l2 -4 2 4 4 2 -4 2 -2 4 -2 -4 -4 -2Z" />
                 <circle cx="76" cy="46" r="1.2" />
