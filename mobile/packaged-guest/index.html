@@ -12,6 +12,43 @@
       if (theme === "dark") document.documentElement.dataset.byeolharuTheme = "dark";
     } catch {}
   </script>
+  <script>
+    // A readable fail-safe for fatal JavaScript errors or broken bundled assets.
+    // Keep this in the packaged Android shell only (never the website).
+    window.__byeolharuStartupReady = false;
+    window.__byeolharuStartupErrors = [];
+    const reportStartupError = (message) => {
+      if (window.__byeolharuStartupReady) return;
+      const safe = String(message || "알 수 없는 오류").slice(0, 280);
+      window.__byeolharuStartupErrors.push(safe);
+      const root = document.getElementById("byeolharu-root");
+      if (!root) return;
+      root.replaceChildren();
+      const panel = document.createElement("section");
+      panel.style.cssText = "padding:24px;font-family:system-ui;line-height:1.7;color:#241e2b";
+      const title = document.createElement("strong");
+      title.textContent = "별하루 실행에 문제가 생겼어요.";
+      const detail = document.createElement("p");
+      detail.textContent = safe;
+      const note = document.createElement("small");
+      note.textContent = "테스트용 앱의 실행 오류입니다. 화면을 캡처해 알려주세요. 앱 데이터를 삭제하거나 재설치하지 마세요.";
+      panel.append(title,detail,note);
+      root.append(panel);
+    };
+    window.addEventListener("error", event => {
+      reportStartupError(event.message || "스크립트 또는 리소스 로딩 오류");
+    });
+    window.addEventListener("unhandledrejection", event => {
+      reportStartupError(event.reason?.message || event.reason || "초기화 중 예외");
+    });
+    window.addEventListener("DOMContentLoaded", () => {
+      window.setTimeout(() => {
+        if (!window.__byeolharuStartupReady && !window.__byeolharuStartupErrors.length) {
+          reportStartupError("앱 초기화 제한 시간 초과 (15초)");
+        }
+      }, 15000);
+    });
+  </script>
   <script defer src="./app.js"></script>
 </head>
 <body>
