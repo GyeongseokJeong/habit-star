@@ -64,13 +64,38 @@ test("compact view reuses the same short cue, with no forced expansion", async (
   await expect(toggle).not.toHaveClass(/completion-nudge/, { timeout: 4000 });
 });
 
+test("successive completions restart the active fold animation without opening it", async ({ page }) => {
+  await page.clock.setFixedTime(new Date("2026-11-20T22:00:00+09:00"));
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
+  await page.getByRole("tab", { name: "전체", exact: true }).click();
+
+  const toggle = page.locator(".normal-done-toggle");
+  const reading = page.locator(".normal-pending-list .habit-card").filter({
+    has: page.getByRole("heading", { name: "독서 30분 & TOP 50 책장" }),
+  });
+  await reading.getByRole("button", { name: "독서 30분 & TOP 50 책장 4점" }).click();
+  await expect(toggle).toHaveClass(/completion-nudge-1/, { timeout: 5000 });
+  await expect(toggle).toHaveCSS("animation-name", "completed-group-nudge-1");
+
+  // The next habit completes while the previous 1.1s cue is still active.
+  const stretch = page.locator(".normal-pending-list .habit-card").filter({
+    has: page.getByRole("heading", { name: "취침 전 스트레칭 10분" }),
+  });
+  await stretch.getByRole("button", { name: "취침 전 스트레칭 10분 5점" }).click();
+  await expect(toggle).toHaveClass(/completion-nudge-2/, { timeout: 5000 });
+  await expect(toggle).toHaveCSS("animation-name", "completed-group-nudge-2");
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await expect(toggle).not.toHaveClass(/completion-nudge/, { timeout: 4000 });
+});
+
 test("reduced-motion users receive no animation", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
   await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
   const result = await page.evaluate(() => {
     const style = document.createElement("button");
-    style.className = "normal-done-toggle completion-nudge";
+    style.className = "normal-done-toggle completion-nudge completion-nudge-2";
     document.querySelector(".byeolharu")?.appendChild(style);
     const animation = getComputedStyle(style).animationName;
     style.remove();
