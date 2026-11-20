@@ -1,6 +1,11 @@
 package __PACKAGE__;
 
 import android.os.Bundle;
+import android.graphics.Color;
+import android.view.ViewGroup;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import android.os.Handler;
 import android.os.Looper;
 import android.webkit.WebView;
@@ -40,6 +45,7 @@ public class MainActivity extends BridgeActivity {
     private boolean foreground;
     private boolean backPending;
     private Boolean lastLightBars;
+    private ViewGroup nativeContentRoot;
     private final Runnable themeSync = new Runnable() {
         @Override public void run() {
             if (!foreground) return;
@@ -51,6 +57,9 @@ public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        if (getPackageName().endsWith(".packagedgueststep9")) {
+            installNativeSystemBarInsets();
+        }
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override public void handleOnBackPressed() {
                 handleNativeBack();
@@ -77,6 +86,37 @@ public class MainActivity extends BridgeActivity {
     public void onDestroy() {
         handler.removeCallbacks(themeSync);
         super.onDestroy();
+    }
+
+    /**
+     * Android 15+ draws our Capacitor WebView behind system bars. Relying
+     * on injected CSS safe-area variables proved unreliable on Galaxy.
+     * The bundled guest app owns system bars at the native layout boundary:
+     * shrink the real WebView viewport instead of padding web content.
+     *
+     * The insets handled here are zeroed before dispatch to the WebView.
+     * Do not return CONSUMED: IME updates must still reach the WebView.
+     * Only the bundled guest package uses this; WebView/notification PoCs
+     * keep their existing insets behavior.
+     */
+    private void installNativeSystemBarInsets() {
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        final ViewGroup content = findViewById(android.R.id.content);
+        if (content == null) return;
+        nativeContentRoot = content;
+        content.setBackgroundColor(Color.rgb(23, 29, 41));
+        ViewCompat.setOnApplyWindowInsetsListener(content, (view, windowInsets) -> {
+            final int types = WindowInsetsCompat.Type.systemBars()
+                | WindowInsetsCompat.Type.displayCutout();
+            final Insets bars = windowInsets.getInsets(types);
+            // This paddings the viewport, not the React UI. Insets arrive in
+            // real screen pixels; do not divide by density here.
+            content.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+            return new WindowInsetsCompat.Builder(windowInsets)
+                .setInsets(types, Insets.NONE)
+                .build();
+        });
+        content.post(() -> ViewCompat.requestApplyInsets(content));
     }
 
     private WebView currentWebView() {
@@ -113,6 +153,10 @@ public class MainActivity extends BridgeActivity {
             boolean light = result.contains("light");
             if (lastLightBars != null && lastLightBars == light) return;
             lastLightBars = light;
+            if (nativeContentRoot != null) {
+                nativeContentRoot.setBackgroundColor(
+                    light ? Color.rgb(255, 255, 255) : Color.rgb(23, 29, 41));
+            }
             WindowInsetsControllerCompat controller =
                 WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
             controller.setAppearanceLightStatusBars(light);
