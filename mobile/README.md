@@ -444,3 +444,23 @@ this diagnostic to verify reservation state after habit edits/completions,
 app restart, and explicit opt-out on the Samsung Galaxy. The report is a
 snapshot from Android and does not prove the notification will arrive on
 an exact minute; device battery policy can delay delivery.
+
+
+## STEP 14 — expected vs actual Android guest reminder audit
+
+In the Android-only Account > App Settings page, the new **습관 설정과 예약 비교**
+control reads the current committed guest snapshot, Android pending queue and
+current permission status. It uses the same 8-day scheduling planner and
+reconciliation diff as the runtime, without writing to IndexedDB or invoking
+native schedule/cancel/requestPermissions. It displays expected vs observed
+pending totals, jobs needing addition/replacement, and stale jobs needing
+cancellation. If the snapshot is still loading or yesterday's date, the audit
+does not pretend to know the expected number.
+
+Reminder diagnostic counts reflect pending Android jobs **at the moment the
+button is pressed**. They cannot prove precise delivery timing, recovery
+without ever opening the app, or behavior after device reboot. Use the
+new audit after changing scheduled time, marking/unmarking completed, after
+app relaunch and after explicitly opting out. Verify on the Galaxy after
+CI and APK packaging; production website and signed-in accounts remain
+unchanged.
