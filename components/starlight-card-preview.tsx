@@ -1,7 +1,9 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useRef, useState, type CSSProperties } from "react";
+import { Download } from "lucide-react";
 import { Flame, Layers3, Star } from "lucide-react";
+import { downloadStarlightPng, renderStarlightPng, starlightPngFilename } from "@/lib/constellation/starlight-png";
 import { ConstellationArtwork } from "@/components/constellation-artwork";
 import { getConstellationStage } from "@/lib/constellation/art";
 
@@ -25,6 +27,28 @@ export function StarlightCardPreview({
   streak: number;
 }) {
   const stage = getConstellationStage(points);
+  const cardRef = useRef<HTMLElement>(null);
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState<{ kind: "success" | "error"; text: string } | null>(null);
+
+  async function handleSave() {
+    if (!cardRef.current || saving) return;
+    setSaving(true);
+    setFeedback(null);
+    try {
+      const png = await renderStarlightPng(cardRef.current);
+      downloadStarlightPng(png, starlightPngFilename(stage.stage));
+      setFeedback({ kind: "success", text: "PNG 이미지 저장을 요청했어요." });
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        text: error instanceof Error ? error.message : "이미지 저장에 실패했습니다. 다시 시도해 주세요.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const cardStyle = {
     "--starlight-stage-art": `url("${stage.src}")`,
   } as CSSProperties;
@@ -32,6 +56,7 @@ export function StarlightCardPreview({
   return (
     <section className="starlight-preview-screen" aria-label="별빛 카드 미리보기">
       <article
+        ref={cardRef}
         className="starlight-share-card"
         aria-label={`별빛 카드, 현재 Stage ${stage.stage}`}
         style={cardStyle}
@@ -63,6 +88,23 @@ export function StarlightCardPreview({
           </div>
         </dl>
       </article>
+      <button
+        type="button"
+        className="starlight-save-button"
+        disabled={saving}
+        aria-busy={saving}
+        onClick={handleSave}
+      >
+        <Download size={19} aria-hidden="true" />
+        {saving ? "이미지 준비 중…" : "이미지 저장"}
+      </button>
+      <p
+        role="status"
+        aria-live="polite"
+        className={`starlight-save-feedback ${feedback?.kind === "error" ? "is-error" : ""}`}
+      >
+        {feedback?.text ?? ""}
+      </p>
     </section>
   );
 }

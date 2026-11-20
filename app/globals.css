@@ -3867,3 +3867,34 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 @media (max-width: 379px) {
   .starlight-share-artwork { width: 41.5% !important; }
 }
+
+/* STEP 2 action lives outside the 4:5 captured card. */
+.starlight-preview-screen {
+  row-gap: 12px;
+}
+.starlight-save-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 44px;
+  width: min(100%, 368px);
+  padding: 11px 18px;
+  border: 1px solid var(--control-border);
+  border-radius: 13px;
+  background: var(--selection-bg);
+  color: var(--selection-fg);
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.starlight-save-button:disabled { opacity: .65; cursor: wait; }
+.starlight-save-button:focus-visible { outline: 2px solid var(--sage); outline-offset: 2px; }
+.starlight-save-feedback {
+  min-height: 16px;
+  margin: -7px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+.starlight-save-feedback.is-error { color: var(--danger); }
