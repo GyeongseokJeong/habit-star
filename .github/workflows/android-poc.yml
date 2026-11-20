@@ -18,6 +18,7 @@ on:
       - app/feat/reminder-consistency-audit-step14
       - app/feat/reminder-manual-repair-step15
       - app/feat/android-reboot-permission-validation-step16
+      - app/fix/android-notification-permission-clarity-step17
     paths:
       - "mobile/**"
       - ".github/workflows/android-poc.yml"
