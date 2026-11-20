@@ -1,44 +1,39 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 /**
- * Android shell experiment ONLY. By default, the APK contains a local
- * placeholder; it cannot silently load or authenticate against production.
+ * Android debug PoC only. Default: a bundled, offline placeholder screen.
+ * Explicit BYEOLHARU_POC_REMOTE_DEBUG=1: load the existing production website
+ * for anonymous WebView UI checks. This is NOT a store-release architecture.
  *
- * A remote Next.js origin must be explicitly opted into for a debug-only
- * WebView check. Capacitor server.url is NOT an app-store architecture.
+ * Production Supabase/Auth is reachable from the real website; do not use
+ * personal/member accounts or important records during the PoC.
  */
-const devOrigin = process.env.BYEOLHARU_POC_URL?.trim();
-const allowRemote = process.env.BYEOLHARU_POC_REMOTE_DEBUG === "1";
-let server: CapacitorConfig["server"];
+const productionOrigin = "https://habit-star-fawn.vercel.app";
+const remoteDebug = process.env.BYEOLHARU_POC_REMOTE_DEBUG === "1";
+const configuredOrigin = process.env.BYEOLHARU_POC_URL?.trim();
 
-if (devOrigin) {
-  if (!allowRemote) {
-    throw new Error("Remote debug requires BYEOLHARU_POC_REMOTE_DEBUG=1.");
-  }
-  const url = new URL(devOrigin);
+if (configuredOrigin && !remoteDebug) {
+  throw new Error("BYEOLHARU_POC_URL requires BYEOLHARU_POC_REMOTE_DEBUG=1.");
+}
+if (remoteDebug && configuredOrigin) {
+  const url = new URL(configuredOrigin);
   if (
-    url.protocol !== "https:" ||
-    url.username ||
-    url.password ||
-    url.search ||
-    url.hash ||
-    url.pathname !== "/" ||
-    !url.hostname
+    url.origin !== productionOrigin ||
+    url.href !== `${productionOrigin}/`
   ) {
-    throw new Error("BYEOLHARU_POC_URL must be a clean HTTPS origin.");
+    throw new Error("This PoC only allows the explicitly approved HTTPS website origin.");
   }
-  if (url.hostname === "habit-star-fawn.vercel.app") {
-    throw new Error("Do not use the production website in an Android PoC.");
-  }
-  server = { url: url.origin, cleartext: false };
-} else if (allowRemote) {
-  throw new Error("Set BYEOLHARU_POC_URL when enabling remote debug.");
 }
 
 const config: CapacitorConfig = {
-  appId: "io.github.gyeongseokjeong.byeolharu.poc",
-  appName: "별하루 PoC",
+  // Different app IDs keep separate WebView storage and allow installing both PoCs.
+  appId: remoteDebug
+    ? "io.github.gyeongseokjeong.byeolharu.webviewpoc"
+    : "io.github.gyeongseokjeong.byeolharu.poc",
+  appName: remoteDebug ? "별하루 WebView PoC" : "별하루 PoC",
   webDir: "www",
-  ...(server ? { server } : {}),
+  ...(remoteDebug
+    ? { server: { url: productionOrigin, cleartext: false } }
+    : {}),
 };
 export default config;
