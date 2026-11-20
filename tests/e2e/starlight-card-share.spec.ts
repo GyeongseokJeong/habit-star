@@ -43,10 +43,15 @@ test("V5 STEP 3 offers a real PNG File through Web Share, without losing transie
   const preview = await openPreview(page);
   const card = preview.locator(".starlight-share-card");
   await expect(card).toContainText("Stage 1");
+  // Keep the share view focused: no Instagram exceptions, JPEG options,
+  // or supplemental help sections on the default card.
+  await expect(preview.locator(".starlight-instagram-help")).toHaveCount(0);
+  await expect(preview.getByRole("button", { name: /JPG/ })).toHaveCount(0);
+  await expect(preview.locator(".starlight-actions button")).toHaveCount(2);
   const share = preview.getByRole("button", { name: "이미지 공유" });
   await expect(share).toBeEnabled({ timeout: 90_000 });
   await share.click();
-  await expect(preview.getByRole("status")).toContainText("공유 요청을 전달했어요");
+  await expect(preview.getByRole("status")).toBeEmpty();
   let shares = await page.evaluate(() => (window as Window & {
     __shareCalls?: Array<{ filename: string; type: string; size: number; active: boolean; title: string }>;
   }).__shareCalls ?? []);
