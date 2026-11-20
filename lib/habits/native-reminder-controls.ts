@@ -12,6 +12,9 @@ export type NativeReminderControls = {
   onEnabledChange: (next: boolean) => Promise<void>;
   onInspectPending: () => Promise<void>;
   onAuditPending: () => Promise<void>;
+  onRepairPending: () => Promise<void>;
+  repairAvailable: boolean;
+  repairStatus: string;
   auditStatus: string;
   diagnostic: string;
   onSnapshot: (snapshot: Snapshot | null) => void;
