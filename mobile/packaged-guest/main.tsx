@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Capacitor } from "@capacitor/core";
+import { App } from "@capacitor/app";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import Byeolharu from "../../components/byeolharu";
 import type { Snapshot } from "../../lib/habits/repository";
 import type { NativeReminderControls } from "../../lib/habits/native-reminder-controls";
 import { createReminderLifecycle } from "../notifications/reminder-lifecycle.js";
 import { guestReminderAction } from "../notifications/guest-reminder-readiness.js";
+import { createResumeDispatcher } from "../notifications/native-resume-refresh.js";
 
 // This module is bundled into the isolated Android guest APK only.
 // The website's Next.js entrypoint never imports Capacitor or native controls.
@@ -114,13 +116,29 @@ function GuestNativeApp() {
   }, [schedule]);
 
   useEffect(() => {
-    const resume = () => {
-      if (document.visibilityState === "visible" && enabledRef.current)
-        void schedule(true, snapshot.current).catch(() => setStatus("알림을 확인하지 못했어요."));
+    if (!isAndroid) return;
+    let disposed = false;
+    const emit = createResumeDispatcher(() => {
+      if (!disposed) window.dispatchEvent(new Event("byeolharu:native-resume"));
+    });
+    const onVisible = () => {
+      if (document.visibilityState === "visible") emit();
     };
-    document.addEventListener("visibilitychange", resume);
-    return () => document.removeEventListener("visibilitychange", resume);
-  }, [schedule]);
+    document.addEventListener("visibilitychange", onVisible);
+    // Native onResume can fire when the WebView visibility state does not
+    // transition; refresh the committed repository snapshot before scheduling.
+    const listener = App.addListener("appStateChange", ({ isActive }) => {
+      if (isActive) emit();
+    }).catch(() => {
+      if (!disposed) setStatus("Android 앱 복귀 감지를 사용할 수 없어요.");
+      return null;
+    });
+    return () => {
+      disposed = true;
+      document.removeEventListener("visibilitychange", onVisible);
+      void listener.then(handle => handle?.remove());
+    };
+  }, []);
 
   const nativeReminders: NativeReminderControls | undefined = isAndroid
     ? { enabled, busy, status, onEnabledChange, onSnapshot }
