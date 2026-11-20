@@ -38,4 +38,13 @@ assert.ok(template.includes("__PACKAGE__"), "Missing package placeholder in nati
 const patched = template.replace("__PACKAGE__", targetPackage);
 assert.ok(!patched.includes("__PACKAGE__"));
 if (current !== patched) writeFileSync(path, patched);
+if (targetPackage.endsWith(".packagedgueststep9")) {
+  const pluginTemplate = readFileSync(
+    resolve(mobileRoot, "native/ByeolharuDeviceSettingsPlugin.java.template"),
+    "utf8",
+  );
+  assert.ok(pluginTemplate.includes("__PACKAGE__"), "Missing notification settings plugin package placeholder");
+  const pluginPath = join(dirname(path), "ByeolharuDeviceSettingsPlugin.java");
+  writeFileSync(pluginPath, pluginTemplate.replaceAll("__PACKAGE__", targetPackage));
+}
 console.log(`Android native PoC activity patched for ${targetPackage}`);
