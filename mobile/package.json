@@ -6,7 +6,7 @@
   "scripts": {
     "check": "node scripts/check-shell.mjs && node scripts/check-native-template.mjs",
     "android:init": "cap add android",
-    "android:sync": "cap sync android",
+    "android:sync": "cap sync android && npm run android:patch",
     "android:open": "cap open android",
     "android:run": "cap run android",
     "android:patch": "node scripts/patch-android.mjs"
