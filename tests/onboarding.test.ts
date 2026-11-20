@@ -53,6 +53,9 @@ describe("minimal first-use journey", () => {
   it("does not reintroduce the hint on edited or legacy guests", () => {
     const state = demoState();
     state.hasUserEdits = true;
+    // Trying a seeded example does not mean a real habit was created.
+    expect(getFirstUseState(snap(state), false).showHint).toBe(true);
+    state.entities["habits::mine"] = entity("habits", "mine");
     expect(getFirstUseState(snap(state), false).showHint).toBe(false);
     const legacy = demoState();
     legacy.migration!.backup.raw.byeolharu_v1_habits = "[]";
