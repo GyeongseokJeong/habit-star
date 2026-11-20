@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 for (const width of [320, 390, 430, 1365]) {
   for (const theme of ["light", "dark"] as const) {
-    test(`B3.4 compact closing at ${width}px in ${theme}`, async ({ page }) => {
+    test(`B4.3 subtle horizon closing at ${width}px in ${theme}`, async ({ page }) => {
       await page.setViewportSize({ width, height: 844 });
       await page.goto("/");
       await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
@@ -42,6 +42,13 @@ for (const width of [320, 390, 430, 1365]) {
           farPathCount: waves.querySelectorAll(".closing-wave-far").length,
           nearPathCount: waves.querySelectorAll(".closing-wave-near").length,
           glintPathCount: waves.querySelectorAll(".closing-wave-glint").length,
+          glowCount: waves.querySelectorAll(".closing-horizon-light").length,
+          glowGradientCount: waves.querySelectorAll("#closing-horizon-glow").length,
+          glowStops: [...waves.querySelectorAll("#closing-horizon-glow stop[class]")].map((stop) => ({
+            color: getComputedStyle(stop).stopColor,
+            opacity: getComputedStyle(stop).stopOpacity,
+          })),
+          horizonHaze: getComputedStyle(el).getPropertyValue("--closing-horizon-haze").trim(),
           waveMask: getComputedStyle(waves).maskImage || getComputedStyle(waves).webkitMaskImage,
           waveWidth: getComputedStyle(waves).width,
           sceneWidth: getComputedStyle(landscape).width,
@@ -56,6 +63,11 @@ for (const width of [320, 390, 430, 1365]) {
       expect(blend.farPathCount).toBe(1);
       expect(blend.nearPathCount).toBe(1);
       expect(blend.glintPathCount).toBe(0);
+      expect(blend.glowCount).toBe(1);
+      expect(blend.glowGradientCount).toBe(1);
+      expect(blend.glowStops).toHaveLength(2);
+      expect(blend.glowStops.every((stop) => stop.color !== "" && stop.opacity !== "")).toBe(true);
+      expect(blend.horizonHaze).toMatch(/^rgb\(/);
       expect(blend.waveMask).toContain("linear-gradient");
       expect(blend.waveMask).toContain("15%");
       expect(blend.waveMask).toContain("85%");
@@ -64,7 +76,9 @@ for (const width of [320, 390, 430, 1365]) {
       expect(blend.waveLeft).toBeLessThan(0);
       expect(blend.colors).toHaveLength(6);
       expect(blend.colors.every((value) => value !== "" && value !== "none")).toBe(true);
-      expect(blend.colors[0]).toBe(theme === "dark" ? "rgb(81, 66, 117)" : "rgb(199, 179, 240)");
+      expect(blend.colors[0]).toBe(theme === "dark" ? "rgb(81, 66, 117)" : "rgb(217, 208, 235)");
+      expect(Number(blend.glowStops[0].opacity)).toBeCloseTo(theme === "dark" ? .36 : .19, 2);
+      expect(Number(blend.glowStops[1].opacity)).toBeCloseTo(theme === "dark" ? .17 : .08, 2);
       expect(blend.decorationHidden).toBe("true");
       expect(blend.scene.bottom).toBeCloseTo(blend.wave.bottom, 0);
       expect(blend.brand.bottom).toBeLessThanOrEqual(blend.scene.bottom + 1);
