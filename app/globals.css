@@ -993,27 +993,55 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
 .expanded .calendar-grid {
   gap: 5px;
 }
-/* B3.9: approved dark/light paired design — seamless two-layer dusk waves.
-   Keep the copy and brand as text, while the decorative SVG uses theme colors. */
+/* B4.0: approved compact ambient ending. One scene, no independent footer card.
+   The message overlays the night/dawn horizon and the brand lives inside it. */
 .closing-footer {
   width: min(100%, 900px);
-  margin: 18px auto 0;
+  margin: 12px auto 0;
   text-align: center;
-  --closing-wave-left: #45405d;
-  --closing-wave-mid: #38324d;
-  --closing-wave-right: #574566;
-  --closing-wave-front-top: #1c1d2c;
-  --closing-wave-front-bottom: var(--bg);
-  --closing-glow: rgb(139 105 181 / 14%);
+  --closing-wave-far-left: #514275;
+  --closing-wave-far-middle: #574477;
+  --closing-wave-far-right: #7a4d7d;
+  --closing-wave-near-top: #2c2851;
+  --closing-wave-near-middle: #211f3b;
+  --closing-wave-near-bottom: var(--bg);
+  --closing-wave-glint: #e7ae83;
+  --closing-sky-glow: rgb(125 89 174 / 18%);
 }
 .closing-landscape {
   position: relative;
   isolation: isolate;
-  height: 126px;
-  padding: 12px 12px 0;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  justify-items: center;
+  align-content: start;
+  height: 132px;
+  padding: 13px 12px 7px;
   overflow: hidden;
-  background: radial-gradient(ellipse 64% 54% at 50% 91%, var(--closing-glow), transparent 100%);
+  background:
+    radial-gradient(ellipse 65% 60% at 52% 72%, var(--closing-sky-glow), transparent 100%);
 }
+.closing-waves {
+  position: absolute;
+  inset: auto 0 0;
+  width: 100%;
+  height: 102px;
+  display: block;
+  z-index: -1;
+  pointer-events: none;
+}
+.closing-wave-far-left { stop-color: var(--closing-wave-far-left); }
+.closing-wave-far-middle { stop-color: var(--closing-wave-far-middle); }
+.closing-wave-far-right { stop-color: var(--closing-wave-far-right); }
+.closing-wave-near-top { stop-color: var(--closing-wave-near-top); }
+.closing-wave-near-middle { stop-color: var(--closing-wave-near-middle); }
+.closing-wave-near-bottom { stop-color: var(--closing-wave-near-bottom); }
+.closing-wave-glint {
+  stroke: var(--closing-wave-glint);
+  stroke-width: .8;
+  stroke-opacity: .42;
+}
+.closing-sky-sparks { fill: var(--gold); opacity: .88; }
 .closing-copy {
   position: relative;
   z-index: 1;
@@ -1034,64 +1062,52 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   line-height: 1.45;
   word-break: keep-all;
 }
-.closing-waves {
-  position: absolute;
-  inset: auto 0 0;
-  width: 100%;
-  height: 72px;
-  display: block;
-  pointer-events: none;
-}
-.closing-wave-back-left { stop-color: var(--closing-wave-left); }
-.closing-wave-back-mid { stop-color: var(--closing-wave-mid); }
-.closing-wave-back-right { stop-color: var(--closing-wave-right); }
-.closing-wave-front-top { stop-color: var(--closing-wave-front-top); }
-.closing-wave-front-bottom { stop-color: var(--closing-wave-front-bottom); }
-.closing-divider {
-  width: min(calc(100% - 48px), 520px);
-  height: 1px;
-  margin: 4px auto 0;
-  background: linear-gradient(90deg, transparent, var(--line) 20%, var(--line) 80%, transparent);
-}
 .closing-brand {
+  position: relative;
+  z-index: 1;
+  grid-row: 3;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 34px;
-  margin-top: 6px;
+  min-height: 25px;
+  margin: 0;
   color: var(--muted);
   font-size: 12px;
   font-weight: 600;
 }
 .closing-brand svg { color: var(--accent); }
 @media (max-width: 620px) {
-  .closing-footer { margin-top: 16px; }
-  .closing-landscape { height: 116px; padding-top: 12px; }
-  .closing-waves { height: 64px; }
-  .closing-brand { min-height: 32px; }
+  .closing-footer { margin-top: 10px; }
+  .closing-landscape { height: 122px; padding-top: 12px; padding-bottom: 5px; }
+  .closing-waves { height: 96px; }
+  .closing-brand { min-height: 24px; }
 }
 @media (max-width: 340px) {
   .closing-copy h2 { font-size: 16px; letter-spacing: -.8px; }
   .closing-copy p { font-size: 11px; }
 }
 .byeolharu.light .closing-footer {
-  --closing-wave-left: #e0d5f0;
-  --closing-wave-mid: #e5d8f3;
-  --closing-wave-right: #f5dce4;
-  --closing-wave-front-top: #efe6f3;
-  --closing-wave-front-bottom: var(--bg);
-  --closing-glow: rgb(227 175 183 / 15%);
+  --closing-wave-far-left: #c7b3f0;
+  --closing-wave-far-middle: #c8b6f1;
+  --closing-wave-far-right: #f1cbcf;
+  --closing-wave-near-top: #e0d1f8;
+  --closing-wave-near-middle: #e9dff7;
+  --closing-wave-near-bottom: var(--bg);
+  --closing-wave-glint: #e5b28e;
+  --closing-sky-glow: rgb(239 192 184 / 12%);
 }
 .byeolharu.light .closing-copy h2 { color: #554577; }
 .byeolharu.light .closing-copy p { color: #645d79; }
-/* Preserve dark first-paint behavior for the stored dark theme. */
+/* The persisted theme has priority during hydration, including its landscape. */
 html[data-byeolharu-theme="dark"] .byeolharu.light .closing-footer {
-  --closing-wave-left: #45405d;
-  --closing-wave-mid: #38324d;
-  --closing-wave-right: #574566;
-  --closing-wave-front-top: #1c1d2c;
-  --closing-glow: rgb(139 105 181 / 14%);
+  --closing-wave-far-left: #514275;
+  --closing-wave-far-middle: #574477;
+  --closing-wave-far-right: #7a4d7d;
+  --closing-wave-near-top: #2c2851;
+  --closing-wave-near-middle: #211f3b;
+  --closing-wave-glint: #e7ae83;
+  --closing-sky-glow: rgb(125 89 174 / 18%);
 }
 html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy h2 { color: #f4e5cf; }
 html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d9e7; }
