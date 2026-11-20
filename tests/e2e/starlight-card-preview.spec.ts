@@ -58,7 +58,8 @@ for (const width of [320, 375, 390, 430]) {
       await expect(preview.locator(".starlight-preview-footnote")).toHaveCount(0);
       await expect(card).toContainText("누적 실천");
       await expect(card).toContainText("연속 실천");
-      await expect(preview.getByRole("button", { name: /저장|공유/ })).toHaveCount(0);
+      await expect(preview.getByRole("button", { name: "이미지 저장" })).toBeVisible();
+      await expect(preview.getByRole("button", { name: /공유/ })).toHaveCount(0);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
       await page.keyboard.press("Escape");
