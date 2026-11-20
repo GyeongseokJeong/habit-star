@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { seedLegacyFiveHabits } from "./fixtures/legacy-five-habits";
 
 test.use({ timezoneId: "Asia/Seoul" });
 
@@ -66,6 +67,7 @@ test("compact view reuses the same short cue, with no forced expansion", async (
 
 test("successive completions restart the active fold animation without opening it", async ({ page }) => {
   await page.clock.setFixedTime(new Date("2026-11-20T22:00:00+09:00"));
+  await seedLegacyFiveHabits(page);
   await page.goto("/");
   await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
   await page.getByRole("tab", { name: "전체", exact: true }).click();
