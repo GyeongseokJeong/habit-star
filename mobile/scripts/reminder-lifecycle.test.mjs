@@ -60,20 +60,21 @@ test("repeated foreground update is idempotent and completed task cancels today 
   const next=await app.sync(context(member,{completed:true}));
   assert.equal(next.status,"updated");
   assert.equal(next.cancel.length,1);
-  assert.equal(native.pending.length,1);
-  assert.ok(native.pending[0].extra.day==="2026-11-21");
+  assert.equal(native.pending.length,7);
+  assert.equal(native.pending.some(n=>n.extra.day==="2026-11-20"),false);
+  assert.equal(native.pending.filter(n=>n.extra.day==="2026-11-21").length,1);
 });
 test("user switch revokes old member jobs and keeps other software jobs",async()=>{
   const native=fakeNative([{id:7301,extra:{kind:"legacy"}}]);
   const lifecycle=createReminderLifecycle({localNotifications:native,now});
   await lifecycle.sync(context());
   const memberIds=native.pending.filter(n=>n.extra?.scope==="member:user-123").map(n=>n.id);
-  assert.equal(memberIds.length,2);
+  assert.equal(memberIds.length,8);
   const result=await lifecycle.sync(context(guest));
   assert.equal(result.status,"updated");
-  assert.equal(result.cancelledOtherScopes,2);
+  assert.equal(result.cancelledOtherScopes,8);
   assert.equal(native.pending.filter(n=>n.extra?.scope==="member:user-123").length,0);
-  assert.equal(native.pending.filter(n=>n.extra?.scope==="guest").length,2);
+  assert.equal(native.pending.filter(n=>n.extra?.scope==="guest").length,8);
   assert.equal(native.pending.filter(n=>n.id===7301).length,1);
 });
 test("unverified identity, stale dates and missing snapshots fail closed",async()=>{
@@ -112,7 +113,7 @@ test("snapshots are copied at enqueue time; caller mutation does not affect plan
   data.snapshot.habits[0].repeatDays.length=0;
   const result=await promise;
   assert.equal(result.status,"updated");
-  assert.equal(native.pending.length,2);
+  assert.equal(native.pending.length,8);
 });
 test("malformed native adapter refuses to initialize",()=>{
   assert.throws(()=>createReminderLifecycle({localNotifications:{}}));
