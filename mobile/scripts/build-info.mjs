@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 export function buildInfoFor(version, sourceSha) {
-  assert.match(version, /^\\d+\\.\\d+\\.\\d+(?:[-+][a-z0-9.-]+)?$/i, "Invalid app version");
+  assert.match(version, /^\d+\.\d+\.\d+(?:[-+][a-z0-9.-]+)?$/i, "Invalid app version");
   assert.match(sourceSha, /^(?:[a-f0-9]{40}|unknown)$/i, "Invalid Git revision");
   return Object.freeze({
     schemaVersion: 1,
