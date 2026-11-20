@@ -506,3 +506,19 @@ reboot **without opening the app**, then open the app and compare the Android
 queue. Repeat with Settings > Notifications permission disabled then enabled,
 returning to the app after each change. Some devices may defer inexact
 notifications. Do not delete the test app before these checks.
+
+
+## STEP 17 — Notification permission versus user opt-in UI
+
+On the Android **guest packaged** app only, Android notification permission
+and the user's '습관 알림' preference are displayed separately. If the user
+turned reminders ON but blocked Android permission, the switch remains ON
+(the opt-in preference is preserved), while a visible notice explains that
+notifications cannot currently be shown and identifies the phone settings
+path to restore permission. The existing **알림 예약 확인** button now labels
+Android's retained pending count as reservations **not deliverable** while
+permission is denied, rather than suggesting the next reservation will be
+delivered. The Android permission is checked at app launch, when app resumes,
+and when a diagnostic button is tapped; none of these checks prompt for
+permissions. The web entrypoint, Supabase, records, and native queue are
+unchanged. Re-check the UI with Android permissions revoked and re-enabled.
