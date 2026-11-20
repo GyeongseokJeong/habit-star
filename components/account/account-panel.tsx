@@ -370,6 +370,15 @@ export function AccountPanel({
               {!!nativeReminders.diagnostic && (
                 <p className="account-note" role="status">{nativeReminders.diagnostic}</p>
               )}
+              <button
+                type="button"
+                className="secondary"
+                disabled={nativeReminders.busy}
+                onClick={() => void nativeReminders.onAuditPending()}
+              >습관 설정과 예약 비교</button>
+              {!!nativeReminders.auditStatus && (
+                <p className="account-note" role="status">{nativeReminders.auditStatus}</p>
+              )}
             </div>
           )}
           <div className="account-setting-block">
