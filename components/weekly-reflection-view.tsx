@@ -48,11 +48,9 @@ export function WeeklyReflectionView({
         <>
           <div className="weekly-reflection-intro">
             <h2>{recovery?.allCompletedToday ? "✨ 오늘도 다시 이어갔어요" : "🌱 다시 이어갈 습관"}</h2>
-            <p>{recovery?.allCompletedToday
+            <p>{recovery?.completedToday
               ? `놓쳤던 습관 ${recovery.completedToday}개를 오늘 실천했어요.`
-              : recovery?.completedToday
-                ? `놓쳤던 습관 ${recovery.completedToday}개를 오늘 실천했어요.`
-                : "작은 실천부터 다시 시작해 봐요."</p>
+              : "작은 실천부터 다시 시작해 봐요."}</p>
           </div>
           <div className="weekly-reflection-list">
             {recovery?.ordered.map((habit) => (
