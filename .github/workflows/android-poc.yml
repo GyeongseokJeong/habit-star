@@ -11,6 +11,7 @@ on:
       - app/feat/packaged-guest-ui-step9
       - app/feat/guest-native-reminders-step10
       - app/feat/notification-resume-recovery-step11
+      - app/feat/native-resume-reconcile-step12
     paths:
       - "mobile/**"
       - ".github/workflows/android-poc.yml"
