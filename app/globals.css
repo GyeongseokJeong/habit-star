@@ -3406,6 +3406,34 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   }
 }
 
+/* V4.2: fill available screen height only while the reflection is open.
+   No fixed footer: short content pushes the closing scene to the bottom;
+   long content grows the document and scrolls naturally. */
+.byeolharu.reflection-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh; /* fallback for browsers without dynamic viewport units */
+  min-height: 100dvh;
+}
+.byeolharu.reflection-layout > .site-header { flex: 0 0 auto; }
+.main-container.reflection-main {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  width: 100%;
+}
+.weekly-reflection {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  width: 100%;
+}
+.weekly-reflection > * { flex-shrink: 0; }
+.weekly-reflection-closing {
+  margin-top: auto;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+}
+
 /* V4.1 mobile refinement: preserve the app header, reduce only reflection top padding. */
 .main-container.reflection-main { padding-top: 24px; }
 @media (max-width: 620px) {
@@ -3567,8 +3595,8 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 .weekly-reflection-closing {
   position: relative;
   isolation: isolate;
-  margin: 20px 0 0;
-  padding: 17px 27px 24px;
+  margin: auto 0 0;
+  padding: 17px 27px calc(24px + env(safe-area-inset-bottom, 0px));
   text-align: center;
   color: var(--body);
   font-size: 13px;

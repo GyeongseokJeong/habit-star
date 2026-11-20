@@ -123,3 +123,63 @@ for (const width of [320, 390, 430]) {
     });
   }
 }
+
+/* V4.2: The closing message belongs at the screen bottom on short pages.
+   On short viewports the footer must instead follow content, without overlay. */
+for (const width of [320, 390, 430]) {
+  for (const theme of ["light", "dark"] as const) {
+    test(`V4.2 reflection footer reaches viewport bottom at ${width}px in ${theme}`, async ({ page }) => {
+      await page.clock.setFixedTime(new Date("2026-11-20T12:00:00+09:00"));
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("/");
+      await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
+      if (theme === "dark") await page.getByRole("button", { name: "다크 모드로 전환" }).click();
+      await page.getByRole("tab", { name: "달력", exact: true }).click();
+      await page.getByRole("button", { name: "최근 7일 돌아보기" }).click();
+      const footer = page.locator(".weekly-reflection-closing");
+      await expect(footer).toBeVisible();
+      const placement = await page.evaluate(() => ({
+        bottom: document.querySelector(".weekly-reflection-closing")!.getBoundingClientRect().bottom,
+        viewport: window.innerHeight,
+        document: document.documentElement.scrollHeight,
+        container: document.querySelector(".byeolharu")!.classList.contains("reflection-layout"),
+      }));
+      expect(placement.container).toBe(true);
+      // Section includes 16px of intrinsic bottom breathing room, not a large void.
+      expect(placement.bottom).toBeGreaterThanOrEqual(placement.viewport - 45);
+      expect(placement.bottom).toBeLessThanOrEqual(placement.viewport + 2);
+      expect(placement.document).toBeLessThanOrEqual(placement.viewport + 2);
+
+      await page.getByRole("button", { name: "달력으로 돌아가기" }).click();
+      await expect(page.locator(".byeolharu")).not.toHaveClass(/reflection-layout/);
+      await expect(page.getByRole("tab", { name: "달력", exact: true })).toBeVisible();
+    });
+  }
+}
+
+test("V4.2 small viewport scrolls to footer after the habit card without overlap", async ({ page }) => {
+  await page.clock.setFixedTime(new Date("2026-11-20T12:00:00+09:00"));
+  await page.setViewportSize({ width: 320, height: 420 });
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
+  await seedMissedHabit(page);
+  await page.getByRole("tab", { name: "달력", exact: true }).click();
+  await page.getByRole("button", { name: "최근 7일 돌아보기" }).click();
+  await expect(page.locator(".weekly-reflection-card")).toHaveCount(1);
+  const bounds = await page.evaluate(() => ({
+    cardBottom: document.querySelector(".weekly-reflection-card")!.getBoundingClientRect().bottom,
+    footerTop: document.querySelector(".weekly-reflection-closing")!.getBoundingClientRect().top,
+    viewport: window.innerHeight,
+    document: document.documentElement.scrollHeight,
+    overflowX: document.documentElement.scrollWidth > window.innerWidth,
+  }));
+  // Adjacent blocks may share an exact pixel boundary without overlapping.
+  expect(bounds.footerTop).toBeGreaterThanOrEqual(bounds.cardBottom);
+  expect(bounds.document).toBeGreaterThan(bounds.viewport);
+  expect(bounds.overflowX).toBe(false);
+
+  await page.locator(".weekly-reflection-closing").scrollIntoViewIfNeeded();
+  await expect(page.locator(".weekly-reflection-closing")).toBeVisible();
+  await page.locator(".weekly-reflection-card").getByRole("button", { name: "오늘 기록하기" }).click();
+  await expect(page.getByRole("dialog", { name: "오늘의 실천 기록" })).toBeVisible();
+});
