@@ -113,7 +113,7 @@ for (const width of [320, 390, 430]) {
       expect(sizes[1]).toBeLessThan(180);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
-      await expect(page.locator(".weekly-reflection-glint")).toHaveCount(2);
+      await expect(page.locator("footer.closing-footer--reflection .closing-sky-sparks")).toHaveCount(1);
       await cta.click();
       const modal = page.getByRole("dialog", { name: "오늘의 실천 기록" });
       await expect(modal).toBeVisible();
@@ -136,10 +136,10 @@ for (const width of [320, 390, 430]) {
       if (theme === "dark") await page.getByRole("button", { name: "다크 모드로 전환" }).click();
       await page.getByRole("tab", { name: "달력", exact: true }).click();
       await page.getByRole("button", { name: "최근 7일 돌아보기" }).click();
-      const footer = page.locator(".weekly-reflection-closing");
+      const footer = page.locator("footer.closing-footer--reflection");
       await expect(footer).toBeVisible();
       const placement = await page.evaluate(() => ({
-        bottom: document.querySelector(".weekly-reflection-closing")!.getBoundingClientRect().bottom,
+        bottom: document.querySelector("footer.closing-footer--reflection")!.getBoundingClientRect().bottom,
         viewport: window.innerHeight,
         document: document.documentElement.scrollHeight,
         container: document.querySelector(".byeolharu")!.classList.contains("reflection-layout"),
@@ -168,7 +168,7 @@ test("V4.2 small viewport scrolls to footer after the habit card without overlap
   await expect(page.locator(".weekly-reflection-card")).toHaveCount(1);
   const bounds = await page.evaluate(() => ({
     cardBottom: document.querySelector(".weekly-reflection-card")!.getBoundingClientRect().bottom,
-    footerTop: document.querySelector(".weekly-reflection-closing")!.getBoundingClientRect().top,
+    footerTop: document.querySelector("footer.closing-footer--reflection")!.getBoundingClientRect().top,
     viewport: window.innerHeight,
     document: document.documentElement.scrollHeight,
     overflowX: document.documentElement.scrollWidth > window.innerWidth,
@@ -178,50 +178,59 @@ test("V4.2 small viewport scrolls to footer after the habit card without overlap
   expect(bounds.document).toBeGreaterThan(bounds.viewport);
   expect(bounds.overflowX).toBe(false);
 
-  await page.locator(".weekly-reflection-closing").scrollIntoViewIfNeeded();
-  await expect(page.locator(".weekly-reflection-closing")).toBeVisible();
+  await page.locator("footer.closing-footer--reflection").scrollIntoViewIfNeeded();
+  await expect(page.locator("footer.closing-footer--reflection")).toBeVisible();
   await page.locator(".weekly-reflection-card").getByRole("button", { name: "오늘 기록하기" }).click();
   await expect(page.getByRole("dialog", { name: "오늘의 실천 기록" })).toBeVisible();
 });
 
-/* V4.3: the approved dusk scene must be a full-bleed part of the page
-   at the bottom, never a floating panel with a blank strip below it. */
+/* V4.4: the same SVG, dusk palette, and responsive silhouette as home. */
 for (const width of [320, 390, 430]) {
   for (const theme of ["light", "dark"] as const) {
-    test(`V4.3 scenic footer reaches both edges at ${width}px in ${theme}`, async ({ page }) => {
+    test(`V4.4 reflection shares home sunset and stays 122px at ${width}px in ${theme}`, async ({ page }) => {
       await page.clock.setFixedTime(new Date("2026-11-20T12:00:00+09:00"));
       await page.setViewportSize({ width, height: 900 });
       await page.goto("/");
       await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
       if (theme === "dark") await page.getByRole("button", { name: "다크 모드로 전환" }).click();
+      await page.getByRole("tab", { name: "전체", exact: true }).click();
+      const home = page.locator("footer.closing-footer:not(.closing-footer--reflection)");
+      await expect(home).toBeVisible();
+      await expect(home.getByRole("heading", { name: "꾸준함은 완벽함보다 빛나요." })).toBeVisible();
+      const homeScene = await home.evaluate(el => ({
+        far: el.querySelector(".closing-wave-far")!.getAttribute("d"),
+        near: el.querySelector(".closing-wave-near")!.getAttribute("d"),
+        farColor: getComputedStyle(el.querySelector(".closing-wave-far-left")!).stopColor,
+        glow: !!el.querySelector(".closing-horizon-light"),
+      }));
       await page.getByRole("tab", { name: "달력", exact: true }).click();
       await page.getByRole("button", { name: "최근 7일 돌아보기" }).click();
-
-      const scenery = page.locator(".weekly-reflection-landscape");
-      const closing = page.locator(".weekly-reflection-closing");
-      await expect(scenery).toHaveCount(1);
+      const closing = page.locator("footer.closing-footer--reflection[aria-label='돌아보기 마무리']");
+      await expect(closing).toHaveCount(1);
       await expect(closing).toContainText("다시 시작하는 하루도 충분히 빛나요.");
-      await expect(page.locator(".weekly-reflection-glint")).toHaveCount(2);
-      const geometry = await page.evaluate(() => {
-        const landscape = document.querySelector(".weekly-reflection-landscape")!.getBoundingClientRect();
-        const footer = document.querySelector(".weekly-reflection-closing")!.getBoundingClientRect();
-        const shade = getComputedStyle(document.querySelector(".main-container.reflection-main")!, "::before");
+      await expect(closing.locator(".closing-brand, .closing-copy h2")).toHaveCount(0);
+      const scene = await closing.evaluate(el => {
+        const rect = el.getBoundingClientRect();
+        const landscape = el.querySelector(".closing-landscape")!.getBoundingClientRect();
         return {
-          left: landscape.left, right: landscape.right, bottom: landscape.bottom,
-          footerBottom: footer.bottom, viewport: window.innerHeight,
-          hasHaze: shade.content !== "none" && shade.backgroundImage !== "none",
-          overflowX: document.documentElement.scrollWidth > window.innerWidth,
+          far: el.querySelector(".closing-wave-far")!.getAttribute("d"),
+          near: el.querySelector(".closing-wave-near")!.getAttribute("d"),
+          farColor: getComputedStyle(el.querySelector(".closing-wave-far-left")!).stopColor,
+          glow: !!el.querySelector(".closing-horizon-light"),
+          sceneHeight: landscape.height, bottom: rect.bottom,
+          viewport: innerHeight,
+          overflows: document.documentElement.scrollWidth > innerWidth,
         };
       });
-      expect(geometry.left).toBeGreaterThanOrEqual(-1);
-      expect(geometry.left).toBeLessThanOrEqual(1);
-      expect(geometry.right).toBeGreaterThanOrEqual(width - 1);
-      expect(geometry.right).toBeLessThanOrEqual(width + 1);
-      expect(geometry.bottom).toBeGreaterThanOrEqual(geometry.viewport - 2);
-      expect(geometry.bottom).toBeLessThanOrEqual(geometry.viewport + 2);
-      expect(geometry.footerBottom).toBeGreaterThanOrEqual(geometry.viewport - 2);
-      expect(geometry.hasHaze).toBe(true);
-      expect(geometry.overflowX).toBe(false);
+      expect(scene.far).toBe(homeScene.far);
+      expect(scene.near).toBe(homeScene.near);
+      expect(scene.farColor).toBe(homeScene.farColor);
+      expect(scene.glow).toBe(homeScene.glow);
+      expect(scene.sceneHeight).toBeGreaterThanOrEqual(120);
+      expect(scene.sceneHeight).toBeLessThanOrEqual(125);
+      expect(scene.bottom).toBeGreaterThanOrEqual(scene.viewport - 2);
+      expect(scene.bottom).toBeLessThanOrEqual(scene.viewport + 2);
+      expect(scene.overflows).toBe(false);
     });
   }
 }
