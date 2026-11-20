@@ -183,3 +183,45 @@ test("V4.2 small viewport scrolls to footer after the habit card without overlap
   await page.locator(".weekly-reflection-card").getByRole("button", { name: "오늘 기록하기" }).click();
   await expect(page.getByRole("dialog", { name: "오늘의 실천 기록" })).toBeVisible();
 });
+
+/* V4.3: the approved dusk scene must be a full-bleed part of the page
+   at the bottom, never a floating panel with a blank strip below it. */
+for (const width of [320, 390, 430]) {
+  for (const theme of ["light", "dark"] as const) {
+    test(`V4.3 scenic footer reaches both edges at ${width}px in ${theme}`, async ({ page }) => {
+      await page.clock.setFixedTime(new Date("2026-11-20T12:00:00+09:00"));
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("/");
+      await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
+      if (theme === "dark") await page.getByRole("button", { name: "다크 모드로 전환" }).click();
+      await page.getByRole("tab", { name: "달력", exact: true }).click();
+      await page.getByRole("button", { name: "최근 7일 돌아보기" }).click();
+
+      const scenery = page.locator(".weekly-reflection-landscape");
+      const closing = page.locator(".weekly-reflection-closing");
+      await expect(scenery).toHaveCount(1);
+      await expect(closing).toContainText("다시 시작하는 하루도 충분히 빛나요.");
+      await expect(page.locator(".weekly-reflection-glint")).toHaveCount(2);
+      const geometry = await page.evaluate(() => {
+        const landscape = document.querySelector(".weekly-reflection-landscape")!.getBoundingClientRect();
+        const footer = document.querySelector(".weekly-reflection-closing")!.getBoundingClientRect();
+        const shade = getComputedStyle(document.querySelector(".main-container.reflection-main")!, "::before");
+        return {
+          left: landscape.left, right: landscape.right, bottom: landscape.bottom,
+          footerBottom: footer.bottom, viewport: window.innerHeight,
+          hasHaze: shade.content !== "none" && shade.backgroundImage !== "none",
+          overflowX: document.documentElement.scrollWidth > window.innerWidth,
+        };
+      });
+      expect(geometry.left).toBeGreaterThanOrEqual(-1);
+      expect(geometry.left).toBeLessThanOrEqual(1);
+      expect(geometry.right).toBeGreaterThanOrEqual(width - 1);
+      expect(geometry.right).toBeLessThanOrEqual(width + 1);
+      expect(geometry.bottom).toBeGreaterThanOrEqual(geometry.viewport - 2);
+      expect(geometry.bottom).toBeLessThanOrEqual(geometry.viewport + 2);
+      expect(geometry.footerBottom).toBeGreaterThanOrEqual(geometry.viewport - 2);
+      expect(geometry.hasHaze).toBe(true);
+      expect(geometry.overflowX).toBe(false);
+    });
+  }
+}

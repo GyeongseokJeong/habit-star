@@ -92,11 +92,44 @@ export function WeeklyReflectionView({
         </div>
       )}
       {reflection && (
-        <p className="weekly-reflection-closing">
+        <footer className="weekly-reflection-closing" aria-label="돌아보기 마무리">
+          <p className="weekly-reflection-closing-message">
+            다시 시작하는 하루도 충분히 빛나요.
+          </p>
           <span className="weekly-reflection-glint left" aria-hidden="true"><Sparkles size={13} /></span>
-          다시 시작하는 하루도 충분히 빛나요.
           <span className="weekly-reflection-glint right" aria-hidden="true"><Sparkles size={10} /></span>
-        </p>
+          <svg
+            className="weekly-reflection-landscape"
+            viewBox="0 0 430 110"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <defs>
+              <linearGradient id="reflection-hill-far" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="var(--reflection-far-top)" />
+                <stop offset="100%" stopColor="var(--reflection-far-bottom)" />
+              </linearGradient>
+              <linearGradient id="reflection-hill-near" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="var(--reflection-near-top)" />
+                <stop offset="100%" stopColor="var(--reflection-near-bottom)" />
+              </linearGradient>
+              <radialGradient id="reflection-horizon-glow">
+                <stop offset="0%" stopColor="var(--reflection-horizon)" stopOpacity=".48" />
+                <stop offset="100%" stopColor="var(--reflection-horizon)" stopOpacity="0" />
+              </radialGradient>
+            </defs>
+            <ellipse cx="212" cy="69" rx="128" ry="32" fill="url(#reflection-horizon-glow)" />
+            <path
+              d="M0 50 C70 31 110 46 165 62 S260 78 316 55 S400 38 430 46 V110 H0Z"
+              fill="url(#reflection-hill-far)"
+            />
+            <path
+              d="M0 70 C73 60 114 80 177 84 S284 66 343 64 S407 74 430 68 V110 H0Z"
+              fill="url(#reflection-hill-near)"
+            />
+          </svg>
+        </footer>
       )}
     </section>
   );

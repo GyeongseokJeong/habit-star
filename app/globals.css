@@ -3421,6 +3421,44 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   }
 }
 
+/* V4.3 scenic close: the horizon is part of the page, never a floating card.
+   Soft twilight rises behind the closing line; two restrained SVG hills reach
+   the bottom edge without a detached rectangular footer or overlay. */
+.byeolharu {
+  --reflection-haze: rgba(161, 119, 180, .11);
+  --reflection-twilight: rgba(205, 170, 205, .19);
+  --reflection-far-top: #e9e0ef;
+  --reflection-far-bottom: #dcd1e9;
+  --reflection-near-top: #e2d8e9;
+  --reflection-near-bottom: #e7deec;
+  --reflection-horizon: #dfbca1;
+}
+.byeolharu.dark,
+html[data-byeolharu-theme="dark"] .byeolharu.light {
+  --reflection-haze: rgba(103, 74, 150, .12);
+  --reflection-twilight: rgba(111, 72, 158, .22);
+  --reflection-far-top: #493663;
+  --reflection-far-bottom: #312548;
+  --reflection-near-top: #302447;
+  --reflection-near-bottom: #211b37;
+  --reflection-horizon: #d6a17c;
+}
+.main-container.reflection-main {
+  position: relative;
+  isolation: isolate;
+}
+.main-container.reflection-main::before {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: clamp(230px, 37dvh, 480px);
+  z-index: -1;
+  background:
+    radial-gradient(ellipse 70% 43% at 50% 100%, var(--reflection-twilight), transparent 82%),
+    linear-gradient(to bottom, transparent, var(--reflection-haze));
+  pointer-events: none;
+}
+.weekly-reflection { position: relative; }
 /* V4.2: fill available screen height only while the reflection is open.
    No fixed footer: short content pushes the closing scene to the bottom;
    long content grows the document and scrolls naturally. */
@@ -3459,7 +3497,7 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   max-width: 680px;
   margin: 0 auto;
   min-height: 0;
-  padding: 0 0 16px;
+  padding: 0;
   color: var(--ink);
 }
 .weekly-reflection-header {
@@ -3609,28 +3647,49 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 .weekly-reflection-encouragement svg { flex: none; color: var(--gold); fill: var(--gold); }
 .weekly-reflection-closing {
   position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(100vw, 960px);
+  min-height: 176px;
+  flex-shrink: 0;
   isolation: isolate;
+  overflow: hidden;
   margin: auto 0 0;
-  padding: 17px 27px calc(24px + env(safe-area-inset-bottom, 0px));
+  padding: 39px 27px calc(78px + env(safe-area-inset-bottom, 0px));
   text-align: center;
   color: var(--body);
   font-size: 13px;
-  background: radial-gradient(
-    ellipse 70% 80% at 50% 100%,
-    color-mix(in srgb, var(--selection-bg) 24%, transparent),
-    transparent 85%
-  );
+}
+.weekly-reflection-closing-message {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  color: var(--body);
+}
+.weekly-reflection-landscape {
+  position: absolute;
+  z-index: 0;
+  left: 0;
+  bottom: 0;
+  display: block;
+  width: 100%;
+  height: 108px;
+  pointer-events: none;
 }
 .weekly-reflection-glint {
   position: absolute;
-  top: 17px;
+  z-index: 1;
+  top: 40px;
   display: inline-flex;
   color: var(--gold);
-  opacity: .64;
+  opacity: .66;
   pointer-events: none;
 }
-.weekly-reflection-glint.left { left: 9px; }
-.weekly-reflection-glint.right { right: 9px; top: 26px; opacity: .48; }
+.weekly-reflection-glint.left { left: clamp(12px, 8%, 48px); }
+.weekly-reflection-glint.right { right: clamp(12px, 8%, 48px); top: 49px; opacity: .48; }
+@media (max-width: 360px) {
+  .weekly-reflection-closing { padding-left: 35px; padding-right: 35px; }
+}
 .weekly-reflection-empty {
   display: grid;
   justify-items: center;
