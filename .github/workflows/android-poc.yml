@@ -22,6 +22,7 @@ on:
       - app/feat/android-notification-settings-cleanup-step18
       - app/fix/android-permission-toggle-reattempt-step18
       - app/chore/android-release-readiness-step19
+      - app/integration/android-guest-step20
     paths:
       - "mobile/**"
       - ".github/workflows/android-poc.yml"
@@ -278,6 +279,11 @@ jobs:
       BYEOLHARU_POC_PACKAGED_GUEST: "1"
     steps:
       - uses: actions/checkout@v4
+      - name: Verify Android integration diff stays within approved file paths
+        run: |
+          git fetch --no-tags origin app/main:refs/remotes/origin/app/main
+          node mobile/scripts/check-integration-scope.mjs --assert-scope
+        working-directory: .
       - uses: pnpm/action-setup@v4
         with:
           version: 11.25.0
