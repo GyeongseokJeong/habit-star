@@ -50,6 +50,7 @@ import { useHabitApp } from "@/lib/habits/use-habit-app";
 import { AccountPanel } from "@/components/account/account-panel";
 import { StarlitHero } from "@/components/starlit-hero";
 import { initialRoutineTab, startupDataReady } from "@/lib/habits/time-tab";
+import { sortHabitsForDisplay } from "@/lib/habits/display-order";
 import { ConstellationGrowthView } from "@/components/constellation-growth-view";
 import { calculateConstellationGrowth, earnedStageFromCompletion } from "@/lib/constellation/growth";
 import { getConstellationStage } from "@/lib/constellation/art";
@@ -1275,18 +1276,17 @@ export default function Byeolharu() {
     ));
   }, [now, app.snapshot, app.user, scheduledHabits]);
   const detail = visibleHabits.find((h) => h.id === detailId);
-  const filtered = scheduledHabits
-    .filter(
+  // Only visual order changes. Keep the held-completion period (700ms),
+  // then sort each group by scheduled HH:mm; unscheduled routines come last.
+  const filtered = sortHabitsForDisplay(
+    scheduledHabits.filter(
       (h) =>
         activeTab === "all" ||
         activeTab === "matrix" ||
         h.timeGroup === activeTab,
-    )
-    .sort(
-      (a, b) =>
-        Number(heldCompletion.get(a.id) ?? a.completed) -
-        Number(heldCompletion.get(b.id) ?? b.completed),
-    );
+    ),
+    (habit) => heldCompletion.get(habit.id) ?? habit.completed,
+  );
   const compactPending = filtered.filter(
     (habit) => !(heldCompletion.get(habit.id) ?? habit.completed),
   );
@@ -1306,10 +1306,9 @@ export default function Byeolharu() {
 
   const upcoming =
     activeTab !== "all" && activeTab !== "matrix"
-      ? scheduledHabits
-          // A preview is for pending actions only. Completed habits remain
-          // available in their own tab and in All's completed fold.
-          .filter(
+      ? sortHabitsForDisplay(
+          // A preview is for pending actions only, in the same stable time order.
+          scheduledHabits.filter(
             (h) =>
               h.timeGroup ===
                 (activeTab === "morning"
@@ -1318,7 +1317,8 @@ export default function Byeolharu() {
                     ? "night"
                     : "morning") &&
               !(heldCompletion.get(h.id) ?? h.completed),
-          )
+          ),
+        )
       : [];
   let streak = 0;
   if (now) {
