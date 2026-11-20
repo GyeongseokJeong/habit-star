@@ -31,7 +31,13 @@ for (const width of [320, 390, 430]) {
     await expect(page.locator(".compact-completed-list")).toHaveCount(0);
     await page.reload();
     await expect(page.locator(".compact-metrics")).toBeVisible();
+    // A reload resets the manually chosen tab; startup may select the current
+    // time-of-day tab after hydration. Explicitly return to All before checking
+    // the saved compact preference and its completed-habit fold.
+    await page.getByRole("tab", { name: "전체", exact: true }).click();
+    await expect(page.getByRole("tab", { name: "전체", exact: true })).toHaveAttribute("aria-selected", "true");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await expect(page.locator(".compact-done-toggle")).toBeVisible();
     await page.locator(".compact-done-toggle").click();
     await expect(page.locator(".compact-completed-list .compact-habit-card").first()).toBeVisible();
     await page.locator(".compact-done-toggle").click();

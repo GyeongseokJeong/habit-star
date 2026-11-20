@@ -23,38 +23,47 @@ for (const width of [320, 390, 430, 1365]) {
         const scenic = el.querySelector(".closing-landscape")!.getBoundingClientRect();
         return { total: rect.height, scenic: scenic.height, left: rect.left, right: rect.right };
       });
-      expect(sizes.scenic).toBeLessThanOrEqual(width <= 620 ? 118 : 128);
+      expect(sizes.scenic).toBeLessThanOrEqual(width <= 620 ? 124 : 134);
       const blend = await closing.evaluate((el) => {
         const landscape = el.querySelector(".closing-landscape")!;
         const waves = el.querySelector(".closing-waves")!;
-        const divider = el.querySelector(".closing-divider")!;
+        const brand = el.querySelector(".closing-brand")!;
+        const copy = el.querySelector(".closing-copy")!;
         const page = el.closest(".byeolharu")!;
-        const colors = [...waves.querySelectorAll("stop")].map((stop) => getComputedStyle(stop).stopColor);
+        const colors = [...waves.querySelectorAll("stop[class]")].map((stop) => getComputedStyle(stop).stopColor);
+        const scene = landscape.getBoundingClientRect();
+        const brandBox = brand.getBoundingClientRect();
+        const copyBox = copy.getBoundingClientRect();
         return {
-          waveBounds: waves.getBoundingClientRect().toJSON(),
-          landscapeBounds: landscape.getBoundingClientRect().toJSON(),
-          wavePaths: waves.querySelectorAll("path").length,
-          waveColors: colors,
+          scene: scene.toJSON(),
+          brand: brandBox.toJSON(),
+          copy: copyBox.toJSON(),
+          wave: waves.getBoundingClientRect().toJSON(),
+          farPathCount: waves.querySelectorAll(".closing-wave-far").length,
+          nearPathCount: waves.querySelectorAll(".closing-wave-near").length,
+          glintPathCount: waves.querySelectorAll(".closing-wave-glint").length,
+          colors,
+          waveNearBottomColor: getComputedStyle(waves.querySelector(".closing-wave-near-bottom")!).stopColor,
           pageBackground: getComputedStyle(page).getPropertyValue("--bg").trim(),
-          separatorHeight: divider.getBoundingClientRect().height,
-          separatorWidth: divider.getBoundingClientRect().width,
-          brandGap: el.querySelector(".closing-brand")!.getBoundingClientRect().top - divider.getBoundingClientRect().bottom,
+          decorationHidden: waves.getAttribute("aria-hidden"),
+          brandPosition: getComputedStyle(brand).position,
         };
       });
-      expect(blend.wavePaths).toBe(2);
-      expect(blend.waveColors).toHaveLength(5);
-      expect(blend.waveColors.every((value) => value !== "none" && value !== "")).toBe(true);
-      expect(blend.waveBounds.bottom).toBeCloseTo(blend.landscapeBounds.bottom, 0);
-      expect(blend.waveBounds.height).toBeGreaterThanOrEqual(width <= 620 ? 62 : 70);
-      await expect(closing.locator(".closing-waves")).toHaveAttribute("aria-hidden", "true");
-      await expect(closing.locator(".closing-moonlit-scene")).toHaveCount(0);
-      const expectedWaveLeft = theme === "dark" ? "rgb(69, 64, 93)" : "rgb(224, 213, 240)";
-      expect(blend.waveColors[0]).toBe(expectedWaveLeft);
+      expect(blend.farPathCount).toBe(1);
+      expect(blend.nearPathCount).toBe(1);
+      expect(blend.glintPathCount).toBe(1);
+      expect(blend.colors).toHaveLength(6);
+      expect(blend.colors.every((value) => value !== "" && value !== "none")).toBe(true);
+      expect(blend.colors[0]).toBe(theme === "dark" ? "rgb(81, 66, 117)" : "rgb(199, 179, 240)");
+      expect(blend.decorationHidden).toBe("true");
+      expect(blend.scene.bottom).toBeCloseTo(blend.wave.bottom, 0);
+      expect(blend.brand.bottom).toBeLessThanOrEqual(blend.scene.bottom + 1);
+      expect(blend.copy.bottom).toBeLessThan(blend.brand.top);
+      expect(blend.wave.top).toBeLessThan(blend.copy.bottom);
+      expect(blend.brandPosition).toBe("relative");
+      await expect(closing.locator(".closing-divider, .closing-moonlit-scene")).toHaveCount(0);
       expect(blend.pageBackground).toMatch(/^#/);
-      expect(blend.separatorHeight).toBe(1);
-      expect(blend.separatorWidth).toBeLessThan(width);
-      expect(blend.brandGap).toBeLessThanOrEqual(8);
-      expect(sizes.total).toBeLessThanOrEqual(190);
+      expect(sizes.total).toBeLessThanOrEqual(width <= 620 ? 125 : 135);
       expect(sizes.left).toBeGreaterThanOrEqual(0);
       expect(sizes.right).toBeLessThanOrEqual(width);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
