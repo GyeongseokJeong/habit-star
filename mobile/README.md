@@ -365,3 +365,17 @@ Snapshot 구독을 통해 네이티브 알림 예약을 변경합니다. 구독�
 - 오프라인 비회원 기록만 대상으로 하며 운영 웹, Supabase, 회원 정보는 변경하지 않습니다.
 - **Android 앱 프로세스가 실행되지 않는 동안의 자동 부팅 복구는 아직 미구현**입니다.
 - STEP 9~12 실제 갤럭시에서 앱 종료/재시작, 반복 요일, 날짜 변경, 알림 권한 변경 테스트가 필요합니다.
+
+
+## STEP 12 startup-stall debug correction
+
+If a user sees only "별하루 준비 중…" on the real guest Android APK, the
+React app has not successfully mounted. The shell now reports browser runtime
+errors or an initialization timeout rather than waiting indefinitely.
+The GitHub Android CI also starts the real bundled `index.html`, `app.js`,
+`app.css` in Chromium before compiling the APK and requires the actual
+`.byeolharu` UI to mount without fatal page errors. A screenshot is uploaded
+on smoke-test failure. Preserve app data; do not uninstall just to retry.
+
+This browser check does not prove Samsung Android WebView native behavior;
+inspect adb logcat/Chrome remote inspect if the APK still fails on device.
