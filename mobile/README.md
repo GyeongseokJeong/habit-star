@@ -522,3 +522,18 @@ delivered. The Android permission is checked at app launch, when app resumes,
 and when a diagnostic button is tapped; none of these checks prompt for
 permissions. The web entrypoint, Supabase, records, and native queue are
 unchanged. Re-check the UI with Android permissions revoked and re-enabled.
+
+
+## STEP 18 — Compact Android notification settings
+
+The bundled guest Android settings now show only the reminder toggle,
+permission warning/status, and one collapsed **알림 예약 및 문제 해결** row by
+default. Expanding it reveals the existing read-only pending queue report,
+expected/actual comparison and the mismatch-only explicit repair action.
+No reminders are read or changed merely by expanding the row; the separate
+buttons still make their own read-only calls and repair remains gated by
+an actual audit mismatch. The 48px summary and 44px action buttons retain
+keyboard/touch access. Styling is bundled only for the Android guest APK.
+Operational Next.js, Supabase, guest habit records and notification scheduling
+logic are unchanged. Verify the collapsed view and both dark/light themes on
+an updated Galaxy APK after CI completes.
