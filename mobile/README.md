@@ -464,3 +464,17 @@ new audit after changing scheduled time, marking/unmarking completed, after
 app relaunch and after explicitly opting out. Verify on the Galaxy after
 CI and APK packaging; production website and signed-in accounts remain
 unchanged.
+
+
+## STEP 15 — Explicit reminder repair from Android guest settings
+
+After tapping **습관 설정과 예약 비교**, a mismatch (status `out-of-sync`)
+reveals **알림 예약 다시 맞추기**. Tapping this explicit action revalidates
+opt-in, today's snapshot, Android permission and the current pending queue,
+then reconciles guest-owned reminder IDs using the existing STEP 6 engine.
+It will not request OS permissions, modify IndexedDB habit records, change
+other account/package notifications, or auto-run on app launch. The action is
+not shown for a successful audit, opt-out, denied permission or missing data.
+After repair, inspect again to confirm a clean audit; native scheduling is not
+transactional and can fail partially, so the UI reports errors instead of
+silently claiming success. Galaxy device tests remain required.
