@@ -256,6 +256,7 @@ function Modal({
   onClose,
   onEscape,
   onBack,
+  backLabel = "내 계정으로",
   accountScreen = false,
   scrollKey,
   wide = false,
@@ -266,6 +267,7 @@ function Modal({
   onClose: () => void;
   onEscape?: () => void;
   onBack?: () => void;
+  backLabel?: string;
   accountScreen?: boolean;
   scrollKey?: string;
   wide?: boolean;
@@ -275,9 +277,13 @@ function Modal({
   const titleRef = useRef<HTMLHeadingElement>(null);
   // Keep the account header fixed while each detail page starts at its top.
   useLayoutEffect(() => {
-    if (!accountScreen) return;
-    const content = ref.current?.querySelector<HTMLElement>(".account-screen-body");
-    if (content) content.scrollTop = 0;
+    if (!accountScreen && scrollKey === undefined) return;
+    if (accountScreen) {
+      const content = ref.current?.querySelector<HTMLElement>(".account-screen-body");
+      if (content) content.scrollTop = 0;
+    } else {
+      ref.current?.scrollTo({ top: 0 });
+    }
     if (ref.current?.open) titleRef.current?.focus({ preventScroll: true });
   }, [accountScreen, scrollKey]);
   useEffect(() => {
@@ -318,8 +324,8 @@ function Modal({
       }}
     >
       <div className="modal-top">
-        {onBack && <button type="button" className="icon-button modal-back" aria-label="내 계정으로" onClick={onBack}><ChevronLeft size={21} aria-hidden="true"/></button>}
-        <h2 id="modal-title" ref={titleRef} tabIndex={accountScreen ? -1 : undefined}>{title}</h2>
+        {onBack && <button type="button" className="icon-button modal-back" aria-label={backLabel} onClick={onBack}><ChevronLeft size={21} aria-hidden="true"/></button>}
+        <h2 id="modal-title" ref={titleRef} tabIndex={accountScreen || scrollKey !== undefined ? -1 : undefined}>{title}</h2>
         <button className="icon-button" aria-label="닫기" onClick={onClose}>
           <X size={20} />
         </button>
@@ -984,6 +990,7 @@ export default function Byeolharu() {
     if (!app.user && accountPage === "security") setAccountPage("home");
   }, [app.user, accountPage]);
   const [constellationOpen, setConstellationOpen] = useState(false);
+  const [starlightPreviewOpen, setStarlightPreviewOpen] = useState(false);
   const [reflectionOpen, setReflectionOpen] = useState(false);
   const [celebration, setCelebration] = useState<{ stage: number; scope: string; day: string } | null>(null);
   const celebrationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1251,9 +1258,11 @@ export default function Byeolharu() {
     ? visibleHabits.filter((h) => !isScheduled(h, today))
     : [];
   const summary = stats(visibleHabits, today);
-  const growthPoints = useMemo(() => app.snapshot
-    ? calculateConstellationGrowth({ ...app.snapshot, habits: visibleHabits }).totalPoints
-    : 0, [app.snapshot, visibleHabits]);
+  const growth = useMemo(() => app.snapshot
+    ? calculateConstellationGrowth({ ...app.snapshot, habits: visibleHabits })
+    : { totalPoints: 0, totalCompletedHabits: 0, days: [] },
+    [app.snapshot, visibleHabits]);
+  const growthPoints = growth.totalPoints;
   const allHistory = {
     ...history,
     ...(today ? { [today]: visibleHabits } : {}),
@@ -1384,6 +1393,11 @@ export default function Byeolharu() {
       day.setDate(day.getDate() - 1);
     }
   }
+  // Do not let a preview cross a date/account boundary.
+  useEffect(() => {
+    setStarlightPreviewOpen(false);
+  }, [today, scope]);
+
   const renderCard = (habit: Habit, grouped = true) => (
     <HabitCard
       key={habit.id}
@@ -1905,8 +1919,28 @@ export default function Byeolharu() {
         />
       )}
       {constellationOpen && (
-        <Modal title="나의 별자리" wide onClose={() => setConstellationOpen(false)}>
-          <ConstellationGrowthView points={growthPoints} />
+        <Modal
+          title={starlightPreviewOpen ? "별빛 카드" : "나의 별자리"}
+          wide
+          scrollKey={starlightPreviewOpen ? "starlight-preview" : "constellation-growth"}
+          onBack={starlightPreviewOpen ? () => setStarlightPreviewOpen(false) : undefined}
+          backLabel="별자리 성장으로 돌아가기"
+          onEscape={() => {
+            if (starlightPreviewOpen) setStarlightPreviewOpen(false);
+            else setConstellationOpen(false);
+          }}
+          onClose={() => {
+            setStarlightPreviewOpen(false);
+            setConstellationOpen(false);
+          }}
+        >
+          <ConstellationGrowthView
+            points={growthPoints}
+            completedHabits={growth.totalCompletedHabits}
+            streak={streak}
+            previewOpen={starlightPreviewOpen}
+            onCreatePreview={() => setStarlightPreviewOpen(true)}
+          />
         </Modal>
       )}
       {accountOpen && (

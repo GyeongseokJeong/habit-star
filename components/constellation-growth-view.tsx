@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties, type TouchEvent } from "react";
-import { ChevronLeft, ChevronRight, Maximize2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Image as ImageIcon, Maximize2, X } from "lucide-react";
 import { ConstellationArtwork } from "@/components/constellation-artwork";
+import { StarlightCardPreview } from "@/components/starlight-card-preview";
 import { CONSTELLATION_ART, type ConstellationStageNumber } from "@/lib/constellation/art";
 import { CONSTELLATION_CAPTIONS, describeConstellationGrowth } from "@/lib/constellation/presentation";
 
@@ -10,13 +11,27 @@ import { CONSTELLATION_CAPTIONS, describeConstellationGrowth } from "@/lib/const
  * Read-only gallery. Unlocked artwork follows the current, record-derived Stage;
  * gallery selection never modifies habit history, scoring or cloud state.
  */
-export function ConstellationGrowthView({ points }: { points: number }) {
+export function ConstellationGrowthView({
+  points,
+  completedHabits,
+  streak,
+  previewOpen,
+  onCreatePreview,
+}: {
+  points: number;
+  completedHabits: number;
+  streak: number;
+  previewOpen: boolean;
+  onCreatePreview: () => void;
+}) {
   const { art, next, progressPercent, remainingPoints, extraGlow } =
     describeConstellationGrowth(points);
   const currentStage = art.stage;
   const [selectedStage, setSelectedStage] = useState<ConstellationStageNumber>(currentStage);
   const [departure, setDeparture] = useState<{ stage: ConstellationStageNumber; direction: number; id: number } | null>(null);
   const [zoomOpen, setZoomOpen] = useState(false);
+  const createCardButton = useRef<HTMLButtonElement>(null);
+  const wasPreviewOpen = useRef(false);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const lastSwipeAt = useRef(0);
   const transitionId = useRef(0);
@@ -32,6 +47,16 @@ export function ConstellationGrowthView({ points }: { points: number }) {
   const style = {
     "--constellation-extra-glow": galleryStage === 6 ? extraGlow : 0,
   } as CSSProperties;
+
+  // Returning from preview restores keyboard focus and gallery selection.
+  useEffect(() => {
+    if (!previewOpen && wasPreviewOpen.current) {
+      // The detail may have scrolled to the end on short viewports.
+      // Allow focus to reveal the entry again after returning from preview.
+      createCardButton.current?.focus();
+    }
+    wasPreviewOpen.current = previewOpen;
+  }, [previewOpen]);
 
   useEffect(() => {
     if (!departure) return;
@@ -69,6 +94,16 @@ export function ConstellationGrowthView({ points }: { points: number }) {
     if (Math.abs(deltaX) < 45 || Math.abs(deltaX) <= Math.abs(deltaY) * 1.3) return;
     lastSwipeAt.current = Date.now();
     selectStage(galleryStage + (deltaX < 0 ? 1 : -1));
+  }
+
+  if (previewOpen) {
+    return (
+      <StarlightCardPreview
+        points={points}
+        completedHabits={completedHabits}
+        streak={streak}
+      />
+    );
   }
 
   return (
@@ -167,6 +202,16 @@ export function ConstellationGrowthView({ points }: { points: number }) {
           </p>
         )}
       </div>
+      <button
+        ref={createCardButton}
+        type="button"
+        className="constellation-share-entry"
+        onClick={onCreatePreview}
+      >
+        <ImageIcon size={19} aria-hidden="true" />
+        <span>별빛 카드 만들기</span>
+        <ChevronRight size={19} aria-hidden="true" />
+      </button>
       {zoomOpen && (
         <ConstellationZoom
           points={points}
