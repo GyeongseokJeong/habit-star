@@ -1758,6 +1758,11 @@ export default function Byeolharu() {
                   <stop offset="66%" className="closing-wave-near-middle" />
                   <stop offset="100%" className="closing-wave-near-bottom" />
                 </linearGradient>
+                <radialGradient id="closing-horizon-glow">
+                  <stop offset="0%" className="closing-horizon-core" />
+                  <stop offset="44%" className="closing-horizon-mid" />
+                  <stop offset="100%" stopColor="#b994d6" stopOpacity="0" />
+                </radialGradient>
                 <linearGradient id="closing-wave-soften" x1="0%" y1="0%" x2="0%" y2="100%">
                   <stop offset="0%" stopColor="white" stopOpacity=".86" />
                   <stop offset="40%" stopColor="white" stopOpacity=".63" />
@@ -1772,6 +1777,12 @@ export default function Byeolharu() {
                 d="M0 59 C42 40 83 34 123 52 S211 78 266 55 S365 31 420 52 V104 H0Z"
                 fill="url(#closing-wave-distance)"
                 mask="url(#closing-wave-depth-mask)"
+              />
+              {/* Diffuse light sits in the valley, partially behind the near hill; no hard highlight stroke. */}
+              <ellipse
+                className="closing-horizon-light"
+                cx="210" cy="69" rx="104" ry="23"
+                fill="url(#closing-horizon-glow)"
               />
               <path
                 className="closing-wave-near"
