@@ -4,6 +4,7 @@
  * HTML/CSS/JS via an isolated static origin in headless Chromium.
  */
 import { createServer } from "node:http";
+import assert from "node:assert/strict";
 import { readFileSync, statSync, existsSync, writeFileSync } from "node:fs";
 import { resolve, extname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -43,6 +44,27 @@ try {
     const fallback=await page.locator("#byeolharu-root").innerText().catch(()=>"(root missing)");
     throw new Error("Packaged app did not mount after 12s. Root: "+fallback.slice(0,300)+"\nErrors: "+errors.join("\n")+"\nFailed resources: "+requests.join(", "));
   }
+  // Simulate a Samsung edge-to-edge WebView that injects its native insets
+  // as --safe-area-inset-* CSS variables (e.g. 32 px status, 24 px nav).
+  await page.evaluate(() => {
+    document.documentElement.style.setProperty("--safe-area-inset-top","32px");
+    document.documentElement.style.setProperty("--safe-area-inset-bottom","24px");
+  });
+  const layout = await page.evaluate(() => {
+    const header=document.querySelector(".site-header");
+    const brand=document.querySelector(".site-header .brand");
+    const root=document.querySelector(".byeolharu");
+    return {
+      height:header.getBoundingClientRect().height,
+      brandTop:brand.getBoundingClientRect().top,
+      rootBottom:parseFloat(getComputedStyle(root).paddingBottom),
+      top:parseFloat(getComputedStyle(header).paddingTop),
+    };
+  });
+  assert.ok(layout.top>=32,"Android status-bar safe-area CSS was not applied: "+JSON.stringify(layout));
+  assert.ok(layout.brandTop>=32,"Logo would overlap Android status bar: "+JSON.stringify(layout));
+  assert.ok(layout.height>=99,"Header must grow by the system inset: "+JSON.stringify(layout));
+  assert.ok(layout.rootBottom>=40,"Last habit must scroll above Android nav bar: "+JSON.stringify(layout));
   if(errors.length)throw new Error("Packaged app runtime exceptions: "+errors.join("\n"));
   console.log("PASS: first-party guest UI mounted from packaged assets, no JS startup errors");
 } finally {
