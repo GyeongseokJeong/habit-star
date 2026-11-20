@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { seedLegacyFiveHabits } from "./fixtures/legacy-five-habits";
 
 for (const width of [320, 390, 430]) {
   test(`compact toggle has a small visual track with 44px+ touch target at ${width}px`, async ({ page }) => {
@@ -92,6 +93,7 @@ test("completed reflection restores focus to the stable tab when its card folds"
 });
 
 test("keyboard completing an upcoming habit returns focus before the preview disappears", async ({ page }) => {
+  await seedLegacyFiveHabits(page);
   await page.goto("/");
   await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
   await page.getByRole("tab", { name: "낮", exact: true }).click();
