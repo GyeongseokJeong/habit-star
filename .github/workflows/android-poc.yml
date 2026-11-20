@@ -8,6 +8,7 @@ on:
       - app/feat/scoped-reminder-integration-step6
       - app/feat/reminder-lifecycle-step7
       - app/feat/native-reminder-integration-lab-step8
+      - app/feat/packaged-guest-ui-step9
     paths:
       - "mobile/**"
       - ".github/workflows/android-poc.yml"
@@ -17,6 +18,7 @@ on:
       - app/feat/habit-reminder-scheduler-step5
       - app/feat/scoped-reminder-integration-step6
       - app/feat/reminder-lifecycle-step7
+      - app/feat/native-reminder-integration-lab-step8
     paths:
       - "mobile/**"
       - ".github/workflows/android-poc.yml"
@@ -247,6 +249,61 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: byeolharu-android-reminder-integration-step8-debug
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 3
+
+  android-packaged-guest-step9:
+    # Bundles actual first-party Byeolharu React UI, no remote WebView, no live account.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 40
+    env:
+      BYEOLHARU_POC_PACKAGED_GUEST: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.25.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.22.1"
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Verify Android SDK
+        run: |
+          test -n "$ANDROID_HOME"
+          test -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+      - name: Install first-party web dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Android dependencies
+        run: npm install --no-package-lock --no-audit --no-fund
+        working-directory: mobile
+      - name: Verify Android checks and package actual guest UI
+        run: |
+          npm run check
+          npm run packaged-guest:build
+          test -s www-packaged-guest/app.js
+          test -s www-packaged-guest/app.css
+        working-directory: mobile
+      - name: Generate Android project
+        run: npm run android:init
+        working-directory: mobile
+      - name: Sync bundled guest UI
+        run: npm run android:sync
+        working-directory: mobile
+      - name: Compile packaged guest APK
+        run: ./gradlew assembleDebug --no-daemon
+        working-directory: mobile/android
+      - name: Upload packaged guest APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: byeolharu-android-packaged-guest-step9-debug
           path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 3
