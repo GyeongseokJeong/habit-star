@@ -3,6 +3,30 @@ import { expect, test } from "@playwright/test";
 test.use({ timezoneId: "Asia/Seoul" });
 
 async function seedMissedHabit(page: import("@playwright/test").Page) {
+  // A visible React button is not proof the asynchronous guest repository
+  // initialized. Never open an absent IDB here: opening it first would create
+  // an empty v1 database and prevent the app's schema upgrade from running.
+  await expect.poll(async () => page.evaluate(async () => {
+    const databases = await indexedDB.databases();
+    if (!databases.some((entry) => entry.name === "byeolharu-v2")) return false;
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("byeolharu-v2");
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    try {
+      if (!db.objectStoreNames.contains("scopes")) return false;
+      const request = db.transaction("scopes", "readonly").objectStore("scopes").get("guest");
+      const guest = await new Promise<unknown>((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      return Boolean(guest);
+    } finally {
+      db.close();
+    }
+  }), { message: "wait for the app to initialize the guest IndexedDB store" }).toBe(true);
+
   await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open("byeolharu-v2");
