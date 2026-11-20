@@ -330,7 +330,9 @@ test("keyboard star focus stays accessible without a filled background tile", as
   // Wait for the hydrated guest snapshot and initial time-based tab selection.
   // Otherwise startup effects can move the completed card out of the active tab
   // after focus, making subsequent accessibility assertions lose their target.
-  await expect(page.locator(".habit-card").first()).toBeVisible();
+  // An entirely completed time-period hides cards behind the completed-group toggle.
+  // Either an unfinished card or the collapsed toggle proves the guest habits are hydrated.
+  await expect(page.locator(".habit-card:visible, .normal-done-toggle:visible").first()).toBeVisible();
   await page.getByRole("tab", { name: "전체", exact: true }).click();
   const completedToggle = page.locator(".normal-done-toggle");
   await expect(completedToggle).toBeVisible();
@@ -351,7 +353,9 @@ test("guest storage failure clears after a successful retry without losing the r
   await page.goto("/");
   // Resolve the initial guest snapshot and time-based tab before manual navigation.
   // Otherwise an async startup tab selection can hide the target card mid-test.
-  await expect(page.locator(".habit-card").first()).toBeVisible();
+  // An entirely completed time-period hides cards behind the completed-group toggle.
+  // Either an unfinished card or the collapsed toggle proves the guest habits are hydrated.
+  await expect(page.locator(".habit-card:visible, .normal-done-toggle:visible").first()).toBeVisible();
   await page.getByRole("tab", { name: "전체", exact: true }).click();
   await page.locator(".normal-done-toggle").click();
   const readyCard = page.locator(".habit-card").filter({

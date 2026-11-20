@@ -995,8 +995,8 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
 .expanded .calendar-grid {
   gap: 5px;
 }
-/* B4.2: approved compact ambient ending — unobtrusive overscan and soft boundaries. One scene, no independent footer card.
-   The message overlays the night/dawn horizon and the brand lives inside it. */
+/* B4.3: keep the 122px ambient closing; add only a restrained central horizon glow.
+   All waves, glow and edge fades remain background scenery, never a separate card. */
 .closing-footer {
   width: min(100%, 900px);
   margin: 12px auto 0;
@@ -1008,6 +1008,11 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   --closing-wave-near-middle: #211f3b;
   --closing-wave-near-bottom: var(--bg);
   --closing-sky-glow: rgb(125 89 174 / 18%);
+  --closing-horizon-haze: rgb(173 111 212 / 11%);
+  --closing-horizon-core: #f2bfe7;
+  --closing-horizon-mid: #bb91db;
+  --closing-horizon-core-opacity: .36;
+  --closing-horizon-mid-opacity: .17;
 }
 .closing-landscape {
   position: relative;
@@ -1020,7 +1025,8 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   padding: 13px 12px 7px;
   overflow: hidden;
   background:
-    /* A restrained glow joins the message to the distant hills. */
+    /* Concentrate the light inside the central valley without adding a visible image boundary. */
+    radial-gradient(ellipse 34% 24% at 51% 79%, var(--closing-horizon-haze), transparent 100%),
     radial-gradient(ellipse 78% 73% at 52% 64%, var(--closing-sky-glow), transparent 100%);
 }
 .closing-waves {
@@ -1041,6 +1047,14 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
 .closing-wave-near-top { stop-color: var(--closing-wave-near-top); }
 .closing-wave-near-middle { stop-color: var(--closing-wave-near-middle); }
 .closing-wave-near-bottom { stop-color: var(--closing-wave-near-bottom); }
+.closing-horizon-core {
+  stop-color: var(--closing-horizon-core);
+  stop-opacity: var(--closing-horizon-core-opacity);
+}
+.closing-horizon-mid {
+  stop-color: var(--closing-horizon-mid);
+  stop-opacity: var(--closing-horizon-mid-opacity);
+}
 .closing-sky-sparks { fill: var(--gold); opacity: .88; }
 .closing-copy {
   position: relative;
@@ -1088,13 +1102,19 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   .closing-copy p { font-size: 11px; }
 }
 .byeolharu.light .closing-footer {
-  --closing-wave-far-left: #c7b3f0;
-  --closing-wave-far-middle: #c8b6f1;
-  --closing-wave-far-right: #f1cbcf;
-  --closing-wave-near-top: #e0d1f8;
-  --closing-wave-near-middle: #e9dff7;
+  /* Powdery lavender: the light landscape fades into the warm page background. */
+  --closing-wave-far-left: #d9d0eb;
+  --closing-wave-far-middle: #ddd3ed;
+  --closing-wave-far-right: #eddee9;
+  --closing-wave-near-top: #e7e0f1;
+  --closing-wave-near-middle: #f0ebf5;
   --closing-wave-near-bottom: var(--bg);
-  --closing-sky-glow: rgb(239 192 184 / 12%);
+  --closing-sky-glow: rgb(218 190 225 / 7%);
+  --closing-horizon-haze: rgb(225 196 221 / 7%);
+  --closing-horizon-core: #f3d6e9;
+  --closing-horizon-mid: #dcc9e8;
+  --closing-horizon-core-opacity: .19;
+  --closing-horizon-mid-opacity: .08;
 }
 .byeolharu.light .closing-copy h2 { color: #554577; }
 .byeolharu.light .closing-copy p { color: #645d79; }
@@ -1106,6 +1126,11 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-footer {
   --closing-wave-near-top: #2c2851;
   --closing-wave-near-middle: #211f3b;
   --closing-sky-glow: rgb(125 89 174 / 18%);
+  --closing-horizon-haze: rgb(173 111 212 / 11%);
+  --closing-horizon-core: #f2bfe7;
+  --closing-horizon-mid: #bb91db;
+  --closing-horizon-core-opacity: .36;
+  --closing-horizon-mid-opacity: .17;
 }
 html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy h2 { color: #f4e5cf; }
 html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d9e7; }
