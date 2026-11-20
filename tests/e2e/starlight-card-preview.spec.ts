@@ -33,9 +33,23 @@ for (const width of [320, 390, 430]) {
       const bounds = await card.boundingBox();
       expect(bounds).not.toBeNull();
       expect(bounds!.height / bounds!.width).toBeCloseTo(1.25, 1);
-      await expect(card.locator("[data-constellation-stage='1']")).toBeVisible();
+      const art = card.locator("[data-constellation-stage='1']");
+      await expect(art).toBeVisible();
+      const artBounds = await art.boundingBox();
+      expect(artBounds).not.toBeNull();
+      // The approved portrait Stage image remains intact, and occupies
+      // at least half the card's width rather than the former 44%-of-sky.
+      expect(artBounds!.height / artBounds!.width).toBeCloseTo(1.5, 1);
+      expect(artBounds!.width / bounds!.width).toBeGreaterThan(0.48);
+      await expect(art.locator("img")).toHaveCSS("object-fit", "contain");
+      await expect(card).toHaveCSS("aspect-ratio", "4 / 5");
       await expect(card).toContainText("현재 단계");
       await expect(card).toContainText("Stage 1");
+      await expect(card.getByText("Stage 1", { exact: true })).toHaveCount(1);
+      await expect(card.getByText("별하루", { exact: true })).toHaveCount(1);
+      await expect(card.getByText("BYEOLHARU", { exact: true })).toHaveCount(1);
+      await expect(card).not.toContainText("MY STARLIGHT");
+      await expect(preview.locator(".starlight-preview-footnote")).toHaveCount(0);
       await expect(card).toContainText("누적 실천");
       await expect(card).toContainText("연속 실천");
       await expect(preview.getByRole("button", { name: /저장|공유/ })).toHaveCount(0);
@@ -90,4 +104,29 @@ test("V5 preview always uses the current earned stage, not a browsed earlier sta
   await expect(detail.getByRole("button", { name: "별빛 카드 만들기" })).toBeFocused();
   await detail.getByRole("button", { name: "닫기" }).click();
   await expect(opener).toBeFocused();
+});
+
+test("V5 approved artwork stays intact at Stage 6 with a single current Stage label", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: /나의 별자리 STAGE 1/ })).toBeVisible();
+  await seedConstellationPoints(page, 200);
+  await page.getByRole("button", { name: /나의 별자리 STAGE 6/ }).click();
+  await page.getByRole("dialog", { name: "나의 별자리" })
+    .getByRole("button", { name: "별빛 카드 만들기" }).click();
+  const card = page.getByRole("dialog", { name: "별빛 카드" }).locator(".starlight-share-card");
+  const art = card.locator("[data-constellation-stage='6']");
+  await expect(art).toBeVisible();
+  const image = art.locator("img");
+  await expect.poll(() => image.evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  expect(await image.evaluate((element) => {
+    const img = element as HTMLImageElement;
+    return img.naturalHeight / img.naturalWidth;
+  })).toBeCloseTo(1.5, 1);
+  await expect(image).toHaveCSS("object-fit", "contain");
+  await expect(card.getByText("Stage 6", { exact: true })).toHaveCount(1);
+  await expect(card.getByText("빛나는 은하", { exact: true })).toHaveCount(1);
+  await expect(card.getByText("BYEOLHARU", { exact: true })).toHaveCount(1);
+  const dimensions = await card.boundingBox();
+  expect(dimensions!.height / dimensions!.width).toBeCloseTo(1.25, 1);
 });
