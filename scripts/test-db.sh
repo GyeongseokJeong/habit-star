@@ -14,7 +14,7 @@ if [ "${1:-}" = "--postgres" ]; then
   docker exec -i "$task_db" psql -U postgres -v ON_ERROR_STOP=1 < tests/db-bootstrap.sql
   for migration in supabase/migrations/*.sql; do
     docker exec -i "$task_db" psql -U postgres -v ON_ERROR_STOP=1 < "$migration"
-    if [ "$migration" = "supabase/migrations/202611100001_cloud.sql" ]; then
+    if [ "$migration" = "supabase/migrations/20261110012142_cloud.sql" ]; then
       docker exec -i "$task_db" psql -U postgres -v ON_ERROR_STOP=1 < tests/legacy-import-before.sql
     fi
   done
