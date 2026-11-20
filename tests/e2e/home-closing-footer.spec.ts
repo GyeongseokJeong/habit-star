@@ -30,7 +30,8 @@ for (const width of [320, 390, 430, 1365]) {
         const brand = el.querySelector(".closing-brand")!;
         const copy = el.querySelector(".closing-copy")!;
         const page = el.closest(".byeolharu")!;
-        const colors = [...waves.querySelectorAll("stop[class]")].map((stop) => getComputedStyle(stop).stopColor);
+        const colors = [...waves.querySelectorAll("#closing-wave-distance stop[class], #closing-wave-foreground stop[class]")]
+          .map((stop) => getComputedStyle(stop).stopColor);
         const scene = landscape.getBoundingClientRect();
         const brandBox = brand.getBoundingClientRect();
         const copyBox = copy.getBoundingClientRect();
@@ -49,6 +50,7 @@ for (const width of [320, 390, 430, 1365]) {
             opacity: getComputedStyle(stop).stopOpacity,
           })),
           horizonHaze: getComputedStyle(el).getPropertyValue("--closing-horizon-haze").trim(),
+          horizonHazeIsColor: CSS.supports("color", getComputedStyle(el).getPropertyValue("--closing-horizon-haze").trim()),
           waveMask: getComputedStyle(waves).maskImage || getComputedStyle(waves).webkitMaskImage,
           waveWidth: getComputedStyle(waves).width,
           sceneWidth: getComputedStyle(landscape).width,
@@ -67,13 +69,16 @@ for (const width of [320, 390, 430, 1365]) {
       expect(blend.glowGradientCount).toBe(1);
       expect(blend.glowStops).toHaveLength(2);
       expect(blend.glowStops.every((stop) => stop.color !== "" && stop.opacity !== "")).toBe(true);
-      expect(blend.horizonHaze).toMatch(/^rgb\(/);
+      // CSS custom properties can serialize to #RRGGBBAA even if authored as rgb(... / alpha).
+      expect(blend.horizonHazeIsColor).toBe(true);
+      expect(blend.horizonHaze).not.toBe("");
       expect(blend.waveMask).toContain("linear-gradient");
       expect(blend.waveMask).toContain("15%");
       expect(blend.waveMask).toContain("85%");
       expect(blend.waveMask).toContain("96%");
       expect(Number.parseFloat(blend.waveWidth)).toBeGreaterThan(Number.parseFloat(blend.sceneWidth));
       expect(blend.waveLeft).toBeLessThan(0);
+      // Separate wave stops from the two glow stops so artwork additions don't break this contract.
       expect(blend.colors).toHaveLength(6);
       expect(blend.colors.every((value) => value !== "" && value !== "none")).toBe(true);
       expect(blend.colors[0]).toBe(theme === "dark" ? "rgb(81, 66, 117)" : "rgb(217, 208, 235)");
