@@ -990,7 +990,8 @@ export default function Byeolharu() {
   const [compactView, setCompactView] = useState(false);
   const [compactPreferenceLoaded, setCompactPreferenceLoaded] = useState(false);
   const [completedOpen, setCompletedOpen] = useState(false);
-  // Alternate two identical CSS animations to restart on rapid completions.\n  const [completedGroupNudge, setCompletedGroupNudge] = useState<0 | 1 | 2>(0);
+  // Alternate two identical CSS animations to restart on rapid completions.
+  const [completedGroupNudge, setCompletedGroupNudge] = useState<0 | 1 | 2>(0);
   const completedGroupNudgeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const completedGroupBaseline = useRef<{ key: string; count: number; ready: boolean } | null>(null);
   const [compactExpandedId, setCompactExpandedId] = useState<string | null>(null);
