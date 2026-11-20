@@ -9,6 +9,7 @@ import type { NativeReminderControls } from "../../lib/habits/native-reminder-co
 import { createReminderLifecycle } from "../notifications/reminder-lifecycle.js";
 import { guestReminderAction } from "../notifications/guest-reminder-readiness.js";
 import { createResumeDispatcher } from "../notifications/native-resume-refresh.js";
+import { summarizeGuestPending } from "../notifications/guest-reminder-diagnostics.js";
 
 // This module is bundled into the isolated Android guest APK only.
 // The website's Next.js entrypoint never imports Capacitor or native controls.
@@ -21,6 +22,7 @@ function GuestNativeApp() {
   const [enabled, setEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
+  const [diagnostic, setDiagnostic] = useState("");
   const snapshot = useRef<Snapshot | null>(null);
   const enabledRef = useRef(false);
   const busyRef = useRef(false);
@@ -149,8 +151,34 @@ function GuestNativeApp() {
     };
   }, []);
 
+  const onInspectPending = useCallback(async () => {
+    if (!isAndroid || busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    try {
+      const permission = await LocalNotifications.checkPermissions();
+      const pending = await LocalNotifications.getPending();
+      const report = summarizeGuestPending(pending.notifications, new Date());
+      const next = report.nextAt
+        ? new Date(report.nextAt).toLocaleString("ko-KR", {month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})
+        : "없음";
+      setDiagnostic(
+        "Android 권한: " + (permission.display === "granted" ? "허용" : "미허용") +
+        " · 예약 " + report.total + "건" +
+        " · 오늘 남은 알림 " + report.todayRemaining + "건" +
+        " · 다음 예약: " + next +
+        (report.unknownTime ? " · 예약 시각 확인 불가 " + report.unknownTime + "건" : ""),
+      );
+    } catch {
+      setDiagnostic("예약을 확인할 수 없어요. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  }, []);
+
   const nativeReminders: NativeReminderControls | undefined = isAndroid
-    ? { enabled, busy, status, onEnabledChange, onSnapshot }
+    ? { enabled, busy, status, diagnostic, onInspectPending, onEnabledChange, onSnapshot }
     : undefined;
   return <Byeolharu nativeReminders={nativeReminders} />;
 }
