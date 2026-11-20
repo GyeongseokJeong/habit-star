@@ -173,7 +173,7 @@ test("a habit scheduled for another weekday explains why it is absent today", as
   const editor = page.getByRole("dialog", { name: "나를 위한 새로운 습관" });
   await editor.getByPlaceholder("예: 하루 10분 책 읽기").fill("내일만 실행");
   // Friday 2026-11-20 is weekday 5; use a Saturday-only routine.
-  for (const label of ["월", "화", "수", "목", "금", "일"]) {
+  for (const label of ["월요일", "화요일", "수요일", "목요일", "금요일", "일요일"]) {
     const day = editor.getByRole("button", { name: label, exact: true });
     if (await day.getAttribute("aria-pressed") === "true") await day.click();
   }
