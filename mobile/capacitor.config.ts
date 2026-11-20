@@ -64,6 +64,9 @@ const config: CapacitorConfig = {
       ? "별하루 WebView PoC"
       : "별하루 PoC",
   webDir: packagedGuest ? "www-packaged-guest" : "www",
+  // Only the bundled guest app opts into CSS system-bar insets. This keeps
+  // the existing WebView and standalone notification PoCs unchanged.
+  ...(packagedGuest ? { plugins: { SystemBars: { insetsHandling: "css" as const } } } : {}),
   ...(remoteDebug
     ? { server: { url: productionOrigin, cleartext: false } }
     : {}),
