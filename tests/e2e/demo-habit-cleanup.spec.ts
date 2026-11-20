@@ -53,6 +53,7 @@ test("compact view can clear demos without leaving a phantom completion group", 
   await page.clock.setFixedTime(new Date("2026-11-20T09:00:00+09:00"));
   await page.addInitScript(() => localStorage.setItem("byeolharu_compact_view_v1", "1"));
   await page.goto("/");
+  await expect(page.locator(".compact-habit-list")).toBeVisible();
   await page.getByRole("tab", { name: "전체", exact: true }).click();
   await expect(page.locator(".sample-cleanup-strip")).toContainText("예시 습관 2개");
   await expect(page.locator(".compact-sample-badge")).toHaveCount(1);
