@@ -50,6 +50,7 @@ import { useHabitApp } from "@/lib/habits/use-habit-app";
 import { AccountPanel } from "@/components/account/account-panel";
 import { StarlitHero } from "@/components/starlit-hero";
 import { initialRoutineTab, startupDataReady } from "@/lib/habits/time-tab";
+import { getFirstUseState, canCelebrateFirstPractice } from "@/lib/habits/onboarding";
 import { sortHabitsForDisplay } from "@/lib/habits/display-order";
 import { ConstellationGrowthView } from "@/components/constellation-growth-view";
 import { calculateConstellationGrowth, earnedStageFromCompletion } from "@/lib/constellation/growth";
@@ -720,9 +721,13 @@ function HabitCard({
   onRate,
   onOpen,
   onEdit,
+  isSample = false,
+  firstPractice = false,
 }: {
   habit: Habit;
   showTimeGroup: boolean;
+  isSample?: boolean;
+  firstPractice?: boolean;
   onRate: (id: string, rating: number, fromKeyboard: boolean) => void;
   onOpen: () => void;
   onEdit: () => void;
@@ -753,6 +758,7 @@ function HabitCard({
       </div>
       <button className="card-content" onClick={onOpen}>
         <h3>{habit.title}</h3>
+        {isSample && <span className="habit-sample-badge">예시</span>}
         {habit.memo && <p>{habit.memo}</p>}
         <HabitTimeMeta habit={habit} showTimeGroup={showTimeGroup} />
       </button>
@@ -783,6 +789,7 @@ function HabitCard({
           )}
         </span>
       </div>
+      {firstPractice && <p className="habit-first-practice" role="status"><Sparkles size={14} aria-hidden="true" /> 첫 실천이에요! 작은 시작이 빛나요.</p>}
     </article>
   );
 }
@@ -797,9 +804,13 @@ function CompactHabitCard({
   onRate,
   onOpen,
   onEdit,
+  isSample = false,
+  firstPractice = false,
 }: {
   habit: Habit;
   showTimeGroup: boolean;
+  isSample?: boolean;
+  firstPractice?: boolean;
   expanded: boolean;
   onToggle: () => void;
   onRate: (value: number, fromKeyboard: boolean) => void;
@@ -817,19 +828,21 @@ function CompactHabitCard({
         className="compact-habit-row"
         aria-expanded={expanded}
         aria-controls={"compact-habit-detail-" + habit.id}
-        aria-label={habit.title + (habit.rating > 0
+        aria-label={habit.title + (isSample ? ", 예시 습관" : "") + (habit.rating > 0
           ? ", 실천 완료, 별점 " + habit.rating + "점"
           : habit.completed ? ", 실천 완료, 별점 없이 체크" : ", 미기록") + ", 기록하기"}
         onClick={onToggle}
       >
         <span className={"compact-habit-emoji " + habit.timeGroup} aria-hidden="true">{habit.icon}</span>
         <span className="compact-habit-title" title={habit.title}>{habit.title}</span>
+        {isSample && <span className="habit-sample-badge compact-sample-badge">예시</span>}
         <span className="compact-habit-status" aria-hidden="true">
           {habit.completed && <Check size={15} />}
           {habit.rating > 0 ? <><Star size={15} fill="currentColor" />{habit.rating}</> : "—"}
         </span>
         {expanded ? <ChevronUp className="compact-habit-chevron" size={17} aria-hidden="true" /> : <ChevronDown className="compact-habit-chevron" size={17} aria-hidden="true" />}
       </button>
+      {firstPractice && <p className="habit-first-practice compact-first-practice" role="status"><Sparkles size={13} aria-hidden="true" /> 첫 실천이에요! 작은 시작이 빛나요.</p>}
       {expanded && (
         <div id={"compact-habit-detail-" + habit.id} className="compact-habit-detail">
           <div
@@ -993,6 +1006,8 @@ export default function Byeolharu() {
   const [starlightPreviewOpen, setStarlightPreviewOpen] = useState(false);
   const [reflectionOpen, setReflectionOpen] = useState(false);
   const [celebration, setCelebration] = useState<{ stage: number; scope: string; day: string } | null>(null);
+  const [firstPractice, setFirstPractice] = useState<{ id: string; scope: string; day: string } | null>(null);
+  const firstPracticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const celebrationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [compactView, setCompactView] = useState(false);
@@ -1073,6 +1088,7 @@ export default function Byeolharu() {
       window.removeEventListener("beforeinstallprompt", install);
       if (toastTimer.current) clearTimeout(toastTimer.current);
       if (celebrationTimer.current) clearTimeout(celebrationTimer.current);
+      if (firstPracticeTimer.current) clearTimeout(firstPracticeTimer.current);
       if (compactCollapseTimer.current) clearTimeout(compactCollapseTimer.current);
       if (compactFocusTimer.current) clearTimeout(compactFocusTimer.current);
       if (normalFocusTimer.current) clearTimeout(normalFocusTimer.current);
@@ -1138,6 +1154,16 @@ export default function Byeolharu() {
     celebrationTimer.current = setTimeout(() => setCelebration(null), 3600);
   };
 
+  // Transient UI acknowledgement only; an existing completed history never replays it.
+  const celebrateFirstPractice = (id: string, actionScope: string, actionDay: string) => {
+    if (activeScope.current !== actionScope) return;
+    setFirstPractice({ id, scope: actionScope, day: actionDay });
+    // Preserve the existing completed fold. The first-record cue remains in
+    // the card and can be seen while it moves or if the user opens the fold.
+    if (firstPracticeTimer.current) clearTimeout(firstPracticeTimer.current);
+    firstPracticeTimer.current = setTimeout(() => setFirstPractice(null), 4800);
+  };
+
   const handleRateHabit = (id: string, value: number) => {
     const habit = habits.find((item) => item.id === id);
     const day = app.snapshot?.day;
@@ -1152,6 +1178,9 @@ export default function Byeolharu() {
     const earnedStage = app.snapshot && earnedStageFromCompletion(
       app.snapshot, visibleHabits,
       applyDailyRecord(habit, { rating, completed: rating > 0, memo: habit.memo }),
+    );
+    const firstCompletion = app.snapshot && canCelebrateFirstPractice(
+      app.snapshot, !!app.user, habit, rating > 0,
     );
     const override = { rating, scope, day };
     const nextOverrides = new Map(ratingOverridesRef.current);
@@ -1175,7 +1204,7 @@ export default function Byeolharu() {
         heldCompletionRef.current = nextHeld;
         setHeldCompletion(nextHeld);
         reorderTimers.current.delete(id);
-      }, 700),
+      }, firstCompletion ? 1900 : 700),
     );
 
     const previousWrite = ratingWrites.current.get(id) ?? Promise.resolve();
@@ -1196,6 +1225,9 @@ export default function Byeolharu() {
         );
         if (earnedStage && ratingOverridesRef.current.get(id) === override) {
           showStageCelebration(earnedStage, scope, day);
+        }
+        if (firstCompletion && ratingOverridesRef.current.get(id) === override) {
+          celebrateFirstPractice(id, scope, day);
         }
       });
     ratingWrites.current.set(id, write);
@@ -1245,6 +1277,9 @@ export default function Byeolharu() {
     showToast("습관이 삭제되었습니다.");
   };
   const today = app.snapshot?.day ?? "";
+  const firstUse = useMemo(() => app.snapshot
+    ? getFirstUseState(app.snapshot, !!app.user) : null,
+    [app.snapshot, app.user]);
   const visibleHabits = useMemo(() => habits.map((habit) => {
     const override = ratingOverrides.get(habit.id);
     return override?.scope === scope && override.day === today
@@ -1360,6 +1395,8 @@ export default function Byeolharu() {
   // The reflection belongs to one local day and one account scope only.
   useEffect(() => {
     setReflectionOpen(false);
+    setFirstPractice(null);
+    if (firstPracticeTimer.current) clearTimeout(firstPracticeTimer.current);
   }, [today, scope]);
 
   const upcoming =
@@ -1403,6 +1440,8 @@ export default function Byeolharu() {
       key={habit.id}
       habit={habit}
       showTimeGroup={activeTab === "all" || activeTab !== habit.timeGroup}
+      isSample={firstUse?.sampleIds.has(habit.id)}
+      firstPractice={firstPractice?.id === habit.id && firstPractice.scope === scope && firstPractice.day === today}
       onRate={(id, value, fromKeyboard) => {
         handleRateHabit(id, value);
         if (normalFocusTimer.current) clearTimeout(normalFocusTimer.current);
@@ -1442,6 +1481,8 @@ export default function Byeolharu() {
       key={habit.id}
       habit={habit}
       showTimeGroup={activeTab === "all" || activeTab !== habit.timeGroup}
+      isSample={firstUse?.sampleIds.has(habit.id)}
+      firstPractice={firstPractice?.id === habit.id && firstPractice.scope === scope && firstPractice.day === today}
       expanded={compactExpandedId === habit.id}
       onToggle={() => setCompactExpandedId((previous) => previous === habit.id ? null : habit.id)}
       onRate={(value, fromKeyboard) => {
@@ -1624,6 +1665,9 @@ export default function Byeolharu() {
                 <Plus size={17} />새 습관 추가
               </button>
             </div>
+            {firstUse?.showHint && (
+              <p className="first-habit-hint"><Leaf size={15} aria-hidden="true" /> 나만의 첫 습관을 만들어볼까요? <span>‘새 습관 추가’에서 시작해요.</span></p>
+            )}
             <div className="tabs" role="tablist" aria-label="시간대별 루틴">
               {(
                 [
@@ -1906,13 +1950,42 @@ export default function Byeolharu() {
             const earnedStage = app.snapshot && earnedStageFromCompletion(
               app.snapshot, visibleHabits, applyDailyRecord(detail, data),
             );
+            const firstCompletion = app.snapshot && canCelebrateFirstPractice(
+              app.snapshot, !!app.user, detail, data.completed,
+            );
             void (async () => {
+              if (firstCompletion) {
+                const held = new Map(heldCompletionRef.current);
+                held.set(detail.id, false);
+                heldCompletionRef.current = held;
+                setHeldCompletion(held);
+                const priorTimer = reorderTimers.current.get(detail.id);
+                if (priorTimer) clearTimeout(priorTimer);
+                reorderTimers.current.set(detail.id, setTimeout(() => {
+                  // Closing the detail dialog may restore focus into the held
+                  // card. Its eventual move into the collapsed group must not
+                  // strand keyboard focus on the document body.
+                  const focusedCard = document.activeElement?.closest<HTMLElement>("[data-habit-id]");
+                  if (focusedCard?.dataset.habitId === detail.id) {
+                    const survivingControl = document.querySelector<HTMLButtonElement>(
+                      compactView ? ".compact-done-toggle" : ".normal-done-toggle",
+                    ) ?? document.getElementById("tab-" + activeTab);
+                    survivingControl?.focus();
+                  }
+                  const next = new Map(heldCompletionRef.current);
+                  next.delete(detail.id);
+                  heldCompletionRef.current = next;
+                  setHeldCompletion(next);
+                  reorderTimers.current.delete(detail.id);
+                }, 1900));
+              }
               await setHabits((prev) =>
                 prev.map((h) =>
                   h.id === detail.id ? applyDailyRecord(h, data) : h,
                 ),
               );
               if (earnedStage) showStageCelebration(earnedStage, actionScope, actionDay);
+              if (firstCompletion) celebrateFirstPractice(detail.id, actionScope, actionDay);
               setDetailId(null);
             })().catch(() => {});
           }}
