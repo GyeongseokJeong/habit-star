@@ -25,3 +25,10 @@ test("notification operations require explicit user taps and avoid existing web 
   assert.match(html, /id="schedule"/);
   assert.match(html, /id="cancel"/);
 });
+
+test("STEP 5 is a separate package with bundled assets, not remote website mode", () => {
+  assert.match(config, /byeolharu\.reminderstep5/);
+  assert.match(config, /reminderStep5 && !notificationsPoc/);
+  assert.match(prep, /reminder-step5-main\.js/);
+  assert.match(prep, /reminder-step5\.html/);
+});
