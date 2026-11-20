@@ -293,3 +293,30 @@ Next.js 화면에 연결하지 않으며 수신 정확도나 재부팅 복구는
 **이 단계는 실사용 Android 앱의 기능 연결 완료가 아닙니다.**
 Next.js 서버 인증·회원 검증·저장소를 네이티브 번들로 연결하는 별도의
 출시 아키텍처 검증이 남아 있습니다.
+
+
+## STEP 9 — 실제 별하루 화면을 번들로 포함하는 비회원 APK (PoC)
+
+이 단계는 기존 `components/byeolharu.tsx` React 화면과
+`lib/habits/repository.ts`의 IndexedDB 기반 비회원 기록을 재사용합니다.
+독립 앱 ID `io.github.gyeongseokjeong.byeolharu.packagedgueststep9`를
+사용하고 앱 코드·CSS·이미지를 APK에 넣습니다. 테스트 중 사용하는 데이터는
+이 APK 안의 비회원 저장 공간에만 기록되며, 기존 브라우저/PWA나 다른
+Android 테스트 앱과 자동으로 공유되지 않습니다.
+
+빌드 준비 시 **웹 루트에서** `pnpm install --frozen-lockfile`을 먼저 실행한 후
+`mobile`에서 `npm install --no-package-lock`을 실행하고 다음과 같이 진행합니다.
+
+```bash
+BYEOLHARU_POC_PACKAGED_GUEST=1 npm run packaged-guest:build
+BYEOLHARU_POC_PACKAGED_GUEST=1 npm run android:init
+BYEOLHARU_POC_PACKAGED_GUEST=1 npm run android:sync
+```
+
+- `NEXT_PUBLIC_CLOUD_ENABLED=false`를 빌드 상수로 사용해 클라우드 연결을 끕니다.
+- 기존 회원 인증, 이메일 리디렉션, 서버 API는 **해당 APK에서 검증·지원하지 않습니다**.
+- APK 외부의 URL을 읽는 `server.url`을 사용하지 않습니다.
+- 기존 Android 로컬 알림 엔진은 아직 이 UI에 연결되지 않았습니다.
+- 앱 재설치/패키지 변경·데이터 삭제 시 테스트 기록이 유실될 수 있습니다.
+- GitHub Actions에서 번들 생성 및 디버그 APK 컴파일을 먼저 검증하고,
+  이후 갤럭시에서 기존 화면·저장·오프라인 실행을 실기기로 확인합니다.
