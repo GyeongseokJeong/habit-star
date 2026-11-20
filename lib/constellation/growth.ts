@@ -17,7 +17,7 @@ export function isFreshGuestDemo(state: Pick<State, "migration">): boolean {
   ].every((key) => raw[key] == null);
 }
 
-function isUnconfirmedDemoCompletion(state: State, day: string, habit: Habit): boolean {
+export function isUnconfirmedDemoCompletion(state: State, day: string, habit: Habit): boolean {
   if (!isFreshGuestDemo(state)) return false;
   const baseline = state.migration?.entities.find(
     (entity) =>

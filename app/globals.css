@@ -3352,3 +3352,184 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
     transition: none;
   }
 }
+
+/* V4 weekly reflection — a small action-oriented view, not a second calendar. */
+.weekly-reflection {
+  max-width: 680px;
+  margin: 0 auto;
+  min-height: min(640px, 75dvh);
+  padding: 8px 0 28px;
+  color: var(--ink);
+}
+.weekly-reflection-header {
+  position: relative;
+  padding: 0 0 18px;
+  border-bottom: 1px solid var(--line);
+}
+.weekly-reflection-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 4px 0;
+  color: var(--body);
+  background: transparent;
+  border: 0;
+  font-size: 13px;
+}
+.weekly-reflection-header h1 {
+  margin: 10px 0 0;
+  font-size: clamp(21px, 5.8vw, 27px);
+  font-weight: 700;
+  letter-spacing: -.7px;
+}
+.weekly-reflection-header p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.weekly-reflection-intro { margin: 20px 0 14px; }
+.weekly-reflection-intro h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 650;
+}
+.weekly-reflection-intro p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.weekly-reflection-list { display: grid; gap: 12px; }
+.weekly-reflection-card {
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+}
+.weekly-reflection-card-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.weekly-reflection-emoji {
+  display: grid;
+  place-items: center;
+  flex: 0 0 52px;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: var(--soft);
+  font-family: var(--font-emoji), sans-serif;
+  font-size: 27px;
+}
+.weekly-reflection-card-info { flex: 1; min-width: 0; }
+.weekly-reflection-card-info h3 {
+  overflow-wrap: anywhere;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+}
+.weekly-reflection-card-info p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.weekly-reflection-card-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  min-height: 44px;
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid var(--line);
+}
+.weekly-reflection-card-bottom > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--body);
+  font-size: 12px;
+}
+.weekly-reflection-card-bottom > span svg { flex: none; color: var(--selection-bg); }
+.weekly-reflection-record {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 44px;
+  padding: 8px 13px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--selection-fg);
+  background: var(--selection-bg);
+  font-weight: 600;
+  font-size: 13px;
+}
+.weekly-reflection-record:hover { filter: brightness(1.08); }
+.weekly-reflection-entry {
+  width: 100%;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--surface);
+  color: var(--ink);
+  text-align: left;
+}
+.weekly-reflection-entry > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 600;
+}
+.weekly-reflection-entry > span svg { color: var(--accent); }
+.weekly-reflection-entry > svg { color: var(--muted); flex: none; }
+.weekly-reflection-encouragement {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin: 24px 0 0;
+  padding: 0 8px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.weekly-reflection-encouragement svg { flex: none; color: var(--gold); fill: var(--gold); }
+.weekly-reflection-closing {
+  margin: 30px 0 0;
+  padding: 16px 10px 30px;
+  text-align: center;
+  color: var(--body);
+  font-size: 13px;
+  background:
+    radial-gradient(ellipse at 50% 100%, color-mix(in srgb, var(--selection-bg) 17%, transparent), transparent 74%);
+}
+.weekly-reflection-empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 40px 18px;
+  text-align: center;
+  color: var(--body);
+}
+.weekly-reflection-empty svg { color: var(--gold); }
+.weekly-reflection-empty h2 { margin: 0; font-size: 17px; font-weight: 600; color: var(--ink); }
+.weekly-reflection-empty p { margin: 0; max-width: 360px; font-size: 13px; color: var(--muted); }
+@media (max-width: 360px) {
+  .weekly-reflection-card { padding: 12px; }
+  .weekly-reflection-card-top { gap: 9px; }
+  .weekly-reflection-emoji { flex-basis: 44px; width: 44px; height: 44px; font-size: 24px; }
+  .weekly-reflection-card-info h3 { font-size: 15px; }
+  .weekly-reflection-record { margin-left: auto; }
+}
