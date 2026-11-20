@@ -47,6 +47,7 @@ import {
   stats,
 } from "@/lib/habits/domain";
 import { useHabitApp } from "@/lib/habits/use-habit-app";
+import type { NativeReminderControls } from "@/lib/habits/native-reminder-controls";
 import { AccountPanel } from "@/components/account/account-panel";
 import { StarlitHero } from "@/components/starlit-hero";
 import { initialRoutineTab, startupDataReady } from "@/lib/habits/time-tab";
@@ -320,12 +321,14 @@ function HabitEditor({
   onSave,
   onDelete,
   onClose,
+  nativeAlarmEditor = false,
 }: {
   habit?: Habit;
   defaultGroup: TimeGroup;
   onSave: (draft: HabitSettingsPatch) => void;
   onDelete?: () => void;
   onClose: () => void;
+  nativeAlarmEditor?: boolean;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [moreTemplates, setMoreTemplates] = useState(false);
@@ -488,7 +491,13 @@ function HabitEditor({
                 value={draft.scheduledTime || ""}
                 onChange={(e) => {
                   setTimeEdited(true);
-                  setDraft((prev) => ({ ...prev, scheduledTime: e.target.value }));
+                  setDraft((prev) => ({
+                    ...prev,
+                    scheduledTime: e.target.value,
+                    // Web habit editing keeps its previous behavior; only the
+                    // native reminder editor enforces a time before opt-in.
+                    ...(nativeAlarmEditor && !e.target.value ? { alarmEnabled: false } : {}),
+                  }));
                 }}
               />
             </label>
@@ -532,6 +541,23 @@ function HabitEditor({
               ))}
             </div>
           </fieldset>
+          {nativeAlarmEditor && (
+            <div className="compact-setting-row">
+              <span className="account-setting-heading">
+                <span>이 습관 알림</span>
+                <small>{draft.scheduledTime ? "설정한 시간에 알려드려요" : "예정 시간을 먼저 선택해 주세요"}</small>
+              </span>
+              <button
+                type="button"
+                className="compact-setting-toggle"
+                role="switch"
+                aria-label="이 습관 알림"
+                aria-checked={draft.alarmEnabled}
+                disabled={!draft.scheduledTime && !draft.alarmEnabled}
+                onClick={() => setDraft((prev) => ({ ...prev, alarmEnabled: !prev.alarmEnabled }))}
+              ><span className="compact-switch-track" aria-hidden="true"><span className="compact-switch-thumb" /></span></button>
+            </div>
+          )}
         </section>
         {onDelete && (confirmDelete ? (
           <div className="delete-confirmation" role="group" aria-label="습관 삭제 확인">
@@ -968,12 +994,14 @@ function MonthlyMatrix({
   );
 }
 
-export default function Byeolharu() {
+export default function Byeolharu({ nativeReminders }: { nativeReminders?: NativeReminderControls } = {}) {
   const app = useHabitApp(initialHabits);
   const habits = app.snapshot?.habits ?? [];
   const history = app.snapshot?.history ?? {};
   const ready = !!app.snapshot;
   const setHabits = app.setHabits;
+  const onGuestSnapshot = nativeReminders?.onSnapshot;
+  useEffect(() => { onGuestSnapshot?.(app.user ? null : app.snapshot); }, [onGuestSnapshot, app.user, app.snapshot]);
   const [accountOpen, setAccountOpen] = useState(false);
   const [accountPage, setAccountPage] = useState<"home" | "records" | "import" | "settings" | "security" | "login" | "signup" | "reset">("home");
   useEffect(() => {
@@ -2052,6 +2080,7 @@ export default function Byeolharu() {
               : undefined
           }
           onClose={() => setEditing(null)}
+          nativeAlarmEditor={Boolean(nativeReminders)}
         />
       )}
       {detail && (
@@ -2153,6 +2182,7 @@ export default function Byeolharu() {
             onThemeChange={setTheme}
             compactView={compactView}
             onCompactViewChange={updateCompactView}
+            nativeReminders={nativeReminders}
             onHelp={() => { setAccountOpen(false); setAccountPage("home"); setHelp(true); }}
             onInstall={installEvent ? () => {
               void (async () => {
