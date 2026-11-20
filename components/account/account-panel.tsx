@@ -361,6 +361,15 @@ export function AccountPanel({
                 ><span className="compact-switch-track" aria-hidden="true"><span className="compact-switch-thumb" /></span></button>
               </div>
               {!!nativeReminders.status && <p className="account-note" role="status">{nativeReminders.status}</p>}
+              <button
+                type="button"
+                className="secondary"
+                disabled={nativeReminders.busy}
+                onClick={() => void nativeReminders.onInspectPending()}
+              >알림 예약 확인</button>
+              {!!nativeReminders.diagnostic && (
+                <p className="account-note" role="status">{nativeReminders.diagnostic}</p>
+              )}
             </div>
           )}
           <div className="account-setting-block">
