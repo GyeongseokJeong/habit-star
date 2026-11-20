@@ -20,6 +20,7 @@ on:
       - app/feat/android-reboot-permission-validation-step16
       - app/fix/android-notification-permission-clarity-step17
       - app/feat/android-notification-settings-cleanup-step18
+      - app/fix/android-permission-toggle-reattempt-step18
     paths:
       - "mobile/**"
       - ".github/workflows/android-poc.yml"
