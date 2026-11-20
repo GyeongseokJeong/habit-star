@@ -20,7 +20,7 @@ pnpm build
 ## 클라우드 연결
 
 1. Supabase 프로젝트를 생성하거나 Docker 환경에서 `pnpm exec supabase start`를 실행합니다. 이메일 확인 기능은 로컬 설정에서도 켜져 있습니다.
-2. 원격 프로젝트에는 CLI의 검토 가능한 마이그레이션 절차로 `supabase/migrations`를 순서대로 적용합니다. 이미 001을 적용한 환경도 002/003 후속 마이그레이션이 필요합니다. 원문 마이그레이션을 바꾸거나 운영 DB를 reset하지 않습니다. 이 저장소의 스크립트는 원격 DB를 자동 수정하지 않습니다.
+2. 원격 프로젝트에는 CLI의 검토 가능한 마이그레이션 절차로 `supabase/migrations`를 순서대로 적용합니다. 이미 001을 적용한 환경도 002/003 후속 마이그레이션이 필요합니다. 운영 DB 적용 버전과 GitHub 파일명의 정합성을 유지하며, SQL 원문을 바꾸거나 운영 DB를 reset하지 않습니다. 기존 적용 이력과의 대응은 [마이그레이션 이력 검증](docs/MIGRATION_HISTORY.md)을 참고합니다. 이 저장소의 스크립트는 원격 DB를 자동 수정하지 않습니다.
 3. `.env.example`을 `.env.local`로 복사하고 프로젝트 URL과 **publishable key**, 인증 후 돌아올 `NEXT_PUBLIC_SITE_URL`을 설정합니다. 운영 URL은 HTTPS origin만 허용합니다. `service_role`/secret key는 브라우저에 제공하지 않습니다.
 4. `NEXT_PUBLIC_CLOUD_ENABLED=true`로 설정하고 개발 서버를 재시작합니다. 배포에서는 이 값이 빌드 시 포함되므로 다시 빌드합니다.
 5. Supabase Auth에서 이메일 확인, 사이트 URL, `/auth/confirm` 및 `/auth/confirm?next=/auth/reset` 리디렉션을 환경의 실제 HTTPS 도메인에 맞게 설정합니다. 운영 SMTP와 발송 제한도 설정하세요.

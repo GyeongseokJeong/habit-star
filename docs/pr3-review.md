@@ -22,7 +22,7 @@
 - `lib/habits/sync.ts`: 검증한 토큰 고정, 가져오기 journal/검증/재개, 계정별 sync/import 잠금, 더 오래된 서버 행으로 덮어쓰기 방지.
 - `repository.ts`, `sync-status.ts`, `use-habit-app.ts`: 영속 상태·로컬 revision, 로컬/클라우드 상태 분리, 늦게 도착한 다른 계정 응답과 캐시 격리.
 - `components/account/account-panel.tsx`: 실패·충돌·인증 만료·검증 중·완료 구분, 재개 버튼, 마지막 성공 시각.
-- `supabase/migrations/202611100002_import_integrity.sql`, `003_input_validation.sql`: 기존 001 원문을 유지하는 추가 마이그레이션. 원본 데이터 삭제 없이 과거 false completion 보정.
+- `supabase/migrations/20261110012720_import_integrity.sql`, `003_input_validation.sql`: 기존 001 원문을 유지하는 추가 마이그레이션. 원본 데이터 삭제 없이 과거 false completion 보정.
 - `app/layout.tsx`, `globals.css`, 패키지/lockfile, `public/licenses`: 자체 제공 Noto 글꼴.
 - `tests`, `supabase/tests`, DB runner, 프로덕션 Playwright 설정, CI: 아래 회귀와 업그레이드/프로덕션 검증 추가.
 
