@@ -1,7 +1,12 @@
 name: CI
 on:
   push:
+    branches: [main]
   pull_request:
+concurrency:
+  # Keep the full quality gate for main, but cancel superseded PR checks.
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   verify:
     runs-on: ubuntu-latest
