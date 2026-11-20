@@ -20,7 +20,11 @@ for (const width of [320, 390, 430]) {
         return [box.width, box.height];
       }),
     );
-    expect(targetSizes.filter(([w, h]) => w < 44 || h < 44)).toEqual([]);
+    // Layout coordinates are fractional CSS pixels; Chromium may report
+    // 43.999969 for an actual CSS 44px minimum on some viewport widths.
+    // Allow 0.01px measurement precision without accepting a smaller target.
+    const minimumTouchTarget = 43.99;
+    expect(targetSizes.filter(([w, h]) => w < minimumTouchTarget || h < minimumTouchTarget)).toEqual([]);
     const footer = dialog.locator(".habit-editor-footer");
     await dialog.evaluate((element) => { element.scrollTop = element.scrollHeight; });
     await expect(footer.getByRole("button", { name: "새 습관 추가하기" })).toBeVisible();
