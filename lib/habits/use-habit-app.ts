@@ -229,12 +229,17 @@ export function useHabitApp(samples: () => Habit[]) {
       visible = () => {
         if (document.visibilityState === "visible") void tick();
       };
+    // Packaged Android guest app dispatches this only after native resume.
+    // Repository rollover and loading happen before reminder reconciliation.
+    const nativeResume = () => { void tick(); };
+    window.addEventListener("byeolharu:native-resume", nativeResume);
     window.addEventListener("online", online);
     document.addEventListener("visibilitychange", visible);
     return () => {
       disposed = true;
       ++epoch.current;
       clearInterval(timer);
+      window.removeEventListener("byeolharu:native-resume", nativeResume);
       window.removeEventListener("online", online);
       document.removeEventListener("visibilitychange", visible);
       unsubscribe?.();
