@@ -27,6 +27,9 @@ if (devOrigin) {
   ) {
     throw new Error("BYEOLHARU_POC_URL must be a clean HTTPS origin.");
   }
+  if (url.hostname === "habit-star-fawn.vercel.app") {
+    throw new Error("Do not use the production website in an Android PoC.");
+  }
   server = { url: url.origin, cleartext: false };
 } else if (allowRemote) {
   throw new Error("Set BYEOLHARU_POC_URL when enabling remote debug.");
