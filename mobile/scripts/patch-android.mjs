@@ -35,10 +35,17 @@ assert.ok(
   "Refusing to patch an unrelated Android package",
 );
 assert.ok(template.includes("__PACKAGE__"), "Missing package placeholder in native template");
-const patched = template.replace("__PACKAGE__", targetPackage);
+const packagedGuest = targetPackage.endsWith(".packagedgueststep9");
+const patched = template
+  .replace("__PACKAGE__", targetPackage)
+  .replace(
+    "__GUEST_SETTINGS_PLUGIN_REGISTER__",
+    packagedGuest ? "registerPlugin(ByeolharuDeviceSettingsPlugin.class);" : "// No guest settings plugin in this demo APK.",
+  );
 assert.ok(!patched.includes("__PACKAGE__"));
+assert.ok(!patched.includes("__GUEST_SETTINGS_PLUGIN_REGISTER__"));
 if (current !== patched) writeFileSync(path, patched);
-if (targetPackage.endsWith(".packagedgueststep9")) {
+if (packagedGuest) {
   const pluginTemplate = readFileSync(
     resolve(mobileRoot, "native/ByeolharuDeviceSettingsPlugin.java.template"),
     "utf8",
