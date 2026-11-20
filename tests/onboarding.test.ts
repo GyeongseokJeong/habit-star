@@ -40,6 +40,27 @@ describe("minimal first-use journey", () => {
     expect(first.hasRealCompletion).toBe(false);
     expect(canCelebrateFirstPractice(snap(state), false, habit("sample"), true)).toBe(false);
   });
+  it("recognizes all five pre-existing demo IDs while excluding a personal habit", () => {
+    const state = demoState();
+    const oldDemos = Array.from({ length: 5 }, (_, index) => `example-${index}`);
+    const historical = [
+      entity("habits", "sample"),
+      entity("habit_entries", "sample", "2026-11-20", true),
+    ];
+    for (const id of oldDemos) {
+      const definition = entity("habits", id);
+      state.entities[definition.key] = definition;
+      historical.push(definition);
+    }
+    const mine = entity("habits", "mine");
+    state.entities[mine.key] = mine;
+    state.migration!.entities = historical;
+    const first = getFirstUseState(snap(state), false);
+    expect(first.sampleIds.size).toBe(6);
+    expect(first.sampleIds.has("mine")).toBe(false);
+    expect(first.showHint).toBe(false);
+    expect(["sample", ...oldDemos].filter((id) => first.sampleIds.has(id))).toHaveLength(6);
+  });
   it("celebrates only the first user-created real completion", () => {
     const state = demoState();
     state.entities["habits::mine"] = entity("habits", "mine");
