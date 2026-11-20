@@ -31,9 +31,11 @@ assert.match(java, /\.setInsets\(types, Insets\.NONE\)/);
 assert.match(config, /packagedGuest \? \{ plugins: \{ SystemBars: \{ insetsHandling: "disable"/, "The guest WebView must not add CSS system insets on top of native viewport padding");
 
 assert.match(patcher, /startsWith\("io\.github\.gyeongseokjeong\.byeolharu\."\)/);
-assert.match(java, /registerPlugin\(ByeolharuDeviceSettingsPlugin\.class\)/);
-assert.ok(java.indexOf("registerPlugin(ByeolharuDeviceSettingsPlugin.class)") < java.indexOf("super.onCreate(state)"),
-  "Capacitor plugin must be registered before bridge initialization");
+assert.match(java, /__GUEST_SETTINGS_PLUGIN_REGISTER__/);
+assert.match(patcher, /packagedGuest \? "registerPlugin\(ByeolharuDeviceSettingsPlugin\.class\);"/);
+assert.ok(java.indexOf("__GUEST_SETTINGS_PLUGIN_REGISTER__") < java.indexOf("super.onCreate(state)"),
+  "Capacitor plugin registration placeholder must precede bridge initialization");
+
 assert.match(settingsJava, /@CapacitorPlugin\(name = "ByeolharuDeviceSettings"\)/);
 assert.match(settingsJava, /Settings\.ACTION_APP_NOTIFICATION_SETTINGS/);
 assert.match(settingsJava, /Settings\.EXTRA_APP_PACKAGE/);
