@@ -19,6 +19,14 @@ assert.match(java, /finish\(\)/);
 assert.match(java, /handler\.removeCallbacks\(themeSync\)/);
 assert.match(java, /setAppearanceLightStatusBars\(light\)/);
 assert.match(java, /setAppearanceLightNavigationBars\(light\)/);
+assert.match(java, /getPackageName\(\)\.endsWith\("\.packagedgueststep9"\)/);
+assert.match(java, /WindowCompat\.setDecorFitsSystemWindows\(getWindow\(\), false\)/);
+assert.match(java, /ViewCompat\.setOnApplyWindowInsetsListener\(content/);
+assert.match(java, /WindowInsetsCompat\.Type\.systemBars\(\)/);
+assert.match(java, /WindowInsetsCompat\.Type\.displayCutout\(\)/);
+assert.match(java, /content\.setPadding\(bars\.left, bars\.top, bars\.right, bars\.bottom\)/);
+assert.match(java, /\.setInsets\(types, Insets\.NONE\)/);
+
 assert.match(patcher, /startsWith\("io\.github\.gyeongseokjeong\.byeolharu\."\)/);
 
 function javaStringConstant(name) {
