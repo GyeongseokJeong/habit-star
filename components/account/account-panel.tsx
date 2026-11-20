@@ -355,9 +355,9 @@ export function AccountPanel({
                   className="compact-setting-toggle"
                   role="switch"
                   aria-label="습관 알림"
-                  aria-checked={nativeReminders.enabled && nativeReminders.permissionState === "granted"}
+                  aria-checked={nativeReminders.active}
                   disabled={nativeReminders.busy || (nativeReminders.enabled && nativeReminders.permissionState === "unknown")}
-                  onClick={() => void nativeReminders.onEnabledChange(!(nativeReminders.enabled && nativeReminders.permissionState === "granted"))}
+                  onClick={() => void nativeReminders.onEnabledChange(!nativeReminders.active)}
                 ><span className="compact-switch-track" aria-hidden="true"><span className="compact-switch-thumb" /></span></button>
               </div>
               {nativeReminders.enabled && nativeReminders.permissionState === "denied" && (
