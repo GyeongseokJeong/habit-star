@@ -546,6 +546,8 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   background: var(--control-bg);
   border-radius: 11px;
 }
+/* One content rhythm for All, time-group and calendar panels. */
+.tabs + #routine-panel { margin-top: 16px; }
 .tabs > button {
   min-height: 44px;
   display: flex;
@@ -581,7 +583,7 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin: 18px 0 12px;
+  margin: 0 0 12px;
   font-size: 12px;
   color: var(--muted);
 }
@@ -983,7 +985,7 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   margin: 16px 0 0;
 }
 .matrix-panel.expanded {
-  margin-top: 18px;
+  margin-top: 0;
   padding: 22px;
 }
 .expanded .day-tile {
@@ -1135,7 +1137,7 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 .compact-view .routine-heading { margin-bottom: 8px; }
 .compact-view .tabs { margin-bottom: 0; }
 .compact-habit-list, .compact-habit-group, .compact-completed-list { display: grid; gap: 7px; }
-.compact-habit-list { margin-top: 10px; }
+.compact-habit-list { margin-top: 0; }
 .compact-habit-card {
   min-width: 0;
   overflow: hidden;
@@ -1263,7 +1265,7 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 .compact-done-toggle > span:last-child { color: var(--muted); font-weight: 400; }
 .compact-done-toggle > span:first-child svg { color: var(--sage); }
 .compact-all-done {
-  margin: 5px 0;
+  margin: 0;
   padding: 8px;
   color: var(--sage);
   font-size: 13px;
@@ -1361,7 +1363,7 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   border-color: color-mix(in srgb, var(--line) 85%, var(--bg));
   background: color-mix(in srgb, var(--surface) 91%, var(--bg));
 }
-.normal-all-done { margin: 8px 0; color: var(--sage); font-size: 13px; text-align: center; }
+.normal-all-done { margin: 0; padding: 8px 0; color: var(--sage); font-size: 13px; text-align: center; }
 @media (max-width: 360px) {
   .compact-habit-row { gap: 6px; padding: 6px 8px; }
   .compact-habit-title { font-size: 13px; }
