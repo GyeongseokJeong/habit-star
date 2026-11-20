@@ -30,7 +30,7 @@ test("native settings warn on denied permission without mutating user opt-in or 
   assert.match(main,/presentation\.queueNote/);
   assert.match(main,/setPermissionState/);
   assert.match(account,/nativeReminders\.enabled && nativeReminders\.permissionState === "denied"/);
-  assert.match(account,/알림이 표시되지 않아요/);
+  assert.match(account,/알림을 받을 수 없어 스위치가 꺼져 있어요/);
   assert.match(account,/aria-checked=\{nativeReminders\.active\}/);
   assert.doesNotMatch(website,/permissionState|reminderPermissionPresentation/);
 });
