@@ -37,7 +37,7 @@ html, body, #byeolharu-root {
 @media (max-width: 620px) {
   .site-header { height: 68px; }
 
-  dialog.modal:has(.habit-editor-form) {
+  dialog.modal:has(.habit-editor-form)[open] {
     position: fixed;
     inset: auto 0 0;
     display: block;
