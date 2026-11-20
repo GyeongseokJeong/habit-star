@@ -51,7 +51,9 @@ export function ConstellationGrowthView({
   // Returning from preview restores keyboard focus and gallery selection.
   useEffect(() => {
     if (!previewOpen && wasPreviewOpen.current) {
-      createCardButton.current?.focus({ preventScroll: true });
+      // The detail may have scrolled to the end on short viewports.
+      // Allow focus to reveal the entry again after returning from preview.
+      createCardButton.current?.focus();
     }
     wasPreviewOpen.current = previewOpen;
   }, [previewOpen]);
