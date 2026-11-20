@@ -537,3 +537,26 @@ keyboard/touch access. Styling is bundled only for the Android guest APK.
 Operational Next.js, Supabase, guest habit records and notification scheduling
 logic are unchanged. Verify the collapsed view and both dark/light themes on
 an updated Galaxy APK after CI completes.
+
+
+## STEP 18 follow-up — effective permission toggle and permission re-entry
+
+Samsung Galaxy showed an ON switch even when Android OS notification
+permission was denied. In the **bundled guest Android app only**, the visible
+'습관 알림' switch reflects effective delivery capability: saved opt-in AND
+Android permission granted. If denied, switch shows OFF, but the saved opt-in
+stays intact. Tapping ON explicitly retries Android runtime permission. If
+Android will not show another dialog, the native ByeolharuDeviceSettings
+plugin opens this package's exact notification settings screen. On return
+the app rechecks permission and reconciles using today's committed snapshot.
+No automatic cancellation, deletion of existing pending jobs, preference
+reset, habit record change, or Supabase/operational website change occurs.
+
+Manual repair only appears for a detected mismatch when both the existing
+user opt-in AND OS permission are granted. The native repair engine also
+rechecks the latest permission and snapshot before making modifications.
+Additional tests cover this difficult-to-reproduce state at the code level.
+Native plugin is built only into the packaged guest debug Android APK;
+other demo flavors are unmodified. Verify on Galaxy: revoke permission,
+resume app to see OFF, tap ON, open system settings, grant permission,
+resume app to see ON, then verify retained queue and reminder delivery.
