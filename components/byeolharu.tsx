@@ -53,6 +53,8 @@ import { initialRoutineTab, startupDataReady } from "@/lib/habits/time-tab";
 import { ConstellationGrowthView } from "@/components/constellation-growth-view";
 import { calculateConstellationGrowth, earnedStageFromCompletion } from "@/lib/constellation/growth";
 import { getConstellationStage } from "@/lib/constellation/art";
+import { calculateWeeklyReflection } from "@/lib/habits/weekly-reflection";
+import { WeeklyReflectionView } from "@/components/weekly-reflection-view";
 export type { Habit, TimeGroup } from "@/lib/habits/domain";
 type Tab = "all" | TimeGroup | "matrix";
 type InstallEvent = Event & {
@@ -980,6 +982,7 @@ export default function Byeolharu() {
     if (!app.user && accountPage === "security") setAccountPage("home");
   }, [app.user, accountPage]);
   const [constellationOpen, setConstellationOpen] = useState(false);
+  const [reflectionOpen, setReflectionOpen] = useState(false);
   const [celebration, setCelebration] = useState<{ stage: number; scope: string; day: string } | null>(null);
   const celebrationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -1248,6 +1251,10 @@ export default function Byeolharu() {
     ...history,
     ...(today ? { [today]: visibleHabits } : {}),
   };
+  const weeklyReflection = useMemo(() => {
+    if (!app.snapshot || (app.user && !app.snapshot.state.hydrated)) return null;
+    return calculateWeeklyReflection({ ...app.snapshot, habits: visibleHabits });
+  }, [app.snapshot, app.user, visibleHabits]);
   const displayNow =
     now && app.user
       ? new Date(
@@ -1303,6 +1310,10 @@ export default function Byeolharu() {
     setCompletedOpen(false);
     setCompactExpandedId(null);
   }, [activeTab, today, scope]);
+  // The reflection belongs to one local day and one account scope only.
+  useEffect(() => {
+    setReflectionOpen(false);
+  }, [today, scope]);
 
   const upcoming =
     activeTab !== "all" && activeTab !== "matrix"
@@ -1429,14 +1440,14 @@ export default function Byeolharu() {
           <nav className="desktop-nav" aria-label="주 메뉴">
             <button
               className={activeTab !== "matrix" ? "active" : ""}
-              onClick={() => { tabChosenManually.current = true; setActiveTab("all"); }}
+              onClick={() => { tabChosenManually.current = true; setReflectionOpen(false); setActiveTab("all"); }}
             >
               <Sun size={16} />
               오늘의 루틴
             </button>
             <button
               className={activeTab === "matrix" ? "active" : ""}
-              onClick={() => { tabChosenManually.current = true; setActiveTab("matrix"); }}
+              onClick={() => { tabChosenManually.current = true; setReflectionOpen(false); setActiveTab("matrix"); }}
             >
               <LayoutGrid size={16} />
               나의 별 기록
@@ -1470,6 +1481,18 @@ export default function Byeolharu() {
         </div>
       </header>
       <main id="main" className="main-container">
+        {reflectionOpen ? (
+          <WeeklyReflectionView
+            reflection={weeklyReflection}
+            onBack={() => { setReflectionOpen(false); setActiveTab("matrix"); }}
+            onRecord={(habitId) => {
+              const habit = visibleHabits.find((item) => item.id === habitId);
+              if (habit && today && isScheduled(habit, today) && !habit.completed)
+                setDetailId(habitId);
+            }}
+          />
+        ) : (
+        <>
         <div className="page-intro">
           <div>
             <p className="eyebrow">
@@ -1612,19 +1635,29 @@ export default function Byeolharu() {
               aria-labelledby={`tab-${activeTab}`}
             >
               {activeTab === "matrix" ? (
-                <MonthlyMatrix
-                  month={month}
-                  onMonthChange={setMonth}
-                  today={today}
-                  history={allHistory}
-                  onDate={(key) => {
-                    const dayStats = stats(allHistory[key] || [], key);
-                    showToast(
-                      `${Number(key.slice(5, 7))}월 ${Number(key.slice(8))}일: ${dayStats.rate}% 달성 · 평균 ${dayStats.average.toFixed(1)}★`,
-                    );
-                    setPastDate(key);
-                  }}
-                />
+                <>
+                  <MonthlyMatrix
+                    month={month}
+                    onMonthChange={setMonth}
+                    today={today}
+                    history={allHistory}
+                    onDate={(key) => {
+                      const dayStats = stats(allHistory[key] || [], key);
+                      showToast(
+                        `${Number(key.slice(5, 7))}월 ${Number(key.slice(8))}일: ${dayStats.rate}% 달성 · 평균 ${dayStats.average.toFixed(1)}★`,
+                      );
+                      setPastDate(key);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="weekly-reflection-entry"
+                    onClick={() => { setReflectionOpen(true); window.scrollTo(0, 0); }}
+                  >
+                    <span><Sparkles size={19} aria-hidden="true" /> 최근 7일 돌아보기</span>
+                    <ChevronRight size={18} aria-hidden="true" />
+                  </button>
+                </>
               ) : (
                 <>
                   {!compactView && <div className="group-description">
@@ -1837,6 +1870,8 @@ export default function Byeolharu() {
             <div className="closing-brand"><Sparkles size={16} aria-hidden="true" /> 별하루</div>
           </div>
         </footer>
+        </>
+        )}
       </main>
       {editing && (
         <HabitEditor
@@ -1870,7 +1905,7 @@ export default function Byeolharu() {
         <HabitDetail
           key={detail.id}
           habit={detail}
-          fallbackFocusId={`tab-${activeTab}`}
+          fallbackFocusId={reflectionOpen ? "weekly-reflection-back" : `tab-${activeTab}`}
           onClose={() => setDetailId(null)}
           onSave={(data) => {
             const actionDay = today;
