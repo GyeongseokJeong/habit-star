@@ -258,7 +258,7 @@ test("rapid stars update immediately, keep the card steady, and persist the last
   expect(await completion.innerText()).not.toBe(initialCompletion);
   await card.getByRole("button", { name: `${title} 5점` }).click();
   await expect(card).toContainText("미기록");
-  await expect(card).toContainText("실천 전");
+  await expect(card.locator(".status-pill")).toHaveCount(0);
   // Cancelling via the same star must clear *visible* gold fill too, even
   // while the clicked button retains keyboard focus on mobile browsers.
   await expect(card.locator(".star.filled")).toHaveCount(0);
@@ -315,13 +315,13 @@ test.describe("mobile touch stars", () => {
     await expect(card.locator(".star.filled")).toHaveCount(3);
     await expect(star).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
     await star.tap();
-    await expect(card).toContainText("실천 전");
+    await expect(card.locator(".status-pill")).toHaveCount(0);
     await expect(card.locator(".star.filled")).toHaveCount(0);
     await expect(star).toHaveAttribute("aria-pressed", "false");
     // Samsung Internet can keep :hover after a tap. The CSS background
     // must stay transparent regardless of selected/focused/hovered state.
     await expect(star).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
-    await expect(card.locator(".status-pill")).toHaveCSS("font-size", "10px");
+    await expect(card.locator(".status-pill")).toHaveCount(0);
   });
 });
 
