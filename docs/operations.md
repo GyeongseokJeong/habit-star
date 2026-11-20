@@ -2,13 +2,13 @@
 
 ## 최소 장애 감지·대응 (1인 개발 / Supabase Free)
 
-별도 모니터링 SDK·새 데이터 수집·주기적 운영 DB 폴링 없이, **GitHub 기본 실패 알림 + 배포 후 수동 확인 + 문제 발생 시 Supabase 로그·집계 조회**를 사용한다. GitHub CI는 코드 품질 검사이지 실제 운영 서비스의 24시간 가용성 감시가 아니다.
+별도 모니터링 SDK·새 데이터 수집·주기적 운영 DB 폴링 없이, **개발 중 CI 즉시 확인 + main 병합 후 운영 확인 + 문제 발생 시 Supabase 로그·집계 조회**를 사용한다. GitHub CI는 코드 품질 검사이지 실제 운영 서비스의 24시간 가용성 감시가 아니다.
 
-### 1. 알림 설정 (GitHub 계정 소유자가 직접 설정)
+### 1. CI 확인 (별도 메일 알림 불필요)
 
-1. [저장소](https://github.com/GyeongseokJeong/habit-star)의 `Watch` 상태를 확인하고, [GitHub 알림 설정](https://github.com/settings/notifications)에서 **System → Actions → Email(또는 On GitHub) → Only notify for failed workflows**를 선택해 저장한다. GitHub에서 실제 알림 수신을 보장하는지 메일함/웹 알림을 확인한다.
-2. 해당 설정은 **개인 GitHub 계정별** 설정이다. 저장소 코드·CI 워크플로만으로 자동 활성화되거나, 내가 트리거하지 않은 모든 실행의 알림 수신을 보장하지 않는다. 연결 앱을 통한 직접 설정/확인은 지원되지 않는다.
-3. [Actions](https://github.com/GyeongseokJeong/habit-star/actions)에서 **main 커밋의 `CI / verify`와 `CI / cloud`**가 모두 성공했는지 확인한다. Android 실험 브랜치 검사 및 Vercel 외부 상태와 혼동하지 않는다.
+1. 개발자가 PR을 올리거나 커밋을 반영할 때 [GitHub Actions](https://github.com/GyeongseokJeong/habit-star/actions)와 PR Checks에서 `verify`/`cloud` 결과를 직접 확인하고 실패는 그 자리에서 해결한다. 별도의 **CI 실패 이메일 알림은 설정하지 않는다**.
+2. `main` 병합 직후에도 **main 커밋의 `CI / verify`와 `CI / cloud`**가 모두 성공했는지 확인한다. Android 실험 브랜치 검사 및 Vercel 외부 상태와 혼동하지 않는다.
+3. 사용자 규모가 커지고 별도 운영 담당자·비정기적 개발 주기가 생기기 전까지는 자동 알림/상시 감시를 새로 도입하지 않는다.
 
 ### 2. 언제 확인하나?
 
@@ -31,7 +31,7 @@
 
 정상 네트워크·유효 세션에서 Outbox 5분 초과 기기 비율 **1%** 기준은 단말 상태를 실제로 관찰할 수 있을 때만 적용한다. 서버 SQL로 기기별 Outbox 대기 비율을 계산할 수 없으므로, 현재는 사용자 보고 1건도 재현·분류한다.
 
-관련: [GitHub Actions 실패 알림](https://docs.github.com/en/subscriptions-and-notifications/how-tos/managing-github-actions-notifications), [Supabase Logs](https://supabase.com/docs/guides/observability/logs), [실사용 검증 #65](https://github.com/GyeongseokJeong/habit-star/issues/65), [최소 장애 대응 #69](https://github.com/GyeongseokJeong/habit-star/issues/69).
+관련: [GitHub Actions 실행 확인](https://github.com/GyeongseokJeong/habit-star/actions), [Supabase Logs](https://supabase.com/docs/guides/observability/logs), [실사용 검증 #65](https://github.com/GyeongseokJeong/habit-star/issues/65), [최소 장애 대응 #69](https://github.com/GyeongseokJeong/habit-star/issues/69).
 
 ## 출시 전
 
