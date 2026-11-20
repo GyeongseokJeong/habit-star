@@ -26,70 +26,51 @@ npm run android:open
 Android Studio에서 에뮬레이터 또는 실제 Android 디바이스에 **debug** 빌드를
 설치합니다. 초기 앱은 계정이 없는 안내 화면만 보여야 합니다.
 
-### 원격 웹 UI 확인 (의도적으로 실험할 때만)
+## STEP 2 — 기존 별하루 운영 웹을 읽는 독립 Android 디버그 앱
+
+별도 스테이징 웹 환경을 만들지 않고 **기존 공개 홈페이지**
+`https://habit-star-fawn.vercel.app`을 Android WebView에서 표시합니다.
+이 모드는 사용자가 요청한 초기 **화면/터치 검증용**이며 출시 구조가 아닙니다.
+앱 컨테이너는 기존 오프라인 안내 앱과 서로 다른 Android applicationId를 사용해
+동시 설치와 WebView 저장소 분리가 가능합니다.
+
+- `byeolharu-android-shell-debug-poc`: 오프라인 안내 화면 APK (기본값)
+- `byeolharu-android-existing-web-debug`: 실제 별하루 웹 홈페이지를 로드하는
+  별도 *debug-only* APK (기본 모드와 다른 applicationId)
+
+GitHub Actions `Android Shell PoC`의 두 작업은 각각 독립적으로 실행되며,
+두 번째 작업은 **익명 GET 200/HTML 응답을 먼저 확인한 뒤에만** 빌드합니다.
+별도 GitHub 변수, Vercel Preview 배포, 운영 웹 코드 또는 Supabase 환경변수
+수정은 필요하지 않습니다.
+
+직접 Android Studio로 확인할 경우:
 ```sh
-# 모바일 개발/테스트용 HTTPS 배포 주소만 사용. 실사용 계정 입력 금지.
-BYEOLHARU_POC_REMOTE_DEBUG=1 \
-BYEOLHARU_POC_URL=https://your-test-deployment.example \
-npm run android:sync
-npm run android:open
+cd mobile
+npm install --no-package-lock
+BYEOLHARU_POC_REMOTE_DEBUG=1 npm run android:init
+BYEOLHARU_POC_REMOTE_DEBUG=1 npm run android:sync
+BYEOLHARU_POC_REMOTE_DEBUG=1 npm run android:open
 ```
-Android Studio에서 다시 디버그 앱을 실행합니다. 테스트 후 아래처럼 **원격 로딩을
-해제**하고 다시 sync 해 기본 안내 화면으로 돌려놓습니다.
-```sh
-unset BYEOLHARU_POC_REMOTE_DEBUG BYEOLHARU_POC_URL
-npm run android:sync
-```
-환경변수가 없으면 `server.url` 자체가 생성되지 않습니다. 설정은 HTTP,
-쿼리/프래그먼트/경로가 붙은 URL, 인증정보가 포함된 URL을 거부합니다.
+환경변수를 생략하면 로컬 안내 화면 모드로 돌아갑니다. 모드를 바꿔 빌드할 때는
+새로 생성한 `android/` 폴더로 시작하거나 해당 모드 설정을 다시 sync하세요.
 
-## STEP 2 — 실제 별하루 홈을 WebView에서 확인하는 APK
+### 실기기 확인 범위
+- [ ] 별하루 홈 화면/푸터 표시, 라이트·다크 전환, 세로 스크롤 및 탭 전환
+- [ ] 별점·습관 입력 **비회원 테스트 데이터에 한정**, 앱 재실행 후 기록 유지
+- [ ] Android 뒤로가기, 상태바·하단 내비게이션·키보드·안전 영역 확인
+- [ ] 네트워크 끊김/재연결 후 화면 상태 확인 (원격 웹 로딩이므로 오프라인 보장 아님)
+- [ ] 브라우저/PWA 기록이 앱 WebView에 자동 이동하지 않는 것을 확인
+- [ ] 개인 계정 로그인, 비밀번호 재설정, 실제 회원 데이터 동기화는 이번 단계에서 하지 않음
 
-기존 안내 화면을 대체하는 **두 번째 디버그 APK**는 별도의 테스트용 HTTPS 웹 배포가
-준비된 경우에만 생성됩니다. 스테이징이 없거나 보호되어 있으면 기본 PoC만 계속
-빌드합니다. 운영 `habit-star-fawn.vercel.app`은 PoC 연결 대상으로 **허용하지 않습니다**.
+**안전 주의:** 이 앱은 운영 웹에서 실제 제공 중인 JavaScript와 연결됩니다.
+따라서 비회원용 더미 기록만 사용하며 운영 계정/개인 기록으로 테스트하지 않습니다.
+테스트 중 기록은 WebView 전용 저장소에 남을 수 있습니다. 오류 확인 후 앱의
+테스트 데이터는 별도 백업 필요 여부를 판단하여 직접 정리하세요.
+앱 제거·재설치 후 저장소가 유지된다고 가정하지 않습니다.
 
-1. 테스트용 별하루 웹 배포를 준비합니다. 현재 Vercel은 `main` 외 브랜치의 자동
-   Preview 배포가 비활성화되어 있으므로 **Vercel Preview 주소가 자동으로 생긴다고
-   가정하지 않습니다**. 운영 서비스를 재설정하거나 Production에 배포하지 마세요.
-   스테이징 주소가 아직 없다면 이 단계는 보류합니다.
-2. 해당 HTTPS 주소를 비회원 브라우저에서 직접 열어 홈이 정상 표시되는지 확인하고,
-   Supabase 운영 프로젝트·운영 계정과 연결되지 않는 **독립 테스트 환경**인지 확인합니다.
-   비밀번호·토큰·실사용 기록은 테스트에 사용하지 않습니다.
-3. GitHub 저장소 `Settings → Secrets and variables → Actions → Variables`에서
-   **`BYEOLHARU_APP_STAGING_URL`** 변수를 설정합니다.
-   예: `https://example-staging.example` (실제 주소로 대체, 끝의 `/`는 선택).
-   이 값은 인증 비밀이 아닌 공개 웹 주소이며 GitHub 저장소 작업에 노출될 수 있습니다.
-4. `app/feat/android-shell-poc`에 새 커밋이 들어오면
-   `Android Shell PoC` 워크플로가 두 아티팩트를 빌드합니다:
-   - `byeolharu-android-shell-debug-poc`: 기존 오프라인 안내 화면
-   - `byeolharu-android-webview-preview-debug`: **검증된 스테이징 별하루 홈페이지**를
-     여는 원격 WebView 실험 APK
-5. 워크플로의 `android-webview-preview` 작업은 익명 GET으로 HTTP 200 HTML과
-   ‘별하루’ 문구를 확인하고, 프로덕션 주소·HTTP·URL 경로/쿼리가 있으면 빌드를
-   중단합니다. 검증 성공 후에만 원격 주소가 들어간 디버그 APK를 생성합니다.
-6. APK를 갤럭시에 설치하여 홈, 스크롤, 탭 전환, 별점, 시스템 뒤로가기,
-   앱 종료 후 재진입을 확인합니다. **테스트용 비회원 습관만** 사용합니다.
-   정상 동작과 WebView의 로그인·저장소 안정성이 입증되기 전에는 운영용이 아닙니다.
-
-스테이징 URL 변수를 제거하면 다음 실행부터 원격 APK 생성이 자동 생략됩니다.
-GitHub CI에서 생성된 원격 APK를 설치한 뒤에는 이미 설치된 APK의 주소가
-바뀌지 않으므로, 실험 종료 후 APK를 삭제하거나 기본 APK로 다시 설치하세요.
-
-### STEP 2 검증 체크리스트
-
-- [ ] 독립 스테이징 HTTPS 도메인 준비 및 운영 Supabase와 격리 확인
-- [ ] GitHub 변수 등록 및 `android-webview-preview` 작업 성공
-- [ ] 실제 홈 화면과 라이트·다크/푸터가 Galaxy WebView에서 정상 표시
-- [ ] 리스트 스크롤, 습관 생성, 별점 취소, 탐색, 뒤로가기
-- [ ] 테스트용 비회원 기록이 앱 종료·재실행 후 유지되는지 확인
-- [ ] 네트워크 차단 시 화면/기록 동작 관찰 (원격 사이트이므로 오프라인 보장 안 됨)
-- [ ] 앱을 제거했다 다시 설치한 경우 기록이 보존된다고 **가정하지 않기**
-- [ ] 로그인, 이메일 인증, 운영 DB 동기화, 네이티브 알림은 후속 검증으로 분리
-
-**주의:** `server.url`은 Capacitor 개발 실험 옵션으로 사용합니다. HTTPS라도
-앱 콘텐츠를 네트워크에서 직접 받아오기 때문에 정식 앱 출시 아키텍처가 아니며,
-앱과 웹의 저장소/세션 분리를 먼저 설계해야 합니다.
+Capacitor의 `server.url`은 라이브 개발/실험용 옵션이므로, 이 APK를 그대로
+Play Store에 배포하지 않습니다. 본 PoC 이후 앱 자산을 번들링하는 출시 구조,
+로그인 리디렉션, 앱별 데이터/복구 및 네이티브 알림을 각각 설계해야 합니다.
 
 ## 지금 검증할 것
 | 영역 | 합격 기준 |
