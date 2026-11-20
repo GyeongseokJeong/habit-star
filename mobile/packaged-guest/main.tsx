@@ -12,6 +12,7 @@ import { createResumeDispatcher } from "../notifications/native-resume-refresh.j
 import { summarizeGuestPending } from "../notifications/guest-reminder-diagnostics.js";
 import { auditGuestReminders } from "../notifications/guest-reminder-audit.js";
 import { repairGuestReminders } from "../notifications/guest-reminder-repair.js";
+import { reminderPermissionPresentation } from "../notifications/guest-reminder-permission-view.js";
 
 // This module is bundled into the isolated Android guest APK only.
 // The website's Next.js entrypoint never imports Capacitor or native controls.
@@ -24,6 +25,7 @@ function GuestNativeApp() {
   const [enabled, setEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
+  const [permissionState, setPermissionState] = useState<"unknown" | "granted" | "denied">("unknown");
   const [diagnostic, setDiagnostic] = useState("");
   const [auditStatus, setAuditStatus] = useState("");
   const [repairAvailable, setRepairAvailable] = useState(false);
@@ -70,8 +72,19 @@ function GuestNativeApp() {
     return task;
   }, []);
 
+  const refreshPermission = useCallback(async () => {
+    if (!isAndroid) return;
+    try {
+      const current = await LocalNotifications.checkPermissions();
+      if (mounted.current) setPermissionState(current.display === "granted" ? "granted" : "denied");
+    } catch {
+      if (mounted.current) setPermissionState("unknown");
+    }
+  }, []);
+
   useEffect(() => {
     mounted.current = true;
+    void refreshPermission();
     // A previously enabled device setting may survive a process restart.
     // Restore it only in this isolated package; never ask permissions here.
     try {
@@ -92,7 +105,7 @@ function GuestNativeApp() {
       setStatus("알림 설정을 읽지 못했어요. 기기 저장 공간을 확인해 주세요.");
     }
     return () => { mounted.current = false; };
-  }, [schedule]);
+  }, [schedule, refreshPermission]);
 
   const onSnapshot = useCallback((next: Snapshot | null) => {
     snapshot.current = next;
@@ -117,6 +130,7 @@ function GuestNativeApp() {
           return;
         }
         const permission = await LocalNotifications.requestPermissions();
+        setPermissionState(permission.display === "granted" ? "granted" : "denied");
         if (permission.display !== "granted") {
           setStatus("휴대폰 설정에서 알림 권한을 허용해 주세요.");
           return;
@@ -143,13 +157,19 @@ function GuestNativeApp() {
       if (!disposed) window.dispatchEvent(new Event("byeolharu:native-resume"));
     });
     const onVisible = () => {
-      if (document.visibilityState === "visible") emit();
+      if (document.visibilityState === "visible") {
+        void refreshPermission();
+        emit();
+      }
     };
     document.addEventListener("visibilitychange", onVisible);
     // Native onResume can fire when the WebView visibility state does not
     // transition; refresh the committed repository snapshot before scheduling.
     const listener = App.addListener("appStateChange", ({ isActive }) => {
-      if (isActive) emit();
+      if (isActive) {
+        void refreshPermission();
+        emit();
+      }
     }).catch(() => {
       if (!disposed) setStatus("Android 앱 복귀 감지를 사용할 수 없어요.");
       return null;
@@ -159,7 +179,7 @@ function GuestNativeApp() {
       document.removeEventListener("visibilitychange", onVisible);
       void listener.then(handle => handle?.remove());
     };
-  }, []);
+  }, [refreshPermission]);
 
   const onInspectPending = useCallback(async () => {
     if (!isAndroid || busyRef.current) return;
@@ -167,18 +187,24 @@ function GuestNativeApp() {
     setBusy(true);
     try {
       const permission = await LocalNotifications.checkPermissions();
+      setPermissionState(permission.display === "granted" ? "granted" : "denied");
       const pending = await LocalNotifications.getPending();
       const report = summarizeGuestPending(pending.notifications, new Date());
       const next = report.nextAt
         ? new Date(report.nextAt).toLocaleString("ko-KR", {month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})
         : "없음";
-      setDiagnostic(
-        "Android 권한: " + (permission.display === "granted" ? "허용" : "미허용") +
-        " · 예약 " + report.total + "건" +
-        " · 오늘 남은 알림 " + report.todayRemaining + "건" +
-        " · 다음 예약: " + next +
-        (report.unknownTime ? " · 예약 시각 확인 불가 " + report.unknownTime + "건" : ""),
-      );
+      const presentation = reminderPermissionPresentation({
+        optIn: enabledRef.current,
+        permission: permission.display,
+        pendingCount: report.total,
+      });
+      setDiagnostic(permission.display !== "granted"
+        ? presentation.headline + " · " + (presentation.queueNote ?? "예약 " + report.total + "건") +
+          " · " + (enabledRef.current ? "알림 사용 설정은 유지돼요." : "별하루 알림 사용은 꺼져 있어요.")
+        : "Android 권한: 허용 · 예약 " + report.total + "건" +
+          " · 오늘 남은 알림 " + report.todayRemaining + "건" +
+          " · 다음 예약: " + next +
+          (report.unknownTime ? " · 예약 시각 확인 불가 " + report.unknownTime + "건" : ""));
     } catch {
       setDiagnostic("예약을 확인할 수 없어요. 잠시 후 다시 시도해 주세요.");
     } finally {
@@ -201,6 +227,7 @@ function GuestNativeApp() {
         LocalNotifications.checkPermissions(),
         LocalNotifications.getPending(),
       ]);
+      setPermissionState(permissions.display === "granted" ? "granted" : "denied");
       const report = auditGuestReminders({
         snapshot: snapshot.current,
         optIn: enabledRef.current,
@@ -269,7 +296,7 @@ function GuestNativeApp() {
   }, [repairAvailable]);
 
   const nativeReminders: NativeReminderControls | undefined = isAndroid
-    ? { enabled, busy, status, diagnostic, auditStatus, repairAvailable, repairStatus, onInspectPending, onAuditPending, onRepairPending, onEnabledChange, onSnapshot }
+    ? { enabled, busy, status, permissionState, diagnostic, auditStatus, repairAvailable, repairStatus, onInspectPending, onAuditPending, onRepairPending, onEnabledChange, onSnapshot }
     : undefined;
   return <Byeolharu nativeReminders={nativeReminders} />;
 }
