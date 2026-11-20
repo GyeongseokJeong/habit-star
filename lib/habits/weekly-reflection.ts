@@ -9,6 +9,8 @@ export type HabitReflection = {
   title: string;
   icon: string;
   observedDays: number;
+  /** 28 days for one/two-day weekly routines, 7 days for other routines. */
+  analysisDays: 7 | 28;
   completedDays: number;
   missedDays: number;
   lastCompletedDay: string | null;
@@ -53,7 +55,9 @@ function compareRecommendations(a: HabitReflection, b: HabitReflection) {
 /**
  * Read-only snapshot projection. A missing date/day entry is UNKNOWN, never
  * counted as a missed practice. Use historical, not current, repeat rules.
- * Today's snapshot is excluded from the seven completed calendar days.
+ * Today's snapshot is excluded. Weekday routines use the previous seven
+ * calendar days; one/two-day weekly routines need up to 28 calendar days
+ * for three observed scheduled days. Missing history is always unknown.
  */
 export function calculateWeeklyReflection(
   snapshot: Pick<Snapshot, "day" | "habits" | "history" | "state">,
@@ -66,16 +70,22 @@ export function calculateWeeklyReflection(
 
   const startDay = shiftDay(snapshot.day, -7);
   const endDay = shiftDay(snapshot.day, -1);
-  const days = Array.from({ length: 7 }, (_, index) => shiftDay(startDay, index));
+  const days = Array.from({ length: 28 }, (_, index) => shiftDay(snapshot.day, index - 28));
   const active = new Map(snapshot.habits.map((habit) => [habit.id, habit]));
   const progress: HabitReflection[] = [];
 
   for (const habit of active.values()) {
+    // A weekly/twice-weekly habit cannot reach 3 observed days in a week.
+    // Broaden ONLY that habit's evidence window; preserve the original
+    // last-7-days rule for every other schedule and the screen header.
+    const analysisDays: 7 | 28 =
+      habit.repeatDays !== undefined && habit.repeatDays.length <= 2 ? 28 : 7;
+    const eligibleDays = days.slice(28 - analysisDays);
     let observedDays = 0;
     let completedDays = 0;
     let lastCompletedDay: string | null = null;
 
-    for (const day of days) {
+    for (const day of eligibleDays) {
       // History only contains dates actually materialized in this scope.
       const historical = snapshot.history[day]?.find((entry) => entry.id === habit.id);
       if (!historical || !isScheduled(historical, day)) continue;
@@ -96,6 +106,7 @@ export function calculateWeeklyReflection(
       title: habit.title,
       icon: habit.icon,
       observedDays,
+      analysisDays,
       completedDays,
       missedDays: observedDays - completedDays,
       lastCompletedDay,
