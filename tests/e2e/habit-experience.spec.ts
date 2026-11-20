@@ -327,9 +327,17 @@ test.describe("mobile touch stars", () => {
 
 test("keyboard star focus stays accessible without a filled background tile", async ({ page }) => {
   await page.goto("/");
+  // Wait for the hydrated guest snapshot and initial time-based tab selection.
+  // Otherwise startup effects can move the completed card out of the active tab
+  // after focus, making subsequent accessibility assertions lose their target.
+  await expect(page.locator(".habit-card").first()).toBeVisible();
   await page.getByRole("tab", { name: "전체", exact: true }).click();
-  await page.locator(".normal-done-toggle").click();
+  const completedToggle = page.locator(".normal-done-toggle");
+  await expect(completedToggle).toBeVisible();
+  await completedToggle.click();
+  await expect(completedToggle).toHaveAttribute("aria-expanded", "true");
   const star = page.getByRole("button", { name: "미온수 한 잔 & 영양제 3점" });
+  await expect(star).toBeVisible();
   await star.focus();
   await page.keyboard.press("Tab");
   await page.keyboard.press("Shift+Tab");
