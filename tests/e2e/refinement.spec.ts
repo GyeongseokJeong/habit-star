@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { seedLegacyFiveHabits } from "./fixtures/legacy-five-habits";
 
 for (const viewport of [
   { width: 390, height: 844 },
@@ -8,7 +9,8 @@ for (const viewport of [
     page,
   }) => {
     await page.setViewportSize(viewport);
-    await page.goto("/");
+    await seedLegacyFiveHabits(page);
+  await page.goto("/");
     await page.getByRole("tab", { name: "전체", exact: true }).click();
     await page.locator(".normal-done-toggle").click();
     await expect(
@@ -73,6 +75,7 @@ for (const viewport of [
 
 test("normal view groups completed habits below pending and preserves their order and undo", async ({ page }) => {
   await page.setViewportSize({ width: 395, height: 595 });
+  await seedLegacyFiveHabits(page);
   await page.goto("/");
   const pendingTitles = () =>
     page.locator(".normal-pending-list .habit-card h3").allTextContents();
@@ -115,6 +118,7 @@ test("normal view groups completed habits below pending and preserves their orde
 
 test("the three home metrics reflect rating, completion and undo without changing the stage teaser", async ({ page }) => {
   await page.setViewportSize({ width: 395, height: 595 });
+  await seedLegacyFiveHabits(page);
   await page.goto("/");
   await page.getByRole("tab", { name: "전체", exact: true }).click();
   const hero = page.getByRole("region", { name: "나의 별자리 미리보기" });
@@ -144,7 +148,8 @@ for (const width of [320, 395]) {
     page,
   }) => {
     await page.setViewportSize({ width, height: 549 });
-    await page.goto("/");
+    await seedLegacyFiveHabits(page);
+  await page.goto("/");
     await page.getByRole("tab", { name: "전체", exact: true }).click();
     await page.locator(".normal-done-toggle").click();
     await expect(
@@ -198,6 +203,7 @@ test("time-of-day tabs update their heading and visible habit count", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 395, height: 549 });
+  await seedLegacyFiveHabits(page);
   await page.goto("/");
   await page.getByRole("tab", { name: "전체", exact: true }).click();
   await page.locator(".normal-done-toggle").click();
