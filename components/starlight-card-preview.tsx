@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState, type CSSProperties } from "react";
-import { Download } from "lucide-react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { Download, Share2 } from "lucide-react";
 import { Flame, Layers3, Star } from "lucide-react";
 import { downloadStarlightPng, renderStarlightPng, starlightPngFilename } from "@/lib/constellation/starlight-png";
 import { ConstellationArtwork } from "@/components/constellation-artwork";
@@ -13,9 +13,9 @@ import { getConstellationStage } from "@/lib/constellation/art";
  * - Keep the approved 2:3 Stage artwork intact (object-contain).
  * - Its asset is repeated only as a blurred, decorative background glow.
  * - Stage number and brand each appear once; no account or habit names.
- * - Step 2 can render this same DOM at 1080 × 1350 for PNG export.
- *
- * This step remains read-only: no save/share commands or record mutations.
+ * - The same DOM is rendered at 1080 × 1350 for PNG and file sharing.
+ * - Browser share is feature detected; native Android WebView requires a separate bridge.
+ * - No automatic posting or habit-record changes.
  */
 export function StarlightCardPreview({
   points,
@@ -28,15 +28,75 @@ export function StarlightCardPreview({
 }) {
   const stage = getConstellationStage(points);
   const cardRef = useRef<HTMLElement>(null);
+  const pngPromiseRef = useRef<Promise<Blob> | null>(null);
+  const captureKeyRef = useRef("");
+  const shareFileRef = useRef<File | null>(null);
+  const preparationIdRef = useRef(0);
   const [saving, setSaving] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [shareState, setShareState] = useState<"checking" | "preparing" | "ready" | "unsupported" | "failed">("checking");
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; text: string } | null>(null);
+  const cacheKey = `${points}:${completedHabits}:${streak}:${stage.stage}`;
+
+  function getPng(): Promise<Blob> {
+    if (!cardRef.current) return Promise.reject(new Error("별빛 카드 영역을 찾을 수 없습니다."));
+    if (!pngPromiseRef.current) {
+      const promise = renderStarlightPng(cardRef.current);
+      pngPromiseRef.current = promise;
+      // A failed render should not poison a later retry or the Save button.
+      void promise.catch(() => {
+        if (pngPromiseRef.current === promise) pngPromiseRef.current = null;
+      });
+    }
+    return pngPromiseRef.current;
+  }
+
+  function prepareShare() {
+    const requestId = ++preparationIdRef.current;
+    shareFileRef.current = null;
+    setShareState("preparing");
+    void getPng().then((png) => {
+      if (requestId !== preparationIdRef.current) return;
+      const file = new File([png], starlightPngFilename(stage.stage), { type: "image/png" });
+      try {
+        if (typeof navigator.share === "function" &&
+            typeof navigator.canShare === "function" &&
+            navigator.canShare({ files: [file] })) {
+          shareFileRef.current = file;
+          setShareState("ready");
+        } else {
+          setShareState("unsupported");
+        }
+      } catch {
+        setShareState("unsupported");
+      }
+    }).catch(() => {
+      if (requestId === preparationIdRef.current) setShareState("failed");
+    });
+  }
+
+  useEffect(() => {
+    // Keep a single in-flight capture even when StrictMode replays effects.
+    // Invalidate the cached image if live growth records change.
+    if (captureKeyRef.current !== cacheKey) {
+      pngPromiseRef.current = null;
+      captureKeyRef.current = cacheKey;
+    }
+    shareFileRef.current = null;
+    if (typeof navigator.share !== "function" || typeof navigator.canShare !== "function") {
+      setShareState("unsupported");
+      return () => { preparationIdRef.current += 1; };
+    }
+    prepareShare();
+    return () => { preparationIdRef.current += 1; };
+  }, [cacheKey]);
 
   async function handleSave() {
-    if (!cardRef.current || saving) return;
+    if (!cardRef.current || saving || sharing) return;
     setSaving(true);
     setFeedback(null);
     try {
-      const png = await renderStarlightPng(cardRef.current);
+      const png = await getPng();
       downloadStarlightPng(png, starlightPngFilename(stage.stage));
       setFeedback({ kind: "success", text: "PNG 이미지 저장을 요청했어요." });
     } catch (error) {
@@ -46,6 +106,35 @@ export function StarlightCardPreview({
       });
     } finally {
       setSaving(false);
+    }
+  }
+
+  function handleShareError(error: unknown) {
+    if (error && typeof error === "object" && "name" in error && error.name === "AbortError") {
+      // Closing the system share chooser is a normal user decision.
+      return;
+    }
+    setFeedback({
+      kind: "error",
+      text: "이미지를 공유하지 못했어요. 다시 시도하거나 이미지 저장을 이용해 주세요.",
+    });
+  }
+
+  function handleShare() {
+    const file = shareFileRef.current;
+    if (!file || shareState !== "ready" || saving || sharing || typeof navigator.share !== "function") return;
+    setSharing(true);
+    setFeedback(null);
+    // IMPORTANT: invoke share() synchronously from this click event. Awaiting
+    // PNG creation here would lose the transient user activation on mobile.
+    try {
+      const task = navigator.share({ files: [file], title: "별하루 별빛 카드" });
+      void task.then(() => {
+        setFeedback({ kind: "success", text: "공유 요청을 전달했어요." });
+      }).catch(handleShareError).finally(() => setSharing(false));
+    } catch (error) {
+      handleShareError(error);
+      setSharing(false);
     }
   }
 
@@ -88,16 +177,39 @@ export function StarlightCardPreview({
           </div>
         </dl>
       </article>
-      <button
-        type="button"
-        className="starlight-save-button"
-        disabled={saving}
-        aria-busy={saving}
-        onClick={handleSave}
-      >
-        <Download size={19} aria-hidden="true" />
-        {saving ? "이미지 준비 중…" : "이미지 저장"}
-      </button>
+      <div className="starlight-actions">
+        <button
+          type="button"
+          className="starlight-save-button"
+          disabled={saving || sharing}
+          aria-busy={saving}
+          onClick={handleSave}
+        >
+          <Download size={19} aria-hidden="true" />
+          {saving ? "이미지 준비 중…" : "이미지 저장"}
+        </button>
+        {shareState !== "checking" && shareState !== "unsupported" && (
+          <button
+            type="button"
+            className="starlight-share-button"
+            disabled={shareState === "preparing" || saving || sharing}
+            aria-busy={shareState === "preparing" || sharing}
+            onClick={shareState === "failed" ? prepareShare : handleShare}
+          >
+            <Share2 size={19} aria-hidden="true" />
+            {shareState === "preparing"
+              ? "공유 준비 중…"
+              : shareState === "failed"
+                ? "공유 다시 준비"
+                : sharing
+                  ? "공유 중…"
+                  : "이미지 공유"}
+          </button>
+        )}
+      </div>
+      {shareState === "unsupported" && (
+        <p className="starlight-share-hint">이 환경에서는 이미지를 저장한 뒤 공유해 주세요.</p>
+      )}
       <p
         role="status"
         aria-live="polite"
