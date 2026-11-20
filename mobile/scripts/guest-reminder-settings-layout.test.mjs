@@ -27,7 +27,7 @@ test("native reminder inspection and repair are collapsed behind an accessible d
 });
 test("settings still show opt-in switch and permission denial outside advanced details",()=>{
  const start=ui.indexOf('<details className="android-reminder-details">');
- assert.ok(ui.indexOf('aria-checked={nativeReminders.enabled}')<start);
+ assert.ok(ui.indexOf('aria-checked={nativeReminders.active}')<start);
  assert.ok(ui.indexOf('nativeReminders.permissionState === "denied"')<start);
  assert.doesNotMatch(web,/android-reminder-details|onInspectPending/);
 });
