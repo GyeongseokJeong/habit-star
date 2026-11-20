@@ -4007,3 +4007,49 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   .starlight-actions > button { padding-inline: 6px; font-size: 12px; }
   .starlight-actions > button svg { width: 17px; height: 17px; }
 }
+
+/* V5 Instagram troubleshooting: secondary and collapsed by default.
+   Never included in the exported share-card article. */
+.starlight-instagram-help {
+  width: min(100%, 368px);
+  margin: -3px auto 0;
+  border-top: 1px solid var(--control-border);
+  padding: 7px 1px 0;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: left;
+}
+.starlight-instagram-help summary {
+  min-height: 44px;
+  display: list-item;
+  padding: 12px 4px;
+  color: var(--ink);
+  font-size: 12px;
+  cursor: pointer;
+}
+.starlight-instagram-help summary:focus-visible,
+.starlight-jpeg-save-button:focus-visible {
+  outline: 2px solid var(--sage);
+  outline-offset: 2px;
+}
+.starlight-instagram-help p {
+  margin: 4px 4px 9px;
+  line-height: 1.6;
+}
+.starlight-jpeg-save-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 9px 14px;
+  margin: 3px 4px 6px;
+  border-radius: 12px;
+  border: 1px solid var(--control-border);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.starlight-jpeg-save-button:disabled { opacity: .65; cursor: wait; }
