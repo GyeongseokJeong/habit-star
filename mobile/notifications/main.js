@@ -57,7 +57,6 @@ document.getElementById("schedule").addEventListener("click", () => action(async
       body: "작은 실천이 별빛이 되는 순간이에요. (Android 알림 테스트)",
       schedule: { at: when, allowWhileIdle: false },
       channelId: CHANNEL_ID,
-      smallIcon: "ic_stat_name",
       extra: { kind: "byeolharu-notification-poc" },
     }],
   });
