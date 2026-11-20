@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { seedLegacyFiveHabits } from "./fixtures/legacy-five-habits";
 
 async function setCompact(page: import("@playwright/test").Page) {
   await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
@@ -32,6 +33,7 @@ test("all time tabs and calendar keep each view’s approved content gap", async
 });
 
 test("morning and day completion copy does not claim the whole day is finished", async ({ page }) => {
+  await seedLegacyFiveHabits(page);
   await page.goto("/");
   await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
   await page.getByRole("tab", { name: "아침", exact: true }).click();
@@ -60,6 +62,7 @@ test("morning and day completion copy does not claim the whole day is finished",
 });
 
 test("completed upcoming habits are hidden but remain in day and all completed folds", async ({ page }) => {
+  await seedLegacyFiveHabits(page);
   await page.goto("/");
   await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
   await page.getByRole("tab", { name: "아침", exact: true }).click();
@@ -90,6 +93,7 @@ test("completed upcoming habits are hidden but remain in day and all completed f
 
 test("compact view uses scoped completion copy and keeps completed items folded", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  await seedLegacyFiveHabits(page);
   await page.goto("/");
   await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
   await setCompact(page);
