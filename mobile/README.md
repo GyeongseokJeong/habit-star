@@ -478,3 +478,31 @@ not shown for a successful audit, opt-out, denied permission or missing data.
 After repair, inspect again to confirm a clean audit; native scheduling is not
 transactional and can fail partially, so the UI reports errors instead of
 silently claiming success. Galaxy device tests remain required.
+
+
+## STEP 16 — Reboot and notification-permission recovery readiness
+
+Capacitor Local Notifications 8.3.1 already provides
+`LocalNotificationRestoreReceiver`, `BOOT_COMPLETED` and
+`LOCKED_BOOT_COMPLETED` manifest handlers. We do **not** register another
+receiver or try to read WebView habit storage during Android boot. The
+isolated packaged-guest APK now has a CI assertion that inspects the **final
+compiled APK manifest** with Android build-tools `aapt`, failing the build
+if the existing plugin boot receiver or `RECEIVE_BOOT_COMPLETED` /
+`POST_NOTIFICATIONS` permissions disappear during a future plugin update.
+
+Deterministic native-adapter regression tests simulate: intact restored
+notifications, missing notifications repaired on next foreground after a
+current-day snapshot, notification permission denial without prompting or
+writes, permission re-grant followed by foreground reconciliation, and user
+opt-out remaining authoritative after reboot. All existing Android guest
+reminder operations remain tied to the verified guest snapshot and explicit
+opt-in; production Next.js, Supabase and signed-in accounts are untouched.
+
+**Not claimed:** these simulated tests and APK manifest checks do not prove
+alarm delivery during actual Samsung reboot, force-stop, Doze, app removal,
+or OEM battery restrictions. On a Galaxy, test a future alert after a physical
+reboot **without opening the app**, then open the app and compare the Android
+queue. Repeat with Settings > Notifications permission disabled then enabled,
+returning to the app after each change. Some devices may defer inexact
+notifications. Do not delete the test app before these checks.
