@@ -1,0 +1,170 @@
+package __PACKAGE__;
+
+import android.os.Bundle;
+import android.graphics.Color;
+import android.view.ViewGroup;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
+import android.os.Handler;
+import android.os.Looper;
+import android.webkit.WebView;
+import androidx.activity.OnBackPressedCallback;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
+import com.getcapacitor.BridgeActivity;
+
+/**
+ * Debug-only native navigation for the existing 별하루 WebView.
+ * No JS interfaces, app secrets, session changes, or WebView reloads.
+ */
+public class MainActivity extends BridgeActivity {
+    private static final long THEME_CHECK_INTERVAL_MS = 1800L;
+
+    // Back mirrors the existing React dialog controls; never calls dialog.close()
+    // directly because React owns the modal lifecycle.
+    private static final String DISMISS_DIALOG_JS =
+        "(function(){" +
+        "var dialog=document.querySelector('dialog[open]');" +
+        "if(!dialog)return false;" +
+        "var back=dialog.querySelector('button.modal-back');" +
+        "var close=dialog.querySelector('.modal-top button:last-child');" +
+        "var action=back||close;" +
+        "if(!action)return false;" +
+        "action.click();return true;" +
+        "})()";
+
+    private static final String READ_THEME_JS =
+        "(function(){" +
+        "var app=document.querySelector('.byeolharu');" +
+        "if(app)return app.classList.contains('dark')?'dark':'light';" +
+        "return document.documentElement.dataset.byeolharuTheme==='dark'?'dark':'unknown';" +
+        "})()";
+
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private boolean foreground;
+    private boolean backPending;
+    private Boolean lastLightBars;
+    private ViewGroup nativeContentRoot;
+    private final Runnable themeSync = new Runnable() {
+        @Override public void run() {
+            if (!foreground) return;
+            syncSystemBarContrast();
+            handler.postDelayed(this, THEME_CHECK_INTERVAL_MS);
+        }
+    };
+
+    @Override
+    protected void onCreate(Bundle state) {
+        // Capacitor requires registering custom plugins before super.onCreate.
+        // The patcher inserts plugin registration only for the packaged guest
+        // flavor. Other standalone demo variants must not refer to its class.
+        __GUEST_SETTINGS_PLUGIN_REGISTER__
+        super.onCreate(state);
+        if (getPackageName().endsWith(".packagedgueststep9")) {
+            installNativeSystemBarInsets();
+        }
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override public void handleOnBackPressed() {
+                handleNativeBack();
+            }
+        });
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        foreground = true;
+        handler.removeCallbacks(themeSync);
+        handler.post(themeSync);
+    }
+
+    @Override
+    public void onPause() {
+        foreground = false;
+        handler.removeCallbacks(themeSync);
+        super.onPause();
+    }
+
+    @Override
+    public void onDestroy() {
+        handler.removeCallbacks(themeSync);
+        super.onDestroy();
+    }
+
+    /**
+     * Android 15+ draws our Capacitor WebView behind system bars. Relying
+     * on injected CSS safe-area variables proved unreliable on Galaxy.
+     * The bundled guest app owns system bars at the native layout boundary:
+     * shrink the real WebView viewport instead of padding web content.
+     *
+     * The insets handled here are zeroed before dispatch to the WebView.
+     * Do not return CONSUMED: IME updates must still reach the WebView.
+     * Only the bundled guest package uses this; WebView/notification PoCs
+     * keep their existing insets behavior.
+     */
+    private void installNativeSystemBarInsets() {
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        final ViewGroup content = findViewById(android.R.id.content);
+        if (content == null) return;
+        nativeContentRoot = content;
+        content.setBackgroundColor(Color.rgb(23, 29, 41));
+        ViewCompat.setOnApplyWindowInsetsListener(content, (view, windowInsets) -> {
+            final int types = WindowInsetsCompat.Type.systemBars()
+                | WindowInsetsCompat.Type.displayCutout();
+            final Insets bars = windowInsets.getInsets(types);
+            // This paddings the viewport, not the React UI. Insets arrive in
+            // real screen pixels; do not divide by density here.
+            content.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+            return new WindowInsetsCompat.Builder(windowInsets)
+                .setInsets(types, Insets.NONE)
+                .build();
+        });
+        content.post(() -> ViewCompat.requestApplyInsets(content));
+    }
+
+    private WebView currentWebView() {
+        return getBridge() == null ? null : getBridge().getWebView();
+    }
+
+    private void handleNativeBack() {
+        if (backPending) return;
+        final WebView view = currentWebView();
+        if (view == null) {
+            finish();
+            return;
+        }
+        backPending = true;
+        view.evaluateJavascript(DISMISS_DIALOG_JS, result -> {
+            backPending = false;
+            if (isFinishing() || isDestroyed()) return;
+            if ("true".equals(result)) return;
+            if (view.canGoBack()) {
+                view.goBack();
+            } else {
+                // Android root-back should return to the launcher, not clear data.
+                finish();
+            }
+        });
+    }
+
+    private void syncSystemBarContrast() {
+        final WebView view = currentWebView();
+        if (view == null) return;
+        view.evaluateJavascript(READ_THEME_JS, result -> {
+            if (!foreground || isFinishing() || isDestroyed()) return;
+            if (result == null || (!result.contains("light") && !result.contains("dark"))) return;
+            boolean light = result.contains("light");
+            if (lastLightBars != null && lastLightBars == light) return;
+            lastLightBars = light;
+            if (nativeContentRoot != null) {
+                nativeContentRoot.setBackgroundColor(
+                    light ? Color.rgb(255, 255, 255) : Color.rgb(23, 29, 41));
+            }
+            WindowInsetsControllerCompat controller =
+                WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
+            controller.setAppearanceLightStatusBars(light);
+            controller.setAppearanceLightNavigationBars(light);
+        });
+    }
+}
