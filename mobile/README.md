@@ -267,3 +267,29 @@ Android debug 빌드와 실제 WebView가 확인되면 `app/main` 병합 전에
 임의의 JavaScript 브리지나 인증 토큰 전달을 추가하지 않습니다. 출시형
 패키징/로그인 리디렉션·알림 설정 UI/명시적 권한 동의/재부팅 복구/시간대 변경을
 별도 검증해야 합니다. 운영 main·Supabase 데이터/스키마는 변경하지 않습니다.
+
+
+## STEP 8 — Android 단독 통합 데모 (실제 회원 습관 미연결)
+
+`BYEOLHARU_POC_NOTIFICATIONS=1` 및
+`BYEOLHARU_POC_INTEGRATION_STEP8=1`을 함께 사용하면 독립 Android
+패키지 `io.github.gyeongseokjeong.byeolharu.integrationstep8`를 생성합니다.
+STEP 4/5 앱과 별개이며 실서비스 도메인이나 계정에 접속하지 않습니다.
+
+데모 화면에서 습관 시간과 반복 요일을 바꾸거나 오늘 완료/취소하면
+STEP 7 lifecycle → STEP 6 scoped reconciler → Capacitor Local Notifications
+흐름으로 예약이 갱신됩니다. **알림 켜기**를 직접 누르고 OS 권한을 허용하기
+전에는 신규 예약을 만들지 않습니다. 앱 재시작 시 데모 동의는 초기화되고
+앱에 남은 관리 예약은 정리됩니다. 이 예제는 실제 별하루 DB/IndexedDB나
+Next.js 화면에 연결하지 않으며 수신 정확도나 재부팅 복구는 보증하지 않습니다.
+
+### 실기기 점검
+- 권한 허용 후 '알림 켜기'로 예약 수 확인, 홈으로 이동 후 수신
+- 시간 변경/반복 요일 변경 후 예약 갱신과 중복 방지
+- '오늘 실천 완료'는 오늘 알림만 제외, 취소 시 재예약
+- '알림 완전히 끄기' 후 예약 0건, 앱 재실행 후 초기화
+- STEP 4/5 앱과 기존 WebView/PWA 데이터에 영향 없는지 확인
+
+**이 단계는 실사용 Android 앱의 기능 연결 완료가 아닙니다.**
+Next.js 서버 인증·회원 검증·저장소를 네이티브 번들로 연결하는 별도의
+출시 아키텍처 검증이 남아 있습니다.
