@@ -279,6 +279,8 @@ jobs:
       BYEOLHARU_POC_PACKAGED_GUEST: "1"
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history required to compute merge-base with app/main
       - name: Verify Android integration diff stays within approved file paths
         run: |
           git fetch --no-tags origin app/main:refs/remotes/origin/app/main
