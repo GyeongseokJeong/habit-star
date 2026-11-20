@@ -633,3 +633,30 @@ The seven shared files are **review-required, not automatically approved**.
 Passing CI does not mean the 205 accumulated commits should immediately be
 merged. Keep the entire PR stack Draft until an explicit review and merge
 decision. This tool never merges branches or changes records.
+
+
+## STEP 21 — Shared web/native boundary code review
+
+Before stacked PR integration, the Android branch was compared file-by-file
+to `app/main` (7 shared source/config/test paths):
+
+- `app/globals.css`: one 44px min-width accessibility target.
+- `components/account/account-panel.tsx`: optional native controls only;
+  public website passes no nativeReminders prop.
+- `components/byeolharu.tsx`: native habit alarm control is optional;
+  web habit editor must not change alarm state when an input is cleared.
+- `lib/habits/native-reminder-controls.ts`: TypeScript-only contract, no
+  Capacitor imports or native service side effects.
+- `lib/habits/use-habit-app.ts`: foreground resume listener is removed on
+  cleanup; repeated native and browser visibility signals are coalesced.
+- `tests/e2e/habit-editor-balanced.spec.ts`: tiny 0.01px CSS rounding tolerance.
+- `tsconfig.json`: exclude mobile PoC from Next.js TypeScript build.
+
+STEP 21 confines resetting `alarmEnabled` when clearing scheduled time to
+the Android editor only. Normal web habit editing retains its old behavior.
+New static regression checks cover public web page props, Android-only
+UI guards, native-resume listener cleanup and CSS/tsconfig boundaries.
+These checks are supplementary to the web E2E, Android compile and cloud CI.
+
+The latest Galaxy notification permission OFF→ON toggle change remains a
+separate device gate. No PR is merged and no release signing is enabled.
