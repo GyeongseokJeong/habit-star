@@ -10,7 +10,8 @@
     "android:open": "cap open android",
     "android:run": "cap run android",
     "android:patch": "node scripts/patch-android.mjs",
-    "notifications:prepare": "node scripts/prepare-notification-poc.mjs"
+    "notifications:prepare": "node scripts/prepare-notification-poc.mjs",
+    "packaged-guest:build": "node scripts/build-packaged-guest.mjs"
   },
   "dependencies": {
     "@capacitor/android": "8.6.2",
