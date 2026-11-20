@@ -1,5 +1,38 @@
 # 운영과 복구
 
+## 최소 장애 감지·대응 (1인 개발 / Supabase Free)
+
+별도 모니터링 SDK·새 데이터 수집·주기적 운영 DB 폴링 없이, **개발 중 CI 즉시 확인 + main 병합 후 운영 확인 + 문제 발생 시 Supabase 로그·집계 조회**를 사용한다. GitHub CI는 코드 품질 검사이지 실제 운영 서비스의 24시간 가용성 감시가 아니다.
+
+### 1. CI 확인 (별도 메일 알림 불필요)
+
+1. 개발자가 PR을 올리거나 커밋을 반영할 때 [GitHub Actions](https://github.com/GyeongseokJeong/habit-star/actions)와 PR Checks에서 `verify`/`cloud` 결과를 직접 확인하고 실패는 그 자리에서 해결한다. 별도의 **CI 실패 이메일 알림은 설정하지 않는다**.
+2. `main` 병합 직후에도 **main 커밋의 `CI / verify`와 `CI / cloud`**가 모두 성공했는지 확인한다. Android 실험 브랜치 검사 및 Vercel 외부 상태와 혼동하지 않는다.
+3. 사용자 규모가 커지고 별도 운영 담당자·비정기적 개발 주기가 생기기 전까지는 자동 알림/상시 감시를 새로 도입하지 않는다.
+
+### 2. 언제 확인하나?
+
+- **main 병합 직후:** 위 두 CI 검사와 운영 [Vercel A 프로젝트](https://vercel.com/jassetbiz-4993/habit-star) Production 배포 상태를 각각 확인한다. CI 통과는 Vercel 배포 성공의 증거가 아니다. 운영 웹에서 직접 초기화면·로그인·습관 읽기/기록을 간단히 확인한다.
+- **사용자가 오류를 보고할 때:** 발생 시각(시간대 포함), 브라우저/기기, 재현 단계, 온라인 여부, 화면상의 동기화 상태만 취합한다. 비밀번호·토큰·이메일·습관 제목·메모·원본 JSON은 이슈나 로그에 기록하지 않는다.
+- **공개 베타 전/사용자 증가 시:** 기존 중단 기준과 백업·복구 리허설을 재검토한다. 현재는 지속 감시·자동 경보·Supabase 로그 쿼리 폴링이 **설치돼 있지 않다**.
+
+### 3. 오류가 보이면 이렇게 분류
+
+| 신호 | 첫 확인 | 다음 대응 |
+| --- | --- | --- |
+| `main` CI 실패 | 실패 run/커밋 SHA와 정확한 `verify`/`cloud` 실패 단계 | 코드/테스트 실패와 Docker·포트 충돌 같은 환경 실패를 구분한다. 환경 장애가 입증된 경우에만 해당 작업 재실행, 테스트 삭제·스킵 금지 |
+| 가입·로그인·이메일 실패 | 운영 Site URL/Redirect URL, 실제 화면 오류, [Supabase Auth 로그](https://supabase.com/dashboard/project/skurplixxtdpjbmnyhhm/logs/explorer) | 같은 시간대의 Auth 요청 메서드·경로·HTTP 상태만 조회. 단순 `GET / 500`을 로그인 실패로 단정하지 않고 테스트 계정에서 재현 |
+| 기록 누락·동기화 지연 | 기기 로컬 Outbox, 마지막 동기화 완료 표시, 네트워크·계정 상태 | 아래 **읽기 전용 SQL 집계**로 서버 충돌/가져오기 상태 확인. 서버에 오류가 없어도 단말 대기 작업이 남을 수 있다 |
+| 계정 간 데이터 노출·원본 유실·가져오기 무결성 실패 | 관련 작업 중지, 재현 단말/시각/커밋·배포 정보 | 즉시 아래 중단 기준과 롤백 절차를 따른다. 원본·Outbox·이력 보존, 운영 DB reset 금지 |
+
+### 4. SQL 집계 및 로그 보안
+
+아래 **중단 기준**에 있는 `conflicts`, `import_batches`, `sync_operations` 쿼리만 관리자 연결에서 **SELECT**로 확인한다. `sync_operations` 총건수는 누적 참고치일 뿐 정상 동기화의 증거가 아니다. Supabase Logs는 시간 범위·Auth/DB/API 서비스·요청 상태로 좁혀 확인한다. HTTP 상태 건수만으로 실제 가입/로그인이 완전히 성공했다고 판정하지 않는다.
+
+정상 네트워크·유효 세션에서 Outbox 5분 초과 기기 비율 **1%** 기준은 단말 상태를 실제로 관찰할 수 있을 때만 적용한다. 서버 SQL로 기기별 Outbox 대기 비율을 계산할 수 없으므로, 현재는 사용자 보고 1건도 재현·분류한다.
+
+관련: [GitHub Actions 실행 확인](https://github.com/GyeongseokJeong/habit-star/actions), [Supabase Logs](https://supabase.com/docs/guides/observability/logs), [실사용 검증 #65](https://github.com/GyeongseokJeong/habit-star/issues/65), [최소 장애 대응 #69](https://github.com/GyeongseokJeong/habit-star/issues/69).
+
 ## 출시 전
 
 - 별도 Supabase 테스트 프로젝트에서 마이그레이션·이메일 가입/확인·재설정·두 계정 격리를 검증합니다.
