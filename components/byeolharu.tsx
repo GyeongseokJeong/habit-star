@@ -1342,6 +1342,22 @@ export default function Byeolharu() {
   const restingHabits = today
     ? visibleHabits.filter((h) => !isScheduled(h, today))
     : [];
+  const filteredRestingHabits = restingHabits.filter(
+    (habit) => activeTab === "all" || habit.timeGroup === activeTab,
+  );
+  // Keep the existing routine view but distinguish "no registered habits"
+  // from a genuine rest day and from an empty time-of-day tab.
+  const isRestDay = ready && habits.length > 0 && scheduledHabits.length === 0;
+  const emptyRoutineTitle = !ready
+    ? "오늘의 루틴을 준비하고 있어요"
+    : !habits.length
+      ? "아직 등록된 습관이 없어요"
+      : isRestDay
+        ? "오늘은 루틴 쉬는 날이에요"
+        : "이 시간대에 예정된 습관이 없어요";
+  const emptyRoutineDescription = isRestDay
+    ? "등록한 습관은 선택한 반복 요일에 다시 나타나요."
+    : "가볍게 시작할 수 있는 작은 약속을 만들어보세요.";
   const summary = stats(visibleHabits, today);
   const growth = useMemo(() => app.snapshot
     ? calculateConstellationGrowth({ ...app.snapshot, habits: visibleHabits })
@@ -1832,9 +1848,7 @@ export default function Byeolharu() {
                   {compactView ? (
                     <div className="compact-habit-list" aria-label="간편 습관 목록">
                       {filtered.length === 0 && (
-                        <p className="compact-all-done">
-                          {ready ? (habits.length ? "오늘 예정된 습관이 없어요" : "아직 등록된 습관이 없어요") : "오늘의 루틴을 준비하고 있어요"}
-                        </p>
+                        <p className="compact-all-done">{emptyRoutineTitle}{isRestDay ? " · 선택한 요일에 다시 만나요." : ""}</p>
                       )}
                       {filtered.length > 0 && (
                         <>
@@ -1867,6 +1881,28 @@ export default function Byeolharu() {
                           )}
                         </>
                       )}
+                      {filteredRestingHabits.length > 0 && (
+                        <details className="compact-resting-group">
+                          <summary>
+                            <span><Moon size={16} aria-hidden="true" /> 오늘 쉬는 습관 {filteredRestingHabits.length}개</span>
+                            <ChevronDown size={16} aria-hidden="true" />
+                          </summary>
+                          <div className="compact-resting-list">
+                            {filteredRestingHabits.map((habit) => (
+                              <button
+                                type="button"
+                                key={habit.id}
+                                onClick={() => setEditing(habit)}
+                                aria-label={`${habit.title} 반복 요일 수정`}
+                              >
+                                <span aria-hidden="true">{habit.icon}</span>
+                                <span>{habit.title}</span>
+                                <Pencil size={14} aria-hidden="true" />
+                              </button>
+                            ))}
+                          </div>
+                        </details>
+                      )}
                     </div>
                   ) : (
                     <div className="normal-habit-list">
@@ -1898,39 +1934,34 @@ export default function Byeolharu() {
                         </section>
                       )}
                       {!filtered.length && (
-                        <div className="empty-state">
+                        <div className={`empty-state ${isRestDay ? "is-resting" : ""}`}>
                           <Leaf size={25} />
-                          <h3>
-                            {ready
-                              ? habits.length
-                                ? "오늘 예정된 습관이 없어요"
-                                : "아직 등록된 습관이 없어요"
-                              : "오늘의 루틴을 준비하고 있어요"}
-                          </h3>
-                          <p>가볍게 시작할 수 있는 작은 약속을 만들어보세요.</p>
-                          <button
-                            className="text-button"
-                            onClick={() => setEditing("new")}
-                          >
-                            <Plus size={15} />첫 습관 추가하기
-                          </button>
+                          <h3>{emptyRoutineTitle}</h3>
+                          <p>{emptyRoutineDescription}</p>
+                          {ready && !habits.length && (
+                            <button className="text-button" onClick={() => setEditing("new")}>
+                              <Plus size={15} />첫 습관 추가하기
+                            </button>
+                          )}
+                          {ready && habits.length > 0 && !isRestDay && activeTab !== "all" && (
+                            <button className="text-button" onClick={() => {
+                              tabChosenManually.current = true;
+                              setActiveTab("all");
+                            }}>
+                              전체에서 보기
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
                   )}
-                  {!compactView && restingHabits.filter(
-                    (h) => activeTab === "all" || h.timeGroup === activeTab,
-                  ).length > 0 && (
+                  {!compactView && filteredRestingHabits.length > 0 && (
                     <section
                       className="resting-habits"
                       aria-label="오늘 쉬는 습관"
                     >
                       <h3>오늘 쉬는 습관</h3>
-                      {restingHabits
-                        .filter(
-                          (h) =>
-                            activeTab === "all" || h.timeGroup === activeTab,
-                        )
+                      {filteredRestingHabits
                         .map((habit) => (
                           <button
                             key={habit.id}
