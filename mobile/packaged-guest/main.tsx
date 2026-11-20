@@ -13,6 +13,7 @@ import { summarizeGuestPending } from "../notifications/guest-reminder-diagnosti
 import { auditGuestReminders } from "../notifications/guest-reminder-audit.js";
 import { repairGuestReminders } from "../notifications/guest-reminder-repair.js";
 import { reminderPermissionPresentation } from "../notifications/guest-reminder-permission-view.js";
+import { reminderSwitchChecked, canManuallyRepairGuestReminders } from "../notifications/guest-reminder-switch-state.js";
 
 
 // This module is bundled into the isolated Android guest APK only.
@@ -79,7 +80,11 @@ function GuestNativeApp() {
     if (!isAndroid) return;
     try {
       const current = await LocalNotifications.checkPermissions();
-      if (mounted.current) setPermissionState(current.display === "granted" ? "granted" : "denied");
+      if (mounted.current) {
+        const granted = current.display === "granted";
+        setPermissionState(granted ? "granted" : "denied");
+        if (!granted) setRepairAvailable(false);
+      }
     } catch {
       if (mounted.current) setPermissionState("unknown");
     }
@@ -136,9 +141,16 @@ function GuestNativeApp() {
         // the user's previous opt-in remains saved. A new ON press may attempt
         // the runtime permission request, then open the *actual* Android app
         // settings if that system prompt is no longer available.
-        const permission = await LocalNotifications.requestPermissions();
-        setPermissionState(permission.display === "granted" ? "granted" : "denied");
-        if (permission.display !== "granted") {
+        let granted = false;
+        try {
+          const permission = await LocalNotifications.requestPermissions();
+          granted = permission.display === "granted";
+        } catch {
+          // Some OS versions throw rather than return "denied" once
+          // notifications have been blocked in the Android app settings.
+        }
+        setPermissionState(granted ? "granted" : "denied");
+        if (!granted) {
           try {
             if (!deviceSettings) throw new Error("Android settings bridge unavailable");
             await deviceSettings.openNotificationSettings();
@@ -263,7 +275,7 @@ function GuestNativeApp() {
       if (revision === auditRevision.current) {
         setAuditStatus(message + " " + counts +
           (report.truncated ? " · 최대 예약 건수에 도달했어요." : ""));
-        setRepairAvailable(report.status === "out-of-sync" && enabledRef.current);
+        setRepairAvailable(canManuallyRepairGuestReminders(report, enabledRef.current, permissions.display));
       }
     } catch {
       setAuditStatus("예약 비교에 실패했습니다. 습관 데이터와 기기 설정을 확인해 주세요.");
@@ -309,7 +321,7 @@ function GuestNativeApp() {
   }, [repairAvailable]);
 
   const nativeReminders: NativeReminderControls | undefined = isAndroid
-    ? { enabled, busy, status, permissionState, diagnostic, auditStatus, repairAvailable, repairStatus, onInspectPending, onAuditPending, onRepairPending, onEnabledChange, onSnapshot }
+    ? { enabled, active: reminderSwitchChecked(enabled, permissionState), busy, status, permissionState, diagnostic, auditStatus, repairAvailable, repairStatus, onInspectPending, onAuditPending, onRepairPending, onEnabledChange, onSnapshot }
     : undefined;
   return <Byeolharu nativeReminders={nativeReminders} />;
 }
