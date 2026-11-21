@@ -27,7 +27,7 @@ test("guest opt-in UI is passed only as an optional prop", () => {
   assert.match(ui, /nativeAlarmEditor=\{Boolean\(nativeReminders\)\}/);
   assert.match(account, /\{nativeReminders && \(/);
   assert.match(account, /nativeReminders\.onEnabledChange/);
-  assert.match(ui, /disabled=\{!draft\.scheduledTime && !draft\.alarmEnabled\}/);
+  assert.match(ui, /disabled=\{alarmChecking \|\| \(!draft\.scheduledTime && !draft\.alarmEnabled\)\}/);
 });
 test("STEP 10 uses only committed snapshots and no native automatic opt-in", () => {
   const app = read("mobile/packaged-guest/main.tsx");
