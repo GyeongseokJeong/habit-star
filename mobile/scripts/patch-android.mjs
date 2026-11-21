@@ -50,3 +50,23 @@ assert.ok(pluginTemplate.includes("__PACKAGE__"), "Missing notification settings
 const pluginPath = join(dirname(path), "ByeolharuDeviceSettingsPlugin.java");
 writeFileSync(pluginPath, pluginTemplate.replaceAll("__PACKAGE__", targetPackage));
 console.log(`Android native PoC activity patched for ${targetPackage}`);
+
+// Navigate back to the existing test app after email, without transferring tokens.
+
+const returnManifestPath = resolve(mobileRoot, "android/app/src/main/AndroidManifest.xml");
+let returnManifest = readFileSync(returnManifestPath, "utf8");
+const returnFilter = `            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="byeolharu-return" android:host="auth" android:path="/return" />
+            </intent-filter>
+`;
+const activityPattern = /(<activity\b[^>]*android:name="\.MainActivity"[^>]*>)([\s\S]*?)(<\/activity>)/;
+const activity = returnManifest.match(activityPattern);
+assert.ok(activity, "Missing MainActivity in generated Android manifest");
+assert.ok(activity[1].includes('android:exported="true"'), "Return activity must be exported");
+if (!activity[2].includes('android:scheme="byeolharu-return"')) {
+  returnManifest = returnManifest.replace(activityPattern, (_, start, body, end) => start + body + "\n" + returnFilter + end);
+  writeFileSync(returnManifestPath, returnManifest);
+}

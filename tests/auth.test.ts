@@ -57,3 +57,11 @@ it("uses a configured canonical origin instead of untrusted Host or next URL", (
     "/?auth=error",
   );
 });
+
+it("distinguishes only Android-originated email callback URLs", () => {
+  expect(emailAuthRedirect("https://habit.example", undefined, false, true))
+    .toBe("https://habit.example/auth/confirm?from=android");
+  const url = new URL(emailAuthRedirect("https://habit.example", undefined, true, true));
+  expect(url.searchParams.get("from")).toBe("android");
+  expect(url.searchParams.get("next")).toBe("/auth/reset");
+});

@@ -5,6 +5,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { authErrorMessage } from "@/lib/supabase/auth-feedback";
 import { Sparkles } from "lucide-react";
 import { PasswordInput } from "@/components/account/password-input";
+import { AndroidReturnLink } from "@/components/account/android-return-link";
 export default function ResetPassword() {
   const [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false);
@@ -14,9 +15,12 @@ export default function ResetPassword() {
   const recoveryChecked = useRef(false);
   const recoveryInvalid = useRef(false);
   const [recoveryReady, setRecoveryReady] = useState(false);
+  const [androidReturn, setAndroidReturn] = useState(false);
+  const [passwordChanged, setPasswordChanged] = useState(false);
   useEffect(() => {
     if (recoveryChecked.current) return;
     recoveryChecked.current = true;
+    setAndroidReturn(new URLSearchParams(location.search).get("from") === "android");
     const params = new URLSearchParams(window.location.hash.slice(1));
     const recoveryLink = params.has("access_token") || params.has("refresh_token") ||
       params.has("error") || params.get("type") === "recovery";
@@ -103,6 +107,7 @@ export default function ResetPassword() {
                 await client.auth.signOut({ scope: "local" });
                 recoveryClient.current = null;
               }
+              setPasswordChanged(true);
               setMessage(
                 "비밀번호를 변경했습니다. 홈으로 이동해 로그인해주세요.",
               );
@@ -131,6 +136,7 @@ export default function ResetPassword() {
         <p role="status" className="auth-feedback">
           {message}
         </p>
+        {androidReturn && passwordChanged && <AndroidReturnLink />}
         <a href="/">별하루로 돌아가기</a>
       </div>
     </main>

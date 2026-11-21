@@ -994,10 +994,11 @@ function MonthlyMatrix({
   );
 }
 
-export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupExport }: {
+export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupExport, nativeAuthReturn }: {
   nativeReminders?: NativeReminderControls;
   nativeShare?: (png: Blob, filename: string) => Promise<void>;
   nativeBackupExport?: (content: string) => Promise<void>;
+  nativeAuthReturn?: number;
 } = {}) {
   const app = useHabitApp(initialHabits, nativeBackupExport);
   const habits = app.snapshot?.habits ?? [];
@@ -1010,6 +1011,16 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
   }, [onAccountSnapshot, app.user?.id, app.snapshot]);
   const [accountOpen, setAccountOpen] = useState(false);
   const [accountPage, setAccountPage] = useState<"home" | "records" | "import" | "settings" | "security" | "login" | "signup" | "reset">("home");
+  const handledAuthReturn = useRef(0);
+  useEffect(() => {
+    if (!ready || !nativeAuthReturn || nativeAuthReturn <= handledAuthReturn.current) return;
+    handledAuthReturn.current = nativeAuthReturn;
+    // A navigation-only link never signs in or switches existing accounts.
+    if (!app.user) {
+      setAccountPage("login");
+      setAccountOpen(true);
+    }
+  }, [nativeAuthReturn, ready, app.user]);
   useEffect(() => {
     if (!app.user && accountPage === "security") setAccountPage("home");
   }, [app.user, accountPage]);
