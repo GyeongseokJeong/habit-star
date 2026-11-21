@@ -28,11 +28,6 @@ export default function AndroidReturnPage() {
     } catch { /* Optional browser preference. */ }
     setReady(true);
   }, []);
-  return () => {
-      window.removeEventListener("hashchange", onHashChange);
-      window.removeEventListener("popstate", onPopState);
-    };
-  }, []);
   return (
     <main className={`byeolharu ${theme} auth-page-shell`}>
       <div className="auth-page">
