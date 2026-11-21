@@ -2002,7 +2002,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
                           </button>
                           {completedOpen && (
                             <div id="normal-completed-list" className="habit-grid normal-completed-list">
-                              {compactCompleted.map((habit) => renderCard(habit, true))}
+                              {compactCompleted.map((habit) => renderCard(habit))}
                             </div>
                           )}
                         </section>
