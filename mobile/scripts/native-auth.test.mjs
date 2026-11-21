@@ -29,7 +29,8 @@ test("Android uses existing website email-confirm redirect and never auto-import
  const android=read("mobile/packaged-guest/main.tsx");
  assert.match(android,/identity: identityRef\.current/);
  assert.match(android,/kind: "member", userId: memberUserId, verified: true/);
- assert.match(android,/if \(!next && !memberUserId\) return/);
+ assert.match(android,/if \(!next && !memberUserId\) \{/);
+ assert.match(android,/snapshot\.current = null/);
  assert.match(android,/if \(switched\) void schedule\(false, null\)/);
  const backup=read("mobile/packaged-guest/native-guest-backup.ts");
  assert.match(backup,/inspectPortableBackup\(content\)/);
