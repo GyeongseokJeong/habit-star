@@ -92,25 +92,22 @@ test("completed reflection restores focus to the stable tab when its card folds"
   await expect(page.getByRole("tab", { name: "밤", exact: true })).toBeFocused();
 });
 
-test("keyboard completing an upcoming habit returns focus before the preview disappears", async ({ page }) => {
+test("keyboard completing a current-period habit moves focus to its stable completed fold", async ({ page }) => {
   await seedLegacyFiveHabits(page);
   await page.goto("/");
   await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
   await page.getByRole("tab", { name: "낮", exact: true }).click();
-  // Seeded daytime habit is completed: undo to create a pending morning preview.
   await page.locator(".normal-done-toggle").click();
   const completed = page.locator(".normal-completed-list .habit-card").first();
   const title = (await completed.locator("h3").innerText()).trim();
   await completed.getByRole("button", { name: title + " 4점" }).click();
-  await expect(page.locator(".normal-pending-list .habit-card")).toHaveCount(1, { timeout: 5000 });
-  await page.getByRole("tab", { name: "아침", exact: true }).click();
-  const upcoming = page.locator(".upcoming-heading + .habit-grid .habit-card");
-  await expect(upcoming).toHaveCount(1);
-  const star = upcoming.first().getByRole("button", { name: title + " 4점" });
+  const pending = page.locator(".normal-pending-list .habit-card");
+  await expect(pending).toHaveCount(1, { timeout: 5000 });
+  await expect(page.locator(".upcoming-heading")).toHaveCount(0);
+  const star = pending.first().getByRole("button", { name: title + " 4점" });
   await star.focus();
   await page.keyboard.press("Enter");
-  await expect(star).toHaveAttribute("aria-pressed", "true");
-  // After held completion settles, the preview is no longer relevant.
-  await expect(upcoming).toHaveCount(0, { timeout: 5000 });
-  await expect(page.getByRole("tab", { name: "아침", exact: true })).toBeFocused();
+  await expect(pending).toHaveCount(0, { timeout: 5000 });
+  await expect(page.locator(".normal-done-toggle")).toBeFocused();
+  await expect(page.locator(".upcoming-heading")).toHaveCount(0);
 });
