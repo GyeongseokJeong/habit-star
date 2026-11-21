@@ -924,6 +924,10 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
 .normal-habit-list > .empty-time-routine {
   min-height: 204px;
 }
+.normal-habit-list > .empty-time-routine {
+  padding-block: 24px;
+  align-content: center;
+}
 .routine-completion-card > svg { color: var(--sage); }
 .normal-habit-list:has(> .routine-completion-card) { row-gap: 8px; }
 .empty-state > svg {
