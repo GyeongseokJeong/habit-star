@@ -17,12 +17,14 @@ export function ConstellationGrowthView({
   streak,
   previewOpen,
   onCreatePreview,
+  nativeShare,
 }: {
   points: number;
   completedHabits: number;
   streak: number;
   previewOpen: boolean;
   onCreatePreview: () => void;
+  nativeShare?: (png: Blob, filename: string) => Promise<void>;
 }) {
   const { art, next, progressPercent, remainingPoints, extraGlow } =
     describeConstellationGrowth(points);
@@ -102,6 +104,7 @@ export function ConstellationGrowthView({
         points={points}
         completedHabits={completedHabits}
         streak={streak}
+        nativeShare={nativeShare}
       />
     );
   }

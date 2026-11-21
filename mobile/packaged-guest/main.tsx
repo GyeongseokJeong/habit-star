@@ -4,6 +4,7 @@ import { Capacitor, registerPlugin } from "@capacitor/core";
 import { App } from "@capacitor/app";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import Byeolharu from "../../components/byeolharu";
+import { shareStarlightPngOnAndroid } from "./native-starlight-share";
 import type { Snapshot } from "../../lib/habits/repository";
 import type { NativeReminderControls } from "../../lib/habits/native-reminder-controls";
 import { createReminderLifecycle } from "../notifications/reminder-lifecycle.js";
@@ -323,7 +324,7 @@ function GuestNativeApp() {
   const nativeReminders: NativeReminderControls | undefined = isAndroid
     ? { enabled, active: reminderSwitchChecked(enabled, permissionState), busy, status, permissionState, diagnostic, auditStatus, repairAvailable, repairStatus, onInspectPending, onAuditPending, onRepairPending, onEnabledChange, onSnapshot }
     : undefined;
-  return <Byeolharu nativeReminders={nativeReminders} />;
+  return <Byeolharu nativeReminders={nativeReminders} nativeShare={isAndroid ? shareStarlightPngOnAndroid : undefined} />;
 }
 
 const root = document.getElementById("byeolharu-root");

@@ -21,10 +21,12 @@ export function StarlightCardPreview({
   points,
   completedHabits,
   streak,
+  nativeShare,
 }: {
   points: number;
   completedHabits: number;
   streak: number;
+  nativeShare?: (png: Blob, filename: string) => Promise<void>;
 }) {
   const stage = getConstellationStage(points);
   const cardRef = useRef<HTMLElement>(null);
@@ -83,13 +85,19 @@ export function StarlightCardPreview({
       captureKeyRef.current = cacheKey;
     }
     shareFileRef.current = null;
+    // Capacitor's native share sheet supports files independently of Web Share.
+    // Do not disable Android sharing because this WebView has no navigator.share.
+    if (nativeShare) {
+      setShareState("ready");
+      return () => { preparationIdRef.current += 1; };
+    }
     if (typeof navigator.share !== "function" || typeof navigator.canShare !== "function") {
       setShareState("unsupported");
       return () => { preparationIdRef.current += 1; };
     }
     prepareShare();
     return () => { preparationIdRef.current += 1; };
-  }, [cacheKey]);
+  }, [cacheKey, nativeShare]);
 
   async function handleSave() {
     if (!cardRef.current || saving || sharing) return;
@@ -121,6 +129,18 @@ export function StarlightCardPreview({
   }
 
   function handleShare() {
+    if (nativeShare) {
+      if (saving || sharing || !cardRef.current) return;
+      setSharing(true);
+      setFeedback(null);
+      // Capacitor opens the native chooser after the PNG is ready; unlike
+      // browser Web Share this path does not depend on transient activation.
+      void getPng()
+        .then((png) => nativeShare(png, starlightPngFilename(stage.stage)))
+        .catch(handleShareError)
+        .finally(() => setSharing(false));
+      return;
+    }
     const file = shareFileRef.current;
     if (!file || shareState !== "ready" || saving || sharing || typeof navigator.share !== "function") return;
     setSharing(true);
