@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { App } from "@capacitor/app";
+import { isAndroidReturnUrl } from "../../lib/supabase/android-return";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import Byeolharu from "../../components/byeolharu";
 import { shareStarlightPngOnAndroid } from "./native-starlight-share";
@@ -34,6 +35,26 @@ const deviceSettings = isAndroid ? registerPlugin<DeviceSettings>("ByeolharuDevi
 
 function GuestNativeApp() {
   const [enabled, setEnabled] = useState(false);
+  const [nativeAuthReturn, setNativeAuthReturn] = useState(0);
+  useEffect(() => {
+    if (!isAndroid) return;
+    let disposed = false;
+    let receivedLiveReturn = false;
+    const accept = (url: unknown) => {
+      if (!disposed && isAndroidReturnUrl(url)) setNativeAuthReturn(n => n + 1);
+    };
+    const listener = App.addListener("appUrlOpen", ({ url }) => {
+      if (isAndroidReturnUrl(url)) receivedLiveReturn = true;
+      accept(url);
+    }).catch(() => null);
+    void listener.then(() => App.getLaunchUrl()).then(result => {
+      if (!receivedLiveReturn) accept(result?.url);
+    }).catch(() => {});
+    return () => {
+      disposed = true;
+      void listener.then(handle => handle?.remove());
+    };
+  }, []);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [permissionState, setPermissionState] = useState<"unknown" | "granted" | "denied">("unknown");
@@ -357,7 +378,7 @@ function GuestNativeApp() {
   const nativeReminders: NativeReminderControls | undefined = isAndroid
     ? { enabled, active: reminderSwitchChecked(enabled, permissionState), busy, status, permissionState, diagnostic, auditStatus, repairAvailable, repairStatus, onInspectPending, onAuditPending, onRepairPending, onEnabledChange, onSnapshot }
     : undefined;
-  return <Byeolharu nativeReminders={nativeReminders} nativeShare={isAndroid ? shareStarlightPngOnAndroid : undefined} nativeBackupExport={isAndroid ? exportGuestBackupOnAndroid : undefined} />;
+  return <Byeolharu nativeReminders={nativeReminders} nativeShare={isAndroid ? shareStarlightPngOnAndroid : undefined} nativeBackupExport={isAndroid ? exportGuestBackupOnAndroid : undefined} nativeAuthReturn={isAndroid ? nativeAuthReturn : undefined} />;
 }
 
 const root = document.getElementById("byeolharu-root");

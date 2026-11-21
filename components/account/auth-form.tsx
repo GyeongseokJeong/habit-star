@@ -38,6 +38,7 @@ export function AuthForm({
         ? undefined
         : process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL,
       reset,
+      androidPackaged,
     );
   const goTo = (next: AuthMode) => {
     setMessage("");
@@ -85,7 +86,7 @@ export function AuthForm({
         </button>
       )}
       <p className="auth-note">{androidPackaged
-        ? "인증 링크는 웹 브라우저에서 열려요. 인증 후 이 앱으로 돌아와 로그인해주세요."
+        ? "인증 링크는 웹 브라우저에서 열려요. 확인 후 ‘별하루 앱으로 돌아가기’를 눌러 로그인해주세요."
         : "메일이 보이지 않으면 스팸함도 확인해주세요."}</p>
       <button type="button" className="text-button auth-inline-link" onClick={() => goTo("login")}>로그인으로 돌아가기 <ArrowRight size={15} /></button>
       <p role="status" aria-live="polite" className={"auth-feedback " + (failed ? "error" : "")}>{message}</p>

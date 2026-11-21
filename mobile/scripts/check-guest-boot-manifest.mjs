@@ -41,6 +41,9 @@ function main() {
   assert.ok(existsSync(apk), "Packaged guest APK is missing: " + apk);
   const dump = execFileSync(aapt, ["dump", "xmltree", apk, "AndroidManifest.xml"], {encoding:"utf8",maxBuffer:12*1024*1024});
   validateNotificationManifest(dump);
+  for (const token of ["byeolharu-return", "android.intent.category.BROWSABLE", "/return"]) {
+    assert.ok(dump.includes(token), "Compiled APK missing Android return intent: " + token);
+  }
   console.log("PASS: compiled guest APK contains boot receiver and required notification permissions");
 }
 

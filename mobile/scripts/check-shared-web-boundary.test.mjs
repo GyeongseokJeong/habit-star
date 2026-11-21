@@ -11,7 +11,7 @@ test("public website does not instantiate native app notifications or device set
  const android=read("mobile/packaged-guest/main.tsx");
  assert.match(web,/<Byeolharu \/>/);
  assert.doesNotMatch(web,/nativeReminders|@capacitor|LocalNotifications|registerPlugin/);
- assert.match(android,/<Byeolharu nativeReminders=\{nativeReminders\} nativeShare=\{isAndroid \? shareStarlightPngOnAndroid : undefined\} nativeBackupExport=\{isAndroid \? exportGuestBackupOnAndroid : undefined\} \/>/);
+ assert.match(android,/<Byeolharu nativeReminders=\{nativeReminders\} nativeShare=\{isAndroid \? shareStarlightPngOnAndroid : undefined\} nativeBackupExport=\{isAndroid \? exportGuestBackupOnAndroid : undefined\} nativeAuthReturn=\{isAndroid \? nativeAuthReturn : undefined\} \/>/);
 });
 
 test("shared account settings render native reminder actions only when provided by Android guest",()=>{

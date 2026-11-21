@@ -2,9 +2,11 @@ export function emailAuthRedirect(
   origin: string,
   previewRedirect?: string,
   recovery = false,
+  androidReturn = false,
 ) {
   const url = new URL(previewRedirect || "/auth/confirm", origin);
   if (recovery) url.searchParams.set("next", "/auth/reset");
+  if (androidReturn) url.searchParams.set("from", "android");
   return url.toString();
 }
 export function applicationOrigin(

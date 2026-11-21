@@ -98,3 +98,23 @@ test("cloud-enabled callbacks reject external next destinations without valid cr
     expect(response.headers()["cache-control"]).toBe("private, no-store");
   }
 });
+
+test("Android callback redirects to trusted local return pages", async ({request}) => {
+  const signup=await request.get("/auth/confirm?from=android",{maxRedirects:0});
+  expect(signup.status()).toBe(307);
+  expect(signup.headers().location).toBe("http://localhost:3000/auth/android-return");
+  const reset=await request.get("/auth/confirm?from=android&next=%2Fauth%2Freset",{maxRedirects:0});
+  expect(reset.headers().location).toBe("http://localhost:3000/auth/reset?from=android");
+  const malicious=await request.get("/auth/confirm?from=android&next=https%3A%2F%2Fevil.example",{maxRedirects:0});
+  expect(malicious.headers().location).toBe("http://localhost:3000/auth/android-return");
+});
+test("Android return button never forwards fragment credentials",async ({page}) => {
+  await page.goto("/auth/android-return#access_token=fake&refresh_token=fake&type=signup");
+  const link=page.getByRole("link",{name:"별하루 앱으로 돌아가기"});
+  await expect(link).toBeVisible();
+  await expect(link).toHaveAttribute("href","intent://auth/return#Intent;scheme=byeolharu-return;package=io.github.gyeongseokjeong.byeolharu.packagedgueststep9;end");
+  expect(new URL(page.url()).hash).toBe("");
+  await page.goto("/auth/android-return#error=access_denied&error_code=otp_expired");
+  await expect(page.getByRole("heading",{name:"인증 링크를 다시 확인해주세요"})).toBeVisible();
+  expect(new URL(page.url()).hash).toBe("");
+});

@@ -38,14 +38,24 @@ export async function GET(request: Request) {
     response.headers.set("Cache-Control", "private, no-store");
     return response;
   }
+  const androidReturn = url.searchParams.get("from") === "android";
+  const resetTarget = androidReturn ? "/auth/reset?from=android" : "/auth/reset";
   // Android uses the implicit flow. Its recovery link carries tokens in
   // the URL fragment (not visible to this server route). A fragment-free
   // Location inherits the original fragment per RFC 9110, so the browser can
   // establish a memory-only recovery session on /auth/reset.
   // Never redirect arbitrary next URLs or put access tokens in server logs.
   if (!code && !token_hash && url.searchParams.get("next") === "/auth/reset") {
-    const response = NextResponse.redirect(new URL("/auth/reset", origin));
+    const response = NextResponse.redirect(new URL(resetTarget, origin));
     response.headers.set("Cache-Control", "private, no-store");
+    return response;
+  }
+  // Implicit mobile signup verification uses a fragment invisible to this
+  // server. The destination only provides UI navigation; no app session.
+  if (androidReturn && !code && !token_hash) {
+    const response = NextResponse.redirect(new URL("/auth/android-return", origin));
+    response.headers.set("Cache-Control", "private, no-store");
+    response.headers.set("Referrer-Policy", "no-referrer");
     return response;
   }
   const client = await serverClient();
@@ -60,7 +70,10 @@ export async function GET(request: Request) {
       result.data !== null &&
       "redirectType" in result.data &&
       result.data.redirectType === "recovery");
-  const target = authDestination(url.searchParams, !!result.error, recovery);
+  const webTarget = authDestination(url.searchParams, !!result.error, recovery);
+  const target = !androidReturn ? webTarget
+    : result.error ? "/auth/android-return?error=1"
+      : webTarget === "/auth/reset" ? resetTarget : "/auth/android-return";
   const response = NextResponse.redirect(new URL(target, origin));
   response.headers.set("Cache-Control", "private, no-store");
   return response;

@@ -45,3 +45,18 @@ test("Android uses existing website email-confirm redirect and never auto-import
  const diagnosis=read("mobile/notifications/guest-reminder-diagnostics.js");
  assert.match(diagnosis,/item.extra\?\.scope === scope/);
 });
+
+test("Android return intent opens only a token-free login navigation",()=>{
+  const link=read("lib/supabase/android-return.ts");
+  const entry=read("mobile/packaged-guest/main.tsx");
+  const shared=read("components/byeolharu.tsx");
+  const patch=read("mobile/scripts/patch-android.mjs");
+  assert.match(link,/byeolharu-return:\/\/auth\/return/);
+  assert.match(link,/package=io\.github\.gyeongseokjeong\.byeolharu\.packagedgueststep9/);
+  assert.match(link,/url === ANDROID_RETURN_URL/);
+  assert.match(entry,/App\.addListener\("appUrlOpen"/);
+  assert.match(entry,/App\.getLaunchUrl\(\)/);
+  assert.match(shared,/setAccountPage\("login"\)/);
+  assert.match(patch,/android:scheme="byeolharu-return"/);
+  assert.doesNotMatch(link,/access_token|refresh_token|token_hash|email=/);
+});
