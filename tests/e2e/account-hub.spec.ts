@@ -129,3 +129,24 @@ test("desktop account dialog remains centered rather than taking over the viewpo
   expect(geometry.height).toBeLessThan(900);
   expect(geometry.top).toBeGreaterThan(0);
 });
+
+test("usage guide stays inside the account screen with an accessible back path", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+  await page.getByRole("button", { name: "사용 안내", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "사용 안내" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "습관 만들기" })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "오늘의 실천 기록" })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "별자리와 돌아보기" })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "기록 저장과 동기화" })).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "Android 습관 알림" })).toHaveCount(0);
+  await dialog.getByRole("button", { name: "백업 · 복원 · 동기화 관리" }).click();
+  await expect(page.getByRole("dialog", { name: "데이터 관리" })).toBeVisible();
+  await page.getByRole("button", { name: "내 계정으로" }).click();
+  await expect(page.getByRole("button", { name: "사용 안내", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "사용 안내", exact: true }).click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "내 계정" })).toBeVisible();
+});

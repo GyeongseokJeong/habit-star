@@ -1954,29 +1954,6 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 .modal .text-button {
   margin-top: 6px;
 }
-.help-content {
-  padding-top: 16px;
-}
-.help-mark {
-  display: flex;
-  color: var(--accent);
-  margin-bottom: 16px;
-}
-.help-content h3 {
-  font-size: 18px;
-  font-weight: 550;
-}
-.help-content p {
-  font-size: 14px;
-  color: var(--body);
-  line-height: 1.9;
-  margin: 10px 0 20px;
-}
-.help-content h4 {
-  font-size: 15px;
-  font-weight: 550;
-  margin: 20px 0 6px;
-}
 .past-summary {
   text-align: center;
   padding-top: 20px;
@@ -3245,6 +3222,24 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 .account-panel .account-menu > button > span > small { font-size: 12px; color: var(--body); font-weight: 400; line-height: 1.5; }
 .account-panel .account-detail { padding-top: 2px !important; }
 .account-panel .account-detail-hint { color: var(--body); font-size: 13px; line-height: 1.65; margin: 0 0 13px; }
+.account-panel .account-help-group {
+  padding: 15px 1px;
+  border-bottom: 1px solid var(--line);
+}
+.account-panel .account-help-group h3 {
+  margin: 0 0 7px;
+  font-size: 15px;
+  color: var(--ink);
+  font-weight: 650;
+}
+.account-panel .account-help-group p {
+  margin: 0;
+  color: var(--body);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.account-panel .account-help > .account-action-row { margin-top: 12px; }
+
 .account-panel .account-sync-overview {
   border: 1px solid var(--line);
   border-radius: 13px;
