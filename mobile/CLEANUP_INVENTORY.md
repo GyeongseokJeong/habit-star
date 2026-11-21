@@ -27,3 +27,11 @@
 - **유지**: 현재 packaged guest 진입점, native MainActivity/권한 연결, reminder-plan 및 lifecycle 등 공유 알림 런타임, 실제 기능 회귀 테스트
 - **유지**: 현재 APK의 `packagedgueststep9` applicationId, 서명 방식, 데이터·알림 예약 정책
 - 후속 정리 후보: Capacitor 구성의 실험 모드 분기, fallback placeholder 및 구형 문서 (테스트 영향 평가 후 별도 PR)
+
+## 2026-11-21 단일 Android 앱 구성 — 후속 PR
+- Capacitor의 원격 웹/독립 알림 PoC 분기를 제거하고 오직 현재 로컬 packaged guest만 사용
+- 설치된 테스트 앱 ID `io.github.gyeongseokjeong.byeolharu.packagedgueststep9`, 앱 라벨·safe-area·네이티브 알림 플러그인 유지
+- 구형 `mobile/www/index.html` 안내 화면, 원격 웹 관련 `mobile/.env.example` 제거
+- 네이티브 Java patcher는 기존 앱 ID를 정확히 확인한 후 동일 플러그인 등록
+- 사용 중인 README와 과거 STEP 기록을 분리해 잘못된 실험 명령 재사용 방지
+- 다음 단계에서 앱 ID·서명·데이터 마이그레이션 계획을 확정하기 전에는 기존 앱 삭제/재설치 금지

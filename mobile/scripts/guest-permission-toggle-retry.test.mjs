@@ -36,7 +36,7 @@ test("turning visible switch ON re-requests permission then opens Android settin
   assert.match(native,/Settings\.ACTION_APP_NOTIFICATION_SETTINGS/);
   assert.match(native,/Settings\.EXTRA_APP_PACKAGE/);
   assert.match(native,/getContext\(\)\.getPackageName\(\)/);
-  assert.match(patcher,/targetPackage\.endsWith\("\.packagedgueststep9"\)/);
+  assert.match(patcher,/assert\.equal\(\s*targetPackage,\s*"io\.github\.gyeongseokjeong\.byeolharu\.packagedgueststep9"/);
   assert.doesNotMatch(publicWeb,/ByeolharuDeviceSettings|nativeReminders|onEnabledChange/);
 });
 test("manual repair is exposed only after a real mismatch with opt-in and OS permission",()=>{

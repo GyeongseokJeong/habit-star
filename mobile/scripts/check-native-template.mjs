@@ -28,11 +28,11 @@ assert.match(java, /WindowInsetsCompat\.Type\.systemBars\(\)/);
 assert.match(java, /WindowInsetsCompat\.Type\.displayCutout\(\)/);
 assert.match(java, /content\.setPadding\(bars\.left, bars\.top, bars\.right, bars\.bottom\)/);
 assert.match(java, /\.setInsets\(types, Insets\.NONE\)/);
-assert.match(config, /packagedGuest \? \{ plugins: \{ SystemBars: \{ insetsHandling: "disable"/, "The guest WebView must not add CSS system insets on top of native viewport padding");
+assert.match(config, /plugins:\s*\{\s*SystemBars:\s*\{\s*insetsHandling:\s*"disable"/, "Native and CSS insets must not overlap");
 
-assert.match(patcher, /startsWith\("io\.github\.gyeongseokjeong\.byeolharu\."\)/);
+assert.match(patcher, /assert\.equal\(\s*targetPackage,/, "Patcher must verify the exact installed package");
 assert.match(java, /__GUEST_SETTINGS_PLUGIN_REGISTER__/);
-assert.match(patcher, /packagedGuest \? "registerPlugin\(ByeolharuDeviceSettingsPlugin\.class\);"/);
+assert.match(patcher, /"registerPlugin\(ByeolharuDeviceSettingsPlugin\.class\);"/);
 assert.ok(java.indexOf("__GUEST_SETTINGS_PLUGIN_REGISTER__") < java.indexOf("super.onCreate(state)"),
   "Capacitor plugin registration placeholder must precede bridge initialization");
 
@@ -41,7 +41,7 @@ assert.match(settingsJava, /Settings\.ACTION_APP_NOTIFICATION_SETTINGS/);
 assert.match(settingsJava, /Settings\.EXTRA_APP_PACKAGE/);
 assert.match(settingsJava, /getContext\(\)\.getPackageName\(\)/);
 assert.match(settingsJava, /call\.resolve\(\)/);
-assert.match(patcher, /targetPackage\.endsWith\("\.packagedgueststep9"\)/);
+assert.match(patcher, /"io\.github\.gyeongseokjeong\.byeolharu\.packagedgueststep9"/);
 assert.match(patcher, /ByeolharuDeviceSettingsPlugin\.java\.template/);
 
 
