@@ -92,7 +92,7 @@ test("completed reflection restores focus to the stable tab when its card folds"
   await expect(page.getByRole("tab", { name: "밤", exact: true })).toBeFocused();
 });
 
-test("keyboard completing a current-period habit moves focus to its stable completed fold", async ({ page }) => {
+test("keyboard completing the last current-period habit keeps focus on the stable tab", async ({ page }) => {
   await seedLegacyFiveHabits(page);
   await page.goto("/");
   await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
@@ -108,6 +108,6 @@ test("keyboard completing a current-period habit moves focus to its stable compl
   await star.focus();
   await page.keyboard.press("Enter");
   await expect(pending).toHaveCount(0, { timeout: 5000 });
-  await expect(page.locator(".normal-done-toggle")).toBeFocused();
+  await expect(page.getByRole("tab", { name: "낮", exact: true })).toBeFocused();
   await expect(page.locator(".upcoming-heading")).toHaveCount(0);
 });
