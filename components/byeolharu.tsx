@@ -126,17 +126,17 @@ const HABIT_TEMPLATES: {
   timeGroup: TimeGroup;
   scheduledTime: string;
 }[] = [
-  { title: "독서 20분", icon: "📚", timeGroup: "night", scheduledTime: "21:30" },
-  { title: "가벼운 운동", icon: "🏃", timeGroup: "morning", scheduledTime: "07:30" },
   { title: "물 마시기", icon: "💧", timeGroup: "morning", scheduledTime: "07:00" },
+  { title: "가벼운 운동", icon: "🏃", timeGroup: "morning", scheduledTime: "07:30" },
+  { title: "10분 산책", icon: "🚶", timeGroup: "day", scheduledTime: "13:00" },
+  { title: "집중 25분", icon: "💻", timeGroup: "day", scheduledTime: "14:00" },
+  { title: "독서 20분", icon: "📚", timeGroup: "night", scheduledTime: "21:30" },
+  { title: "하루 기록하기", icon: "✍️", timeGroup: "night", scheduledTime: "21:00" },
   { title: "스트레칭", icon: "🧘", timeGroup: "night", scheduledTime: "22:00" },
   { title: "일찍 잠들기", icon: "🌙", timeGroup: "night", scheduledTime: "23:00" },
-  { title: "하루 기록하기", icon: "✍️", timeGroup: "night", scheduledTime: "21:00" },
   { title: "영양제 챙기기", icon: "💊", timeGroup: "morning", scheduledTime: "08:00" },
   { title: "아침 산책", icon: "🚶", timeGroup: "morning", scheduledTime: "08:00" },
   { title: "건강한 점심", icon: "🥗", timeGroup: "day", scheduledTime: "12:30" },
-  { title: "10분 산책", icon: "🚶", timeGroup: "day", scheduledTime: "13:00" },
-  { title: "집중 25분", icon: "💻", timeGroup: "day", scheduledTime: "14:00" },
   { title: "오늘 할 일 정리", icon: "✅", timeGroup: "morning", scheduledTime: "09:00" },
   { title: "명상 5분", icon: "🧘‍♂️", timeGroup: "night", scheduledTime: "21:30" },
   { title: "감사 3가지 적기", icon: "🙏", timeGroup: "night", scheduledTime: "22:00" },
