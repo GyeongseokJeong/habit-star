@@ -29,8 +29,12 @@ test("native settings warn on denied permission without mutating user opt-in or 
   assert.match(main,/void refreshPermission\(\)/);
   assert.match(main,/presentation\.queueNote/);
   assert.match(main,/setPermissionState/);
-  assert.match(account,/nativeReminders\.enabled && nativeReminders\.permissionState === "denied"/);
-  assert.match(account,/알림을 받을 수 없어 스위치가 꺼져 있어요/);
-  assert.match(account,/aria-checked=\{nativeReminders\.active\}/);
+  // The permission warning remains available under collapsed troubleshooting,
+  // while per-habit switches own Android permission requests.
+  assert.match(account,/<details className="android-reminder-details">/);
+  assert.match(account,/nativeReminders\.permissionState === "denied"/);
+  assert.match(account,/기기 알림 권한이 차단되어 있어요/);
+  assert.doesNotMatch(account,/aria-checked=\{nativeReminders\.active\}/);
+  assert.doesNotMatch(account,/nativeReminders\.onEnabledChange/);
   assert.doesNotMatch(website,/permissionState|reminderPermissionPresentation/);
 });
