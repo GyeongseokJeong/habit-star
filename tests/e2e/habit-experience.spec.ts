@@ -13,6 +13,9 @@ for (const width of [320, 390, 430]) {
   test(`templates stay editable and compact at ${width}px`, async ({
     page,
   }) => {
+    // This test switches to weekdays-only. Keep it on a Thursday so
+    // the new habit is scheduled and visible regardless of the runner date.
+    await page.clock.install({ time: new Date("2026-11-19T12:00:00Z") });
     await page.setViewportSize({ width, height: 740 });
     await page.goto("/");
     await expect(
@@ -112,6 +115,9 @@ test("settings and reflection preserve each other's fields offline", async ({
   page,
   context,
 }) => {
+  // The edited habit becomes weekdays-only; keep this test independent
+  // of weekends, holidays, and the machine's wall-clock date.
+  await page.clock.install({ time: new Date("2026-11-19T12:00:00Z") });
   await page.setViewportSize({ width: 320, height: 740 });
   await page.goto("/");
   await expect(

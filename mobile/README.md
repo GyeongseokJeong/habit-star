@@ -6,7 +6,7 @@
 - 공통 React 화면·습관 로직·CSS는 `main`에서 관리합니다.
 - 현재 사용자 검증 대상은 `android-packaged-guest-step9` 한 개이며, GitHub Actions의 **Android Shell PoC** 워크플로가 PR에서 해당 APK와 회귀 검사를 실행합니다.
 - 수동 빌드는 GitHub Actions → Android Shell PoC → Run workflow → `main`을 선택하고, `legacy_diagnostics=false`(기본값)로 실행합니다.
-- 오래된 디버그/웹뷰/알림 데모 5개는 문제 재현이 필요한 경우에만 `legacy_diagnostics=true`로 함께 빌드합니다.
+- 과거 디버그/원격 WebView/알림 단독 실험 앱 5개는 통합 이후 제거되었습니다. 재현이 필요한 경우 Git 기록의 과거 커밋에서만 확인합니다. 실행 경로는 현재 지원하지 않습니다.
 - APK artifact에는 `app-debug.apk`와 `build-info.json`이 들어 있습니다. JSON의 `sourceSha`는 실제 체크아웃된 커밋이며, `version`은 웹 루트 `package.json`과 같습니다.
 - 웹과 Android의 앱 설정 하단에서 `플랫폼 · 버전 · 빌드 SHA`를 확인할 수 있습니다. 실제 설치 APK는 업데이트해야 새 버전이 반영됩니다.
 - `main` push에서는 기존 웹 CI가 실행되고, Android APK는 **수동 실행 또는 PR 검사**로만 생성됩니다.

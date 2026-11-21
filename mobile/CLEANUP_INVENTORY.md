@@ -19,3 +19,11 @@
 4. 분리 PR에서 CI 통과 후 정리 (브랜치는 별도 동의 후 삭제)
 
 이 정리는 운영 웹 배포, Supabase Auth/DB/RLS, 사용자 로컬 데이터를 직접 수정하지 않습니다.
+
+## 2026-11-21 후속 정리: 레거시 독립 PoC 제거
+- 현행 APK에 불필요한 standalone Android CI 작업 5개 및 `legacy_diagnostics` 수동 옵션 제거
+- 사용되지 않는 실험용 화면 3종(단순 알림, STEP 5, STEP 8) HTML/JS 6개 파일 제거
+- 해당 앱 전용 `prepare-notification-poc.mjs`, `check-webview-origin.mjs`, `check-notifications.test.mjs` 제거
+- **유지**: 현재 packaged guest 진입점, native MainActivity/권한 연결, reminder-plan 및 lifecycle 등 공유 알림 런타임, 실제 기능 회귀 테스트
+- **유지**: 현재 APK의 `packagedgueststep9` applicationId, 서명 방식, 데이터·알림 예약 정책
+- 후속 정리 후보: Capacitor 구성의 실험 모드 분기, fallback placeholder 및 구형 문서 (테스트 영향 평가 후 별도 PR)
