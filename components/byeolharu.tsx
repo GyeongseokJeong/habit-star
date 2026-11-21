@@ -613,9 +613,9 @@ function HabitEditor({
           </button>
         ))}
         <div className="habit-editor-footer">
-          <button type="submit" className="primary full">
+          <button type="submit" className="primary full" disabled={alarmChecking}>
             <Check size={18} />
-            {habit ? "수정 완료" : "새 습관 추가하기"}
+            {alarmChecking ? "알림 권한 확인 중…" : habit ? "수정 완료" : "새 습관 추가하기"}
           </button>
           <button type="button" className="text-button full" onClick={onClose}>취소</button>
         </div>
