@@ -127,7 +127,10 @@ function GuestNativeApp() {
     // A null snapshot with no member identity is the initial/auth transition
     // loading state, not a verified sign-out. Keep prior alarms until a new
     // account's repository has actually hydrated.
-    if (!next && !memberUserId) return;
+    if (!next && !memberUserId) {
+      snapshot.current = null; // never allow old account data to be rescheduled during auth hydration
+      return;
+    }
     const nextIdentity: ReminderIdentity = memberUserId
       ? { kind: "member", userId: memberUserId, verified: true }
       : identity;
