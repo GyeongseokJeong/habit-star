@@ -11,7 +11,8 @@ export type NativeReminderControls = {
   permissionState: "unknown" | "granted" | "denied";
   busy: boolean;
   status: string;
-  onEnabledChange: (next: boolean) => Promise<void>;
+  /** True only when the native setting and permission request succeeded. */
+  onEnabledChange: (next: boolean) => Promise<boolean>;
   onInspectPending: () => Promise<void>;
   onAuditPending: () => Promise<void>;
   onRepairPending: () => Promise<void>;

@@ -33,7 +33,7 @@ test("web habit time edits preserve prior behavior; native editor alone clears i
  assert.match(app,/nativeAlarmEditor && !e\.target\.value \? \{ alarmEnabled: false \} : \{\}/);
  assert.doesNotMatch(app,/scheduledTime: e\.target\.value, alarmEnabled:/);
  assert.match(app,/nativeAlarmEditor = false/);
- assert.match(app,/disabled=\{!draft\.scheduledTime && !draft\.alarmEnabled\}/);
+ assert.match(app,/disabled=\{alarmChecking \|\| \(!draft\.scheduledTime && !draft\.alarmEnabled\)\}/);
 });
 
 test("native resume listener is removed during cleanup and ordinary online refresh remains separate",()=>{
