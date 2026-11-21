@@ -136,4 +136,10 @@ test("Android return handles another email opened in the same page", async ({ pa
   });
   await expect(page.getByRole("heading", { name: "인증 링크를 다시 확인해주세요" })).toBeVisible();
   await expect(page).toHaveURL("http://localhost:3000/auth/android-return?error=1");
+  // Another (valid) email link must clear the previous expired-link warning.
+  await page.evaluate(() => {
+    location.hash = "access_token=fake&refresh_token=fake&type=signup";
+  });
+  await expect(page.getByRole("heading", { name: "나의 별하루로 돌아가기" })).toBeVisible();
+  await expect(page).toHaveURL("http://localhost:3000/auth/android-return");
 });
