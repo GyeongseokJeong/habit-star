@@ -1527,11 +1527,16 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
     }, 1100);
   }, [completedGroupKey, completionDataReady, compactCompleted.length, activeTab]);
   // Completion feedback is scoped to the selected tab, not the entire day.
-  const completionMessage = activeTab === "all"
-    ? "오늘의 실천을 모두 마쳤어요 ✨"
-    : activeTab === "matrix"
-      ? ""
-      : `${GROUPS[activeTab].name} 루틴을 모두 마쳤어요 ✨`;
+  const isTimeRoutine = activeTab !== "all" && activeTab !== "matrix";
+  const showRoutineCompletion = isTimeRoutine && filtered.length > 0 && compactPending.length === 0;
+  const completionFeedback = isTimeRoutine ? (
+    <p className="routine-completion-card">
+      <Check size={22} aria-hidden="true" />
+      {GROUPS[activeTab].name} 루틴을 모두 마쳤어요
+    </p>
+  ) : (
+    <p className={compactView ? "compact-all-done" : "normal-all-done"}>오늘의 실천을 모두 마쳤어요 ✨</p>
+  );
   useEffect(() => {
     setCompletedOpen(false);
     setCompactExpandedId(null);
@@ -1931,9 +1936,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
                               {compactPending.map(renderCompactCard)}
                             </div>
                           )}
-                          {compactPending.length === 0 && (
-                            <p className="compact-all-done">{completionMessage}</p>
-                          )}
+                          {compactPending.length === 0 && completionFeedback}
                           {compactCompleted.length > 0 && (
                             <section className="compact-done-group" aria-label="완료한 습관">
                               <button
@@ -1943,7 +1946,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
                                 aria-controls="compact-completed-list"
                                 onClick={() => setCompletedOpen((value) => !value)}
                               >
-                                <span><CheckCircle2 size={17} aria-hidden="true" /> 완료한 습관 {compactCompleted.length}개</span>
+                                <span>{!showRoutineCompletion && <CheckCircle2 size={17} aria-hidden="true" />} 완료한 습관 {compactCompleted.length}개</span>
                                 <span>{completedOpen ? "접기" : "보기"} {completedOpen ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}</span>
                               </button>
                               {completedOpen && (
@@ -1985,9 +1988,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
                           {compactPending.map((habit) => renderCard(habit))}
                         </div>
                       )}
-                      {filtered.length > 0 && compactPending.length === 0 && (
-                        <p className="normal-all-done">{completionMessage}</p>
-                      )}
+                      {filtered.length > 0 && compactPending.length === 0 && completionFeedback}
                       {compactCompleted.length > 0 && (
                         <section className="normal-completed-group" aria-label="완료한 습관">
                           <button
@@ -1997,7 +1998,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
                             aria-controls="normal-completed-list"
                             onClick={() => setCompletedOpen((value) => !value)}
                           >
-                            <span><CheckCircle2 size={18} aria-hidden="true" /> 완료한 습관 {compactCompleted.length}개</span>
+                            <span>{!showRoutineCompletion && <CheckCircle2 size={18} aria-hidden="true" />} 완료한 습관 {compactCompleted.length}개</span>
                             <span>{completedOpen ? "접기" : "보기"} {completedOpen ? <ChevronUp size={17} aria-hidden="true" /> : <ChevronDown size={17} aria-hidden="true" />}</span>
                           </button>
                           {completedOpen && (
