@@ -11,7 +11,6 @@ import {
 } from "react";
 import {
   ArrowDownToLine,
-  ArrowRight,
   Check,
   CalendarDays,
   CheckCircle2,
@@ -1048,7 +1047,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
     onAccountSnapshot?.(app.snapshot, app.user?.id ?? null);
   }, [onAccountSnapshot, app.user?.id, app.snapshot]);
   const [accountOpen, setAccountOpen] = useState(false);
-  const [accountPage, setAccountPage] = useState<"home" | "records" | "import" | "settings" | "security" | "login" | "signup" | "reset">("home");
+  const [accountPage, setAccountPage] = useState<"home" | "records" | "import" | "settings" | "help" | "security" | "login" | "signup" | "reset">("home");
   const handledAuthReturn = useRef(0);
   useEffect(() => {
     if (!ready || !nativeAuthReturn || nativeAuthReturn <= handledAuthReturn.current) return;
@@ -1094,7 +1093,6 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
   const [editing, setEditing] = useState<Habit | "new" | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [toast, setToast] = useState("");
-  const [help, setHelp] = useState(false);
   const [pastDate, setPastDate] = useState<string | null>(null);
   const [installEvent, setInstallEvent] = useState<InstallEvent | null>(null);
   const [storageWarning, setStorageWarning] = useState(false);
@@ -2224,7 +2222,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
         <Modal
           accountScreen
           scrollKey={accountPage}
-          title={accountPage === "home" ? "내 계정" : accountPage === "records" ? "데이터 관리" : accountPage === "import" ? "비회원 기록 가져오기" : accountPage === "settings" ? "앱 설정" : accountPage === "security" ? "계정 관리" : accountPage === "login" ? "로그인" : accountPage === "signup" ? "회원가입" : "비밀번호 찾기"}
+          title={accountPage === "home" ? "내 계정" : accountPage === "records" ? "데이터 관리" : accountPage === "import" ? "비회원 기록 가져오기" : accountPage === "settings" ? "앱 설정" : accountPage === "help" ? "사용 안내" : accountPage === "security" ? "계정 관리" : accountPage === "login" ? "로그인" : accountPage === "signup" ? "회원가입" : "비밀번호 찾기"}
           onClose={() => { setAccountOpen(false); setAccountPage("home"); }}
           onBack={accountPage !== "home" ? () => setAccountPage("home") : undefined}
           onEscape={() => {
@@ -2243,7 +2241,6 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
             onCompactViewChange={updateCompactView}
             nativeReminders={nativeReminders}
             nativeBackup={Boolean(nativeBackupExport)}
-            onHelp={() => { setAccountOpen(false); setAccountPage("home"); setHelp(true); }}
             onInstall={installEvent ? () => {
               void (async () => {
                 try {
@@ -2257,31 +2254,6 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
               })();
             } : undefined}
           />
-        </Modal>
-      )}
-      {help && (
-        <Modal title="나의 속도로, 별하루" onClose={() => setHelp(false)}>
-          <div className="help-content">
-            <span className="help-mark">
-              <Sparkles size={36} />
-            </span>
-            <h3>완벽한 하루가 아니어도 괜찮아요.</h3>
-            <p>
-              별하루는 습관의 완료뿐 아니라, 실천의 만족도와 몰입을 별 1~5개로
-              기록해요. 같은 별을 다시 누르면 기록이 취소돼요.
-            </p>
-            <h4>나만의 작은 기록</h4>
-            <p>
-              비회원 기록과 테마는 이 브라우저에 저장돼요. 이메일 인증 후
-              로그인하면 계정별로 기록을 동기화할 수 있어요. 비회원 기록 이전은
-              확인 후 진행하며, 오프라인 기록은 연결 후 전송해요. 설정한 요일에
-              루틴이 나타나고 이전 기록은 달력에 남아요.
-            </p>
-            <button className="primary full" onClick={() => setHelp(false)}>
-              좋아요, 시작해볼게요
-              <ArrowRight size={17} />
-            </button>
-          </div>
         </Modal>
       )}
       {pastDate && (
