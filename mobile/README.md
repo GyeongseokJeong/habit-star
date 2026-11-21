@@ -1,22 +1,37 @@
 # 별하루 Android 개발 안내 (통합 이후)
 
-> 2026-11-21: 웹과 Android는 **같은 `main` 소스**를 사용합니다. 아래 STEP 1~22 기록은 역사적인 실험 노트이며, 현재 병합·빌드 지침으로 사용하지 않습니다. Android 네이티브 알림 및 기존 테스트 앱 데이터 경계는 유지합니다.
+> 2026-11-21: 웹·Android는 동일한 `main` React 소스를 사용하며, Android는 **기존 비회원 packaged guest APK 1종만** 지원합니다. 과거 STEP 1~22 실험 모드는 더 이상 빌드하지 않습니다.
 
-## 현재 권장 빌드 경로
-- 공통 React 화면·습관 로직·CSS는 `main`에서 관리합니다.
-- 현재 사용자 검증 대상은 `android-packaged-guest-step9` 한 개이며, GitHub Actions의 **Android Shell PoC** 워크플로가 PR에서 해당 APK와 회귀 검사를 실행합니다.
-- 수동 빌드는 GitHub Actions → Android Shell PoC → Run workflow → `main`을 선택하고, `legacy_diagnostics=false`(기본값)로 실행합니다.
-- 과거 디버그/원격 WebView/알림 단독 실험 앱 5개는 통합 이후 제거되었습니다. 재현이 필요한 경우 Git 기록의 과거 커밋에서만 확인합니다. 실행 경로는 현재 지원하지 않습니다.
-- APK artifact에는 `app-debug.apk`와 `build-info.json`이 들어 있습니다. JSON의 `sourceSha`는 실제 체크아웃된 커밋이며, `version`은 웹 루트 `package.json`과 같습니다.
-- 웹과 Android의 앱 설정 하단에서 `플랫폼 · 버전 · 빌드 SHA`를 확인할 수 있습니다. 실제 설치 APK는 업데이트해야 새 버전이 반영됩니다.
-- `main` push에서는 기존 웹 CI가 실행되고, Android APK는 **수동 실행 또는 PR 검사**로만 생성됩니다.
+## 현재 Android 빌드
 
-## 안전 정책
-- 현재 패키징 앱은 **비회원 전용 테스트 APK**입니다. 클라우드 로그인·Supabase 연결은 의도적으로 꺼져 있습니다.
-- 임시 `packagedgueststep9` Android applicationId와 디버그 서명을 바꾸거나 앱을 삭제하면 기존 테스트 기록이 이전되지 않을 수 있습니다.
-- 별도 안정성 검증 전까지 Android 테스트 앱 데이터·알림 예약·정식 Play 서명·배포는 손대지 않습니다.
-- 이전 `app/main` 대상 통합 scope 검사는 PR #120 이후 사용하지 않습니다. `main` 기준 공유 UI 경계 테스트와 빌드 메타데이터 검증을 사용합니다.
-- 과거 Draft PR은 모두 종료되어도 브랜치와 기록은 안전 검토 후 별도로 정리합니다.
+- GitHub Actions → **Android Shell PoC** → **Run workflow** → `main`으로 수동 빌드합니다. Android 변경이 포함된 PR에서도 빌드·회귀검사가 자동 실행됩니다.
+- 로컬에서는 웹 루트에서 `pnpm install --frozen-lockfile`, `mobile`에서 `npm install --no-package-lock`을 실행한 후 다음 순서로 진행합니다.
+- `BYEOLHARU_POC_PACKAGED_GUEST=1`만 허용하며, 구형 원격 WebView·독립 알림 데모 모드는 지원하지 않습니다.
+
+```sh
+cd mobile
+BYEOLHARU_POC_PACKAGED_GUEST=1 npm run packaged-guest:build
+BYEOLHARU_POC_PACKAGED_GUEST=1 npm run check
+BYEOLHARU_POC_PACKAGED_GUEST=1 npm run android:init
+BYEOLHARU_POC_PACKAGED_GUEST=1 npm run android:sync
+cd android && ./gradlew assembleDebug
+```
+
+- APK 아티팩트에는 `app-debug.apk`와 `build-info.json`이 함께 포함됩니다. 웹·Android 앱 설정 하단에서 플랫폼/버전/source SHA를 확인합니다.
+- `main` push는 웹 CI를 실행합니다. Android APK는 수동 실행 또는 관련 PR 검사에서 생성합니다.
+- 로컬 빌드에 사용할 앱 번들 및 Android 프로젝트는 생성물이며, 운영 웹이나 Supabase/Auth/DB/RLS 설정을 변경하지 않습니다.
+
+## 안전 경계
+
+- Android는 비회원 전용 테스트 APK로, 클라우드 로그인·Supabase 동기화는 꺼져 있습니다.
+- 기존 `io.github.gyeongseokjeong.byeolharu.packagedgueststep9` appId·앱 이름·디버그 서명 정책·저장소·알림 예약 흐름을 유지합니다.
+- 앱 삭제, 새 applicationId, 서명 변경은 WebView 테스트 기록 손실을 초래할 수 있으므로 별도 검증·승인 전에는 하지 않습니다.
+- 정식 Play Store 출시를 위한 버전 관리된 Android 프로젝트, 안정적인 업로드 서명, AAB 파이프라인은 별도 단계입니다.
+- 과거 실험 기록은 Git 이력에서 확인할 수 있고, `app/main` 및 과거 브랜치는 이번 정리에서 삭제하지 않습니다.
+
+## 역사적 STEP 기록
+
+아래 내용은 **이전 실험 참고용**입니다. 더 이상 유효한 빌드 명령이나 현재 구현 상태로 취급하지 마세요.
 
 ---
 

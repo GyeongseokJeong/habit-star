@@ -30,28 +30,26 @@ const match = current.match(/^package ([a-zA-Z_][a-zA-Z_0-9]*(?:\.[a-zA-Z_][a-zA
 assert.ok(match, "Could not read the generated Android package name");
 assert.ok(current.includes("extends BridgeActivity"), "Unexpected activity template; refusing patch");
 const targetPackage = match[1];
-assert.ok(
-  targetPackage.startsWith("io.github.gyeongseokjeong.byeolharu."),
-  "Refusing to patch an unrelated Android package",
+assert.equal(
+  targetPackage,
+  "io.github.gyeongseokjeong.byeolharu.packagedgueststep9",
+  "Only the existing packaged guest Android app may be generated",
 );
 assert.ok(template.includes("__PACKAGE__"), "Missing package placeholder in native template");
-const packagedGuest = targetPackage.endsWith(".packagedgueststep9");
 const patched = template
   .replace("__PACKAGE__", targetPackage)
   .replace(
     "__GUEST_SETTINGS_PLUGIN_REGISTER__",
-    packagedGuest ? "registerPlugin(ByeolharuDeviceSettingsPlugin.class);" : "// No guest settings plugin in this demo APK.",
+    "registerPlugin(ByeolharuDeviceSettingsPlugin.class);",
   );
 assert.ok(!patched.includes("__PACKAGE__"));
 assert.ok(!patched.includes("__GUEST_SETTINGS_PLUGIN_REGISTER__"));
 if (current !== patched) writeFileSync(path, patched);
-if (packagedGuest) {
-  const pluginTemplate = readFileSync(
-    resolve(mobileRoot, "native/ByeolharuDeviceSettingsPlugin.java.template"),
-    "utf8",
-  );
-  assert.ok(pluginTemplate.includes("__PACKAGE__"), "Missing notification settings plugin package placeholder");
-  const pluginPath = join(dirname(path), "ByeolharuDeviceSettingsPlugin.java");
-  writeFileSync(pluginPath, pluginTemplate.replaceAll("__PACKAGE__", targetPackage));
-}
+const pluginTemplate = readFileSync(
+  resolve(mobileRoot, "native/ByeolharuDeviceSettingsPlugin.java.template"),
+  "utf8",
+);
+assert.ok(pluginTemplate.includes("__PACKAGE__"), "Missing notification settings plugin package placeholder");
+const pluginPath = join(dirname(path), "ByeolharuDeviceSettingsPlugin.java");
+writeFileSync(pluginPath, pluginTemplate.replaceAll("__PACKAGE__", targetPackage));
 console.log(`Android native PoC activity patched for ${targetPackage}`);
