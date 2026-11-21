@@ -59,10 +59,15 @@ test("V5 STEP 3 offers a real PNG File through Web Share, without losing transie
   await expect(share).toBeEnabled({ timeout: 90_000 });
   await share.click();
   await expect(preview.getByRole("status")).toBeEmpty();
+  // The mocked share method hashes PNG bytes asynchronously. A click only
+  // dispatches the call; wait for the observable completion before asserting.
+  // Checking immediately can race with crypto.subtle.digest on busy CI runners.
+  await expect.poll(async () => page.evaluate(() =>
+    (window as Window & { __shareCalls?: unknown[] }).__shareCalls?.length ?? 0,
+  ), { timeout: 15_000 }).toBe(1);
   let shares = await page.evaluate(() => (window as Window & {
     __shareCalls?: Array<{ filename: string; type: string; size: number; active: boolean; title: string; sha256: string }>;
   }).__shareCalls ?? []);
-  expect(shares).toHaveLength(1);
   expect(shares[0].filename).toBe("byeolharu-starlight-stage-1.png");
   expect(shares[0].type).toBe("image/png");
   expect(shares[0].size).toBeGreaterThan(20_000);
