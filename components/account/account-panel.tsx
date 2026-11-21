@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { cloudEnabled } from "@/lib/supabase/client";
 import { APP_BUILD_INFO } from "@/lib/build-info";
+import { inspectGuestBackup, MAX_GUEST_BACKUP_BYTES } from "@/lib/habits/backup-file";
 import type { useHabitApp } from "@/lib/habits/use-habit-app";
 import type { Snapshot } from "@/lib/habits/repository";
 import type { NativeReminderControls } from "@/lib/habits/native-reminder-controls";
@@ -53,7 +54,7 @@ function guestHasOwnRecords(guest: Snapshot) {
 }
 
 export function AccountPanel({
-  app, page, onNavigate, theme, onThemeChange, compactView, onCompactViewChange, onHelp, onInstall, nativeReminders,
+  app, page, onNavigate, theme, onThemeChange, compactView, onCompactViewChange, onHelp, onInstall, nativeReminders, nativeBackup,
 }: {
   app: App;
   page: AccountPage;
@@ -65,9 +66,11 @@ export function AccountPanel({
   onHelp: () => void;
   onInstall?: () => void;
   nativeReminders?: NativeReminderControls;
+  nativeBackup?: boolean;
 }) {
   const state = app.snapshot?.state;
   const [message, setMessage] = useState("");
+  const [backupBusy, setBackupBusy] = useState(false);
   const [preview, setPreview] = useState<Snapshot | null>(null);
   const [guestAvailable, setGuestAvailable] = useState(false);
   const [timezonePicker, setTimezonePicker] = useState(false);
@@ -155,13 +158,41 @@ export function AccountPanel({
       setChangingZone(false);
     }
   };
-  const restoreBackup = async (file: File | undefined) => {
-    if (!file) return;
+  const exportBackup = async () => {
+    if (backupBusy || app.busy) return;
+    setBackupBusy(true);
+    setMessage("");
     try {
-      await app.restore(await file.text());
+      await app.backup();
+      if (nativeBackup) setMessage("파일을 저장할 앱을 선택한 뒤, 실제로 저장되었는지 확인해주세요. 공유창을 열기만 해서는 백업이 완료되지 않습니다.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "기록 백업에 실패했습니다. 다시 시도해주세요.");
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+  const restoreBackup = async (file: File | undefined) => {
+    if (!file || backupBusy || app.busy) return;
+    setMessage("");
+    setBackupBusy(true);
+    try {
+      if (nativeBackup) {
+        if (!file.name.toLowerCase().endsWith(".json") || file.size > MAX_GUEST_BACKUP_BYTES || !file.size) {
+          throw Error("25MB 이하의 별하루 JSON 백업 파일을 선택해주세요.");
+        }
+      }
+      const content = await file.text();
+      if (nativeBackup) {
+        const { habitCount, entryCount } = inspectGuestBackup(content);
+        const confirmText = `비회원 백업을 복원할까요?\n습관 ${habitCount}개 · 기록 ${entryCount}개\n현재 기기에 기록이 있다면 복원되지 않으며, 원본은 삭제되지 않습니다.`;
+        if (!window.confirm(confirmText)) return;
+      }
+      await app.restore(content);
       setMessage("백업을 복원했습니다.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "복원 실패");
+    } finally {
+      setBackupBusy(false);
     }
   };
 
@@ -276,14 +307,15 @@ export function AccountPanel({
           {!state?.importJournal && state?.importReceipt && <p role="status" className="account-note">가져오기 완료 · 서버와 로컬 기록을 확인했습니다.</p>}
           <div className="account-divider" />
           <h4 className="account-section-title">백업 및 복원</h4>
-          <button type="button" className="account-action-row" onClick={() => void app.backup().catch(() => setMessage("백업을 읽지 못했습니다. 브라우저 저장 설정을 확인해주세요."))}>
-            <Download size={18} /><span>기록 백업 내려받기</span><ChevronRight size={16} />
+          <button type="button" className="account-action-row" disabled={backupBusy || app.busy || (nativeBackup && !app.snapshot)} onClick={() => void exportBackup()}>
+            <Download size={18} /><span>{backupBusy ? "백업 처리 중…" : nativeBackup ? "기록 백업 파일 내보내기" : "기록 백업 내려받기"}</span><ChevronRight size={16} />
           </button>
+          {nativeBackup && <p className="account-note">Android 공유창에서 내 파일·드라이브 등 외부 저장 위치를 선택하고 JSON 파일이 존재하는지 확인하세요. 앱 캐시의 임시 파일만으로는 기록이 보존되지 않습니다.</p>}
           <details className="account-restore-details">
             <summary className="account-action-row"><ArrowDownToLine size={18} /><span>백업 파일 복원</span><ChevronRight size={16} /></summary>
             <p>기록이 없는 같은 계정 또는 비회원 저장 공간에서만 복원할 수 있어요. 원본은 먼저 백업합니다.</p>
             <label className="field">백업 복원 (기록이 없는 같은 계정·브라우저)
-              <input type="file" accept="application/json" disabled={!app.snapshot || app.busy} onChange={async (e) => {
+              <input type="file" accept=".json,application/json" disabled={!app.snapshot || app.busy || backupBusy} onChange={async (e) => {
                 const file = e.target.files?.[0];
                 await restoreBackup(file);
                 e.target.value = "";
