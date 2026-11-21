@@ -30,7 +30,7 @@ export function buildScopedReminderPlan(
   requireReminderScope(scope);
   if (
     !snapshot || typeof snapshot !== "object" ||
-    snapshot.day !== localDayKey(now) ||
+    snapshot.day !== localDayKey(now, snapshot.timeZone) ||
     !Array.isArray(snapshot.habits)
   ) {
     throw new Error("오늘의 최신 습관 기록이 준비되지 않았습니다.");
@@ -41,7 +41,7 @@ export function buildScopedReminderPlan(
     .map((habit) => habit.id);
 
   const source = buildReminderPlan(snapshot.habits, {
-    now, daysAhead, completedTodayIds,
+    now, daysAhead, completedTodayIds, timeZone: snapshot.timeZone,
   });
 
   const seenIds = new Set();
@@ -51,7 +51,7 @@ export function buildScopedReminderPlan(
     seenIds.add(id);
     // Invalidate reservations after daylight-saving/time-zone changes.
     const fingerprint = item.fingerprint + ":" +
-      item.at.getTimezoneOffset() + ":" + scope;
+      item.at.getTime() + ":" + scope;
     return { ...item, id, fingerprint };
   });
   return { ...source, notifications: scoped, scope };

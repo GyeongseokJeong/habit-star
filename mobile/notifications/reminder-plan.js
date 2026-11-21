@@ -1,7 +1,7 @@
 /**
  * Android-only STEP 5 prototype: pure schedule planner for the existing Habit
  * model. This module neither reads browser storage nor contacts a server.
- * Calendar times follow the device's local timezone (getDay: Sunday = 0).
+ * Guest calendar times follow the device; members use their account time zone.
  */
 export const REMINDER_KIND = "byeolharu-habit-reminder-v1";
 export const DEMO_SCOPE = "step5-isolated-demo";
@@ -13,12 +13,41 @@ export const REMINDER_DELIVERY_POLICY = "idle-inexact-v2";
 const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
 
-export function localDayKey(date) {
+// Member calendar follows the persisted account timezone. Guest stays device-local.
+function zonedParts(date, timeZone) {
+  const parts = new Intl.DateTimeFormat("en-GB", {timeZone, year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit", hourCycle:"h23"}).formatToParts(date);
+  const p = Object.fromEntries(parts.filter(x=>x.type!=="literal").map(x=>[x.type,Number(x.value)]));
+  return p;
+}
+export function localDayKey(date, timeZone) {
+  if (timeZone !== undefined) {
+    const p = zonedParts(date, timeZone);
+    return [p.year,p.month,p.day].map((x,i)=>String(x).padStart(i===0?4:2,"0")).join("-");
+  }
   return [
     String(date.getFullYear()).padStart(4, "0"),
     String(date.getMonth() + 1).padStart(2, "0"),
     String(date.getDate()).padStart(2, "0"),
   ].join("-");
+}
+
+// Resolve a local wall-clock minute to a real instant. Probe offsets on either
+// side of the date to handle DST gaps/folds: skip nonexistent times and choose
+// the earlier instant for repeated times (one alarm per habit/day).
+function zonedMinute(day, hour, minute, timeZone) {
+  const [y,m,d] = day.split("-").map(Number);
+  const wall = Date.UTC(y,m-1,d,hour,minute,0);
+  const offsets = new Set();
+  for (const hours of [-36,-12,0,12,36]) {
+    const probe = wall + hours * 3600000;
+    const p = zonedParts(new Date(probe),timeZone);
+    offsets.add(Date.UTC(p.year,p.month-1,p.day,p.hour,p.minute,p.second)-probe);
+  }
+  const matches = [...offsets].map(offset=>new Date(wall-offset)).filter(at=>{
+    const p=zonedParts(at,timeZone);
+    return p.year===y && p.month===m && p.day===d && p.hour===hour && p.minute===minute && p.second===0;
+  }).sort((a,b)=>a-b);
+  return matches[0] ?? null;
 }
 
 /** A stable positive Android notification ID, disjoint from test ID 7301. */
@@ -74,7 +103,7 @@ function hashFingerprint(text) {
  */
 export function buildReminderPlan(
   habits,
-  { now = new Date(), daysAhead = 8, completedTodayIds = [] } = {},
+  { now = new Date(), daysAhead = 8, completedTodayIds = [], timeZone } = {},
 ) {
   if (!Array.isArray(habits) || !(now instanceof Date) || !Number.isFinite(now.getTime())) {
     throw new Error("알림 계획에 사용할 입력이 잘못되었습니다.");
@@ -92,24 +121,28 @@ export function buildReminderPlan(
     if (seenHabitIds.has(habit.id)) throw new Error("중복된 습관 ID가 있습니다.");
     seenHabitIds.add(habit.id);
   }
-  const today = localDayKey(now);
+  const today = localDayKey(now, timeZone);
+  const [year,month,date] = today.split("-").map(Number);
   const completed = new Set(completedTodayIds);
   const usedNotificationIds = new Map();
   const result = [];
 
   for (let offset = 0; offset < daysAhead; offset += 1) {
-    const localDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset, 12);
-    const day = localDayKey(localDay);
+    // Calendar arithmetic uses UTC solely as a zone-independent date container.
+    const calendar = new Date(Date.UTC(year,month-1,date+offset,12));
+    const day = calendar.toISOString().slice(0,10);
     for (const habit of habits) {
       if (!habit.alarmEnabled || !habit.scheduledTime) continue;
-      if (!validDays(habit.repeatDays).includes(localDay.getDay())) continue;
+      if (!validDays(habit.repeatDays).includes(calendar.getUTCDay())) continue;
       if (day === today && completed.has(habit.id)) continue;
       const [, hh, mm] = TIME_PATTERN.exec(habit.scheduledTime);
       const hour = Number(hh);
       const minute = Number(mm);
-      const at = new Date(localDay.getFullYear(), localDay.getMonth(), localDay.getDate(), hour, minute);
-      // Reject non-existent local clock times around daylight-saving transitions.
-      if (at.getHours() !== hour || at.getMinutes() !== minute || at <= now) continue;
+      const at = timeZone === undefined
+        ? new Date(calendar.getUTCFullYear(), calendar.getUTCMonth(), calendar.getUTCDate(), hour, minute)
+        : zonedMinute(day,hour,minute,timeZone);
+      // Reject nonexistent local clock times and past alarms.
+      if (!at || (timeZone === undefined && (at.getHours() !== hour || at.getMinutes() !== minute)) || at <= now) continue;
       const id = reminderId(habit.id, day);
       const key = habit.id + ":" + day;
       const previous = usedNotificationIds.get(id);

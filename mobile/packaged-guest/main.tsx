@@ -57,6 +57,7 @@ function GuestNativeApp() {
     if (!lifecycle) return Promise.resolve();
     const context = { identity: identityRef.current, optIn: value, snapshot: next && {
       day: next.day,
+      timeZone: identityRef.current.kind === "member" ? next.state.timezone : undefined,
       habits: next.habits.map(h => ({ ...h, repeatDays: h.repeatDays ? [...h.repeatDays] : undefined })),
     }};
     const task = operation.current.then(async () => {
@@ -161,7 +162,10 @@ function GuestNativeApp() {
     setRepairAvailable(false);
     try {
       if (next) {
-        if (guestReminderAction(true, snapshot.current) !== "sync") {
+        if (guestReminderAction(true, snapshot.current && {
+          ...snapshot.current,
+          timeZone: identityRef.current.kind === "member" ? snapshot.current.state.timezone : undefined,
+        }) !== "sync") {
           setStatus("오늘 습관 기록을 준비한 후 다시 시도해 주세요.");
           return;
         }

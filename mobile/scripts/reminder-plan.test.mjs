@@ -62,3 +62,11 @@ test("same habit/day ID across updates; changed time has changed fingerprint", (
   assert.equal(a.id,b.id);
   assert.notEqual(a.fingerprint,b.fingerprint);
 });
+
+test("account timezone skips DST gaps and selects one earlier fold instant",()=>{
+  const gap=buildReminderPlan([mk({scheduledTime:"02:30"})],{timeZone:"America/New_York",now:new Date("2026-03-08T05:00:00Z"),daysAhead:1});
+  assert.equal(gap.total,0);
+  const fold=buildReminderPlan([mk({scheduledTime:"01:30"})],{timeZone:"America/New_York",now:new Date("2026-11-01T04:00:00Z"),daysAhead:1});
+  assert.equal(fold.total,1);
+  assert.equal(fold.notifications[0].at.toISOString(),"2026-11-01T05:30:00.000Z");
+});

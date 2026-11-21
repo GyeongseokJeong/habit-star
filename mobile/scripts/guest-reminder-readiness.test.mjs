@@ -22,3 +22,10 @@ test("explicit guest opt-out cancels even with no repository snapshot", () => {
 test("invalid current clock fails closed", () => {
   assert.throws(()=>guestReminderAction(true,today,new Date(NaN)));
 });
+
+test("member readiness follows persisted account date across the date boundary",()=>{
+  const instant=new Date("2026-11-21T01:00:00Z");
+  assert.equal(guestReminderAction(true,{day:"2026-11-21",habits:[],timeZone:"Asia/Seoul"},instant),"sync");
+  assert.equal(guestReminderAction(true,{day:"2026-11-20",habits:[],timeZone:"Asia/Seoul"},instant),"await-today");
+  assert.equal(guestReminderAction(true,{day:"2026-11-20",habits:[],timeZone:"America/Los_Angeles"},instant),"sync");
+});

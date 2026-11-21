@@ -134,3 +134,17 @@ test("snapshots are copied at enqueue time; caller mutation does not affect plan
 test("malformed native adapter refuses to initialize",()=>{
   assert.throws(()=>createReminderLifecycle({localNotifications:{}}));
 });
+
+test("member scheduling uses account calendar, weekdays, and actual UTC instant",async()=>{
+  const native=fakeNative();
+  const app=createReminderLifecycle({localNotifications:native,now:()=>new Date("2026-11-21T01:00:00Z")});
+  const data={identity:member,optIn:true,snapshot:{day:"2026-11-21",timeZone:"Asia/Seoul",habits:[{...snapshot().habits[0],scheduledTime:"11:00",repeatDays:[6]}]}};
+  assert.equal((await app.sync(data)).status,"updated");
+  assert.equal(native.pending[0].schedule.at.toISOString(),"2026-11-21T02:00:00.000Z");
+  assert.equal(native.pending[0].extra.day,"2026-11-21");
+  assert.equal(native.pending[0].schedule.allowWhileIdle,true);
+  assert.equal((await app.sync(data)).status,"unchanged");
+  const changed={...data,snapshot:{...data.snapshot,timeZone:"America/Los_Angeles",day:"2026-11-20"}};
+  assert.equal((await app.sync(changed)).status,"updated");
+  assert.equal(native.pending[0].schedule.at.toISOString(),"2026-11-21T19:00:00.000Z");
+});
