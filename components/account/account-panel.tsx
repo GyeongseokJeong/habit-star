@@ -377,73 +377,6 @@ export function AccountPanel({
               ><span className="compact-switch-track" aria-hidden="true"><span className="compact-switch-thumb" /></span></button>
             </div>
           </div>
-          {nativeReminders && (
-            <div className="account-setting-block">
-              <div className="compact-setting-row">
-                <span className="account-setting-heading">
-                  <span>습관 알림</span>
-                  <small>Android 앱에서 선택한 습관을 알려드려요</small>
-                </span>
-                <button
-                  type="button"
-                  className="compact-setting-toggle"
-                  role="switch"
-                  aria-label="습관 알림"
-                  aria-checked={nativeReminders.active}
-                  disabled={nativeReminders.busy || (nativeReminders.enabled && nativeReminders.permissionState === "unknown")}
-                  onClick={() => void nativeReminders.onEnabledChange(!nativeReminders.active)}
-                ><span className="compact-switch-track" aria-hidden="true"><span className="compact-switch-thumb" /></span></button>
-              </div>
-              {nativeReminders.enabled && nativeReminders.permissionState === "denied" && (
-                <p className="account-note" role="status">
-                  <strong>기기 알림 권한 차단됨</strong> · 알림을 받을 수 없어 스위치가 꺼져 있어요.
-                  다시 켜면 휴대폰 알림 권한을 설정할 수 있어요. 기존 습관과 예약은 유지돼요.
-                </p>
-              )}
-              {!!nativeReminders.status && !(nativeReminders.enabled && nativeReminders.permissionState === "denied") && (
-                <p className="account-note" role="status">{nativeReminders.status}</p>
-              )}
-              <details className="android-reminder-details">
-                <summary>알림 예약 및 문제 해결 <ChevronRight size={16} aria-hidden="true" /></summary>
-                <div className="android-reminder-details-body">
-                  <p className="account-note">{app.user
-                    ? "회원 알림은 습관 변경 시 자동 갱신돼요. 예약 비교·복구 기능은 비회원 모드에서만 제공됩니다."
-                    : "예약이 궁금하거나 알림이 오지 않을 때 확인해요."}</p>
-                  <div className="android-reminder-detail-actions">
-                    <button
-                      type="button"
-                      className="secondary"
-                      disabled={nativeReminders.busy}
-                      onClick={() => void nativeReminders.onInspectPending()}
-                    >알림 예약 확인</button>
-                    {!app.user && <button
-                      type="button"
-                      className="secondary"
-                      disabled={nativeReminders.busy}
-                      onClick={() => void nativeReminders.onAuditPending()}
-                    >습관 설정과 예약 비교</button>}
-                  </div>
-                  {!!nativeReminders.diagnostic && (
-                    <p className="account-note" role="status">{nativeReminders.diagnostic}</p>
-                  )}
-                  {!!nativeReminders.auditStatus && (
-                    <p className="account-note" role="status">{nativeReminders.auditStatus}</p>
-                  )}
-                  {!app.user && nativeReminders.repairAvailable && (
-                    <button
-                      type="button"
-                      className="secondary"
-                      disabled={nativeReminders.busy}
-                      onClick={() => void nativeReminders.onRepairPending()}
-                    >알림 예약 다시 맞추기</button>
-                  )}
-                  {!!nativeReminders.repairStatus && (
-                    <p className="account-note" role="status">{nativeReminders.repairStatus}</p>
-                  )}
-                </div>
-              </details>
-            </div>
-          )}
           <div className="account-setting-block">
             <div className="account-setting-heading"><span>시간대</span><small>{app.user ? "습관 기록의 날짜 기준" : "기기의 시간대를 사용해요"}</small></div>
             <div className="account-timezone-row"><Clock3 size={19}/><span><strong>{zoneName(state?.timezone ?? deviceZone)}</strong><small>{state?.timezone ?? deviceZone}</small></span>
@@ -470,6 +403,53 @@ export function AccountPanel({
               </div>
             )}
           </div>
+          {nativeReminders && (
+            <details className="android-reminder-details">
+              <summary>알림 문제 해결 <ChevronRight size={16} aria-hidden="true" /></summary>
+              <div className="android-reminder-details-body">
+                <p className="account-note">알림은 각 습관의 수정 화면에서 켜고 끌 수 있어요.</p>
+                {nativeReminders.permissionState === "denied" && (
+                  <p className="account-note" role="status">
+                    기기 알림 권한이 차단되어 있어요. 습관 알림을 다시 켜면 Android 권한 설정으로 이동할 수 있어요.
+                  </p>
+                )}
+                {!!nativeReminders.status && (
+                  <p className="account-note" role="status">{nativeReminders.status}</p>
+                )}
+                <div className="android-reminder-detail-actions">
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={nativeReminders.busy}
+                    onClick={() => void nativeReminders.onInspectPending()}
+                  >알림 예약 확인</button>
+                  {!app.user && <button
+                    type="button"
+                    className="secondary"
+                    disabled={nativeReminders.busy}
+                    onClick={() => void nativeReminders.onAuditPending()}
+                  >습관 설정과 예약 비교</button>}
+                </div>
+                {!!nativeReminders.diagnostic && (
+                  <p className="account-note" role="status">{nativeReminders.diagnostic}</p>
+                )}
+                {!!nativeReminders.auditStatus && (
+                  <p className="account-note" role="status">{nativeReminders.auditStatus}</p>
+                )}
+                {!app.user && nativeReminders.repairAvailable && (
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={nativeReminders.busy}
+                    onClick={() => void nativeReminders.onRepairPending()}
+                  >알림 예약 다시 맞추기</button>
+                )}
+                {!!nativeReminders.repairStatus && (
+                  <p className="account-note" role="status">{nativeReminders.repairStatus}</p>
+                )}
+              </div>
+            </details>
+          )}
           {onInstall && <button type="button" className="account-action-row" onClick={onInstall}><ArrowDownToLine size={18}/><span>별하루 앱 설치</span><ChevronRight size={16}/></button>}
           <p className="account-note" data-testid="build-info" aria-label="앱 빌드 정보">
             {nativeReminders ? "Android" : "Web"} · v{APP_BUILD_INFO.version} · 빌드 {APP_BUILD_INFO.shortSha}
