@@ -65,3 +65,9 @@ cd android && ./gradlew assembleDebug
 - Android 비밀번호 재설정 요청은 기존 `/auth/confirm?next=/auth/reset` HTTPS 링크를 사용합니다. Supabase의 implicit 복구 토큰은 서버에서 읽을 수 없는 URL fragment로 전달되며, 서버는 fragment를 노출하지 않고 동일 origin `/auth/reset`으로 이동합니다.
 - 웹 재설정 페이지는 복구 토큰을 주소창에서 즉시 제거하고, 세션을 쿠키/영구 저장소에 보관하지 않는 임시 클라이언트에서만 비밀번호를 변경합니다. 완료 후 앱에서 새 비밀번호로 로그인합니다.
 - 회원 알림 예약 조회는 현재 로그인 UID의 `member:<UID>` 범위만 표시합니다. 이전 게스트/다른 회원의 예약은 이 계정의 예약 수에 포함되지 않습니다.
+
+## 실기기 피드백: 화면 잠금/앱 종료 알림 및 이메일
+- Capacitor Local Notifications 8.3+의 `isExactNotification`은 schedule 내부가 아닌 최상위 옵션입니다. `allowWhileIdle: true` 및 최상위 `isExactNotification: false`로 사용자 지정 알림을 절전 중에도 실행 가능한 비정확 예약으로 요청합니다.
+- 기존 예약 fingerprint에 전달 정책 버전을 반영해 업데이트 후 앱을 열면 현재 계정의 기존 예약이 새 설정으로 교체됩니다. 습관/회원 기록은 변경하지 않습니다.
+- Doze 및 OS 배터리 정책에 따라 여전히 지연될 수 있고, Android 설정에서 강제 종료한 앱은 다시 실행하기 전 알림 전달을 보장하지 않습니다. 정확 시간 보장은 별도 권한/정책 검토가 필요합니다.
+- 가입/비밀번호 재설정 HTTP 성공은 실제 메일 발송·수신을 보장하지 않습니다. 이미 인증된 가입 이메일이 아닌 새 테스트 주소로 가입하고, 확인된 계정으로 비밀번호 재설정을 별도 검증합니다. SMTP 환경은 변경하지 않습니다.

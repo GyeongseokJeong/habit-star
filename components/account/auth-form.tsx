@@ -76,8 +76,9 @@ export function AuthForm({
       <h3>{mode === "signup" ? "이메일 인증이 필요해요" : "메일을 확인해주세요"}</h3>
       <p>{mode === "signup"
         ? "가입 요청을 처리했습니다. 이메일의 인증 링크를 확인해주세요."
-        : "비밀번호 재설정 링크를 보냈습니다. 메일함을 확인해주세요."}</p>
+        : "요청을 처리했습니다. 가입한 이메일의 메일함을 확인해주세요."}</p>
       <p className="auth-email">{email}</p>
+      {mode === "signup" && <p className="auth-note">이미 인증된 이메일은 새 인증 메일이 오지 않을 수 있어요. 기존 계정으로 로그인해주세요.</p>}
       {mode === "signup" && (
         <button type="button" className="secondary full account-action" disabled={busy || cooldown > 0} onClick={() => void resend()}>
           <Mail size={16} />{cooldown ? String(cooldown) + "초 후 재발송 가능" : "인증 메일 다시 보내기"}

@@ -76,6 +76,19 @@ test("diff preserves unrelated and unchanged reservations without duplicate work
   assert.equal(diff.desiredCount,2);
 });
 
+test("delivery policy update replaces old pending alarms without changing IDs or other scopes", () => {
+  const desired=plan();
+  const old=desired.notifications.map(item=>{
+    const n=toNativeNotification(item,scope);
+    return {...n, schedule:{at:item.at,allowWhileIdle:false},extra:{...n.extra,fingerprint:"old-policy:"+n.extra.fingerprint}};
+  });
+  const unrelated={id:7301,extra:{kind:"unrelated"}};
+  const diff=diffScopedNotifications([...old,unrelated],desired);
+  assert.deepEqual(diff.cancel.map(n=>n.id),old.map(n=>n.id));
+  assert.deepEqual(diff.schedule.map(n=>n.id),old.map(n=>n.id));
+  assert.ok(diff.schedule.every(n=>n.schedule.allowWhileIdle===true && n.isExactNotification===false));
+  assert.equal(diffScopedNotifications([...diff.schedule,unrelated],desired).schedule.length,0);
+});
 test("edited time changes fingerprint; disabling removes only owned jobs", () => {
   const oldPlan=plan();
   const old=oldPlan.notifications.map(item=>toNativeNotification(item,scope));

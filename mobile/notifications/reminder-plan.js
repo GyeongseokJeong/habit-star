@@ -6,6 +6,9 @@
 export const REMINDER_KIND = "byeolharu-habit-reminder-v1";
 export const DEMO_SCOPE = "step5-isolated-demo";
 export const MAX_REMINDERS = 48;
+// Include the native scheduling policy in fingerprints so an app update
+// replaces pending alarms created by the old, non-idle-capable policy.
+export const REMINDER_DELIVERY_POLICY = "idle-inexact-v2";
 
 const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
@@ -121,7 +124,7 @@ export function buildReminderPlan(
         day,
         at,
         title,
-        fingerprint: hashFingerprint(key + ":" + title + ":" + habit.scheduledTime),
+        fingerprint: hashFingerprint(key + ":" + title + ":" + habit.scheduledTime + ":" + REMINDER_DELIVERY_POLICY),
       });
     }
   }
@@ -143,9 +146,12 @@ export function toNativeNotification(planItem, scope) {
     body: "오늘의 작은 실천을 떠올려 볼까요?",
     schedule: {
       at: planItem.at,
-      allowWhileIdle: false,
-      isExactNotification: false,
+      // A user-selected habit reminder should also run while the phone is idle.
+      allowWhileIdle: true,
     },
+    // Capacitor Local Notifications 8.3+ puts this on LocalNotificationSchema,
+    // NOT schedule. Do not trigger an unexpected exact-alarm settings prompt.
+    isExactNotification: false,
     channelId: "byeolharu-habit-reminders-step5",
     extra: {
       kind: REMINDER_KIND,
