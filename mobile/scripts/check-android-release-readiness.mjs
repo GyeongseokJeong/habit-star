@@ -22,9 +22,9 @@ export function inspectReleaseSources({config, workflow, patcher, packageJson}) 
   // These are intentional blockers. Do not mistake the current PoC's
   // successful debug build for a shippable Android App Bundle.
   if (config.includes("packagedgueststep9"))
-    block("DEBUG_APP_ID", "Current packaged guest uses a PoC application ID; choose and freeze the release applicationId.");
+    block("DEBUG_APP_ID", "Current packaged guest uses a PoC application ID; configure the release build with io.github.gyeongseokjeong.byeolharu.");
   if (/별하루 비회원 STEP 9/.test(config))
-    block("DEBUG_APP_LABEL", "Current launcher label includes STEP 9; choose a public release label.");
+    block("DEBUG_APP_LABEL", "Current launcher label includes STEP 9; configure the release launcher label as 별하루.");
   if (patcher.includes("cap add android") || /generated debug MainActivity|generated Android package/i.test(patcher) || /generated Android project/i.test(patcher))
     block("GENERATED_ANDROID_PROJECT", "Native project is generated and patched for debug; establish a versioned release configuration.");
   if (/assembleDebug/.test(workflow) && !/bundleRelease/.test(workflow))
@@ -38,15 +38,15 @@ export function inspectReleaseSources({config, workflow, patcher, packageJson}) 
     ready: blockers.length === 0,
     blockers,
     manualGates: [
-      "Release applicationId and app label decided and frozen; separate from installed debug package",
+      "Verify the release bundle applicationId io.github.gyeongseokjeong.byeolharu and launcher label 별하루 alongside the installed test app",
       "Release-target SDK verified from final generated Android build (Google Play new app: API 36+ as of Nov 2026)",
       "VersionCode/versionName and immutable upgrade strategy",
       "Versioned native Android release project and reproducible release AAB build",
       "Play App Signing/upload key secured outside git; signed AAB tested in internal testing",
       "Launcher icon, splash, accessibility, light/dark, permissions and notification end-to-end review",
       "Play Store listing, privacy policy, Data Safety and required declaration review",
-      "Authenticated user/cloud synchronization scope decided; guest-only behavior explicitly documented",
-      "Prior stacked Android PRs reviewed and merged in dependency order into app/main after approval",
+      "Verify guest JSON restore and same-account member sync from the installed test app; preserve the original until records match",
+      "Verify the release uses the shared main source and email callbacks reopen the requesting app with both packages installed",
       "Galaxy device regression of the latest permission-toggle change and release AAB verified",
     ],
   };
