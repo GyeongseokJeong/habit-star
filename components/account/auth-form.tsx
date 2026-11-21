@@ -30,10 +30,11 @@ export function AuthForm({
     const timer = window.setTimeout(() => setCooldown(Math.max(0, cooldown - 1)), 1000);
     return () => window.clearTimeout(timer);
   }, [cooldown]);
+  const androidPackaged = process.env.NEXT_PUBLIC_ANDROID_PACKAGED_GUEST === "true";
   const redirect = (reset = false) =>
     emailAuthRedirect(
-      location.origin,
-      process.env.NODE_ENV === "production"
+      androidPackaged ? process.env.NEXT_PUBLIC_SITE_URL! : location.origin,
+      androidPackaged || process.env.NODE_ENV === "production"
         ? undefined
         : process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL,
       reset,
@@ -82,7 +83,9 @@ export function AuthForm({
           <Mail size={16} />{cooldown ? String(cooldown) + "초 후 재발송 가능" : "인증 메일 다시 보내기"}
         </button>
       )}
-      <p className="auth-note">메일이 보이지 않으면 스팸함도 확인해주세요.</p>
+      <p className="auth-note">{androidPackaged
+        ? "인증 링크는 웹 브라우저에서 열려요. 인증 후 이 앱으로 돌아와 로그인해주세요."
+        : "메일이 보이지 않으면 스팸함도 확인해주세요."}</p>
       <button type="button" className="text-button auth-inline-link" onClick={() => goTo("login")}>로그인으로 돌아가기 <ArrowRight size={15} /></button>
       <p role="status" aria-live="polite" className={"auth-feedback " + (failed ? "error" : "")}>{message}</p>
     </div>
@@ -134,7 +137,9 @@ export function AuthForm({
         {mode !== "reset" && (
           <PasswordInput key={mode} autoComplete={mode === "signup" ? "new-password" : "current-password"} disabled={busy} />
         )}
-        {mode === "signup" && <p className="auth-note">이메일 인증 후 사용할 수 있어요. 비회원 기록은 자동으로 이전되지 않습니다.</p>}
+        {mode === "signup" && <p className="auth-note">{androidPackaged
+          ? "이메일을 웹 브라우저에서 인증한 뒤 앱에서 로그인해주세요. 비회원 기록은 자동으로 이전되지 않습니다."
+          : "이메일 인증 후 사용할 수 있어요. 비회원 기록은 자동으로 이전되지 않습니다."}</p>}
         <button className={"full account-action " + (mode === "signup" ? "account-signup-action" : "primary")} disabled={busy} aria-busy={busy}>
           {busy ? "처리 중…" : mode === "login" ? "로그인" : mode === "signup" ? "이메일로 회원가입" : "재설정 메일 보내기"}
         </button>
