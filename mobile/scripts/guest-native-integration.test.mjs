@@ -18,6 +18,7 @@ test("only bundled guest entrypoint imports native Capacitor reminders", () => {
 });
 test("guest opt-in UI is passed only as an optional prop", () => {
   const ui = read("components/byeolharu.tsx");
+  const entry = read("mobile/packaged-guest/main.tsx");
   const account = read("components/account/account-panel.tsx");
   assert.match(ui, /nativeReminders\?: NativeReminderControls/);
   assert.match(ui, /onAccountSnapshot\?\.\(app\.snapshot, app\.user\?\.id \?\? null\)/);
