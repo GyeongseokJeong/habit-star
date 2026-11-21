@@ -59,7 +59,7 @@ test("manual repair is exposed only after a real mismatch with opt-in and OS per
 });
 test("denied OS permission cannot silently clear opt-in, native queue or habit data",()=>{
   const start=entry.indexOf("if (!granted) {");
-  const end=entry.indexOf("return;",start);
+  const end=entry.indexOf("return false;",start);
   assert.ok(start>=0 && end>start);
   const denial=entry.slice(start,end);
   assert.doesNotMatch(denial,/localStorage\.setItem|schedule\(|lifecycle\.disable\(|setEnabled\(false\)/);
