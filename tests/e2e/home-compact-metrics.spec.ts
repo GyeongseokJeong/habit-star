@@ -13,7 +13,7 @@ for (const width of [320, 390, 430]) {
 
       const metrics = page.getByRole("region", { name: "오늘의 통계" });
       await expect(metrics).toBeVisible();
-      await expect(metrics.getByText("오늘 전체 실천")).toBeVisible();
+      await expect(metrics.getByText("오늘의 실천")).toBeVisible();
       await expect(metrics.getByText("평균 별점")).toBeVisible();
       await expect(metrics.getByText("연속 실천")).toBeVisible();
       await expect(metrics.locator(".metric-star")).toHaveCount(1);

@@ -22,7 +22,6 @@ import {
   LayoutGrid,
   Leaf,
   Moon,
-  MoreHorizontal,
   Pencil,
   Plus,
   Sparkles,
@@ -49,7 +48,7 @@ import { useHabitApp } from "@/lib/habits/use-habit-app";
 import type { NativeReminderControls } from "@/lib/habits/native-reminder-controls";
 import { AccountPanel } from "@/components/account/account-panel";
 import { StarlitHero } from "@/components/starlit-hero";
-import { initialRoutineTab, startupDataReady } from "@/lib/habits/time-tab";
+import { countEarlierPendingHabits, initialRoutineTab, startupDataReady } from "@/lib/habits/time-tab";
 import { getFirstUseState, canCelebrateFirstPractice } from "@/lib/habits/onboarding";
 import { sortHabitsForDisplay } from "@/lib/habits/display-order";
 import { ConstellationGrowthView } from "@/components/constellation-growth-view";
@@ -84,7 +83,7 @@ const GROUPS = {
   night: {
     name: "밤",
     icon: Moon,
-    greeting: "지금은 차분한 저녁 루틴 시간이에요",
+    greeting: "지금은 차분한 밤 루틴 시간이에요",
     range: "17:00 – 05:00",
   },
 };
@@ -1544,22 +1543,12 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
     if (firstPracticeTimer.current) clearTimeout(firstPracticeTimer.current);
   }, [today, scope]);
 
-  const upcoming =
-    activeTab !== "all" && activeTab !== "matrix"
-      ? sortHabitsForDisplay(
-          // A preview is for pending actions only, in the same stable time order.
-          scheduledHabits.filter(
-            (h) =>
-              h.timeGroup ===
-                (activeTab === "morning"
-                  ? "day"
-                  : activeTab === "day"
-                    ? "night"
-                    : "morning") &&
-              !(heldCompletion.get(h.id) ?? h.completed),
-          ),
-        )
-      : [];
+  // Only after this time group is clear, gently surface earlier pending habits.
+  // The active account's day and timezone are already reflected in scheduledHabits/displayNow.
+  const earlierPendingCount = completionDataReady && compactPending.length === 0 && displayNow
+    ? countEarlierPendingHabits(activeTab, scheduledHabits, displayNow.getHours(),
+        (habit) => heldCompletion.get(habit.id) ?? habit.completed)
+    : 0;
   let streak = 0;
   if (now) {
     const day = new Date(`${today}T12:00:00`);
@@ -1580,7 +1569,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
     setStarlightPreviewOpen(false);
   }, [today, scope]);
 
-  const renderCard = (habit: Habit, grouped = true) => (
+  const renderCard = (habit: Habit) => (
     <HabitCard
       key={habit.id}
       habit={habit}
@@ -1594,8 +1583,8 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
         if (normalFocusTimer.current) clearTimeout(normalFocusTimer.current);
         const movesGroup = (heldCompletion.get(id) ?? habit.completed) !== (habit.rating === value ? false : true);
         if (fromKeyboard && movesGroup) {
-          // A completed upcoming card also disappears. Transfer focus before
-          // the 700ms held-completion window ends, without affecting rating edits.
+          // Transfer focus before completed cards move to the collapsed group,
+          // without affecting rating edits.
           normalFocusTimer.current = setTimeout(() => {
             const activeCard = document.activeElement?.closest(".habit-card");
             if (activeCard?.getAttribute("data-habit-id") !== id) {
@@ -1603,14 +1592,12 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
               return;
             }
             const next = Array.from(document.querySelectorAll<HTMLElement>(
-              grouped
-                ? ".normal-pending-list .habit-card .card-rating button"
-                : ".upcoming-heading + .habit-grid .habit-card .card-rating button",
+              ".normal-pending-list .habit-card .card-rating button",
             )).find((button) =>
               button.closest(".habit-card")?.getAttribute("data-habit-id") !== id,
             );
-            // The selected tab survives when the final pending/preview card goes away.
-            const fallback = !grouped || habit.rating === value
+            // The selected tab survives after the final pending card moves.
+            const fallback = habit.rating === value
               ? document.getElementById("tab-" + activeTab)
               : (document.querySelector<HTMLButtonElement>(".normal-done-toggle")
                 ?? document.getElementById("tab-" + activeTab));
@@ -1685,7 +1672,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
               onClick={() => { tabChosenManually.current = true; setReflectionOpen(false); setActiveTab("all"); }}
             >
               <Sun size={16} />
-              오늘의 루틴
+              오늘의 습관
             </button>
             <button
               className={activeTab === "matrix" ? "active" : ""}
@@ -1774,7 +1761,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
         ) : (
         <section className="metrics" aria-label="오늘의 통계">
           <div className="metric completion-metric">
-            <div className="metric-label">오늘 전체 실천</div>
+            <div className="metric-label">오늘의 실천</div>
             <div className="metric-value">
               {summary.completed}<span className="muted">/ {scheduledHabits.length}</span>
             </div>
@@ -1808,7 +1795,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
                 {activeTab === "matrix"
                   ? "차곡차곡 쌓인 나의 별"
                   : activeTab === "all"
-                    ? "나의 데일리 루틴"
+                    ? "오늘의 습관"
                     : `나의 ${GROUPS[activeTab].name} 루틴`}
                 <span>
                   {activeTab === "all" || activeTab === "matrix"
@@ -1995,7 +1982,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
                     <div className="normal-habit-list">
                       {compactPending.length > 0 && (
                         <div className="habit-grid normal-pending-list" aria-label="실천할 습관">
-                          {compactPending.map((habit) => renderCard(habit, true))}
+                          {compactPending.map((habit) => renderCard(habit))}
                         </div>
                       )}
                       {filtered.length > 0 && compactPending.length === 0 && (
@@ -2015,7 +2002,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
                           </button>
                           {completedOpen && (
                             <div id="normal-completed-list" className="habit-grid normal-completed-list">
-                              {compactCompleted.map((habit) => renderCard(habit, true))}
+                              {compactCompleted.map((habit) => renderCard(habit))}
                             </div>
                           )}
                         </section>
@@ -2030,7 +2017,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
                               <Plus size={15} />첫 습관 추가하기
                             </button>
                           )}
-                          {ready && habits.length > 0 && !isRestDay && activeTab !== "all" && (
+                          {ready && habits.length > 0 && !isRestDay && activeTab !== "all" && earlierPendingCount === 0 && (
                             <button className="text-button" onClick={() => {
                               tabChosenManually.current = true;
                               setActiveTab("all");
@@ -2062,21 +2049,25 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
                         ))}
                     </section>
                   )}
-                  {!compactView && upcoming.length > 0 && (
-                    <>
-                      <div className="upcoming-heading">
-                        <h3>
-                          {activeTab === "night"
-                            ? "아침을 여는 작은 약속"
-                            : "조금 뒤, 나를 위한 시간"}
-                          <span>UP NEXT</span>
-                        </h3>
-                        <MoreHorizontal size={19} />
-                      </div>
-                      <div className="habit-grid">
-                        {upcoming.map((habit) => renderCard(habit, false))}
-                      </div>
-                    </>
+                  {earlierPendingCount > 0 && (
+                    <button
+                      type="button"
+                      className="earlier-pending-link"
+                      onClick={() => {
+                        tabChosenManually.current = true;
+                        // The shortcut unmounts after switching tabs; transfer
+                        // keyboard focus to a control that remains mounted.
+                        document.getElementById("tab-all")?.focus();
+                        setActiveTab("all");
+                      }}
+                      aria-label={`다른 시간대에 남은 습관 ${earlierPendingCount}개, 전체 보기`}
+                    >
+                      <span className="earlier-pending-label">
+                        <span className="earlier-pending-dot" aria-hidden="true" />
+                        다른 시간대에 남은 습관 <strong>{earlierPendingCount}개</strong>
+                      </span>
+                      <span className="earlier-pending-action">전체 보기 <ChevronRight size={16} aria-hidden="true" /></span>
+                    </button>
                   )}
                 </>
               )}

@@ -40,7 +40,7 @@ test("desktop main navigation exits the weekly reflection and shows the selected
   await page.getByRole("button", { name: "최근 7일 돌아보기", exact: true }).click();
   await expect(page.getByRole("heading", { name: "최근 7일 돌아보기" })).toBeVisible();
 
-  await page.getByRole("button", { name: "오늘의 루틴", exact: true }).click();
+  await page.getByRole("button", { name: "오늘의 습관", exact: true }).click();
   await expect(page.getByRole("heading", { name: "최근 7일 돌아보기" })).toHaveCount(0);
   await expect(page.getByRole("tab", { name: "전체", exact: true })).toHaveAttribute("aria-selected", "true");
 
