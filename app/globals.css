@@ -849,20 +849,53 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   color: var(--muted);
   font-size: 11px;
 }
-.upcoming-heading {
+/* A quiet shortcut after the selected time-group has no pending habits. */
+.earlier-pending-link {
   display: flex;
-  justify-content: space-between;
+  width: 100%;
+  min-height: 48px;
   align-items: center;
-  margin: 24px 0 12px;
-  color: var(--muted);
+  justify-content: space-between;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding: 11px 3px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--body);
+  text-align: left;
+  font-size: 13px;
+  cursor: pointer;
 }
-.upcoming-heading h3 {
-  font-size: 14px;
-  font-weight: 500;
-  margin: 0;
+.earlier-pending-label, .earlier-pending-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
-.upcoming-heading h3 span {
-  display: none;
+.earlier-pending-label { min-width: 0; flex-wrap: wrap; word-break: keep-all; }
+.earlier-pending-label strong { font-weight: 650; color: var(--ink); white-space: nowrap; }
+.earlier-pending-dot {
+  flex: 0 0 7px;
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid var(--gold);
+  border-radius: 50%;
+}
+.earlier-pending-action {
+  flex: 0 0 auto;
+  color: var(--sage);
+  font-weight: 650;
+  white-space: nowrap;
+}
+.earlier-pending-link:focus-visible {
+  outline: 2px solid var(--sage);
+  outline-offset: 2px;
+  border-radius: 5px;
+}
+@media (max-width: 360px) {
+  .earlier-pending-link { flex-wrap: wrap; }
+  .earlier-pending-action { margin-left: auto; }
 }
 .empty-state {
   grid-column: 1 / -1;
