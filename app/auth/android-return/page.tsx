@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { AndroidReturnLink } from "@/components/account/android-return-link";
 
@@ -7,6 +7,7 @@ export default function AndroidReturnPage() {
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [theme, setTheme] = useState("light");
+  const initialLinkInspected = useRef(false);
   useEffect(() => {
     // A second email link can navigate to the same document using only a
     // different fragment. Browser hash navigation does not remount React.
@@ -18,7 +19,12 @@ export default function AndroidReturnPage() {
       // Never retain/forward signup tokens in browser history or Android intent.
       history.replaceState(null, "", location.pathname);
     };
-    inspectLink();
+    // Dev Strict Mode replays effects while keeping refs. A second pass must
+    // not read the URL after credentials/error details have been removed.
+    if (!initialLinkInspected.current) {
+      initialLinkInspected.current = true;
+      inspectLink();
+    }
     window.addEventListener("hashchange", inspectLink);
     window.addEventListener("popstate", inspectLink);
     try {
