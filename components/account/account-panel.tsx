@@ -15,7 +15,7 @@ import type { NativeReminderControls } from "@/lib/habits/native-reminder-contro
 import { AuthForm, type AuthMode } from "./auth-form";
 
 type App = ReturnType<typeof useHabitApp>;
-export type AccountPage = "home" | "records" | "import" | "settings" | "security" | AuthMode;
+export type AccountPage = "home" | "records" | "import" | "settings" | "help" | "security" | AuthMode;
 
 const zoneLabels: Record<string, string> = {
   "Asia/Seoul": "한국 · 서울",
@@ -54,7 +54,7 @@ function guestHasOwnRecords(guest: Snapshot) {
 }
 
 export function AccountPanel({
-  app, page, onNavigate, theme, onThemeChange, compactView, onCompactViewChange, onHelp, onInstall, nativeReminders, nativeBackup,
+  app, page, onNavigate, theme, onThemeChange, compactView, onCompactViewChange, onInstall, nativeReminders, nativeBackup,
 }: {
   app: App;
   page: AccountPage;
@@ -63,7 +63,6 @@ export function AccountPanel({
   onThemeChange: (next: "light" | "dark") => void;
   compactView: boolean;
   onCompactViewChange: (enabled: boolean) => void;
-  onHelp: () => void;
   onInstall?: () => void;
   nativeReminders?: NativeReminderControls;
   nativeBackup?: boolean;
@@ -253,7 +252,7 @@ export function AccountPanel({
           <nav className="account-menu" aria-label="계정 메뉴">
             <button type="button" aria-label="데이터 관리" onClick={() => navigate("records")}><Database size={19} /><span>데이터 관리<small>동기화 · 백업 · 복원</small></span><ChevronRight size={17} /></button>
             <button type="button" aria-label="앱 설정" onClick={() => navigate("settings")}><Settings2 size={19} /><span>앱 설정<small>화면 테마 · 시간대</small></span><ChevronRight size={17} /></button>
-            <button type="button" aria-label="사용 안내" onClick={onHelp}><CircleHelp size={19} /><span>사용 안내<small>별점 기록 · 데이터 보관</small></span><ChevronRight size={17} /></button>
+            <button type="button" aria-label="사용 안내" onClick={() => navigate("help")}><CircleHelp size={19} /><span>사용 안내<small>별점 기록 · 데이터 보관</small></span><ChevronRight size={17} /></button>
             {app.user && <button type="button" aria-label="계정 관리" onClick={() => navigate("security")}><UserRound size={19} /><span>계정 관리<small>계정 정보 · 로그아웃</small></span><ChevronRight size={17} /></button>}
           </nav>
         </>
@@ -454,6 +453,37 @@ export function AccountPanel({
           <p className="account-note" data-testid="build-info" aria-label="앱 빌드 정보">
             {nativeReminders ? "Android" : "Web"} · v{APP_BUILD_INFO.version} · 빌드 {APP_BUILD_INFO.shortSha}
           </p>
+        </section>
+      )}
+
+      {page === "help" && (
+        <section className="account-detail account-help" aria-label="사용 안내">
+          <p className="account-detail-hint">작은 실천을 기록하고, 쌓인 하루를 별빛으로 돌아봐요.</p>
+          <div className="account-help-group">
+            <h3>습관 만들기</h3>
+            <p>새 습관을 추가할 때 시간대와 반복 요일을 정해요. 예정 시간을 선택하면 실천할 시간을 쉽게 확인할 수 있어요.</p>
+          </div>
+          <div className="account-help-group">
+            <h3>오늘의 실천 기록</h3>
+            <p>습관을 완료하고 만족도를 별 1~5개로 남겨요. 같은 별을 다시 누르면 별점이 취소돼요.</p>
+          </div>
+          <div className="account-help-group">
+            <h3>별자리와 돌아보기</h3>
+            <p>완료한 습관이 쌓이면 별자리가 성장해요. 최근 7일 돌아보기에서 한 주의 실천을 살펴볼 수 있어요.</p>
+          </div>
+          <div className="account-help-group">
+            <h3>기록 저장과 동기화</h3>
+            <p>비회원 기록은 현재 기기에 보관해요. 로그인하면 회원 기록을 클라우드에 동기화할 수 있고, 비회원 기록은 확인 후 직접 가져올 수 있어요.</p>
+          </div>
+          {nativeReminders && (
+            <div className="account-help-group">
+              <h3>Android 습관 알림</h3>
+              <p>습관을 만들거나 수정할 때 시간을 정하고 ‘이 습관 알림’을 켜세요. 기기 알림 권한이 필요하면 안내에 따라 허용할 수 있어요.</p>
+            </div>
+          )}
+          <button type="button" className="account-action-row" onClick={() => navigate("records")}>
+            <Database size={18} aria-hidden="true" /><span>백업 · 복원 · 동기화 관리</span><ChevronRight size={16} aria-hidden="true" />
+          </button>
         </section>
       )}
 
