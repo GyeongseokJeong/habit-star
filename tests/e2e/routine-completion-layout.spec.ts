@@ -61,31 +61,30 @@ test("morning and day completion copy does not claim the whole day is finished",
   await expect(page.locator(".normal-all-done")).toHaveText("오늘의 실천을 모두 마쳤어요 ✨");
 });
 
-test("completed upcoming habits are hidden but remain in day and all completed folds", async ({ page }) => {
+test("other-period cards stay hidden while their records remain in day and all folds", async ({ page }) => {
   await seedLegacyFiveHabits(page);
   await page.goto("/");
   await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
-  await page.getByRole("tab", { name: "아침", exact: true }).click();
-  await expect(page.locator(".upcoming-heading")).toHaveCount(0);
-
   await page.getByRole("tab", { name: "낮", exact: true }).click();
   await page.locator(".normal-done-toggle").click();
   const completed = page.locator(".normal-completed-list .habit-card").first();
   const title = (await completed.locator("h3").innerText()).trim();
   await completed.getByRole("button", { name: title + " 4점" }).click();
-  await expect(page.locator(".normal-pending-list .habit-card")).toHaveCount(1, { timeout: 5000 });
+  const pending = page.locator(".normal-pending-list .habit-card");
+  await expect(pending).toHaveCount(1, { timeout: 5000 });
 
   await page.getByRole("tab", { name: "아침", exact: true }).click();
-  const upcoming = page.locator(".upcoming-heading + .habit-grid .habit-card");
-  await expect(upcoming).toHaveCount(1);
-  await expect(upcoming.first()).not.toHaveClass(/is-completed/);
-  await upcoming.first().getByRole("button", { name: title + " 4점" }).click();
-  await expect(upcoming).toHaveCount(0, { timeout: 5000 });
   await expect(page.locator(".upcoming-heading")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: title, exact: true })).toHaveCount(0);
 
   await page.getByRole("tab", { name: "낮", exact: true }).click();
+  const dayCard = page.locator(".normal-pending-list .habit-card").filter({ hasText: title });
+  await expect(dayCard).toBeVisible();
+  await dayCard.getByRole("button", { name: title + " 4점" }).click();
+  await expect(pending).toHaveCount(0, { timeout: 5000 });
   await page.locator(".normal-done-toggle").click();
   await expect(page.locator(".normal-completed-list .habit-card").filter({ hasText: title })).toBeVisible();
+
   await page.getByRole("tab", { name: "전체", exact: true }).click();
   await page.locator(".normal-done-toggle").click();
   await expect(page.locator(".normal-completed-list .habit-card").filter({ hasText: title })).toBeVisible();
