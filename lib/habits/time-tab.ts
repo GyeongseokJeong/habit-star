@@ -39,3 +39,26 @@ export function startupDataReady(
     Object.prototype.hasOwnProperty.call(snapshot.history, snapshot.day)
   );
 }
+
+/**
+ * Show only pending habits from time groups that have already ended today.
+ * Night spans midnight: from 00:00–04:59, today's morning/day are still ahead.
+ * Callers pass today's scheduled habits only; no stored records are changed.
+ */
+export function countEarlierPendingHabits<T extends { timeGroup: TimeGroup; completed: boolean }>(
+  tab: "all" | TimeGroup | "matrix",
+  scheduledHabits: ReadonlyArray<T>,
+  localHour: number,
+  isCompleted: (habit: T) => boolean = (habit) => habit.completed,
+): number {
+  if (!Number.isInteger(localHour) || localHour < 0 || localHour > 23) return 0;
+  const includeMorning = (tab === "day" || tab === "night") && localHour >= 11;
+  const includeDay = tab === "night" && localHour >= 17;
+  if (!includeMorning && !includeDay) return 0;
+
+  return scheduledHabits.filter((habit) =>
+    ((includeMorning && habit.timeGroup === "morning") ||
+      (includeDay && habit.timeGroup === "day")) &&
+    !isCompleted(habit)
+  ).length;
+}
