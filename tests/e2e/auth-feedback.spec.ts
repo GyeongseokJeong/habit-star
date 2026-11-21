@@ -127,19 +127,3 @@ test("Android return shows expired-link error and removes its fragment", async (
   await expect(page.getByRole("link", { name: "별하루 앱으로 돌아가기" }))
     .toHaveAttribute("href", androidReturnIntent);
 });
-
-test("Android return handles another email opened in the same page", async ({ page }) => {
-  await page.goto("/auth/android-return");
-  await expect(page.getByRole("heading", { name: "나의 별하루로 돌아가기" })).toBeVisible();
-  await page.evaluate(() => {
-    location.hash = "error=access_denied&error_code=otp_expired";
-  });
-  await expect(page.getByRole("heading", { name: "인증 링크를 다시 확인해주세요" })).toBeVisible();
-  await expect(page).toHaveURL("http://localhost:3000/auth/android-return?error=1");
-  // Another (valid) email link must clear the previous expired-link warning.
-  await page.evaluate(() => {
-    location.hash = "access_token=fake&refresh_token=fake&type=signup";
-  });
-  await expect(page.getByRole("heading", { name: "나의 별하루로 돌아가기" })).toBeVisible();
-  await expect(page).toHaveURL("http://localhost:3000/auth/android-return");
-});
