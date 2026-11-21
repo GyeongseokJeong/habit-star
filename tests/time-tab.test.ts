@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { currentTimeGroup, initialRoutineTab, startupDataReady } from "../lib/habits/time-tab";
+import { countEarlierPendingHabits, currentTimeGroup, initialRoutineTab, startupDataReady } from "../lib/habits/time-tab";
 
 const at = (hour: number, minute = 0) =>
   new Date(`2026-11-19T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00+09:00`);
@@ -49,4 +49,42 @@ describe("smart startup routine tabs", () => {
     expect(startupDataReady(true, snapshot)).toBe(true);
   });
 
+});
+
+describe("elapsed time-group reminder visibility", () => {
+  const habits = [
+    { timeGroup: "morning" as const, completed: false, label: "morning pending" },
+    { timeGroup: "day" as const, completed: false, label: "day pending" },
+    { timeGroup: "night" as const, completed: false, label: "night pending" },
+  ];
+
+  it("never previews future groups, including after midnight", () => {
+    expect(countEarlierPendingHabits("morning", habits, 8)).toBe(0);
+    expect(countEarlierPendingHabits("day", habits, 10)).toBe(0);
+    expect(countEarlierPendingHabits("night", habits, 2)).toBe(0);
+    expect(countEarlierPendingHabits("all", habits, 23)).toBe(0);
+    expect(countEarlierPendingHabits("matrix", habits, 23)).toBe(0);
+  });
+
+  it("only counts prior time groups, never the selected or future group", () => {
+    expect(countEarlierPendingHabits("day", habits, 11)).toBe(1);
+    expect(countEarlierPendingHabits("night", habits, 17)).toBe(2);
+    expect(countEarlierPendingHabits("night", habits, 23)).toBe(2);
+    expect(countEarlierPendingHabits("morning", habits, 23)).toBe(0);
+  });
+
+  it("counts pending by today's held completion state without mutating input", () => {
+    const completedIds = new Set(["morning pending"]);
+    const before = JSON.stringify(habits);
+    expect(countEarlierPendingHabits("night", habits, 21, h => h.completed || completedIds.has(h.label))).toBe(1);
+    expect(JSON.stringify(habits)).toBe(before);
+    expect(countEarlierPendingHabits("night", habits.map(h => ({ ...h, completed: true })), 21)).toBe(0);
+  });
+
+  it("fails closed on invalid hours rather than inventing a missed period", () => {
+    expect(countEarlierPendingHabits("night", habits, Number.NaN)).toBe(0);
+    expect(countEarlierPendingHabits("night", habits, -1)).toBe(0);
+    expect(countEarlierPendingHabits("night", habits, 24)).toBe(0);
+    expect(countEarlierPendingHabits("night", habits, 17.5)).toBe(0);
+  });
 });
