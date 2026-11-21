@@ -175,8 +175,8 @@ function GuestNativeApp() {
       setStatus("알림 예약을 갱신하지 못했어요."));
   }, [schedule]);
 
-  const onEnabledChange = useCallback(async (next: boolean) => {
-    if (!lifecycle || busyRef.current) return;
+  const onEnabledChange = useCallback(async (next: boolean): Promise<boolean> => {
+    if (!lifecycle || busyRef.current) return false;
     busyRef.current = true;
     setBusy(true);
     auditRevision.current += 1;
@@ -188,7 +188,7 @@ function GuestNativeApp() {
           timeZone: identityRef.current.kind === "member" ? snapshot.current.state.timezone : undefined,
         }) !== "sync") {
           setStatus("오늘 습관 기록을 준비한 후 다시 시도해 주세요.");
-          return;
+          return false;
         }
         // The toggle is visually OFF when Android denies permission even if
         // the user's previous opt-in remains saved. A new ON press may attempt
@@ -211,7 +211,7 @@ function GuestNativeApp() {
           } catch {
             setStatus("휴대폰 설정 → 앱 → 별하루 → 알림에서 허용해 주세요.");
           }
-          return;
+          return false;
         }
       }
       // On disable, clear pending reminders before persisting the opt-out.
@@ -220,8 +220,10 @@ function GuestNativeApp() {
       enabledRef.current = next;
       setEnabled(next);
       if (!next) setStatus("습관 알림을 껐어요.");
+      return true;
     } catch {
       setStatus("알림 변경에 실패했습니다. 다시 시도해 주세요.");
+      return false;
     } finally {
       busyRef.current = false;
       setBusy(false);
