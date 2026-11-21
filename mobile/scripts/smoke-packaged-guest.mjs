@@ -62,6 +62,28 @@ try {
   assert.ok(header.brandTop>=0,"Logo must remain inside the safe WebView viewport");
   assert.ok(header.bottomPadding>=16,"Scroll content needs footer breathing room");
 
+  // Unlike the Next.js website, this APK has no /_next/image server. Ensure
+  // the exact local stage artwork loads in the bundled Android WebView.
+  await page.getByRole("button",{name:/나의 별자리 STAGE 1/}).click();
+  const growthImage=page.getByRole("dialog",{name:"나의 별자리"}).locator("[data-constellation-stage='1'] img").first();
+  await growthImage.waitFor({state:"visible",timeout:10000});
+  await page.waitForFunction(() => {
+    const img=document.querySelector("dialog [data-constellation-stage='1'] img");
+    return img instanceof HTMLImageElement && img.complete && img.naturalWidth>0;
+  },null,{timeout:15000});
+  const src=await growthImage.getAttribute("src");
+  assert.equal(src,"/assets/constellation/stage-01.webp","Android must use local artwork, not /_next/image");
+  await page.getByRole("dialog",{name:"나의 별자리"}).getByRole("button",{name:"별빛 카드 만들기"}).click();
+  const shareArt=page.getByRole("dialog",{name:"별빛 카드"}).locator("[data-constellation-stage='1'] img");
+  await shareArt.waitFor({state:"visible",timeout:10000});
+  await page.waitForFunction(() => {
+    const img=document.querySelector(".starlight-share-card [data-constellation-stage='1'] img");
+    return img instanceof HTMLImageElement && img.complete && img.naturalWidth>0;
+  },null,{timeout:15000});
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape");
+  await page.getByRole("dialog",{name:"별빛 카드"}).waitFor({state:"hidden",timeout:5000});
+
   // Reproduce the user's second screenshot: open the habit editor and scroll
   // to the bottom. The dialog background must be opaque and reach viewport
   // bottom so the underlying routine tabs never show below the actions.

@@ -39,6 +39,9 @@ function ArtworkForStage({ art, className }: { art: ConstellationStage; classNam
           src={art.src}
           alt={`${art.title} — 별하루 성장 Stage ${art.stage}`}
           fill
+          // The packaged APK copies public/assets locally without a Next.js
+          // image optimizer server. Only the Android build uses the raw asset.
+          unoptimized={process.env.NEXT_PUBLIC_ANDROID_PACKAGED_GUEST === "true"}
           sizes="(max-width: 640px) 92vw, 560px"
           className="object-contain"
           onError={() => setLoadError(true)}

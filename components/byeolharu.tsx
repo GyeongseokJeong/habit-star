@@ -994,7 +994,10 @@ function MonthlyMatrix({
   );
 }
 
-export default function Byeolharu({ nativeReminders }: { nativeReminders?: NativeReminderControls } = {}) {
+export default function Byeolharu({ nativeReminders, nativeShare }: {
+  nativeReminders?: NativeReminderControls;
+  nativeShare?: (png: Blob, filename: string) => Promise<void>;
+} = {}) {
   const app = useHabitApp(initialHabits);
   const habits = app.snapshot?.habits ?? [];
   const history = app.snapshot?.history ?? {};
@@ -2158,6 +2161,7 @@ export default function Byeolharu({ nativeReminders }: { nativeReminders?: Nativ
             streak={streak}
             previewOpen={starlightPreviewOpen}
             onCreatePreview={() => setStarlightPreviewOpen(true)}
+            nativeShare={nativeShare}
           />
         </Modal>
       )}
