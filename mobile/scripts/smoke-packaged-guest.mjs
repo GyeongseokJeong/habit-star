@@ -94,6 +94,9 @@ try {
   assert.ok((await signup.innerText()).includes("웹 브라우저에서 인증"));
   await page.keyboard.press("Escape");
   await signup.waitFor({state:"hidden"});
+  // Account modal first navigates back to its hub, then closes.
+  await page.keyboard.press("Escape");
+  await page.getByRole("dialog",{name:"내 계정"}).waitFor({state:"hidden"});
 
   // Reproduce the user's second screenshot: open the habit editor and scroll
   // to the bottom. The dialog background must be opaque and reach viewport
