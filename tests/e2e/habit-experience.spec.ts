@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test";
 
 const templates = [
-  { title: "독서 20분", icon: "📚", group: "밤" },
-  { title: "가벼운 운동", icon: "🏃", group: "아침" },
   { title: "물 마시기", icon: "💧", group: "아침" },
-  { title: "스트레칭", icon: "🧘", group: "밤" },
-  { title: "일찍 잠들기", icon: "🌙", group: "밤" },
+  { title: "가벼운 운동", icon: "🏃", group: "아침" },
+  { title: "10분 산책", icon: "🚶", group: "낮" },
+  { title: "집중 25분", icon: "💻", group: "낮" },
+  { title: "독서 20분", icon: "📚", group: "밤" },
   { title: "하루 기록하기", icon: "✍️", group: "밤" },
 ];
 
@@ -26,6 +26,16 @@ for (const width of [320, 390, 430]) {
       .click();
     const dialog = page.getByRole("dialog", { name: "나를 위한 새로운 습관" });
     const name = dialog.getByPlaceholder("예: 하루 10분 책 읽기");
+    const options = dialog.getByRole("button", { name: / 템플릿$/ });
+    await expect(options).toHaveText(templates.map(({ icon, title }) => icon + title));
+    await dialog.getByRole("button", { name: "더 많은 템플릿 보기" }).click();
+    await expect(options).toHaveCount(20);
+    for (const title of ["스트레칭", "일찍 잠들기"]) {
+      await dialog.getByRole("button", { name: title + " 템플릿", exact: true }).click();
+      await expect(name).toHaveValue(title);
+    }
+    await dialog.getByRole("group", { name: "추천 템플릿" }).getByRole("button", { name: "접기" }).click();
+    await expect(options).toHaveCount(6);
     for (const template of templates) {
       const option = dialog.getByRole("button", {
         name: `${template.title} 템플릿`,
