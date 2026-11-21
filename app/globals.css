@@ -1954,29 +1954,6 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 .modal .text-button {
   margin-top: 6px;
 }
-.help-content {
-  padding-top: 16px;
-}
-.help-mark {
-  display: flex;
-  color: var(--accent);
-  margin-bottom: 16px;
-}
-.help-content h3 {
-  font-size: 18px;
-  font-weight: 550;
-}
-.help-content p {
-  font-size: 14px;
-  color: var(--body);
-  line-height: 1.9;
-  margin: 10px 0 20px;
-}
-.help-content h4 {
-  font-size: 15px;
-  font-weight: 550;
-  margin: 20px 0 6px;
-}
 .past-summary {
   text-align: center;
   padding-top: 20px;
@@ -3245,6 +3222,75 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 .account-panel .account-menu > button > span > small { font-size: 12px; color: var(--body); font-weight: 400; line-height: 1.5; }
 .account-panel .account-detail { padding-top: 2px !important; }
 .account-panel .account-detail-hint { color: var(--body); font-size: 13px; line-height: 1.65; margin: 0 0 13px; }
+.account-panel .account-help-intro {
+  text-align: center;
+  padding: 16px 4px 23px;
+}
+.account-panel .account-help-intro > svg { color: var(--gold); margin-bottom: 9px; }
+.account-panel .account-help-intro > h3 {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -.3px;
+  color: var(--ink);
+}
+.account-panel .account-help-intro > p {
+  margin: 0;
+  color: var(--body);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.account-panel .account-help-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+.account-panel .account-help-icon {
+  display: flex;
+  flex: 0 0 45px;
+  width: 45px;
+  height: 45px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: var(--soft);
+  color: var(--sage);
+}
+.account-panel .account-help-copy { flex: 1; min-width: 0; }
+.account-panel .account-help-group h3 {
+  margin: 1px 0 6px;
+  font-size: 15px;
+  color: var(--ink);
+  font-weight: 650;
+}
+.account-panel .account-help-group p {
+  margin: 0;
+  color: var(--body);
+  font-size: 13px;
+  line-height: 1.65;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+.account-panel .account-help-group p > span { display: block; }
+.account-panel .account-help-support {
+  margin-top: 13px;
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 1px;
+  color: var(--body);
+  font-size: 13px;
+  font-weight: 550;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+.account-panel .account-help-support > span { flex: 1; }
+
 .account-panel .account-sync-overview {
   border: 1px solid var(--line);
   border-radius: 13px;

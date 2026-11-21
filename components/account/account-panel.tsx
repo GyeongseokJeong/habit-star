@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ArrowDownToLine, ChevronRight, CheckCircle2, CloudOff,
   Database, Download, RefreshCw, Settings2, ShieldCheck, Sparkles, UserRound, CircleHelp,
-  AlertCircle, Clock3, Laptop, Moon, Sun, LoaderCircle,
+  AlertCircle, Clock3, Laptop, Moon, Sun, LoaderCircle, Star, Cloud,
 } from "lucide-react";
 import { cloudEnabled } from "@/lib/supabase/client";
 import { APP_BUILD_INFO } from "@/lib/build-info";
@@ -15,7 +15,7 @@ import type { NativeReminderControls } from "@/lib/habits/native-reminder-contro
 import { AuthForm, type AuthMode } from "./auth-form";
 
 type App = ReturnType<typeof useHabitApp>;
-export type AccountPage = "home" | "records" | "import" | "settings" | "security" | AuthMode;
+export type AccountPage = "home" | "records" | "import" | "settings" | "help" | "security" | AuthMode;
 
 const zoneLabels: Record<string, string> = {
   "Asia/Seoul": "한국 · 서울",
@@ -54,7 +54,7 @@ function guestHasOwnRecords(guest: Snapshot) {
 }
 
 export function AccountPanel({
-  app, page, onNavigate, theme, onThemeChange, compactView, onCompactViewChange, onHelp, onInstall, nativeReminders, nativeBackup,
+  app, page, onNavigate, theme, onThemeChange, compactView, onCompactViewChange, onInstall, nativeReminders, nativeBackup,
 }: {
   app: App;
   page: AccountPage;
@@ -63,7 +63,6 @@ export function AccountPanel({
   onThemeChange: (next: "light" | "dark") => void;
   compactView: boolean;
   onCompactViewChange: (enabled: boolean) => void;
-  onHelp: () => void;
   onInstall?: () => void;
   nativeReminders?: NativeReminderControls;
   nativeBackup?: boolean;
@@ -253,7 +252,7 @@ export function AccountPanel({
           <nav className="account-menu" aria-label="계정 메뉴">
             <button type="button" aria-label="데이터 관리" onClick={() => navigate("records")}><Database size={19} /><span>데이터 관리<small>동기화 · 백업 · 복원</small></span><ChevronRight size={17} /></button>
             <button type="button" aria-label="앱 설정" onClick={() => navigate("settings")}><Settings2 size={19} /><span>앱 설정<small>화면 테마 · 시간대</small></span><ChevronRight size={17} /></button>
-            <button type="button" aria-label="사용 안내" onClick={onHelp}><CircleHelp size={19} /><span>사용 안내<small>별점 기록 · 데이터 보관</small></span><ChevronRight size={17} /></button>
+            <button type="button" aria-label="사용 안내" onClick={() => navigate("help")}><CircleHelp size={19} /><span>사용 안내<small>별점 기록 · 데이터 보관</small></span><ChevronRight size={17} /></button>
             {app.user && <button type="button" aria-label="계정 관리" onClick={() => navigate("security")}><UserRound size={19} /><span>계정 관리<small>계정 정보 · 로그아웃</small></span><ChevronRight size={17} /></button>}
           </nav>
         </>
@@ -454,6 +453,54 @@ export function AccountPanel({
           <p className="account-note" data-testid="build-info" aria-label="앱 빌드 정보">
             {nativeReminders ? "Android" : "Web"} · v{APP_BUILD_INFO.version} · 빌드 {APP_BUILD_INFO.shortSha}
           </p>
+        </section>
+      )}
+
+      {page === "help" && (
+        <section className="account-detail account-help" aria-label="사용 안내">
+          <div className="account-help-intro">
+            <Sparkles size={23} aria-hidden="true" />
+            <h3>작은 실천이 별빛이 되는 곳</h3>
+            <p>별하루의 핵심 기능을 알아보세요.</p>
+          </div>
+          <div className="account-help-list">
+            <div className="account-help-group">
+              <span className="account-help-icon" aria-hidden="true"><Star size={20} /></span>
+              <div className="account-help-copy">
+                <h3>오늘의 실천</h3>
+                <p>
+                  <span>습관을 완료하고 별 1~5개로 만족도를 남겨요.</span>
+                  <span>같은 별을 다시 누르면 별점이 취소돼요.</span>
+                </p>
+              </div>
+            </div>
+            <div className="account-help-group">
+              <span className="account-help-icon" aria-hidden="true"><Sparkles size={20} /></span>
+              <div className="account-help-copy">
+                <h3>별자리 성장</h3>
+                <p>
+                  <span>실천이 쌓이면 나만의 별자리가 성장해요.</span>
+                  <span>최근 7일 돌아보기에서 변화를 확인하세요.</span>
+                </p>
+              </div>
+            </div>
+            <div className="account-help-group">
+              <span className="account-help-icon" aria-hidden="true"><Cloud size={20} /></span>
+              <div className="account-help-copy">
+                <h3>기록 보관과 동기화</h3>
+                <p>
+                  <span>비회원 기록은 현재 기기에 보관돼요.</span>
+                  <span>로그인하면 회원 기록을 클라우드에 동기화해요.</span>
+                  <span>비회원 기록은 확인 후 직접 가져올 수 있어요.</span>
+                </p>
+              </div>
+            </div>
+          </div>
+          <button type="button" className="account-help-support" onClick={() => navigate(nativeReminders ? "settings" : "records")}>
+            <CircleHelp size={18} aria-hidden="true" />
+            <span>{nativeReminders ? "알림에 문제가 있나요?" : "기록 저장에 문제가 있나요?"}</span>
+            <ChevronRight size={17} aria-hidden="true" />
+          </button>
         </section>
       )}
 

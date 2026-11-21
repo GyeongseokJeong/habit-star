@@ -129,3 +129,28 @@ test("desktop account dialog remains centered rather than taking over the viewpo
   expect(geometry.height).toBeLessThan(900);
   expect(geometry.top).toBeGreaterThan(0);
 });
+
+test("approved compact usage guide stays within account navigation", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+  await page.getByRole("button", { name: "사용 안내", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "사용 안내" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "작은 실천이 별빛이 되는 곳" })).toBeVisible();
+  for (const name of ["오늘의 실천", "별자리 성장", "기록 보관과 동기화"]) {
+    await expect(dialog.getByRole("heading", { name, exact: true })).toBeVisible();
+  }
+  await expect(dialog.locator(".account-help-group")).toHaveCount(3);
+  await expect(dialog.getByRole("heading", { name: "습관 만들기" })).toHaveCount(0);
+  await expect(dialog.getByRole("heading", { name: "Android 습관 알림" })).toHaveCount(0);
+  await expect(dialog.locator(".account-help-copy p > span")).toHaveCount(7);
+  await expect(dialog.getByRole("button", { name: "기록 저장에 문제가 있나요?" })).toBeVisible();
+  await dialog.getByRole("button", { name: "기록 저장에 문제가 있나요?" }).click();
+  await expect(page.getByRole("dialog", { name: "데이터 관리" })).toBeVisible();
+  await page.getByRole("button", { name: "내 계정으로" }).click();
+  await expect(page.getByRole("button", { name: "사용 안내", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "사용 안내", exact: true }).click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "내 계정" })).toBeVisible();
+});
