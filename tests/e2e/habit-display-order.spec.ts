@@ -61,11 +61,14 @@ for (const theme of ["light", "dark"] as const) {
       "밤 자유롭게", "낮 자유",
     ]);
 
-    // Next-period preview also honors configured times and places "자유롭게" last.
-    await page.getByRole("tab", { name: "아침", exact: true }).click();
-    await expect(page.locator(".upcoming-heading + .habit-grid .habit-card h3")).toHaveText([
+    // Day tab retains chronological order without duplicating its cards in morning.
+    await page.getByRole("tab", { name: "낮", exact: true }).click();
+    await expect(page.locator(".normal-pending-list .habit-card h3")).toHaveText([
       "낮 12시", "낮 16시", "낮 자유",
     ]);
+    await page.getByRole("tab", { name: "아침", exact: true }).click();
+    await expect(page.locator(".upcoming-heading")).toHaveCount(0);
+    await expect(page.locator(".habit-card")).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 }
