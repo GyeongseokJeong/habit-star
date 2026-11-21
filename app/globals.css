@@ -920,6 +920,10 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   font-weight: 500;
   text-align: center;
 }
+.normal-habit-list > .routine-completion-card,
+.normal-habit-list > .empty-time-routine {
+  min-height: 204px;
+}
 .routine-completion-card > svg { color: var(--sage); }
 .normal-habit-list:has(> .routine-completion-card) { row-gap: 8px; }
 .empty-state > svg {
