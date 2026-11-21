@@ -595,7 +595,7 @@ function HabitEditor({
                 <p className="account-note" role="status">{alarmNotice || nativeAlarmStatus}</p>
               )}
             </div>
-          )
+          )}
         </section>
         {onDelete && (confirmDelete ? (
           <div className="delete-confirmation" role="group" aria-label="습관 삭제 확인">
