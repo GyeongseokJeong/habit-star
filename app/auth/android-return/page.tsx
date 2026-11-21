@@ -11,10 +11,11 @@ export default function AndroidReturnPage() {
     const inspectLink = (rawUrl: string) => {
       const url = new URL(rawUrl);
       const fragment = new URLSearchParams(url.hash.slice(1));
-      const isError =
-        url.searchParams.get("error") === "1" ||
-        fragment.has("error") ||
-        fragment.has("error_code");
+      // A new email fragment takes precedence over the sanitized status
+      // left by an earlier visit to the same document.
+      const isError = fragment.size > 0
+        ? fragment.has("error") || fragment.has("error_code")
+        : url.searchParams.get("error") === "1";
       setFailed(isError);
 
       // Drop all auth fragments and untrusted query parameters. Preserve only
