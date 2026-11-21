@@ -20,7 +20,8 @@ test("shared account settings render native reminder actions only when provided 
  const native=read("lib/habits/native-reminder-controls.ts");
  assert.match(account,/nativeReminders\?: NativeReminderControls/);
  assert.match(account,/\{nativeReminders && \(/);
- assert.match(account,/aria-checked=\{nativeReminders\.active\}/);
+ assert.doesNotMatch(account,/aria-checked=\{nativeReminders\.active\}/);
+ assert.match(account,/<summary>알림 문제 해결/);
  assert.match(account,/nativeReminders\.permissionState === "denied"/);
  assert.match(app,/nativeReminders\?: NativeReminderControls/);
  assert.match(app,/nativeAlarmEditor=\{Boolean\(nativeReminders\)\}/);
