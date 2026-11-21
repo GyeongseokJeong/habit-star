@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ArrowDownToLine, ChevronRight, CheckCircle2, CloudOff,
   Database, Download, RefreshCw, Settings2, ShieldCheck, Sparkles, UserRound, CircleHelp,
-  AlertCircle, Clock3, Laptop, Moon, Sun, LoaderCircle,
+  AlertCircle, Clock3, Laptop, Moon, Sun, LoaderCircle, Star, Cloud,
 } from "lucide-react";
 import { cloudEnabled } from "@/lib/supabase/client";
 import { APP_BUILD_INFO } from "@/lib/build-info";
@@ -458,31 +458,48 @@ export function AccountPanel({
 
       {page === "help" && (
         <section className="account-detail account-help" aria-label="사용 안내">
-          <p className="account-detail-hint">작은 실천을 기록하고, 쌓인 하루를 별빛으로 돌아봐요.</p>
-          <div className="account-help-group">
-            <h3>습관 만들기</h3>
-            <p>새 습관을 추가할 때 시간대와 반복 요일을 정해요. 예정 시간을 선택하면 실천할 시간을 쉽게 확인할 수 있어요.</p>
+          <div className="account-help-intro">
+            <Sparkles size={23} aria-hidden="true" />
+            <h3>작은 실천이 별빛이 되는 곳</h3>
+            <p>별하루의 핵심 기능을 알아보세요.</p>
           </div>
-          <div className="account-help-group">
-            <h3>오늘의 실천 기록</h3>
-            <p>습관을 완료하고 만족도를 별 1~5개로 남겨요. 같은 별을 다시 누르면 별점이 취소돼요.</p>
-          </div>
-          <div className="account-help-group">
-            <h3>별자리와 돌아보기</h3>
-            <p>완료한 습관이 쌓이면 별자리가 성장해요. 최근 7일 돌아보기에서 한 주의 실천을 살펴볼 수 있어요.</p>
-          </div>
-          <div className="account-help-group">
-            <h3>기록 저장과 동기화</h3>
-            <p>비회원 기록은 현재 기기에 보관해요. 로그인하면 회원 기록을 클라우드에 동기화할 수 있고, 비회원 기록은 확인 후 직접 가져올 수 있어요.</p>
-          </div>
-          {nativeReminders && (
+          <div className="account-help-list">
             <div className="account-help-group">
-              <h3>Android 습관 알림</h3>
-              <p>습관을 만들거나 수정할 때 시간을 정하고 ‘이 습관 알림’을 켜세요. 기기 알림 권한이 필요하면 안내에 따라 허용할 수 있어요.</p>
+              <span className="account-help-icon" aria-hidden="true"><Star size={20} /></span>
+              <div className="account-help-copy">
+                <h3>오늘의 실천</h3>
+                <p>
+                  <span>습관을 완료하고 별 1~5개로 만족도를 남겨요.</span>
+                  <span>같은 별을 다시 누르면 별점이 취소돼요.</span>
+                </p>
+              </div>
             </div>
-          )}
-          <button type="button" className="account-action-row" onClick={() => navigate("records")}>
-            <Database size={18} aria-hidden="true" /><span>백업 · 복원 · 동기화 관리</span><ChevronRight size={16} aria-hidden="true" />
+            <div className="account-help-group">
+              <span className="account-help-icon" aria-hidden="true"><Sparkles size={20} /></span>
+              <div className="account-help-copy">
+                <h3>별자리 성장</h3>
+                <p>
+                  <span>실천이 쌓이면 나만의 별자리가 성장해요.</span>
+                  <span>최근 7일 돌아보기에서 변화를 확인하세요.</span>
+                </p>
+              </div>
+            </div>
+            <div className="account-help-group">
+              <span className="account-help-icon" aria-hidden="true"><Cloud size={20} /></span>
+              <div className="account-help-copy">
+                <h3>기록 보관과 동기화</h3>
+                <p>
+                  <span>비회원 기록은 현재 기기에 보관돼요.</span>
+                  <span>로그인하면 회원 기록을 클라우드에 동기화해요.</span>
+                  <span>비회원 기록은 확인 후 직접 가져올 수 있어요.</span>
+                </p>
+              </div>
+            </div>
+          </div>
+          <button type="button" className="account-help-support" onClick={() => navigate(nativeReminders ? "settings" : "records")}>
+            <CircleHelp size={18} aria-hidden="true" />
+            <span>{nativeReminders ? "알림에 문제가 있나요?" : "기록 저장에 문제가 있나요?"}</span>
+            <ChevronRight size={17} aria-hidden="true" />
           </button>
         </section>
       )}
