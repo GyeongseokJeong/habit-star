@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { cloudEnabled } from "@/lib/supabase/client";
 import { APP_BUILD_INFO } from "@/lib/build-info";
-import { inspectGuestBackup, MAX_GUEST_BACKUP_BYTES } from "@/lib/habits/backup-file";
+import { inspectPortableBackup, MAX_GUEST_BACKUP_BYTES } from "@/lib/habits/backup-file";
 import type { useHabitApp } from "@/lib/habits/use-habit-app";
 import type { Snapshot } from "@/lib/habits/repository";
 import type { NativeReminderControls } from "@/lib/habits/native-reminder-controls";
@@ -183,8 +183,9 @@ export function AccountPanel({
       }
       const content = await file.text();
       if (nativeBackup) {
-        const { habitCount, entryCount } = inspectGuestBackup(content);
-        const confirmText = `비회원 백업을 복원할까요?\n습관 ${habitCount}개 · 기록 ${entryCount}개\n현재 기기에 기록이 있다면 복원되지 않으며, 원본은 삭제되지 않습니다.`;
+        const expectedScope = app.user ? "member:" + app.user.id : "guest";
+        const { habitCount, entryCount } = inspectPortableBackup(content, expectedScope);
+        const confirmText = `${app.user ? "현재 회원 계정" : "비회원"} 백업을 복원할까요?\n습관 ${habitCount}개 · 기록 ${entryCount}개\n현재 기기에 기록이 있다면 복원되지 않으며, 원본은 삭제되지 않습니다.`;
         if (!window.confirm(confirmText)) return;
       }
       await app.restore(content);
@@ -405,7 +406,9 @@ export function AccountPanel({
               <details className="android-reminder-details">
                 <summary>알림 예약 및 문제 해결 <ChevronRight size={16} aria-hidden="true" /></summary>
                 <div className="android-reminder-details-body">
-                  <p className="account-note">예약이 궁금하거나 알림이 오지 않을 때 확인해요.</p>
+                  <p className="account-note">{app.user
+                    ? "회원 알림은 습관 변경 시 자동 갱신돼요. 예약 비교·복구 기능은 비회원 모드에서만 제공됩니다."
+                    : "예약이 궁금하거나 알림이 오지 않을 때 확인해요."}</p>
                   <div className="android-reminder-detail-actions">
                     <button
                       type="button"
@@ -413,12 +416,12 @@ export function AccountPanel({
                       disabled={nativeReminders.busy}
                       onClick={() => void nativeReminders.onInspectPending()}
                     >알림 예약 확인</button>
-                    <button
+                    {!app.user && <button
                       type="button"
                       className="secondary"
                       disabled={nativeReminders.busy}
                       onClick={() => void nativeReminders.onAuditPending()}
-                    >습관 설정과 예약 비교</button>
+                    >습관 설정과 예약 비교</button>}
                   </div>
                   {!!nativeReminders.diagnostic && (
                     <p className="account-note" role="status">{nativeReminders.diagnostic}</p>
@@ -426,7 +429,7 @@ export function AccountPanel({
                   {!!nativeReminders.auditStatus && (
                     <p className="account-note" role="status">{nativeReminders.auditStatus}</p>
                   )}
-                  {nativeReminders.repairAvailable && (
+                  {!app.user && nativeReminders.repairAvailable && (
                     <button
                       type="button"
                       className="secondary"

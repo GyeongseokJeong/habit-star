@@ -26,4 +26,12 @@ test("Android uses existing website email-confirm redirect and never auto-import
  assert.match(hook,/new MemberRepository\(u\.id\) : new GuestRepository\(samples\)/);
  assert.match(hook,/const migrate = async \(\) =>/);
  assert.doesNotMatch(hook,/if \(u\) await migrate\(/);
+ const android=read("mobile/packaged-guest/main.tsx");
+ assert.match(android,/identity: identityRef\.current/);
+ assert.match(android,/kind: "member", userId: memberUserId, verified: true/);
+ assert.match(android,/if \(!next && !memberUserId\) return/);
+ assert.match(android,/if \(switched\) void schedule\(false, null\)/);
+ const backup=read("mobile/packaged-guest/native-guest-backup.ts");
+ assert.match(backup,/inspectPortableBackup\(content\)/);
+ assert.match(backup,/memberBackupFilename\(\)/);
 });

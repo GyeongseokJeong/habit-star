@@ -434,7 +434,9 @@ export function useHabitApp(samples: () => Habit[], nativeBackupExport?: (conten
       await backup();
       if (
         !window.confirm(
-          "미전송 기록 또는 충돌 사본을 백업했습니다. 이 기기의 회원 캐시를 지우고 로그아웃할까요?",
+          nativeBackupExport
+            ? "미전송 기록이 있습니다. JSON 백업을 외부 저장소에 실제로 저장했는지 확인하셨나요? 확인했다면 회원 캐시를 지우고 로그아웃합니다."
+            : "미전송 기록 또는 충돌 사본을 백업했습니다. 이 기기의 회원 캐시를 지우고 로그아웃할까요?",
         )
       )
         return;

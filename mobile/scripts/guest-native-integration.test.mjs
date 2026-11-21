@@ -20,7 +20,9 @@ test("guest opt-in UI is passed only as an optional prop", () => {
   const ui = read("components/byeolharu.tsx");
   const account = read("components/account/account-panel.tsx");
   assert.match(ui, /nativeReminders\?: NativeReminderControls/);
-  assert.match(ui, /onGuestSnapshot\?\.\(app\.user \? null : app\.snapshot\)/);
+  assert.match(ui, /onAccountSnapshot\?\.\(app\.snapshot, app\.user\?\.id \?\? null\)/);
+  assert.match(entry, /identity: identityRef\.current/);
+  assert.match(entry, /reminderIdentityKey\(identityRef\.current\) !== reminderIdentityKey\(nextIdentity\)/);
   assert.match(ui, /nativeAlarmEditor=\{Boolean\(nativeReminders\)\}/);
   assert.match(account, /\{nativeReminders && \(/);
   assert.match(account, /nativeReminders\.onEnabledChange/);
