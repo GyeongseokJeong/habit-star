@@ -25,10 +25,13 @@ test("native reminder inspection and repair are collapsed behind an accessible d
  // No default open attribute: normal users see only the settings row.
  assert.doesNotMatch(section,/<details[^>]*\sopen(?:\s|=|>)/);
 });
-test("settings still show opt-in switch and permission denial outside advanced details",()=>{
+test("settings omit the global alarm toggle and keep diagnostics collapsed",()=>{
  const start=ui.indexOf('<details className="android-reminder-details">');
- assert.ok(ui.indexOf('aria-checked={nativeReminders.active}')<start);
- assert.ok(ui.indexOf('nativeReminders.permissionState === "denied"')<start);
+ assert.ok(start>=0);
+ assert.doesNotMatch(ui,/aria-label="습관 알림"/);
+ assert.doesNotMatch(ui,/onEnabledChange\(!nativeReminders\.active\)/);
+ assert.match(ui,/nativeReminders\.permissionState === "denied"/);
+ assert.match(ui,/<summary>알림 문제 해결/);
  assert.doesNotMatch(web,/android-reminder-details|onInspectPending/);
 });
 test("packaged-only CSS keeps advanced diagnostics readable and tappable",()=>{
