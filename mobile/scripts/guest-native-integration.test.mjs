@@ -26,7 +26,10 @@ test("guest opt-in UI is passed only as an optional prop", () => {
   assert.match(entry, /reminderIdentityKey\(identityRef\.current\) !== reminderIdentityKey\(nextIdentity\)/);
   assert.match(ui, /nativeAlarmEditor=\{Boolean\(nativeReminders\)\}/);
   assert.match(account, /\{nativeReminders && \(/);
-  assert.match(account, /nativeReminders\.onEnabledChange/);
+  // Profile settings no longer own a second/global opt-in switch.
+  assert.doesNotMatch(account, /nativeReminders\.onEnabledChange/);
+  // Habit editor still routes per-habit opt-in to the native permission flow.
+  assert.match(ui, /onEnsureNativeAlarm=\{nativeReminders \? \(\) => nativeReminders\.onEnabledChange\(true\)/);
   assert.match(ui, /disabled=\{alarmChecking \|\| \(!draft\.scheduledTime && !draft\.alarmEnabled\)\}/);
 });
 test("STEP 10 uses only committed snapshots and no native automatic opt-in", () => {

@@ -23,8 +23,8 @@ test("visible Android reminder switch reflects actual OS ability, not only saved
   assert.equal(reminderSwitchNextAction(true,"denied"),true);
   assert.equal(reminderSwitchNextAction(false,"granted"),true);
   assert.equal(reminderSwitchNextAction(true,"granted"),false);
-  assert.match(account,/aria-checked=\{nativeReminders\.active\}/);
-  assert.match(account,/onEnabledChange\(!nativeReminders\.active\)/);
+  assert.doesNotMatch(account,/aria-label="습관 알림"/);
+  assert.match(account,/nativeReminders\.permissionState === "denied"/);
   assert.match(entry,/reminderSwitchChecked\(enabled, permissionState\)/);
   // Native preferences remain distinct from a momentary OS permission toggle.
   assert.match(entry,/localStorage\.setItem\(OPT_IN_KEY, next \? "1" : "0"\)/);
@@ -64,7 +64,9 @@ test("denied OS permission cannot silently clear opt-in, native queue or habit d
   const denial=entry.slice(start,end);
   assert.doesNotMatch(denial,/localStorage\.setItem|schedule\(|lifecycle\.disable\(|setEnabled\(false\)/);
   assert.match(entry,/if \(!granted\) \{\s*try/);
-  assert.match(account,/알림을 받을 수 없어 스위치가 꺼져 있어요/);
+  assert.match(account,/기기 알림 권한이 차단되어 있어요/);
+  assert.match(account,/<summary>알림 문제 해결/);
+  assert.doesNotMatch(account,/aria-checked=\{nativeReminders\.active\}/);
 });
 
 test("habit editor asks Android to enable reminders before turning its alarm on",()=>{
