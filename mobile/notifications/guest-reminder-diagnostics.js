@@ -4,13 +4,15 @@
  * reminders that belong to another account/package.
  */
 import { REMINDER_KIND } from "./reminder-plan.js";
+import { requireReminderScope } from "./scoped-reminder-runtime.js";
 
-export function summarizeGuestPending(pending, now = new Date()) {
+export function summarizeGuestPending(pending, now = new Date(), scope = "guest") {
+  requireReminderScope(scope);
   if (!Array.isArray(pending) || !(now instanceof Date) || !Number.isFinite(now.getTime())) {
     throw new Error("알림 예약 목록을 확인할 수 없습니다.");
   }
   const owned = pending.filter(item =>
-    item && item.extra?.kind === REMINDER_KIND && item.extra?.scope === "guest",
+    item && item.extra?.kind === REMINDER_KIND && item.extra?.scope === scope,
   );
   const ordered = owned.map(item => {
     const raw = item.schedule?.at;

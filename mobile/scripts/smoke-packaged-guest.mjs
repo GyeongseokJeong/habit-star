@@ -84,6 +84,20 @@ try {
   await page.keyboard.press("Escape");
   await page.getByRole("dialog",{name:"별빛 카드"}).waitFor({state:"hidden",timeout:5000});
 
+  // Exercise Android login/signup entry points without submitting credentials.
+  await page.getByRole("button",{name:"계정 및 데이터 관리"}).click();
+  await page.getByRole("dialog",{name:"내 계정"}).getByRole("button",{name:"로그인",exact:true}).click();
+  await page.getByRole("dialog",{name:"로그인"}).getByRole("textbox",{name:"이메일"}).waitFor({state:"visible"});
+  await page.getByRole("dialog",{name:"로그인"}).getByRole("button",{name:"회원가입",exact:true}).click();
+  const signup=page.getByRole("dialog",{name:"회원가입"});
+  await signup.getByRole("button",{name:"이메일로 회원가입"}).waitFor({state:"visible"});
+  assert.ok((await signup.innerText()).includes("웹 브라우저에서 인증"));
+  await page.keyboard.press("Escape");
+  await signup.waitFor({state:"hidden"});
+  // Account modal first navigates back to its hub, then closes.
+  await page.keyboard.press("Escape");
+  await page.getByRole("dialog",{name:"내 계정"}).waitFor({state:"hidden"});
+
   // Reproduce the user's second screenshot: open the habit editor and scroll
   // to the bottom. The dialog background must be opaque and reach viewport
   // bottom so the underlying routine tabs never show below the actions.

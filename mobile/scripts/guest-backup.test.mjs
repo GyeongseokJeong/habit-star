@@ -11,7 +11,8 @@ test("Android guest backup exports through user-selected FileProvider destinatio
   const hook = read("lib/habits/use-habit-app.ts");
   const app = read("components/byeolharu.tsx");
   const account = read("components/account/account-panel.tsx");
-  assert.match(exporter,/inspectGuestBackup\(content\)/);
+  assert.match(exporter,/inspectPortableBackup\(content\)/);
+  assert.match(exporter,/scope === "guest" \? guestBackupFilename\(\) : memberBackupFilename\(\)/);
   assert.match(exporter,/MAX_GUEST_BACKUP_BYTES/);
   assert.match(exporter,/Directory\.Cache/);
   assert.match(exporter,/Filesystem\.writeFile/);
@@ -23,7 +24,8 @@ test("Android guest backup exports through user-selected FileProvider destinatio
   assert.match(app,/nativeBackup=\{Boolean\(nativeBackupExport\)\}/);
   assert.match(account,/실제로 저장되었는지 확인해주세요/);
   assert.match(account,/25MB 이하의 별하루 JSON 백업 파일/);
-  assert.match(account,/inspectGuestBackup\(content\)/);
+  assert.match(account,/inspectPortableBackup\(content, expectedScope\)/);
+  assert.match(account,/app\.user \? "member:" \+ app\.user\.id : "guest"/);
   assert.match(account,/window\.confirm\(confirmText\)/);
   // Existing local repository remains the final authority for detailed
   // entity checks and refuses overwriting a nonempty data store.

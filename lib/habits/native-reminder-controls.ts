@@ -3,7 +3,7 @@ import type { Snapshot } from "./repository";
 /**
  * Passed only by the bundled Android guest entrypoint.
  * The public website never instantiates native notification controls.
- * A committed guest snapshot is the only source of schedule changes.
+ * A committed snapshot plus verified guest/member identity is the only scheduling source.
  */
 export type NativeReminderControls = {
   enabled: boolean;
@@ -19,5 +19,6 @@ export type NativeReminderControls = {
   repairStatus: string;
   auditStatus: string;
   diagnostic: string;
-  onSnapshot: (snapshot: Snapshot | null) => void;
+  /** Verified account identity comes from the shared app repository, never raw storage. */
+  onSnapshot: (snapshot: Snapshot | null, memberUserId: string | null) => void;
 };

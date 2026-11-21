@@ -13,7 +13,13 @@ assert.notEqual(process.env.BYEOLHARU_POC_NOTIFICATIONS, "1", "STEP 9 is separat
 const mobile = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const root = resolve(mobile, "..");
 const out = resolve(mobile, "www-packaged-guest");
-const provenance = sourceBuildInfo(root);
+const provenance = sourceBuildInfo(root, true);
+// Public API settings only. Never package secret/service-role credentials.
+const publicAuth = JSON.parse(readFileSync(resolve(mobile, "public-auth-config.json"), "utf8"));
+assert.match(publicAuth.supabaseUrl, /^https:\/\/[a-z0-9-]+\.supabase\.co$/);
+assert.match(publicAuth.supabasePublishableKey, /^sb_publishable_[A-Za-z0-9_-]+$/);
+assert.match(publicAuth.siteOrigin, /^https:\/\/[a-z0-9.-]+$/);
+assert.ok(!publicAuth.siteOrigin.includes("localhost"));
 rmSync(out, {recursive:true,force:true});
 mkdirSync(out, {recursive:true});
 // First-party static resources (artwork, PWA icons, emoji, etc.).
@@ -41,9 +47,10 @@ await build({
     "process.env.NEXT_PUBLIC_APP_VERSION": JSON.stringify(provenance.version),
     "process.env.NEXT_PUBLIC_BUILD_SHA": JSON.stringify(provenance.sourceSha),
     "process.env.NEXT_PUBLIC_ANDROID_PACKAGED_GUEST": '"true"',
-    "process.env.NEXT_PUBLIC_CLOUD_ENABLED": '"false"',
-    "process.env.NEXT_PUBLIC_SUPABASE_URL": '""',
-    "process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": '""',
+    "process.env.NEXT_PUBLIC_CLOUD_ENABLED": '"true"',
+    "process.env.NEXT_PUBLIC_SUPABASE_URL": JSON.stringify(publicAuth.supabaseUrl),
+    "process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(publicAuth.supabasePublishableKey),
+    "process.env.NEXT_PUBLIC_SITE_URL": JSON.stringify(publicAuth.siteOrigin),
   },
   loader: {
     ".svg": "file", ".png": "file", ".jpeg": "file", ".jpg": "file",

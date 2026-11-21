@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-export function buildInfoFor(version, sourceSha) {
+export function buildInfoFor(version, sourceSha, cloudEnabled = false) {
   assert.match(version, /^\d+\.\d+\.\d+(?:[-+][a-z0-9.-]+)?$/i, "Invalid app version");
   assert.match(sourceSha, /^(?:[a-f0-9]{40}|unknown)$/i, "Invalid Git revision");
   return Object.freeze({
@@ -12,11 +12,11 @@ export function buildInfoFor(version, sourceSha) {
     platform: "android-packaged-guest",
     version,
     sourceSha,
-    cloudEnabled: false,
+    cloudEnabled,
   });
 }
 
-export function sourceBuildInfo(root) {
+export function sourceBuildInfo(root, cloudEnabled = false) {
   const { version } = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
   let sha = "unknown";
   try {
@@ -28,5 +28,5 @@ export function sourceBuildInfo(root) {
   } catch {
     // A zip checkout can be built locally, but it must disclose unknown source.
   }
-  return buildInfoFor(version, sha);
+  return buildInfoFor(version, sha, cloudEnabled);
 }

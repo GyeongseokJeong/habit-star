@@ -25,6 +25,18 @@ test("diagnostics are guest-only, read-only and report today's future alarms",()
   assert.equal(result.unknownTime,0);
   assert.equal(JSON.stringify(queue),before);
 });
+test("member inspection uses exactly the current verified scope",()=>{
+  const queue=[
+    notification(11,new Date(2026,10,20,9),"member:user-one"),
+    notification(12,new Date(2026,10,20,10),"guest"),
+    notification(13,new Date(2026,10,21,9),"member:user-two"),
+  ];
+  const report=summarizeGuestPending(queue,now,"member:user-one");
+  assert.equal(report.total,1);
+  assert.equal(report.todayRemaining,1);
+  assert.equal(report.nextAt,new Date(2026,10,20,9).toISOString());
+  assert.throws(()=>summarizeGuestPending(queue,now,"member:../bad"));
+});
 test("missing native timestamps are reported as unknown, not invented",()=>{
   const result=summarizeGuestPending([{id:1,extra:{kind:REMINDER_KIND,scope:"guest"}}],now);
   assert.equal(result.total,1);
@@ -41,7 +53,7 @@ test("guest app exposes diagnostics without modifying the public website",()=>{
   const entry=readFileSync(resolve(root,"mobile/packaged-guest/main.tsx"),"utf8");
   const account=readFileSync(resolve(root,"components/account/account-panel.tsx"),"utf8");
   const website=readFileSync(resolve(root,"app/page.tsx"),"utf8");
-  assert.match(entry,/summarizeGuestPending\(pending.notifications, new Date\(\)\)/);
+  assert.match(entry,/summarizeGuestPending\(pending.notifications, new Date\(\), scope\)/);
   assert.match(entry,/LocalNotifications\.checkPermissions\(\)/);
   assert.match(entry,/LocalNotifications\.getPending\(\)/);
   assert.match(account,/onInspectPending\(\)/);

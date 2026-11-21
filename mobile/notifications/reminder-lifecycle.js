@@ -84,6 +84,7 @@ export function createReminderLifecycle({ localNotifications, now = () => new Da
     const snapshot = source.snapshot && typeof source.snapshot === "object"
       ? {
           day: source.snapshot.day,
+          timeZone: source.snapshot.timeZone,
           habits: Array.isArray(source.snapshot.habits)
             ? source.snapshot.habits.map(h => h && typeof h === "object"
                 ? { ...h, repeatDays: Array.isArray(h.repeatDays) ? [...h.repeatDays] : h.repeatDays }

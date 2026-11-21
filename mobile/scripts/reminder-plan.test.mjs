@@ -51,7 +51,9 @@ test("bounded queue and stable IDs; payload carries owned metadata", () => {
   const payload=toNativeNotification(first,DEMO_SCOPE);
   assert.equal(payload.extra.scope,DEMO_SCOPE);
   assert.equal(payload.extra.habitId,first.habitId);
-  assert.equal(payload.schedule.isExactNotification,false);
+  assert.equal(payload.schedule.allowWhileIdle,true);
+  assert.equal(payload.isExactNotification,false);
+  assert.equal(Object.hasOwn(payload.schedule,"isExactNotification"),false);
   assert.throws(()=>toNativeNotification(first,""));
 });
 test("same habit/day ID across updates; changed time has changed fingerprint", () => {
@@ -59,4 +61,12 @@ test("same habit/day ID across updates; changed time has changed fingerprint", (
   const b=buildReminderPlan([mk({scheduledTime:"09:05"})],{now,daysAhead:1}).notifications[0];
   assert.equal(a.id,b.id);
   assert.notEqual(a.fingerprint,b.fingerprint);
+});
+
+test("account timezone skips DST gaps and selects one earlier fold instant",()=>{
+  const gap=buildReminderPlan([mk({scheduledTime:"02:30"})],{timeZone:"America/New_York",now:new Date("2026-03-08T05:00:00Z"),daysAhead:1});
+  assert.equal(gap.total,0);
+  const fold=buildReminderPlan([mk({scheduledTime:"01:30"})],{timeZone:"America/New_York",now:new Date("2026-11-01T04:00:00Z"),daysAhead:1});
+  assert.equal(fold.total,1);
+  assert.equal(fold.notifications[0].at.toISOString(),"2026-11-01T05:30:00.000Z");
 });

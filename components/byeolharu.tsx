@@ -1004,8 +1004,10 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
   const history = app.snapshot?.history ?? {};
   const ready = !!app.snapshot;
   const setHabits = app.setHabits;
-  const onGuestSnapshot = nativeReminders?.onSnapshot;
-  useEffect(() => { onGuestSnapshot?.(app.user ? null : app.snapshot); }, [onGuestSnapshot, app.user, app.snapshot]);
+  const onAccountSnapshot = nativeReminders?.onSnapshot;
+  useEffect(() => {
+    onAccountSnapshot?.(app.snapshot, app.user?.id ?? null);
+  }, [onAccountSnapshot, app.user?.id, app.snapshot]);
   const [accountOpen, setAccountOpen] = useState(false);
   const [accountPage, setAccountPage] = useState<"home" | "records" | "import" | "settings" | "security" | "login" | "signup" | "reset">("home");
   useEffect(() => {

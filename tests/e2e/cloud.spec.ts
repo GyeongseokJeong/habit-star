@@ -335,7 +335,7 @@ test("email password recovery issues a usable new password", async ({
     .getByRole("button", { name: "재설정 메일 보내기", exact: true })
     .click();
   await expect(
-    page.getByText("비밀번호 재설정 링크를 보냈습니다. 메일함을 확인해주세요."),
+    page.getByText("요청을 처리했습니다. 가입한 이메일의 메일함을 확인해주세요."),
   ).toBeVisible();
   await confirm(page, request, email, "recovery");
   await expect(

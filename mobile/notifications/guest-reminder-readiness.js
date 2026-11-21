@@ -12,6 +12,6 @@ export function guestReminderAction(optIn, snapshot, now = new Date()) {
     throw new Error("현재 단말 시간을 확인하지 못했습니다.");
   }
   if (!snapshot || !Array.isArray(snapshot.habits)) return "await-snapshot";
-  if (snapshot.day !== localDayKey(now)) return "await-today";
+  if (snapshot.day !== localDayKey(now, snapshot.timeZone)) return "await-today";
   return "sync";
 }

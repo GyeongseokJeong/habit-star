@@ -77,6 +77,12 @@ test("an unconfirmed email receives actionable login feedback", async ({
   );
 });
 
+test("implicit mobile recovery callback redirects to the browser reset page without exposing tokens in query parameters", async ({ request }) => {
+  const response = await request.get("/auth/confirm?next=%2Fauth%2Freset", {maxRedirects: 0});
+  expect(response.status()).toBe(307);
+  expect(response.headers().location).toBe("http://localhost:3000/auth/reset");
+  expect(response.headers()["cache-control"]).toBe("private, no-store");
+});
 test("cloud-enabled callbacks reject external next destinations without valid credentials", async ({
   request,
 }) => {

@@ -24,6 +24,11 @@ const OPT_IN_KEY = "byeolharu_android_guest_reminders_optin_v1";
 const isAndroid = Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
 const lifecycle = isAndroid ? createReminderLifecycle({ localNotifications: LocalNotifications }) : null;
 const identity = { kind: "guest" as const, verified: true };
+type ReminderIdentity =
+  | { kind: "guest"; verified: true }
+  | { kind: "member"; userId: string; verified: true };
+const reminderIdentityKey = (value: ReminderIdentity) =>
+  value.kind === "guest" ? "guest" : "member:" + value.userId;
 type DeviceSettings = { openNotificationSettings: () => Promise<void> };
 const deviceSettings = isAndroid ? registerPlugin<DeviceSettings>("ByeolharuDeviceSettings") : null;
 
@@ -38,6 +43,7 @@ function GuestNativeApp() {
   const [repairStatus, setRepairStatus] = useState("");
   const auditRevision = useRef(0);
   const snapshot = useRef<Snapshot | null>(null);
+  const identityRef = useRef<ReminderIdentity>(identity);
   const enabledRef = useRef(false);
   const busyRef = useRef(false);
   const mounted = useRef(false);
@@ -49,8 +55,9 @@ function GuestNativeApp() {
 
   const schedule = useCallback((value: boolean, next: Snapshot | null) => {
     if (!lifecycle) return Promise.resolve();
-    const context = { identity, optIn: value, snapshot: next && {
+    const context = { identity: identityRef.current, optIn: value, snapshot: next && {
       day: next.day,
+      timeZone: identityRef.current.kind === "member" ? next.state.timezone : undefined,
       habits: next.habits.map(h => ({ ...h, repeatDays: h.repeatDays ? [...h.repeatDays] : undefined })),
     }};
     const task = operation.current.then(async () => {
@@ -117,14 +124,34 @@ function GuestNativeApp() {
     return () => { mounted.current = false; };
   }, [schedule, refreshPermission]);
 
-  const onSnapshot = useCallback((next: Snapshot | null) => {
+  const onSnapshot = useCallback((next: Snapshot | null, memberUserId: string | null) => {
+    // A null snapshot with no member identity is the initial/auth transition
+    // loading state, not a verified sign-out. Keep prior alarms until a new
+    // account's repository has actually hydrated.
+    if (!next && !memberUserId) {
+      snapshot.current = null; // never allow old account data to be rescheduled during auth hydration
+      return;
+    }
+    const nextIdentity: ReminderIdentity = memberUserId
+      ? { kind: "member", userId: memberUserId, verified: true }
+      : identity;
+    const switched = reminderIdentityKey(identityRef.current) !== reminderIdentityKey(nextIdentity);
+    identityRef.current = nextIdentity;
     snapshot.current = next;
     auditRevision.current += 1;
     setRepairAvailable(false);
-    // React's committed snapshot is the only scheduling source.
-    if (mounted.current && enabledRef.current) {
-      void schedule(true, next).catch(() => setStatus("알림 예약을 갱신하지 못했어요."));
+    if (!mounted.current) return;
+    if (!next) {
+      // A verified member switch without a ready snapshot must revoke the
+      // previous account's alarms. Later hydration can schedule its own.
+      if (switched) void schedule(false, null).catch(() =>
+        setStatus("계정 전환 중 이전 알림 예약을 정리하지 못했어요."));
+      return;
     }
+    // Reconcile member/guest scopes even when this device toggle is OFF.
+    // No previous account can leave an active scoped reminder behind.
+    void schedule(enabledRef.current, next).catch(() =>
+      setStatus("알림 예약을 갱신하지 못했어요."));
   }, [schedule]);
 
   const onEnabledChange = useCallback(async (next: boolean) => {
@@ -135,7 +162,10 @@ function GuestNativeApp() {
     setRepairAvailable(false);
     try {
       if (next) {
-        if (guestReminderAction(true, snapshot.current) !== "sync") {
+        if (guestReminderAction(true, snapshot.current && {
+          ...snapshot.current,
+          timeZone: identityRef.current.kind === "member" ? snapshot.current.state.timezone : undefined,
+        }) !== "sync") {
           setStatus("오늘 습관 기록을 준비한 후 다시 시도해 주세요.");
           return;
         }
@@ -215,8 +245,10 @@ function GuestNativeApp() {
     try {
       const permission = await LocalNotifications.checkPermissions();
       setPermissionState(permission.display === "granted" ? "granted" : "denied");
+      const scope = reminderIdentityKey(identityRef.current);
       const pending = await LocalNotifications.getPending();
-      const report = summarizeGuestPending(pending.notifications, new Date());
+      if (scope !== reminderIdentityKey(identityRef.current)) return;
+      const report = summarizeGuestPending(pending.notifications, new Date(), scope);
       const next = report.nextAt
         ? new Date(report.nextAt).toLocaleString("ko-KR", {month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})
         : "없음";
@@ -241,7 +273,7 @@ function GuestNativeApp() {
   }, []);
 
   const onAuditPending = useCallback(async () => {
-    if (!isAndroid || busyRef.current) return;
+    if (!isAndroid || busyRef.current || identityRef.current.kind !== "guest") return;
     busyRef.current = true;
     setBusy(true);
     const revision = ++auditRevision.current;
@@ -288,7 +320,7 @@ function GuestNativeApp() {
   }, []);
 
   const onRepairPending = useCallback(async () => {
-    if (!isAndroid || busyRef.current || !repairAvailable) return;
+    if (!isAndroid || busyRef.current || !repairAvailable || identityRef.current.kind !== "guest") return;
     busyRef.current = true;
     setBusy(true);
     setRepairAvailable(false);

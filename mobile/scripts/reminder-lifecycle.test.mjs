@@ -77,6 +77,22 @@ test("user switch revokes old member jobs and keeps other software jobs",async()
   assert.equal(native.pending.filter(n=>n.extra?.scope==="guest").length,8);
   assert.equal(native.pending.filter(n=>n.id===7301).length,1);
 });
+test("guest-to-member transition clears guest reminders and scopes new account alarms",async()=>{
+  const other={id:7301,extra:{kind:"unrelated"}};
+  const native=fakeNative([other]);
+  const lifecycle=createReminderLifecycle({localNotifications:native,now});
+  await lifecycle.sync(context(guest));
+  assert.equal(native.pending.filter(n=>n.extra?.scope==="guest").length,8);
+  const result=await lifecycle.sync(context(member));
+  assert.equal(result.status,"updated");
+  assert.equal(result.cancelledOtherScopes,8);
+  assert.equal(native.pending.filter(n=>n.extra?.scope==="guest").length,0);
+  assert.equal(native.pending.filter(n=>n.extra?.scope==="member:user-123").length,8);
+  assert.equal(native.pending.filter(n=>n.id===7301).length,1);
+  const disabled=await lifecycle.disable();
+  assert.equal(disabled.status,"disabled");
+  assert.deepEqual(native.pending.map(n=>n.id),[7301]);
+});
 test("unverified identity, stale dates and missing snapshots fail closed",async()=>{
   const native=fakeNative();
   const lifecycle=createReminderLifecycle({localNotifications:native,now});
@@ -117,4 +133,18 @@ test("snapshots are copied at enqueue time; caller mutation does not affect plan
 });
 test("malformed native adapter refuses to initialize",()=>{
   assert.throws(()=>createReminderLifecycle({localNotifications:{}}));
+});
+
+test("member scheduling uses account calendar, weekdays, and actual UTC instant",async()=>{
+  const native=fakeNative();
+  const app=createReminderLifecycle({localNotifications:native,now:()=>new Date("2026-11-21T01:00:00Z")});
+  const data={identity:member,optIn:true,snapshot:{day:"2026-11-21",timeZone:"Asia/Seoul",habits:[{...snapshot().habits[0],scheduledTime:"11:00",repeatDays:[6]}]}};
+  assert.equal((await app.sync(data)).status,"updated");
+  assert.equal(native.pending[0].schedule.at.toISOString(),"2026-11-21T02:00:00.000Z");
+  assert.equal(native.pending[0].extra.day,"2026-11-21");
+  assert.equal(native.pending[0].schedule.allowWhileIdle,true);
+  assert.equal((await app.sync(data)).status,"unchanged");
+  const changed={...data,snapshot:{...data.snapshot,timeZone:"America/Los_Angeles",day:"2026-11-20"}};
+  assert.equal((await app.sync(changed)).status,"updated");
+  assert.equal(native.pending[0].schedule.at.toISOString(),"2026-11-21T19:00:00.000Z");
 });
