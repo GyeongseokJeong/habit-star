@@ -10,7 +10,7 @@ const web=readFileSync(resolve(root,"app/page.tsx"),"utf8");
 
 test("native reminder inspection and repair are collapsed behind an accessible details control",()=>{
  assert.match(ui,/<details className="android-reminder-details">/);
- assert.match(ui,/<summary>알림 예약 및 문제 해결/);
+ assert.match(ui,/<summary>알림 문제 해결/);
  const start=ui.indexOf('<details className="android-reminder-details">');
  const end=ui.indexOf("</details>",start);
  assert.ok(start>=0 && end>start);
@@ -22,7 +22,7 @@ test("native reminder inspection and repair are collapsed behind an accessible d
  assert.match(section,/nativeReminders\.diagnostic/);
  assert.match(section,/nativeReminders\.auditStatus/);
  assert.match(section,/nativeReminders\.repairStatus/);
- // No default open attribute: normal users see only the settings row.
+ // Advanced native diagnostics stay closed by default.
  assert.doesNotMatch(section,/<details[^>]*\sopen(?:\s|=|>)/);
 });
 test("settings omit the global alarm toggle and keep diagnostics collapsed",()=>{
