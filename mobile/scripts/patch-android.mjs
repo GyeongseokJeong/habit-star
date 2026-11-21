@@ -32,7 +32,9 @@ assert.ok(current.includes("extends BridgeActivity"), "Unexpected activity templ
 const targetPackage = match[1];
 assert.equal(
   targetPackage,
-  "io.github.gyeongseokjeong.byeolharu.packagedgueststep9",
+  process.env.BYEOLHARU_ANDROID_RELEASE === "1"
+    ? "app.byeolharu.android"
+    : "io.github.gyeongseokjeong.byeolharu.packagedgueststep9",
   "Refusing to patch another Android package",
 );
 assert.ok(template.includes("__PACKAGE__"), "Missing package placeholder in native template");

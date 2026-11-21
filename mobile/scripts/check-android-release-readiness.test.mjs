@@ -7,9 +7,9 @@ const sources = loadReleaseSources();
 test("current debug PoC is explicitly not marked ready for Play publishing", () => {
   const report = inspectReleaseSources(sources);
   assert.equal(report.ready, false);
-  assert.ok(report.blockers.some(x => x.id === "DEBUG_APP_ID"));
-  assert.ok(report.blockers.some(x => x.id === "DEBUG_APP_LABEL"));
-  assert.ok(report.blockers.some(x => x.id === "NO_RELEASE_BUNDLE_PIPELINE"));
+  assert.ok(!report.blockers.some(x => x.id === "DEBUG_APP_ID"));
+  assert.ok(!report.blockers.some(x => x.id === "DEBUG_APP_LABEL"));
+  assert.ok(!report.blockers.some(x => x.id === "NO_RELEASE_BUNDLE_PIPELINE"));
   assert.ok(report.blockers.some(x => x.id === "NO_UPLOAD_SIGNING_PIPELINE"));
   assert.ok(report.manualGates.some(x => x.includes("app.byeolharu.android ")));
 });

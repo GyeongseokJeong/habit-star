@@ -19,6 +19,10 @@ for (const name of retiredModes) {
 const config: CapacitorConfig = {
   appId: "io.github.gyeongseokjeong.byeolharu.packagedgueststep9",
   appName: "별하루 비회원 STEP 9",
+  ...(process.env.BYEOLHARU_ANDROID_RELEASE === "1" && {
+    appId: "app.byeolharu.android",
+    appName: "별하루",
+  }),
   webDir: "www-packaged-guest",
   // MainActivity handles physical insets. Never double-apply system-bar insets.
   plugins: { SystemBars: { insetsHandling: "disable" as const } },

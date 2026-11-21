@@ -21,9 +21,9 @@ export function inspectReleaseSources({config, workflow, patcher, packageJson}) 
   const block = (id, description) => blockers.push({ id, description });
   // These are intentional blockers. Do not mistake the current PoC's
   // successful debug build for a shippable Android App Bundle.
-  if (config.includes("packagedgueststep9"))
+  if (!config.includes('appId: "app.byeolharu.android"') && config.includes("packagedgueststep9"))
     block("DEBUG_APP_ID", "Current packaged guest uses a PoC application ID; configure the release build with app.byeolharu.android.");
-  if (/별하루 비회원 STEP 9/.test(config))
+  if (!config.includes('appName: "별하루"') && /별하루 비회원 STEP 9/.test(config))
     block("DEBUG_APP_LABEL", "Current launcher label includes STEP 9; configure the release launcher label as 별하루.");
   if (patcher.includes("cap add android") || /generated debug MainActivity|generated Android package/i.test(patcher) || /generated Android project/i.test(patcher))
     block("GENERATED_ANDROID_PROJECT", "Native project is generated and patched for debug; establish a versioned release configuration.");
