@@ -72,7 +72,7 @@ try {
     return img instanceof HTMLImageElement && img.complete && img.naturalWidth>0;
   },null,{timeout:15000});
   const src=await growthImage.getAttribute("src");
-  assert.equal(src,"/assets/constellation/stage-01.webp","Android must use local artwork, not /_next/image");
+  assert.equal(new URL(src).pathname,"/assets/constellation/stage-01.webp","Android must use local artwork, not /_next/image");
   await page.getByRole("dialog",{name:"나의 별자리"}).getByRole("button",{name:"별빛 카드 만들기"}).click();
   const shareArt=page.getByRole("dialog",{name:"별빛 카드"}).locator("[data-constellation-stage='1'] img");
   await shareArt.waitFor({state:"visible",timeout:10000});
