@@ -32,6 +32,20 @@ test("all time tabs and calendar keep each view’s approved content gap", async
   }
 });
 
+test("empty and completed time tabs share the normal card height", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.getByRole("tab", { name: "낮", exact: true }).click();
+  const empty = page.locator(".empty-time-routine");
+  await expect(empty).toBeVisible();
+  const emptyHeight = await empty.evaluate((card) => card.getBoundingClientRect().height);
+  await page.getByRole("tab", { name: "아침", exact: true }).click();
+  const completed = page.locator(".routine-completion-card");
+  await expect(completed).toBeVisible();
+  const completedHeight = await completed.evaluate((card) => card.getBoundingClientRect().height);
+  expect(Math.abs(completedHeight - emptyHeight)).toBeLessThanOrEqual(1);
+});
+
 test("morning and day completion copy does not claim the whole day is finished", async ({ page }) => {
   await seedLegacyFiveHabits(page);
   await page.goto("/");
@@ -39,7 +53,7 @@ test("morning and day completion copy does not claim the whole day is finished",
   await page.getByRole("tab", { name: "아침", exact: true }).click();
   await expect(page.locator(".routine-completion-card")).toHaveText("아침 루틴을 모두 마쳤어요");
   await expect(page.locator(".routine-completion-card")).toHaveCSS("border-top-style", "dashed");
-  await expect(page.locator(".routine-completion-card")).toHaveCSS("min-height", "88px");
+  await expect(page.locator(".routine-completion-card")).toHaveCSS("min-height", "204px");
   await expect(page.locator(".normal-done-toggle")).toContainText("완료한 습관 2개");
   // The only seeded daytime habit is already completed: no duplicate preview.
   await expect(page.locator(".upcoming-heading")).toHaveCount(0);
@@ -100,6 +114,7 @@ test("compact view uses scoped completion copy and keeps completed items folded"
   await setCompact(page);
   await page.getByRole("tab", { name: "아침", exact: true }).click();
   await expect(page.locator(".routine-completion-card")).toHaveText("아침 루틴을 모두 마쳤어요");
+  await expect(page.locator(".routine-completion-card")).toHaveCSS("min-height", "88px");
   await expect(page.locator(".compact-done-toggle")).toContainText("완료한 습관 2개");
   await expect(page.locator(".compact-completed-list")).toHaveCount(0);
   await page.getByRole("tab", { name: "낮", exact: true }).click();

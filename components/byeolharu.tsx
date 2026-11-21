@@ -2009,7 +2009,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
                         </section>
                       )}
                       {!filtered.length && (
-                        <div className={`empty-state ${isRestDay ? "is-resting" : ""}`}>
+                        <div className={`empty-state ${isRestDay ? "is-resting" : ready && isTimeRoutine && scheduledHabits.length > 0 ? "empty-time-routine" : ""}`}>
                           <Leaf size={25} />
                           <h3>{emptyRoutineTitle}</h3>
                           <p>{emptyRoutineDescription}</p>
