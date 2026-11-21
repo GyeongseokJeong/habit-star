@@ -27,3 +27,11 @@
 - **유지**: 현재 packaged guest 진입점, native MainActivity/권한 연결, reminder-plan 및 lifecycle 등 공유 알림 런타임, 실제 기능 회귀 테스트
 - **유지**: 현재 APK의 `packagedgueststep9` applicationId, 서명 방식, 데이터·알림 예약 정책
 - 후속 정리 후보: Capacitor 구성의 실험 모드 분기, fallback placeholder 및 구형 문서 (테스트 영향 평가 후 별도 PR)
+
+## 2026-11-21 후속 정리: Android 단일 설정
+- 현재 사용되는 packaged guest appId·label·WebView 경계와 알림 엔진을 보존하면서 Capacitor의 구형 5가지 빌드 모드 분기를 제거
+- `mobile/scripts/check-shell.mjs` 및 네이티브 템플릿 검사는 현재 앱 경로만 확인
+- 이전 STEP 실험의 명령은 문서의 역사 기록으로만 보존하며 현재 빌드 명령에서 사용하지 않음
+- `mobile/www/index.html` 구형 placeholder와 `mobile/.env.example` 구형 원격 셸 예시는 별도 이력에서 복구 가능. 현재 엔트리포인트는 `mobile/packaged-guest/index.html`
+- Android applicationId/서명·사용자 데이터, 웹/Supabase, 네이티브 알림 동작은 변경 없음
+- 실제 브랜치 삭제, 정식 앱 출시 설정, 데이터 이전은 범위 밖
