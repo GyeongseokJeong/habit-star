@@ -8,15 +8,27 @@ export default function AndroidReturnPage() {
   const [failed, setFailed] = useState(false);
   const [theme, setTheme] = useState("light");
   useEffect(() => {
-    const query = new URLSearchParams(location.search);
-    const fragment = new URLSearchParams(location.hash.slice(1));
-    setFailed(query.get("error") === "1" || fragment.has("error") || fragment.has("error_code"));
-    // Never retain/forward signup tokens in browser history or Android intent.
-    history.replaceState(null, "", location.pathname);
+    // A second email link can navigate to the same document using only a
+    // different fragment. Browser hash navigation does not remount React.
+    // Re-evaluate it on hashchange as well as on the initial page load.
+    const inspectLink = () => {
+      const query = new URLSearchParams(location.search);
+      const fragment = new URLSearchParams(location.hash.slice(1));
+      setFailed(query.get("error") === "1" || fragment.has("error") || fragment.has("error_code"));
+      // Never retain/forward signup tokens in browser history or Android intent.
+      history.replaceState(null, "", location.pathname);
+    };
+    inspectLink();
+    window.addEventListener("hashchange", inspectLink);
+    window.addEventListener("popstate", inspectLink);
     try {
       if ((localStorage.getItem("byeolharu_v2_theme") ?? localStorage.getItem("byeolharu_v1_theme")) === "dark") setTheme("dark");
     } catch { /* Optional browser preference. */ }
     setReady(true);
+    return () => {
+      window.removeEventListener("hashchange", inspectLink);
+      window.removeEventListener("popstate", inspectLink);
+    };
   }, []);
   return (
     <main className={`byeolharu ${theme} auth-page-shell`}>
