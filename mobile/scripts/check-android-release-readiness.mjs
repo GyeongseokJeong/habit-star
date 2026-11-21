@@ -46,7 +46,7 @@ export function inspectReleaseSources({config, workflow, patcher, packageJson}) 
       "Launcher icon, splash, accessibility, light/dark, permissions and notification end-to-end review",
       "Play Store listing, privacy policy, Data Safety and required declaration review",
       "Authenticated user/cloud synchronization scope decided; guest-only behavior explicitly documented",
-      "Prior stacked Android PRs reviewed and merged in dependency order into app/main after approval",
+      "Single main-source Android integration confirmed; review any remaining historical branches before deletion",
       "Galaxy device regression of the latest permission-toggle change and release AAB verified",
     ],
   };
