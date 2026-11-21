@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { guestBackupFilename, inspectGuestBackup } from "@/lib/habits/backup-file";
+import { guestBackupFilename, inspectGuestBackup } from "../lib/habits/backup-file";
 
 const backup = (scope = "guest") => JSON.stringify({
   format: "byeolharu-backup-v2",
