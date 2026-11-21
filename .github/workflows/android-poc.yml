@@ -89,3 +89,50 @@ jobs:
             mobile/www-packaged-guest/build-info.json
           if-no-files-found: error
           retention-days: 3
+
+  release-bundle:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 40
+    env:
+      BYEOLHARU_ANDROID_RELEASE: "1"
+      BYEOLHARU_POC_PACKAGED_GUEST: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.25.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.22.1"
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - run: pnpm install --frozen-lockfile
+      - name: Build release Android App Bundle
+        working-directory: mobile
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0"
+          npm install --no-package-lock --no-audit --no-fund
+          npm run packaged-guest:build
+          npm run packaged-guest:verify
+          npm run android:init
+          npm run android:sync
+          cd android
+          ./gradlew bundleRelease --no-daemon
+      - name: Validate bundle and verify final application ID
+        run: |
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/bundletool.jar" https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar
+          bundle=mobile/android/app/build/outputs/bundle/release/app-release.aab
+          java -jar "$RUNNER_TEMP/bundletool.jar" validate --bundle="$bundle"
+          test "$(java -jar "$RUNNER_TEMP/bundletool.jar" dump manifest --bundle="$bundle" --xpath=/manifest/@package)" = "app.byeolharu.android"
+          unzip -p "$bundle" base/assets/public/app.js | wc -c | awk '$1 == 0 { exit 1 }'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: byeolharu-android-release-unsigned
+          path: mobile/android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 7
