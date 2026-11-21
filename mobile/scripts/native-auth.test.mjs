@@ -35,4 +35,13 @@ test("Android uses existing website email-confirm redirect and never auto-import
  const backup=read("mobile/packaged-guest/native-guest-backup.ts");
  assert.match(backup,/inspectPortableBackup\(content\)/);
  assert.match(backup,/memberBackupFilename\(\)/);
+ const confirm=read("app/auth/confirm/route.ts");
+ const reset=read("app/auth/reset/page.tsx");
+ assert.match(confirm,/!code && !token_hash && url.searchParams.get\("next"\) === "\/auth\/reset"/);
+ assert.match(reset,/persistSession: false/);
+ assert.match(reset,/createClient\(/);
+ assert.match(reset,/window.history.replaceState/);
+ assert.match(reset,/setSession\(\{ access_token, refresh_token \}\)/);
+ const diagnosis=read("mobile/notifications/guest-reminder-diagnostics.js");
+ assert.match(diagnosis,/item.extra\?\.scope === scope/);
 });

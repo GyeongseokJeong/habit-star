@@ -38,6 +38,16 @@ export async function GET(request: Request) {
     response.headers.set("Cache-Control", "private, no-store");
     return response;
   }
+  // Android uses the implicit flow. Its recovery link carries tokens in
+  // the URL fragment (not visible to this server route). A fragment-free
+  // Location inherits the original fragment per RFC 9110, so the browser can
+  // establish a memory-only recovery session on /auth/reset.
+  // Never redirect arbitrary next URLs or put access tokens in server logs.
+  if (!code && !token_hash && url.searchParams.get("next") === "/auth/reset") {
+    const response = NextResponse.redirect(new URL("/auth/reset", origin));
+    response.headers.set("Cache-Control", "private, no-store");
+    return response;
+  }
   const client = await serverClient();
   const result = code
     ? await client.auth.exchangeCodeForSession(code)

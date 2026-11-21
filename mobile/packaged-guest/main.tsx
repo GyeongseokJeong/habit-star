@@ -241,8 +241,10 @@ function GuestNativeApp() {
     try {
       const permission = await LocalNotifications.checkPermissions();
       setPermissionState(permission.display === "granted" ? "granted" : "denied");
+      const scope = reminderIdentityKey(identityRef.current);
       const pending = await LocalNotifications.getPending();
-      const report = summarizeGuestPending(pending.notifications, new Date());
+      if (scope !== reminderIdentityKey(identityRef.current)) return;
+      const report = summarizeGuestPending(pending.notifications, new Date(), scope);
       const next = report.nextAt
         ? new Date(report.nextAt).toLocaleString("ko-KR", {month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})
         : "없음";
