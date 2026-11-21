@@ -322,6 +322,9 @@ function HabitEditor({
   onDelete,
   onClose,
   nativeAlarmEditor = false,
+  nativeAlarmActive = false,
+  nativeAlarmStatus = "",
+  onEnsureNativeAlarm,
 }: {
   habit?: Habit;
   defaultGroup: TimeGroup;
@@ -329,8 +332,13 @@ function HabitEditor({
   onDelete?: () => void;
   onClose: () => void;
   nativeAlarmEditor?: boolean;
+  nativeAlarmActive?: boolean;
+  nativeAlarmStatus?: string;
+  onEnsureNativeAlarm?: () => Promise<boolean>;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [alarmChecking, setAlarmChecking] = useState(false);
+  const [alarmNotice, setAlarmNotice] = useState("");
   const [moreTemplates, setMoreTemplates] = useState(false);
   const [moreIcons, setMoreIcons] = useState(() => Boolean(habit?.icon && MORE_EMOJIS.includes(habit.icon)));
   const [timeEdited, setTimeEdited] = useState(false);
@@ -542,22 +550,52 @@ function HabitEditor({
             </div>
           </fieldset>
           {nativeAlarmEditor && (
-            <div className="compact-setting-row">
-              <span className="account-setting-heading">
-                <span>이 습관 알림</span>
-                <small>{draft.scheduledTime ? "설정한 시간에 알려드려요" : "예정 시간을 먼저 선택해 주세요"}</small>
-              </span>
-              <button
-                type="button"
-                className="compact-setting-toggle"
-                role="switch"
-                aria-label="이 습관 알림"
-                aria-checked={draft.alarmEnabled}
-                disabled={!draft.scheduledTime && !draft.alarmEnabled}
-                onClick={() => setDraft((prev) => ({ ...prev, alarmEnabled: !prev.alarmEnabled }))}
-              ><span className="compact-switch-track" aria-hidden="true"><span className="compact-switch-thumb" /></span></button>
+            <div>
+              <div className="compact-setting-row">
+                <span className="account-setting-heading">
+                  <span>이 습관 알림</span>
+                  <small>{draft.scheduledTime ? "설정한 시간에 알려드려요" : "예정 시간을 먼저 선택해 주세요"}</small>
+                </span>
+                <button
+                  type="button"
+                  className="compact-setting-toggle"
+                  role="switch"
+                  aria-label="이 습관 알림"
+                  aria-checked={Boolean(draft.alarmEnabled && nativeAlarmActive)}
+                  disabled={alarmChecking || (!draft.scheduledTime && !draft.alarmEnabled)}
+                  onClick={() => {
+                    if (alarmChecking) return;
+                    if (draft.alarmEnabled && nativeAlarmActive) {
+                      setDraft((prev) => ({ ...prev, alarmEnabled: false }));
+                      setAlarmNotice("");
+                      return;
+                    }
+                    if (nativeAlarmActive) {
+                      setDraft((prev) => ({ ...prev, alarmEnabled: true }));
+                      setAlarmNotice("");
+                      return;
+                    }
+                    setAlarmChecking(true);
+                    setAlarmNotice("");
+                    void (async () => {
+                      try {
+                        const enabled = await onEnsureNativeAlarm?.();
+                        if (enabled) setDraft((prev) => ({ ...prev, alarmEnabled: true }));
+                        else setAlarmNotice("Android 알림 사용을 허용한 뒤 다시 켜주세요.");
+                      } catch {
+                        setAlarmNotice("알림을 활성화하지 못했습니다. 다시 시도해 주세요.");
+                      } finally {
+                        setAlarmChecking(false);
+                      }
+                    })();
+                  }}
+                ><span className="compact-switch-track" aria-hidden="true"><span className="compact-switch-thumb" /></span></button>
+              </div>
+              {(alarmNotice || (draft.alarmEnabled && !nativeAlarmActive && nativeAlarmStatus)) && (
+                <p className="account-note" role="status">{alarmNotice || nativeAlarmStatus}</p>
+              )}
             </div>
-          )}
+          )
         </section>
         {onDelete && (confirmDelete ? (
           <div className="delete-confirmation" role="group" aria-label="습관 삭제 확인">
@@ -2098,6 +2136,9 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
           }
           onClose={() => setEditing(null)}
           nativeAlarmEditor={Boolean(nativeReminders)}
+          nativeAlarmActive={nativeReminders?.active}
+          nativeAlarmStatus={nativeReminders?.status}
+          onEnsureNativeAlarm={nativeReminders ? () => nativeReminders.onEnabledChange(true) : undefined}
         />
       )}
       {detail && (
