@@ -1672,7 +1672,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
               onClick={() => { tabChosenManually.current = true; setReflectionOpen(false); setActiveTab("all"); }}
             >
               <Sun size={16} />
-              오늘의 루틴
+              오늘의 습관
             </button>
             <button
               className={activeTab === "matrix" ? "active" : ""}
