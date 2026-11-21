@@ -66,3 +66,17 @@ test("denied OS permission cannot silently clear opt-in, native queue or habit d
   assert.match(entry,/if \(!granted\) \{\s*try/);
   assert.match(account,/알림을 받을 수 없어 스위치가 꺼져 있어요/);
 });
+
+test("habit editor asks Android to enable reminders before turning its alarm on",()=>{
+  const app=readFileSync(resolve(root,"components/byeolharu.tsx"),"utf8");
+  const controls=readFileSync(resolve(root,"lib/habits/native-reminder-controls.ts"),"utf8");
+  assert.match(app,/onEnsureNativeAlarm=\{nativeReminders \? \(\) => nativeReminders\.onEnabledChange\(true\)/);
+  assert.match(app,/const enabled = await onEnsureNativeAlarm\?\.\(\)/);
+  assert.match(app,/if \(enabled\) setDraft\(\(prev\) => \(\{ \.\.\.prev, alarmEnabled: true \}\)\)/);
+  assert.match(app,/alarmChecking \|\| \(!draft\.scheduledTime && !draft\.alarmEnabled\)/);
+  assert.match(app,/aria-checked=\{Boolean\(draft\.alarmEnabled && nativeAlarmActive\)\}/);
+  assert.match(controls,/onEnabledChange: \(next: boolean\) => Promise<boolean>/);
+  assert.match(entry,/const onEnabledChange = useCallback\(async \(next: boolean\): Promise<boolean>/);
+  assert.match(entry,/return false;/);
+  assert.match(entry,/return true;/);
+});
