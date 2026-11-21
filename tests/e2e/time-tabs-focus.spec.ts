@@ -27,8 +27,10 @@ for (const width of [320, 390]) {
     await expect(page.locator(".upcoming-heading")).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
-    await shortcut.click();
+    await shortcut.focus();
+    await page.keyboard.press("Enter");
     await expect(page.getByRole("tab", { name: "전체", exact: true })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("tab", { name: "전체", exact: true })).toBeFocused();
     const card = page.locator(".habit-card").filter({ has: page.getByRole("heading", { name: "아침 미완료 검증" }) });
     await expect(card).toBeVisible();
     await card.getByRole("button", { name: "아침 미완료 검증 3점" }).click();
@@ -60,6 +62,8 @@ test("compact view reuses the same shortcut without duplicating cards", async ({
   await expect(shortcut).toBeVisible();
   await expect(shortcut).toContainText("1개");
   await expect(page.locator(".upcoming-heading, .habit-card")).toHaveCount(0);
-  await shortcut.click();
+  await shortcut.focus();
+  await page.keyboard.press("Enter");
   await expect(page.getByRole("tab", { name: "전체", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab", { name: "전체", exact: true })).toBeFocused();
 });
