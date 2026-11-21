@@ -104,10 +104,17 @@ for (const width of [320, 390, 430, 1365]) {
       const account = page.getByRole("dialog", { name: "내 계정" });
       await expect(account.getByRole("button", { name: "사용 안내" })).toBeVisible();
       await account.getByRole("button", { name: "사용 안내" }).click();
-      const help = page.getByRole("dialog", { name: "나의 속도로, 별하루" });
+      // The guide is now a detail page in the existing account dialog,
+      // not a second modal. Preserve this cross-viewport/theme regression.
+      const help = page.getByRole("dialog", { name: "사용 안내" });
       await expect(help).toBeVisible();
-      await expect(help).toContainText("같은 별을 다시 누르면 기록이 취소돼요.");
-      await expect(help).toContainText("비회원 기록과 테마는 이 브라우저에 저장돼요.");
+      await expect(help.locator(".account-help-group")).toHaveCount(3);
+      await expect(help.getByRole("heading", { name: "오늘의 실천", exact: true })).toBeVisible();
+      await expect(help.getByRole("heading", { name: "별자리 성장", exact: true })).toBeVisible();
+      await expect(help.getByRole("heading", { name: "기록 보관과 동기화", exact: true })).toBeVisible();
+      await expect(help).toContainText("같은 별을 다시 누르면 별점이 취소돼요.");
+      await expect(help).toContainText("비회원 기록은 현재 기기에 보관돼요.");
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     });
   }
 }
