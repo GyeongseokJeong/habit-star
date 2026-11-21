@@ -11,7 +11,7 @@ test("current debug PoC is explicitly not marked ready for Play publishing", () 
   assert.ok(report.blockers.some(x => x.id === "DEBUG_APP_LABEL"));
   assert.ok(report.blockers.some(x => x.id === "NO_RELEASE_BUNDLE_PIPELINE"));
   assert.ok(report.blockers.some(x => x.id === "NO_UPLOAD_SIGNING_PIPELINE"));
-  assert.ok(report.manualGates.some(x => x.includes("io.github.gyeongseokjeong.byeolharu ")));
+  assert.ok(report.manualGates.some(x => x.includes("app.byeolharu.android ")));
 });
 
 test("release readiness is machine-readable and avoids touching secrets", () => {
