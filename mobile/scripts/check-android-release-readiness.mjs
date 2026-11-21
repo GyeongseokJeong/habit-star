@@ -22,7 +22,7 @@ export function inspectReleaseSources({config, workflow, patcher, packageJson}) 
   // These are intentional blockers. Do not mistake the current PoC's
   // successful debug build for a shippable Android App Bundle.
   if (config.includes("packagedgueststep9"))
-    block("DEBUG_APP_ID", "Current packaged guest uses a PoC application ID; configure the release build with io.github.gyeongseokjeong.byeolharu.");
+    block("DEBUG_APP_ID", "Current packaged guest uses a PoC application ID; configure the release build with app.byeolharu.android.");
   if (/별하루 비회원 STEP 9/.test(config))
     block("DEBUG_APP_LABEL", "Current launcher label includes STEP 9; configure the release launcher label as 별하루.");
   if (patcher.includes("cap add android") || /generated debug MainActivity|generated Android package/i.test(patcher) || /generated Android project/i.test(patcher))
@@ -38,7 +38,7 @@ export function inspectReleaseSources({config, workflow, patcher, packageJson}) 
     ready: blockers.length === 0,
     blockers,
     manualGates: [
-      "Verify the release bundle applicationId io.github.gyeongseokjeong.byeolharu and launcher label 별하루 alongside the installed test app",
+      "Verify the release bundle applicationId app.byeolharu.android and launcher label 별하루 alongside the installed test app",
       "Release-target SDK verified from final generated Android build (Google Play new app: API 36+ as of Nov 2026)",
       "VersionCode/versionName and immutable upgrade strategy",
       "Versioned native Android release project and reproducible release AAB build",
