@@ -2055,6 +2055,9 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
                       className="earlier-pending-link"
                       onClick={() => {
                         tabChosenManually.current = true;
+                        // The shortcut unmounts after switching tabs; transfer
+                        // keyboard focus to a control that remains mounted.
+                        document.getElementById("tab-all")?.focus();
                         setActiveTab("all");
                       }}
                       aria-label={`다른 시간대에 남은 습관 ${earlierPendingCount}개, 전체 보기`}
