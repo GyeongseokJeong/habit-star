@@ -21,7 +21,7 @@ export function downloadBackup(content: string) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-export function useHabitApp(samples: () => Habit[]) {
+export function useHabitApp(samples: () => Habit[], nativeBackupExport?: (content: string) => Promise<void>) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null),
     [user, setUser] = useState<User | null>(null),
     [error, setError] = useState(""),
@@ -293,9 +293,14 @@ export function useHabitApp(samples: () => Habit[]) {
       token = epoch.current;
     if (target) {
       const content = await target.exportBackup();
-      if (repo.current === target && epoch.current === token)
-        downloadBackup(content);
+      if (repo.current !== target || epoch.current !== token)
+        throw Error("계정이 변경되어 백업을 중단했습니다.");
+      if (nativeBackupExport) await nativeBackupExport(content);
+      else downloadBackup(content);
     } else {
+      // On Android, only an initialized, validated v2 guest store can be
+      // exported to another app. Do not claim a raw legacy snapshot is portable.
+      if (nativeBackupExport) throw Error("기록이 준비된 뒤 백업해주세요.");
       const { captureLegacy } = await import("./migration");
       if (!repo.current && epoch.current === token)
         downloadBackup(JSON.stringify(captureLegacy(localStorage), null, 2));

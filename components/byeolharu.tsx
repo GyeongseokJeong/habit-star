@@ -994,11 +994,12 @@ function MonthlyMatrix({
   );
 }
 
-export default function Byeolharu({ nativeReminders, nativeShare }: {
+export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupExport }: {
   nativeReminders?: NativeReminderControls;
   nativeShare?: (png: Blob, filename: string) => Promise<void>;
+  nativeBackupExport?: (content: string) => Promise<void>;
 } = {}) {
-  const app = useHabitApp(initialHabits);
+  const app = useHabitApp(initialHabits, nativeBackupExport);
   const habits = app.snapshot?.habits ?? [];
   const history = app.snapshot?.history ?? {};
   const ready = !!app.snapshot;
@@ -2187,6 +2188,7 @@ export default function Byeolharu({ nativeReminders, nativeShare }: {
             compactView={compactView}
             onCompactViewChange={updateCompactView}
             nativeReminders={nativeReminders}
+            nativeBackup={Boolean(nativeBackupExport)}
             onHelp={() => { setAccountOpen(false); setAccountPage("home"); setHelp(true); }}
             onInstall={installEvent ? () => {
               void (async () => {
