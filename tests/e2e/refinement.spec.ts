@@ -214,7 +214,7 @@ test("time-of-day tabs update their heading and visible habit count", async ({
     ["아침", "나의 아침 루틴", "2"],
     ["낮", "나의 낮 루틴", "1"],
     ["밤", "나의 밤 루틴", "2"],
-    ["전체", "나의 데일리 루틴", "5"],
+    ["전체", "오늘의 습관", "5"],
   ]) {
     await page.getByRole("tab", { name: tab, exact: true }).click();
     await expect(page.locator(".routine-heading h2")).toContainText(heading);
