@@ -146,6 +146,41 @@ jobs:
         run: |
           keytool -genkeypair -noprompt -alias fixture -keyalg RSA -validity 3650 -dname CN=CI -keystore "$RUNNER_TEMP/fixture.p12" -storepass:env STORE_PASS
           bash mobile/scripts/sign-aab.sh mobile/android/app/build/outputs/bundle/release/app-release.aab "$RUNNER_TEMP/fixture.aab" "$RUNNER_TEMP/fixture.p12" fixture
+      # A locally installable RELEASE build, intentionally NOT signed with the
+      # Play upload key. The ephemeral certificate is created only within CI.
+      - name: Compile release APK
+        run: ./gradlew assembleRelease --no-daemon
+        working-directory: mobile/android
+      - name: Sign installable release APK with disposable test certificate
+        env:
+          TEST_STORE_PASSWORD: ci-release-apk-test-only
+        run: |
+          set -euo pipefail
+          keystore="$RUNNER_TEMP/byeolharu-test-release.p12"
+          keytool -genkeypair -noprompt -alias test-release -keyalg RSA -keysize 3072 \
+            -validity 365 -dname "CN=Byeolharu TEST ONLY,OU=CI,O=Development" \
+            -storetype PKCS12 -keystore "$keystore" -storepass:env TEST_STORE_PASSWORD \
+            -keypass:env TEST_STORE_PASSWORD
+          unsigned="mobile/android/app/build/outputs/apk/release/app-release-unsigned.apk"
+          aligned="$RUNNER_TEMP/byeolharu-release-aligned.apk"
+          signed="mobile/android/app/build/outputs/apk/release/byeolharu-release-test-signed.apk"
+          test -s "$unsigned"
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -f -v 4 "$unsigned" "$aligned"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" sign \
+            --ks "$keystore" --ks-type PKCS12 --ks-key-alias test-release \
+            --ks-pass env:TEST_STORE_PASSWORD --key-pass env:TEST_STORE_PASSWORD \
+            --out "$signed" "$aligned"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$signed"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$signed" \
+            | grep -F "package: name='app.byeolharu.android'"
+          sha256sum "$signed"
+      - name: Upload installable release APK (test-signed, not Play)
+        uses: actions/upload-artifact@v4
+        with:
+          name: byeolharu-android-release-apk-test-signed
+          path: mobile/android/app/build/outputs/apk/release/byeolharu-release-test-signed.apk
+          if-no-files-found: error
+          retention-days: 7
       - uses: actions/upload-artifact@v4
         with:
           name: byeolharu-android-release-unsigned
