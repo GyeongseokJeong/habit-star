@@ -62,15 +62,30 @@ function javaStringConstant(name) {
   return pieces.join("");
 }
 
-const backScript = javaStringConstant("DISMISS_DIALOG_JS");
+const backScript = javaStringConstant("HANDLE_IN_APP_BACK_JS");
+assert.match(java, /view\.evaluateJavascript\(HANDLE_IN_APP_BACK_JS/, "Android must use the in-app navigation dispatcher");
+assert.ok(backScript.indexOf("dialog[open]") < backScript.indexOf(".byeolharu.reflection-layout"),
+  "A modal over the reflection must close before navigating to the calendar");
 const themeScript = javaStringConstant("READ_THEME_JS");
 
-function runBack(dialog) {
+function runBack(dialog, reflection = null) {
   return runInNewContext(backScript, {
-    document: { querySelector: (selector) => selector === "dialog[open]" ? dialog : null },
+    document: {
+      querySelector: selector => selector === "dialog[open]" ? dialog
+        : selector === ".byeolharu.reflection-layout" ? reflection : null,
+    },
   });
 }
-assert.equal(runBack(null), false, "No open modal: let Android handle history/back");
+assert.equal(runBack(null), false, "At app root, let Android handle WebView history/back");
+let reflectionBackClicks = 0;
+const reflection = {
+  querySelector: selector => selector === "#weekly-reflection-back"
+    ? { click: () => { reflectionBackClicks++; } } : null,
+};
+assert.equal(runBack(null, reflection), true, "Hardware back must leave the 7-day reflection");
+assert.equal(reflectionBackClicks, 1, "Use the existing React 달력으로 action, not native WebView.goBack");
+assert.equal(runBack(null, { querySelector: () => null }), false,
+  "Only a currently visible reflection with its return button handles back");
 let click = "";
 const modal = {
   querySelector: (selector) => {
@@ -79,8 +94,9 @@ const modal = {
     return null;
   },
 };
-assert.equal(runBack(modal), true);
-assert.equal(click, "account-back", "Account detail must navigate to account home first");
+assert.equal(runBack(modal, reflection), true);
+assert.equal(click, "account-back", "Open dialog back takes priority over reflection navigation");
+assert.equal(reflectionBackClicks, 1, "Modal back must not also leave the reflection");
 assert.equal(runBack({ querySelector: (selector) => selector === ".modal-top button:last-child" ? { click: () => { click = "close"; } } : null }), true);
 assert.equal(click, "close", "Regular modal should invoke its existing React close control");
 assert.equal(runBack({ querySelector: () => null }), false, "Missing controls should not swallow Android back");
@@ -96,4 +112,4 @@ function runTheme(value) {
 assert.equal(runTheme("dark"), "dark");
 assert.equal(runTheme("light"), "light");
 assert.equal(runTheme(null), "unknown");
-console.log("Native back/dialog and theme-contrast script checks OK (not a device test)");
+console.log("Native back: modal > reflection > WebView history > root exit; theme checks OK (not a device test)");
