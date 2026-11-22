@@ -455,14 +455,14 @@ export function AccountPanel({
                   <button
                     type="button"
                     className="secondary"
-                    disabled={nativeReminders.busy || workingAction !== null}
+                    disabled={app.busy || nativeReminders.busy || workingAction !== null}
                     aria-busy={workingAction === "inspect-reminders"}
                     onClick={() => void runOnce("inspect-reminders", nativeReminders.onInspectPending)}
                   >{workingAction === "inspect-reminders" ? "예약 확인 중…" : "알림 예약 확인"}</button>
                   {!app.user && <button
                     type="button"
                     className="secondary"
-                    disabled={nativeReminders.busy || workingAction !== null}
+                    disabled={app.busy || nativeReminders.busy || workingAction !== null}
                     aria-busy={workingAction === "audit-reminders"}
                     onClick={() => void runOnce("audit-reminders", nativeReminders.onAuditPending)}
                   >{workingAction === "audit-reminders" ? "예약 비교 중…" : "습관 설정과 예약 비교"}</button>}
@@ -477,7 +477,7 @@ export function AccountPanel({
                   <button
                     type="button"
                     className="secondary"
-                    disabled={nativeReminders.busy || workingAction !== null}
+                    disabled={app.busy || nativeReminders.busy || workingAction !== null}
                     aria-busy={workingAction === "repair-reminders"}
                     onClick={() => void runOnce("repair-reminders", nativeReminders.onRepairPending)}
                   >{workingAction === "repair-reminders" ? "예약 복구 중…" : "알림 예약 다시 맞추기"}</button>

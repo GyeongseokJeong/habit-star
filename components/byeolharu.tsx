@@ -48,7 +48,7 @@ import { useHabitApp } from "@/lib/habits/use-habit-app";
 import type { NativeReminderControls } from "@/lib/habits/native-reminder-controls";
 import { AccountPanel } from "@/components/account/account-panel";
 import { StarlitHero } from "@/components/starlit-hero";
-import { countEarlierPendingHabits, initialRoutineTab, startupDataReady } from "@/lib/habits/time-tab";
+import { countEarlierPendingHabits, countOtherPendingHabits, initialRoutineTab, startupDataReady } from "@/lib/habits/time-tab";
 import { getFirstUseState, canCelebrateFirstPractice } from "@/lib/habits/onboarding";
 import { sortHabitsForDisplay } from "@/lib/habits/display-order";
 import { ConstellationGrowthView } from "@/components/constellation-growth-view";
@@ -147,6 +147,10 @@ const HABIT_TEMPLATES: {
   { title: "내일 준비하기", icon: "📅", timeGroup: "night", scheduledTime: "21:30" },
   { title: "방 정리하기", icon: "🧹", timeGroup: "day", scheduledTime: "16:00" },
 ];
+// B2 creation-only shortcuts. Keep the full lists and existing edit palette intact.
+const QUICK_HABIT_TEMPLATE_TITLES = ["독서 20분", "물 마시기", "10분 산책"];
+const QUICK_HABIT_ICONS = ["💧", "🏃‍♂️", "📚", "🧘‍♂️", "🌱"];
+
 const uid = () => crypto.randomUUID();
 const timeGroup = (date: Date): TimeGroup =>
   date.getHours() >= 5 && date.getHours() < 11
@@ -338,6 +342,8 @@ function HabitEditor({
   const [alarmChecking, setAlarmChecking] = useState(false);
   const [alarmNotice, setAlarmNotice] = useState("");
   const [moreTemplates, setMoreTemplates] = useState(false);
+  const [nameEdited, setNameEdited] = useState(false);
+  const [templateNotice, setTemplateNotice] = useState("");
   const [moreIcons, setMoreIcons] = useState(() => Boolean(habit?.icon && MORE_EMOJIS.includes(habit.icon)));
   const [timeEdited, setTimeEdited] = useState(false);
   const [draft, setDraft] = useState<HabitSettingsPatch>(() => ({
@@ -351,14 +357,43 @@ function HabitEditor({
   // Keep built-in icons at stable positions when a selection changes.
   // Show unknown saved icons at the end without reordering the preset palette.
   const knownIcon = EMOJIS.includes(draft.icon) || MORE_EMOJIS.includes(draft.icon);
-  const visibleIcons = [
-    ...EMOJIS,
-    ...(moreIcons ? MORE_EMOJIS : []),
-    ...(!knownIcon ? [draft.icon] : []),
+  const creationIconPalette = [
+    ...QUICK_HABIT_ICONS,
+    ...EMOJIS.filter((icon) => !QUICK_HABIT_ICONS.includes(icon)),
+    ...MORE_EMOJIS,
   ];
+  const baseIcons = habit
+    ? [...EMOJIS, ...(moreIcons ? MORE_EMOJIS : [])]
+    : (moreIcons ? creationIconPalette : QUICK_HABIT_ICONS);
+  const visibleIcons = [
+    ...baseIcons,
+    ...(!baseIcons.includes(draft.icon) && (!knownIcon || !moreIcons) ? [draft.icon] : []),
+  ];
+  const featuredTemplates = moreTemplates
+    ? HABIT_TEMPLATES
+    : QUICK_HABIT_TEMPLATE_TITLES.map((title) => HABIT_TEMPLATES.find((template) => template.title === title)!);
   const selectedDays = draft.repeatDays ?? WEEKDAYS;
   const matchesPreset = (days: number[]) =>
     WEEKDAYS.filter((day) => selectedDays.includes(day)).join() === days.join();
+
+  const scheduledTimeField = (
+    <label className="field habit-editor-time-field">
+      <span>예정 시간 {!habit && <small aria-hidden="true">(선택)</small>}</span>
+      <input
+        type="time"
+        value={draft.scheduledTime || ""}
+        onChange={(e) => {
+          setTimeEdited(true);
+          setDraft((prev) => ({
+            ...prev,
+            scheduledTime: e.target.value,
+            // Native reminder needs a valid scheduled time before enabling.
+            ...(nativeAlarmEditor && !e.target.value ? { alarmEnabled: false } : {}),
+          }));
+        }}
+      />
+    </label>
+  );
 
   return (
     <Modal
@@ -367,7 +402,7 @@ function HabitEditor({
     >
       {!habit && <p className="modal-description">작은 실천부터, 나만의 속도로 시작해요.</p>}
       <form
-        className="habit-editor-form"
+        className={habit ? "habit-editor-form" : "habit-editor-form habit-editor-creation-b2"}
         onSubmit={(event) => {
           event.preventDefault();
           if (draft.title.trim())
@@ -397,7 +432,7 @@ function HabitEditor({
               </button>
             </div>
             <div className="template-picker" id="habit-editor-templates">
-              {(moreTemplates ? HABIT_TEMPLATES : HABIT_TEMPLATES.slice(0, 6)).map((template) => (
+              {featuredTemplates.map((template) => (
                 <button
                   type="button"
                   key={template.title}
@@ -408,10 +443,12 @@ function HabitEditor({
                     draft.timeGroup === template.timeGroup
                   }
                   onClick={() => {
-                    if (MORE_EMOJIS.includes(template.icon)) setMoreIcons(true);
+                    if (!QUICK_HABIT_ICONS.includes(template.icon)) setMoreIcons(true);
+                    const preserveName = nameEdited && Boolean(draft.title.trim());
+                    setTemplateNotice(preserveName ? "작성한 이름은 유지하고 추천 설정만 적용했어요." : "");
                     setDraft((prev) => ({
                       ...prev,
-                      title: template.title,
+                      title: preserveName ? prev.title : template.title,
                       icon: template.icon,
                       timeGroup: template.timeGroup,
                       // Never overwrite a time the user has chosen, or repeat-day settings.
@@ -424,6 +461,7 @@ function HabitEditor({
                 </button>
               ))}
             </div>
+            {templateNotice && <p className="habit-editor-template-notice" role="status">{templateNotice}</p>}
           </fieldset>
         )}
         <label className="field habit-editor-name">
@@ -434,7 +472,11 @@ function HabitEditor({
             maxLength={80}
             placeholder="예: 하루 10분 책 읽기"
             value={draft.title}
-            onChange={(e) => setDraft((prev) => ({ ...prev, title: e.target.value }))}
+            onChange={(e) => {
+              setNameEdited(true);
+              setTemplateNotice("");
+              setDraft((prev) => ({ ...prev, title: e.target.value }));
+            }}
           />
         </label>
         <fieldset className="habit-editor-icons" aria-label="습관 아이콘">
@@ -490,23 +532,7 @@ function HabitEditor({
                 })}
               </div>
             </fieldset>
-            <label className="field">
-              예정 시간
-              <input
-                type="time"
-                value={draft.scheduledTime || ""}
-                onChange={(e) => {
-                  setTimeEdited(true);
-                  setDraft((prev) => ({
-                    ...prev,
-                    scheduledTime: e.target.value,
-                    // Web habit editing keeps its previous behavior; only the
-                    // native reminder editor enforces a time before opt-in.
-                    ...(nativeAlarmEditor && !e.target.value ? { alarmEnabled: false } : {}),
-                  }));
-                }}
-              />
-            </label>
+            {habit && scheduledTimeField}
           </div>
           <fieldset className="habit-editor-repeat">
             <legend>반복 요일</legend>
@@ -547,6 +573,7 @@ function HabitEditor({
               ))}
             </div>
           </fieldset>
+          {!habit && <div className="habit-editor-optional-time">{scheduledTimeField}</div>}
           {nativeAlarmEditor && (
             <div>
               <div className="compact-setting-row">
@@ -615,7 +642,7 @@ function HabitEditor({
             <Check size={18} />
             {alarmChecking ? "알림 권한 확인 중…" : habit ? "수정 완료" : "새 습관 추가하기"}
           </button>
-          <button type="button" className="text-button full" onClick={onClose}>취소</button>
+          {habit && <button type="button" className="text-button full" onClick={onClose}>취소</button>}
         </div>
       </form>
     </Modal>
@@ -1527,15 +1554,34 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
     }, 1100);
   }, [completedGroupKey, completionDataReady, compactCompleted.length, activeTab]);
   // Completion feedback is scoped to the selected tab, not the entire day.
+  // A finished time tab may still have scheduled habits in other periods today.
   const isTimeRoutine = activeTab !== "all" && activeTab !== "matrix";
   const showRoutineCompletion = isTimeRoutine && filtered.length > 0 && compactPending.length === 0;
-  const completionFeedback = isTimeRoutine ? (
-    <p className="routine-completion-card">
+  const otherPendingCount = showRoutineCompletion && completionDataReady
+    ? countOtherPendingHabits(activeTab, scheduledHabits,
+        (habit) => heldCompletion.get(habit.id) ?? habit.completed)
+    : 0;
+  const completionFeedback = (
+    <div className="routine-completion-card">
       <Check size={22} aria-hidden="true" />
-      {GROUPS[activeTab].name} 루틴을 모두 마쳤어요
-    </p>
-  ) : (
-    <p className={compactView ? "compact-all-done" : "normal-all-done"}>오늘의 실천을 모두 마쳤어요 ✨</p>
+      <p className="routine-completion-label">
+        {isTimeRoutine ? `${GROUPS[activeTab].name} 루틴을 모두 마쳤어요` : "오늘의 실천을 모두 마쳤어요 ✨"}
+      </p>
+      {otherPendingCount > 0 && (
+        <button
+          type="button"
+          className="routine-completion-link"
+          onClick={() => {
+            tabChosenManually.current = true;
+            document.getElementById("tab-all")?.focus();
+            setActiveTab("all");
+          }}
+        >
+          <span>다른 시간대에 예정된 습관 {otherPendingCount}개</span>
+          <span className="routine-completion-action">전체 보기 <ChevronRight size={16} aria-hidden="true" /></span>
+        </button>
+      )}
+    </div>
   );
   useEffect(() => {
     setCompletedOpen(false);
@@ -2050,7 +2096,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
                         ))}
                     </section>
                   )}
-                  {earlierPendingCount > 0 && (
+                  {earlierPendingCount > 0 && !showRoutineCompletion && (
                     <button
                       type="button"
                       className="earlier-pending-link"

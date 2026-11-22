@@ -77,6 +77,8 @@ test("Android-only UI has a read-only audit and website does not expose it",()=>
   const web=readFileSync(resolve(root,"app/page.tsx"),"utf8");
   assert.match(entry,/auditGuestReminders\(\{/);
   assert.match(entry,/LocalNotifications\.getPending\(\)/);
-  assert.match(account,/onAuditPending\(\)/);
+  assert.match(account,/runOnce\("audit-reminders", nativeReminders\\.onAuditPending\)/);
+  assert.match(account,/aria-busy={workingAction === "audit-reminders"}/);
+  assert.match(account,/disabled={app\\.busy \\|\\| nativeReminders\\.busy \\|\\| workingAction !== null}/);
   assert.doesNotMatch(web,/onAuditPending|auditGuestReminders/);
 });

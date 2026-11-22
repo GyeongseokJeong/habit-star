@@ -62,3 +62,16 @@ export function countEarlierPendingHabits<T extends { timeGroup: TimeGroup; comp
     !isCompleted(habit)
   ).length;
 }
+
+/**
+ * Count other time groups' still-scheduled habits after this tab is complete.
+ * Includes upcoming periods, but never previews their habit cards here.
+ */
+export function countOtherPendingHabits<T extends { timeGroup: TimeGroup; completed: boolean }>(
+  tab: "all" | TimeGroup | "matrix",
+  scheduledHabits: ReadonlyArray<T>,
+  isCompleted: (habit: T) => boolean = (habit) => habit.completed,
+): number {
+  if (tab === "all" || tab === "matrix") return 0;
+  return scheduledHabits.filter((habit) => habit.timeGroup !== tab && !isCompleted(habit)).length;
+}

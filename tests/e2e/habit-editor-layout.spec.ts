@@ -27,6 +27,8 @@ for (const width of [320, 390, 430]) {
     await expect(days.getByRole("button", { name: "월요일" })).toHaveAttribute("aria-pressed", "true");
 
     const palette = dialog.locator("#habit-editor-icons");
+    await expect(palette.locator("button")).toHaveCount(5);
+    await dialog.getByRole("button", { name: "아이콘 더 보기" }).click();
     const positionsBefore = await palette.locator("button").evaluateAll((buttons) =>
       buttons.map((button) => button.getAttribute("aria-label")),
     );
@@ -42,7 +44,7 @@ for (const width of [320, 390, 430]) {
     );
     expect(positionsAfterSecondPick).toEqual(positionsBefore);
 
-    await dialog.getByRole("button", { name: "아이콘 더 보기" }).click();
+    await expect(dialog.locator(".habit-editor-icons").getByRole("button", { name: "접기" })).toBeVisible();
     const expandedPalette = await palette.locator("button").evaluateAll((buttons) =>
       buttons.map((button) => button.getAttribute("aria-label")),
     );

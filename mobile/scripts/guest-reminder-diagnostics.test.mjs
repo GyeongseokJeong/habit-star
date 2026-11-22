@@ -56,6 +56,8 @@ test("guest app exposes diagnostics without modifying the public website",()=>{
   assert.match(entry,/summarizeGuestPending\(pending.notifications, new Date\(\), scope\)/);
   assert.match(entry,/LocalNotifications\.checkPermissions\(\)/);
   assert.match(entry,/LocalNotifications\.getPending\(\)/);
-  assert.match(account,/onInspectPending\(\)/);
+  assert.match(account,/runOnce\("inspect-reminders", nativeReminders\\.onInspectPending\)/);
+  assert.match(account,/aria-busy={workingAction === "inspect-reminders"}/);
+  assert.match(account,/disabled={app\\.busy \\|\\| nativeReminders\\.busy \\|\\| workingAction !== null}/);
   assert.doesNotMatch(website,/LocalNotifications|onInspectPending|Capacitor/);
 });
