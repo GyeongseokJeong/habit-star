@@ -4179,3 +4179,130 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   .starlight-actions > button { padding-inline: 6px; font-size: 12px; }
   .starlight-actions > button svg { width: 17px; height: 17px; }
 }
+
+
+/* Account experience: consistent touch response, safe actions and compact data tools.
+   Scoped to the account hub so habit recording controls keep their approved style. */
+.account-panel.account-hub button:not(:disabled),
+.account-panel.account-hub summary {
+  touch-action: manipulation;
+  transition: background-color 140ms ease, border-color 140ms ease, filter 140ms ease, transform 140ms ease;
+}
+.account-panel.account-hub button:not(:disabled):active,
+.account-panel.account-hub summary:active {
+  filter: brightness(.88);
+  transform: scale(.99);
+}
+.account-panel.account-hub .account-menu > button:not(:disabled):active,
+.account-panel.account-hub .account-action-row:not(:disabled):active,
+.account-panel.account-hub .account-help-support:not(:disabled):active {
+  background: var(--control-bg);
+}
+.account-panel.account-hub summary:focus-visible {
+  outline: 2px solid var(--selection-bg);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+.account-panel.account-hub button:disabled {
+  cursor: default;
+  opacity: .65;
+}
+.account-panel .account-action-group {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0 12px;
+  background: var(--surface);
+  margin: 10px 0 14px;
+}
+.account-panel .account-action-group > .account-action-row,
+.account-panel .account-action-group .account-restore-details > summary {
+  padding: 12px 0;
+}
+.account-panel .account-action-group .account-restore-details > summary {
+  border-bottom: 0;
+}
+.account-panel .account-backup-field {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  color: var(--ink);
+}
+.account-panel .account-backup-input {
+  min-width: 0;
+  width: 100%;
+  padding: 8px;
+  color: var(--body);
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  border-radius: 10px;
+  font: inherit;
+  font-size: 12px;
+}
+.account-panel .account-backup-input::file-selector-button {
+  min-height: 42px;
+  margin-right: 10px;
+  padding: 8px 13px;
+  border-radius: 8px;
+  border: 1px solid var(--control-border);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+.account-panel .account-backup-input:focus-visible {
+  outline: 2px solid var(--selection-bg);
+  outline-offset: 2px;
+}
+.account-panel .account-security-actions {
+  border-top: 1px solid var(--line);
+  margin-top: 20px;
+  padding-top: 17px;
+}
+.account-panel .account-security-actions .account-logout {
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 11px 15px;
+  border-radius: 10px;
+  border: 1px solid var(--danger);
+  background: transparent;
+  color: var(--danger);
+  font-size: 14px;
+  font-weight: 650;
+}
+.account-panel .account-security-actions > .account-note {
+  margin-top: 10px;
+}
+.account-panel .account-app-info {
+  margin: 14px 0 0;
+  border-top: 1px solid var(--line);
+}
+.account-panel .account-app-info > summary {
+  list-style: none;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 2px;
+  color: var(--body);
+  font-size: 13px;
+  cursor: pointer;
+}
+.account-panel .account-app-info > summary::-webkit-details-marker { display: none; }
+.account-panel .account-app-info[open] > summary > svg { transform: rotate(90deg); }
+.account-panel .account-app-info > p { margin: 0 2px 13px; }
+@media (prefers-reduced-motion: reduce) {
+  .account-panel.account-hub button,
+  .account-panel.account-hub summary {
+    transition: none !important;
+  }
+  .account-panel.account-hub button:active,
+  .account-panel.account-hub summary:active {
+    transform: none;
+  }
+}

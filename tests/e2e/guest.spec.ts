@@ -215,10 +215,10 @@ test("backup restores into a new guest browser without overwriting another datas
     await target.getByRole("button", { name: "데이터 관리", exact: true }).click();
     await target.getByText("백업 파일 복원", { exact: true }).click();
     await expect(
-      target.getByLabel("백업 복원 (기록이 없는 같은 계정·브라우저)"),
+      target.getByLabel("백업 파일 선택"),
     ).toBeEnabled();
     await target
-      .getByLabel("백업 복원 (기록이 없는 같은 계정·브라우저)")
+      .getByLabel("백업 파일 선택")
       .setInputFiles(file!);
     await expect(target.getByText("백업을 복원했습니다.")).toBeVisible();
     await target.getByRole("button", { name: "닫기", exact: true }).click();

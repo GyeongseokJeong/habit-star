@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownToLine, ChevronRight, CheckCircle2, CloudOff,
   Database, Download, RefreshCw, Settings2, ShieldCheck, Sparkles, UserRound, CircleHelp,
-  AlertCircle, Clock3, Laptop, Moon, Sun, LoaderCircle, Star, Cloud,
+  AlertCircle, Clock3, Laptop, Moon, Sun, LoaderCircle, Star, Cloud, LogOut,
 } from "lucide-react";
 import { cloudEnabled } from "@/lib/supabase/client";
 import { APP_BUILD_INFO } from "@/lib/build-info";
@@ -69,7 +69,11 @@ export function AccountPanel({
 }) {
   const state = app.snapshot?.state;
   const [message, setMessage] = useState("");
+  const [showImportReceipt, setShowImportReceipt] = useState(false);
+  const observedReceipt = useRef(app.snapshot?.state.importReceipt?.verifiedAt ?? null);
   const [backupBusy, setBackupBusy] = useState(false);
+  const activeAction = useRef<string | null>(null);
+  const [workingAction, setWorkingAction] = useState<string | null>(null);
   const [preview, setPreview] = useState<Snapshot | null>(null);
   const [guestAvailable, setGuestAvailable] = useState(false);
   const [timezonePicker, setTimezonePicker] = useState(false);
@@ -96,10 +100,15 @@ export function AccountPanel({
   const waiting = app.user && (pending > 0 || /대기/.test(status));
   const statusTone = critical ? "error" : syncing ? "syncing" : waiting ? "waiting" : "success";
   const StatusIcon = critical ? AlertCircle : syncing ? LoaderCircle : waiting ? CloudOff : CheckCircle2;
-  // An import can finish through conflict resolution or background resume,
-  // not only through the "merge" button. Retire its stale preview after verification.
+  // Only show a fresh verification receipt. Old receipts remain in the data
+  // model without displaying a repeated success note on every visit.
   useEffect(() => {
-    if (state?.importReceipt && !state.importJournal) setPreview(null);
+    const verifiedAt = state?.importReceipt?.verifiedAt ?? null;
+    if (verifiedAt && verifiedAt !== observedReceipt.current && !state?.importJournal) {
+      setShowImportReceipt(true);
+    }
+    observedReceipt.current = verifiedAt;
+    if (verifiedAt && !state?.importJournal) setPreview(null);
   }, [state?.importReceipt?.verifiedAt, state?.importJournal]);
   useEffect(() => {
     if ((page !== "home" && page !== "records" && page !== "import") || !app.user) {
@@ -132,11 +141,28 @@ export function AccountPanel({
     // Re-read only on entering the dedicated flow or switching identities.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, app.user?.id]);
+  // A ref prevents double taps before React can paint the disabled state.
+  const runOnce = async (name: string, task: () => Promise<void>) => {
+    if (activeAction.current || app.busy) return;
+    activeAction.current = name;
+    setWorkingAction(name);
+    setMessage("");
+    try {
+      await task();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "작업을 완료하지 못했어요. 다시 시도해주세요.");
+    } finally {
+      activeAction.current = null;
+      setWorkingAction(null);
+    }
+  };
+
   const lastSyncAt = state?.sync?.lastSuccessAt
     ? new Date(state.sync.lastSuccessAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit" })
     : null;
 
   const navigate = (to: AccountPage) => {
+    if (to !== "records" || page !== "import") setShowImportReceipt(false);
     setMessage("");
     setPreview(null);
     setTimezonePicker(false);
@@ -206,11 +232,11 @@ export function AccountPanel({
                     <p role="alert">복구 확인이 필요한 항목 {preview.state.migration.issues.length}개가 있습니다. 비회원 모드에서 백업·확인한 후 이전해주세요.</p>
                   )}
                   <div className="account-compact-actions">
-                    <button type="button" className="primary" disabled={app.busy || (!!preview.state.migration?.issues.length && !preview.state.recoveryAcknowledged)} onClick={async () => {
+                    <button type="button" className="primary" disabled={app.busy || workingAction !== null || (!!preview.state.migration?.issues.length && !preview.state.recoveryAcknowledged)} aria-busy={workingAction === "import"} onClick={() => void runOnce("import", async () => {
                       const result = await app.migrate();
                       if (result?.status === "applied") setPreview(null);
                       if (page === "import" && result) navigate("records");
-                    }}>이 계정으로 병합</button>
+                    })}>{workingAction === "import" ? "가져오는 중…" : "이 계정으로 병합"}</button>
                     <button type="button" className="text-button" onClick={() => page === "import" ? navigate("home") : setPreview(null)}>나중에</button>
                   </div>
                 </div>
@@ -260,15 +286,15 @@ export function AccountPanel({
 
       {page === "records" && (
         <section className="account-detail" aria-label="데이터 관리">
-          <div className={"account-sync-overview is-" + statusTone} role={critical ? "alert" : "status"}>
+          <div className={"account-sync-overview is-" + statusTone} role={critical ? "alert" : "status"} aria-live={critical ? "assertive" : "polite"}>
             <div className="account-sync-heading">
               <StatusIcon size={20} aria-hidden="true" className={syncing ? "is-spinning" : ""}/>
               <strong>{app.user ? (app.error || status) : "이 기기에 기록을 저장하고 있어요"}</strong>
             </div>
-            <p>{state?.localSavedAt ? "기기 저장 완료" : "기기 기록 확인됨"}{app.user ? " · " + (status === "클라우드 동기화 완료" ? "클라우드 동기화 완료" : "클라우드 상태 확인 중") : " · 비회원 모드"}</p>
+            <p>{app.user ? "기기 기록 보관 중" : "기기 저장 · 비회원 모드"}</p>
             {app.user && <div className="account-sync-footer">
               <span>마지막 성공 · {lastSyncAt ?? "아직 없음"}</span>
-              <button type="button" className="secondary" disabled={app.busy} onClick={() => void app.sync()} aria-label="지금 동기화"><RefreshCw size={16} aria-hidden="true" /> 지금 동기화</button>
+              <button type="button" className="secondary" disabled={app.busy || workingAction !== null} aria-busy={workingAction === "sync"} onClick={() => void runOnce("sync", async () => { await app.sync(); })} aria-label="지금 동기화"><RefreshCw size={16} className={workingAction === "sync" ? "is-spinning" : ""} aria-hidden="true" />{workingAction === "sync" ? "동기화 중…" : "지금 동기화"}</button>
             </div>}
           </div>
           {(pending > 0 || unresolved > 0 || state?.importJournal) && (
@@ -290,8 +316,8 @@ export function AccountPanel({
                   </details>
                   {processing && <p role="status">선택한 내용을 서버에 확인 중입니다. 연결 후 계속 처리합니다.</p>}
                   <div className="account-compact-actions">
-                    <button type="button" className="secondary" disabled={processing} onClick={() => void app.resolve(conflict,true).catch(() => setMessage("해결하지 못했습니다. 다시 동기화해주세요."))}>이 기기 기록 사용</button>
-                    <button type="button" className="secondary" disabled={processing} onClick={() => void app.resolve(conflict,false).catch(() => setMessage("해결하지 못했습니다. 다시 동기화해주세요."))}>클라우드 기록 사용</button>
+                    <button type="button" className="secondary" disabled={processing || workingAction !== null} aria-busy={workingAction === "resolve"} onClick={() => void runOnce("resolve", () => app.resolve(conflict,true))}>이 기기 기록 사용</button>
+                    <button type="button" className="secondary" disabled={processing || workingAction !== null} aria-busy={workingAction === "resolve"} onClick={() => void runOnce("resolve", () => app.resolve(conflict,false))}>클라우드 기록 사용</button>
                   </div>
                 </div>;
               })}
@@ -304,24 +330,28 @@ export function AccountPanel({
               <button type="button" className="secondary" disabled={app.busy} onClick={() => void app.migrate()}>가져오기 재개</button>
             </section>
           )}
-          {!state?.importJournal && state?.importReceipt && <p role="status" className="account-note">가져오기 완료 · 서버와 로컬 기록을 확인했습니다.</p>}
+          {showImportReceipt && !state?.importJournal && state?.importReceipt && (
+            <p role="status" className="account-note account-import-verified">가져오기 완료 · 서버와 로컬 기록을 확인했습니다.</p>
+          )}
           <div className="account-divider" />
           <h4 className="account-section-title">백업 및 복원</h4>
-          <button type="button" className="account-action-row" disabled={backupBusy || app.busy || (nativeBackup && !app.snapshot)} onClick={() => void exportBackup()}>
-            <Download size={18} /><span>{backupBusy ? "백업 처리 중…" : nativeBackup ? "기록 백업 파일 내보내기" : "기록 백업 내려받기"}</span><ChevronRight size={16} />
+          <div className="account-action-group">
+          <button type="button" className="account-action-row" disabled={backupBusy || app.busy || workingAction !== null || (nativeBackup && !app.snapshot)} aria-busy={workingAction === "backup"} onClick={() => void runOnce("backup", exportBackup)}>
+            <Download size={18} /><span>{workingAction === "backup" ? "백업 준비 중…" : nativeBackup ? "기록 백업 파일 내보내기" : "기록 백업 내려받기"}</span><ChevronRight size={16} />
           </button>
-          {nativeBackup && <p className="account-note">Android 공유창에서 내 파일·드라이브 등 외부 저장 위치를 선택하고 JSON 파일이 존재하는지 확인하세요. 앱 캐시의 임시 파일만으로는 기록이 보존되지 않습니다.</p>}
           <details className="account-restore-details">
             <summary className="account-action-row"><ArrowDownToLine size={18} /><span>백업 파일 복원</span><ChevronRight size={16} /></summary>
-            <p>기록이 없는 같은 계정 또는 비회원 저장 공간에서만 복원할 수 있어요. 원본은 먼저 백업합니다.</p>
-            <label className="field">백업 복원 (기록이 없는 같은 계정·브라우저)
-              <input type="file" accept=".json,application/json" disabled={!app.snapshot || app.busy || backupBusy} onChange={async (e) => {
+            <p>기록이 없는 같은 계정 또는 비회원 저장 공간에서만 복원할 수 있어요. 기존 기록은 덮어쓰지 않습니다.</p>
+            <label className="field account-backup-field">백업 파일 선택
+              <input className="account-backup-input" type="file" accept=".json,application/json" disabled={!app.snapshot || app.busy || backupBusy || workingAction !== null} aria-busy={workingAction === "restore"} onChange={async (e) => {
                 const file = e.target.files?.[0];
-                await restoreBackup(file);
+                await runOnce("restore", async () => { await restoreBackup(file); });
                 e.target.value = "";
               }} />
             </label>
+            {workingAction === "restore" && <p role="status">백업 파일을 확인하고 있어요…</p>}
           </details>
+          </div>
           {!!state?.migration?.issues.length && (
             <section className="account-extra">
               <h4>원본 복구 확인 필요</h4>
@@ -333,12 +363,13 @@ export function AccountPanel({
           )}
           {app.user && (
             <details className="account-advanced-details">
-              <summary>고급 데이터 관리 <ChevronRight size={16} aria-hidden="true"/></summary>
-              <p className="account-note">다른 저장 공간의 비회원 기록을 수동으로 확인할 수 있어요.</p>
-              <button type="button" className="account-action-row" onClick={async () => {
-                try { setGuestAvailable(true); setPreview(await app.previewImport()); }
-                catch { setMessage("비회원 기록을 읽지 못했습니다. 백업을 확인해주세요."); }
-              }}><Database size={18}/><span>이 기기의 비회원 기록 가져오기</span><ChevronRight size={16}/></button>
+              <summary>기록 이전 · 고급 관리 <ChevronRight size={16} aria-hidden="true"/></summary>
+              <button type="button" className="account-action-row" disabled={workingAction !== null} aria-busy={workingAction === "preview-import"} onClick={() => void runOnce("preview-import", async () => {
+                // Advanced manual inspection must also work for legacy/demo
+                // snapshots, where the guestHasOwnRecords heuristic is false.
+                setGuestAvailable(true);
+                setPreview(await app.previewImport());
+              })}><Database size={18}/><span>{workingAction === "preview-import" ? "기록 확인 중…" : "이 기기의 비회원 기록 확인"}</span><ChevronRight size={16}/></button>
               {importPreview}
             </details>
           )}
@@ -355,9 +386,8 @@ export function AccountPanel({
       )}
       {page === "settings" && (
         <section className="account-detail" aria-label="앱 설정">
-          <p className="account-detail-hint">별하루가 편안하게 느껴지도록 설정해요.</p>
           <div className="account-setting-block">
-            <div className="account-setting-heading"><span>화면 테마</span><small>앱에서 선택한 테마를 유지해요</small></div>
+            <div className="account-setting-heading"><span>화면 테마</span></div>
             <div className="account-theme-options" role="group" aria-label="화면 테마">
               <button type="button" aria-pressed={theme === "light"} onClick={() => onThemeChange("light")}><Sun size={18}/>라이트</button>
               <button type="button" aria-pressed={theme === "dark"} onClick={() => onThemeChange("dark")}><Moon size={18}/>다크</button>
@@ -378,7 +408,7 @@ export function AccountPanel({
           </div>
           <div className="account-setting-block">
             <div className="account-setting-heading"><span>시간대</span><small>{app.user ? "습관 기록의 날짜 기준" : "기기의 시간대를 사용해요"}</small></div>
-            <div className="account-timezone-row"><Clock3 size={19}/><span><strong>{zoneName(state?.timezone ?? deviceZone)}</strong><small>{state?.timezone ?? deviceZone}</small></span>
+            <div className="account-timezone-row"><Clock3 size={19}/><span><strong>{zoneName(state?.timezone ?? deviceZone)}</strong></span>
               {app.user && <button type="button" className="secondary" aria-expanded={timezonePicker} onClick={() => setTimezonePicker(!timezonePicker)}>변경</button>}
             </div>
             {app.user && timezonePicker && (
@@ -450,9 +480,10 @@ export function AccountPanel({
             </details>
           )}
           {onInstall && <button type="button" className="account-action-row" onClick={onInstall}><ArrowDownToLine size={18}/><span>별하루 앱 설치</span><ChevronRight size={16}/></button>}
-          <p className="account-note" data-testid="build-info" aria-label="앱 빌드 정보">
-            {nativeReminders ? "Android" : "Web"} · v{APP_BUILD_INFO.version} · 빌드 {APP_BUILD_INFO.shortSha}
-          </p>
+          <details className="account-app-info">
+            <summary>앱 정보 <ChevronRight size={16} aria-hidden="true"/></summary>
+            <p className="account-note" data-testid="build-info" aria-label="앱 빌드 정보">{nativeReminders ? "Android" : "Web"} · v{APP_BUILD_INFO.version} · 빌드 {APP_BUILD_INFO.shortSha}</p>
+          </details>
         </section>
       )}
 
@@ -506,14 +537,16 @@ export function AccountPanel({
 
       {page === "security" && app.user && (
         <section className="account-detail" aria-label="계정 관리">
-          <p className="account-detail-hint">내 계정과 로그인 상태를 확인해요.</p>
           <div className="account-record-card">
             <div className="account-record-row"><ShieldCheck size={18}/><span>로그인 계정</span><strong className="account-email">{app.user.email}</strong></div>
           </div>
-          <button type="button" className="account-action-row" onClick={() => navigate("login")}><UserRound size={18}/><span>다시 로그인</span><ChevronRight size={16}/></button>
-          <div className="account-divider" />
-          <button type="button" className="account-logout" onClick={() => void app.logout().catch(() => setMessage("로그아웃하지 못했습니다. 다시 시도해주세요."))}>로그아웃</button>
-          <p className="account-note">미전송 기록이나 충돌이 남아 있으면 백업 및 확인 후 로그아웃해요.</p>
+          <div className="account-security-actions">
+            <button type="button" className="account-logout" disabled={workingAction !== null || app.busy} aria-busy={workingAction === "logout"} onClick={() => void runOnce("logout", app.logout)}>
+              {workingAction === "logout" ? <LoaderCircle size={18} className="is-spinning" aria-hidden="true"/> : <LogOut size={18} aria-hidden="true"/>}
+              {workingAction === "logout" ? "로그아웃 중…" : "로그아웃"}
+            </button>
+            <p className="account-note">{pending || unresolved || state?.importJournal ? "미전송 기록이나 충돌이 있어요. 백업을 확인한 후 로그아웃합니다." : "로그아웃하면 이 기기의 회원 캐시가 정리됩니다."}</p>
+          </div>
         </section>
       )}
       {(message || app.error) && <p role="status" aria-live="polite" className="auth-feedback">{message || app.error}</p>}

@@ -25,9 +25,9 @@ test("guest record backup and restore remain nested under a compact records page
   await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
   await page.getByRole("button", { name: "데이터 관리", exact: true }).click();
   await expect(page.getByRole("button", { name: "기록 백업 내려받기" })).toBeVisible();
-  await expect(page.getByLabel("백업 복원 (기록이 없는 같은 계정·브라우저)")).toBeHidden();
+  await expect(page.getByLabel("백업 파일 선택")).toBeHidden();
   await page.getByText("백업 파일 복원", { exact: true }).click();
-  await expect(page.getByLabel("백업 복원 (기록이 없는 같은 계정·브라우저)")).toBeEnabled();
+  await expect(page.getByLabel("백업 파일 선택")).toBeEnabled();
   await expect(page.locator("body").evaluate(() => document.documentElement.scrollWidth <= innerWidth)).resolves.toBe(true);
 });
 
@@ -153,4 +153,32 @@ test("approved compact usage guide stays within account navigation", async ({ pa
   await page.getByRole("button", { name: "사용 안내", exact: true }).click();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog", { name: "내 계정" })).toBeVisible();
+});
+
+
+test("account controls show touch feedback and preserve accessible focus", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+  const menu = page.getByRole("button", { name: "앱 설정", exact: true });
+  await expect(menu).toHaveCSS("touch-action", "manipulation");
+  await menu.focus();
+  await expect(menu).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("heading", { name: "앱 설정" })).toBeVisible();
+  await expect(page.getByText("앱 정보", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("build-info")).toBeHidden();
+  await page.getByText("앱 정보", { exact: true }).click();
+  await expect(page.getByTestId("build-info")).toBeVisible();
+});
+
+test("guest records keep guarded restore and have no always-visible import receipt", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+  await page.getByRole("button", { name: "데이터 관리", exact: true }).click();
+  await expect(page.locator(".account-action-group")).toBeVisible();
+  await expect(page.getByText("백업 파일 복원", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("백업 파일 선택")).toBeHidden();
+  await expect(page.locator("body").evaluate(() => document.documentElement.scrollWidth <= innerWidth)).resolves.toBe(true);
 });
