@@ -69,6 +69,8 @@ export function AccountPanel({
 }) {
   const state = app.snapshot?.state;
   const [message, setMessage] = useState("");
+  const [showImportReceipt, setShowImportReceipt] = useState(false);
+  const observedReceipt = useRef(app.snapshot?.state.importReceipt?.verifiedAt ?? null);
   const [backupBusy, setBackupBusy] = useState(false);
   const activeAction = useRef<string | null>(null);
   const [workingAction, setWorkingAction] = useState<string | null>(null);
@@ -98,10 +100,15 @@ export function AccountPanel({
   const waiting = app.user && (pending > 0 || /대기/.test(status));
   const statusTone = critical ? "error" : syncing ? "syncing" : waiting ? "waiting" : "success";
   const StatusIcon = critical ? AlertCircle : syncing ? LoaderCircle : waiting ? CloudOff : CheckCircle2;
-  // An import can finish through conflict resolution or background resume,
-  // not only through the "merge" button. Retire its stale preview after verification.
+  // Only show a fresh verification receipt. Old receipts remain in the data
+  // model without displaying a repeated success note on every visit.
   useEffect(() => {
-    if (state?.importReceipt && !state.importJournal) setPreview(null);
+    const verifiedAt = state?.importReceipt?.verifiedAt ?? null;
+    if (verifiedAt && verifiedAt !== observedReceipt.current && !state?.importJournal) {
+      setShowImportReceipt(true);
+    }
+    observedReceipt.current = verifiedAt;
+    if (verifiedAt && !state?.importJournal) setPreview(null);
   }, [state?.importReceipt?.verifiedAt, state?.importJournal]);
   useEffect(() => {
     if ((page !== "home" && page !== "records" && page !== "import") || !app.user) {
@@ -155,6 +162,7 @@ export function AccountPanel({
     : null;
 
   const navigate = (to: AccountPage) => {
+    if (to !== "records" || page !== "import") setShowImportReceipt(false);
     setMessage("");
     setPreview(null);
     setTimezonePicker(false);
@@ -308,8 +316,8 @@ export function AccountPanel({
                   </details>
                   {processing && <p role="status">선택한 내용을 서버에 확인 중입니다. 연결 후 계속 처리합니다.</p>}
                   <div className="account-compact-actions">
-                    <button type="button" className="secondary" disabled={processing} onClick={() => void app.resolve(conflict,true).catch(() => setMessage("해결하지 못했습니다. 다시 동기화해주세요."))}>이 기기 기록 사용</button>
-                    <button type="button" className="secondary" disabled={processing} onClick={() => void app.resolve(conflict,false).catch(() => setMessage("해결하지 못했습니다. 다시 동기화해주세요."))}>클라우드 기록 사용</button>
+                    <button type="button" className="secondary" disabled={processing || workingAction !== null} aria-busy={workingAction === "resolve"} onClick={() => void runOnce("resolve", () => app.resolve(conflict,true))}>이 기기 기록 사용</button>
+                    <button type="button" className="secondary" disabled={processing || workingAction !== null} aria-busy={workingAction === "resolve"} onClick={() => void runOnce("resolve", () => app.resolve(conflict,false))}>클라우드 기록 사용</button>
                   </div>
                 </div>;
               })}
@@ -321,6 +329,9 @@ export function AccountPanel({
               <p>원본과 중단 지점을 보존했습니다. 연결·인증 또는 충돌을 해결한 뒤 재개해주세요.</p>
               <button type="button" className="secondary" disabled={app.busy} onClick={() => void app.migrate()}>가져오기 재개</button>
             </section>
+          )}
+          {showImportReceipt && !state?.importJournal && state?.importReceipt && (
+            <p role="status" className="account-note account-import-verified">가져오기 완료 · 서버와 로컬 기록을 확인했습니다.</p>
           )}
           <div className="account-divider" />
           <h4 className="account-section-title">백업 및 복원</h4>
@@ -354,11 +365,10 @@ export function AccountPanel({
             <details className="account-advanced-details">
               <summary>기록 이전 · 고급 관리 <ChevronRight size={16} aria-hidden="true"/></summary>
               <button type="button" className="account-action-row" disabled={workingAction !== null} aria-busy={workingAction === "preview-import"} onClick={() => void runOnce("preview-import", async () => {
-                const guest = await app.previewImport();
-                const available = guestHasOwnRecords(guest);
-                setGuestAvailable(available);
-                setPreview(available ? guest : null);
-                if (!available) setMessage("이 기기에 가져올 비회원 기록이 없어요.");
+                // Advanced manual inspection must also work for legacy/demo
+                // snapshots, where the guestHasOwnRecords heuristic is false.
+                setGuestAvailable(true);
+                setPreview(await app.previewImport());
               })}><Database size={18}/><span>{workingAction === "preview-import" ? "기록 확인 중…" : "이 기기의 비회원 기록 확인"}</span><ChevronRight size={16}/></button>
               {importPreview}
             </details>
