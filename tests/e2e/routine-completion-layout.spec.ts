@@ -51,18 +51,18 @@ test("morning and day completion copy does not claim the whole day is finished",
   await page.goto("/");
   await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
   await page.getByRole("tab", { name: "아침", exact: true }).click();
-  await expect(page.locator(".routine-completion-card")).toHaveText("아침 루틴을 모두 마쳤어요");
-  await expect(page.locator(".routine-completion-card")).toHaveCSS("border-top-style", "dashed");
+  await expect(page.locator(".routine-completion-card")).toContainText("아침 루틴을 모두 마쳤어요");
+  await expect(page.locator(".routine-completion-card")).toHaveCSS("border-top-style", "solid");
   await expect(page.locator(".routine-completion-card")).toHaveCSS("min-height", "204px");
   await expect(page.locator(".normal-done-toggle")).toContainText("완료한 습관 2개");
   // The only seeded daytime habit is already completed: no duplicate preview.
   await expect(page.locator(".upcoming-heading")).toHaveCount(0);
 
   await page.getByRole("tab", { name: "낮", exact: true }).click();
-  await expect(page.locator(".routine-completion-card")).toHaveText("낮 루틴을 모두 마쳤어요");
+  await expect(page.locator(".routine-completion-card")).toContainText("낮 루틴을 모두 마쳤어요");
   await expect(page.locator(".normal-done-toggle")).toContainText("완료한 습관 1개");
   await page.getByRole("tab", { name: "전체", exact: true }).click();
-  await expect(page.locator(".normal-all-done")).toHaveCount(0);
+  await expect(page.locator(".routine-completion-card")).toHaveCount(0);
 
   await page.getByRole("tab", { name: "밤", exact: true }).click();
   const pending = page.locator(".normal-pending-list .habit-card");
@@ -72,9 +72,12 @@ test("morning and day completion copy does not claim the whole day is finished",
     await card.getByRole("button", { name: title + " 4점" }).click();
     await expect(pending).toHaveCount(remaining - 1, { timeout: 5000 });
   }
-  await expect(page.locator(".routine-completion-card")).toHaveText("밤 루틴을 모두 마쳤어요");
+  await expect(page.locator(".routine-completion-card")).toContainText("밤 루틴을 모두 마쳤어요");
   await page.getByRole("tab", { name: "전체", exact: true }).click();
-  await expect(page.locator(".normal-all-done")).toHaveText("오늘의 실천을 모두 마쳤어요 ✨");
+  await expect(page.locator(".routine-completion-card")).toContainText("오늘의 실천을 모두 마쳤어요 ✨");
+  await expect(page.locator(".routine-completion-card")).toHaveCSS("min-height", "204px");
+  await expect(page.locator(".routine-completion-card")).toHaveCSS("border-top-style", "solid");
+  await expect(page.locator(".routine-completion-link")).toHaveCount(0);
 });
 
 test("other-period cards stay hidden while their records remain in day and all folds", async ({ page }) => {
@@ -113,13 +116,56 @@ test("compact view uses scoped completion copy and keeps completed items folded"
   await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
   await setCompact(page);
   await page.getByRole("tab", { name: "아침", exact: true }).click();
-  await expect(page.locator(".routine-completion-card")).toHaveText("아침 루틴을 모두 마쳤어요");
+  await expect(page.locator(".routine-completion-card")).toContainText("아침 루틴을 모두 마쳤어요");
   await expect(page.locator(".routine-completion-card")).toHaveCSS("min-height", "88px");
   await expect(page.locator(".compact-done-toggle")).toContainText("완료한 습관 2개");
   await expect(page.locator(".compact-completed-list")).toHaveCount(0);
   await page.getByRole("tab", { name: "낮", exact: true }).click();
-  await expect(page.locator(".routine-completion-card")).toHaveText("낮 루틴을 모두 마쳤어요");
+  await expect(page.locator(".routine-completion-card")).toContainText("낮 루틴을 모두 마쳤어요");
   await expect(page.locator(".compact-done-toggle")).toContainText("완료한 습관 1개");
   await page.getByRole("tab", { name: "전체", exact: true }).click();
-  await expect(page.locator(".compact-all-done")).toHaveCount(0);
+  await expect(page.locator(".routine-completion-card")).toHaveCount(0);
+});
+
+test("completed day tab links to All when later night habits remain", async ({ page }) => {
+  await page.clock.setFixedTime(new Date("2026-11-19T14:00:00+09:00"));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await seedLegacyFiveHabits(page);
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
+  await page.getByRole("tab", { name: "낮", exact: true }).click();
+
+  const completion = page.locator(".routine-completion-card");
+  await expect(completion).toContainText("낮 루틴을 모두 마쳤어요");
+  const shortcut = completion.locator(".routine-completion-link");
+  await expect(shortcut).toContainText("다른 시간대에 예정된 습관 2개");
+  await expect(shortcut).toContainText("전체 보기");
+  await expect(shortcut).toHaveCSS("min-height", "44px");
+  await expect(page.locator(".earlier-pending-link, .upcoming-heading")).toHaveCount(0);
+  await expect(page.locator(".normal-pending-list .habit-card")).toHaveCount(0);
+  await expect(page.locator(".closing-footer")).toBeVisible();
+
+  await shortcut.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("tab", { name: "전체", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab", { name: "전체", exact: true })).toBeFocused();
+  await expect(page.locator(".normal-pending-list .habit-card")).toHaveCount(2);
+  await expect(page.locator(".routine-completion-card")).toHaveCount(0);
+});
+
+test("compact completed time tab shows the same link and preserves 88px minimum", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  await seedLegacyFiveHabits(page);
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
+  await setCompact(page);
+  await page.getByRole("tab", { name: "낮", exact: true }).click();
+  const completion = page.locator(".routine-completion-card");
+  await expect(completion).toContainText("낮 루틴을 모두 마쳤어요");
+  await expect(completion).toHaveCSS("min-height", "88px");
+  const shortcut = completion.locator(".routine-completion-link");
+  await expect(shortcut).toContainText("다른 시간대에 예정된 습관 2개");
+  await shortcut.click();
+  await expect(page.getByRole("tab", { name: "전체", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator(".compact-habit-group .compact-habit-card")).toHaveCount(2);
 });
