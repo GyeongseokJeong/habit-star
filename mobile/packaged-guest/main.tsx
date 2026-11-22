@@ -152,7 +152,7 @@ function GuestNativeApp() {
       // React child effects may provide an already-hydrated snapshot before
       // this parent effect restores the device preference. Never miss it.
       else if (snapshot.current) {
-        void schedule(true, snapshot.current).catch(() => setStatus("알림을 확인하지 못했어요."));
+        void schedule(saved, snapshot.current).catch(() => setStatus("알림을 확인하지 못했어요."));
       }
     } catch {
       // An unreadable preference is not proof of opt-out. Preserve the
