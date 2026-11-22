@@ -72,3 +72,14 @@ if (!activity[2].includes('android:scheme="byeolharu-return"')) {
   returnManifest = returnManifest.replace(activityPattern, (_, start, body, end) => start + body + "\n" + returnFilter + end);
   writeFileSync(returnManifestPath, returnManifest);
 }
+
+if (process.env.BYEOLHARU_ANDROID_RELEASE === "1") {
+  const { code, name } = JSON.parse(readFileSync(resolve(mobileRoot, "release-version.json"), "utf8"));
+  assert.ok(Number.isSafeInteger(code) && code > 0 && code <= 2100000000, "Invalid Android versionCode");
+  assert.match(name, /^\d+\.\d+\.\d+$/, "Expected a numeric release version");
+  const gradlePath = resolve(mobileRoot, "android/app/build.gradle");
+  const gradle = readFileSync(gradlePath, "utf8");
+  assert.equal((gradle.match(/^\s*versionCode \d+\s*$/gm) || []).length, 1, "Expected one default versionCode");
+  assert.equal((gradle.match(/^\s*versionName "[^"]+"\s*$/gm) || []).length, 1, "Expected one default versionName");
+  writeFileSync(gradlePath, gradle.replace(/(\bversionCode )\d+/, (_, prefix) => prefix + code).replace(/(\bversionName )"[^"]+"/, '$1"' + name + '"'));
+}
