@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseThemePreference, resolveTheme } from "@/lib/theme-preference";
+import { parseThemePreference, resolveTheme } from "../lib/theme-preference";
 
 describe("device theme preference", () => {
   it("follows the system on a fresh install", () => {
