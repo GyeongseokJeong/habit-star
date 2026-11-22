@@ -135,7 +135,7 @@ test("disabling group or completing last task cancels existing wrap-up, but not 
   assert.equal(diff.schedule.length,0);
   const complete=plan([mk({completed:true})],setting("morning","10:30"));
   const diff2=diffScopedNotifications(native,complete);
-  assert.equal(diff2.cancel.length,2); // One original habit and one today's wrap-up.
+  assert.equal(diff2.cancel.length,1); // Today's habit alarm was already past; only the wrap-up remains to cancel.
   assert.equal(diff2.schedule.length,0);
 });
 
