@@ -145,6 +145,11 @@ test("approved compact usage guide stays within account navigation", async ({ pa
   await expect(dialog.getByRole("heading", { name: "습관 만들기" })).toHaveCount(0);
   await expect(dialog.getByRole("heading", { name: "Android 습관 알림" })).toHaveCount(0);
   await expect(dialog.locator(".account-help-copy p > span")).toHaveCount(7);
+  await expect(dialog.getByText("습관을 실천한 날 별 1~5개로 기록해요.")).toBeHidden();
+  await dialog.locator(".account-help-trigger").first().click();
+  await expect(dialog.getByText("습관을 실천한 날 별 1~5개로 기록해요.")).toBeVisible();
+  await dialog.locator(".account-help-trigger").first().click();
+  await expect(dialog.getByText("습관을 실천한 날 별 1~5개로 기록해요.")).toBeHidden();
   await expect(dialog.getByRole("button", { name: "기록 저장에 문제가 있나요?" })).toBeVisible();
   await dialog.getByRole("button", { name: "기록 저장에 문제가 있나요?" }).click();
   await expect(page.getByRole("dialog", { name: "데이터 관리" })).toBeVisible();
@@ -181,4 +186,20 @@ test("guest records keep guarded restore and have no always-visible import recei
   await expect(page.getByText("백업 파일 복원", { exact: true })).toBeVisible();
   await expect(page.getByLabel("백업 파일 선택")).toBeHidden();
   await expect(page.locator("body").evaluate(() => document.documentElement.scrollWidth <= innerWidth)).resolves.toBe(true);
+});
+
+test("settings whole-row switch is accessible and preserves its state between screens", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+  await page.getByRole("button", { name: "앱 설정", exact: true }).click();
+  const control = page.getByRole("switch", { name: "간편 보기" });
+  const current = await control.getAttribute("aria-checked");
+  expect(current === "true" || current === "false").toBe(true);
+  await control.getByText("습관을 한 줄로 보고, 완료한 습관은 접어요").click();
+  await expect(control).toHaveAttribute("aria-checked", current === "true" ? "false" : "true");
+  await page.getByRole("button", { name: "내 계정으로" }).click();
+  await expect(page.getByRole("button", { name: "계정 관리", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "앱 설정", exact: true }).click();
+  await expect(page.getByRole("switch", { name: "간편 보기" })).toHaveAttribute("aria-checked", current === "true" ? "false" : "true");
 });
