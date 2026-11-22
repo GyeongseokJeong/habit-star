@@ -16,10 +16,12 @@ function nextDateLabel(day: string) {
 export function WeeklyReflectionView({
   reflection,
   onBack,
+  onToday,
   onRecord,
 }: {
   reflection: WeeklyReflection | null;
   onBack: () => void;
+  onToday: () => void;
   onRecord: (habitId: string) => void;
 }) {
   const recovery = reflection?.status === "restart"
@@ -43,6 +45,7 @@ export function WeeklyReflectionView({
           <Sparkles size={22} aria-hidden="true" />
           <h2>조금 더 기록이 쌓이면 알려드릴게요.</h2>
           <p>아직은 습관의 흐름을 판단하기 어려워요. 오늘의 작은 실천부터 이어가 봐요.</p>
+          <button type="button" className="weekly-reflection-today" onClick={onToday}>오늘의 습관 보기 <ArrowRight size={16} aria-hidden="true"/></button>
         </div>
       ) : reflection.status === "restart" ? (
         <>
@@ -95,6 +98,7 @@ export function WeeklyReflectionView({
           <p>{reflection.status === "steady"
             ? `${reflection.encouragingHabit?.title ?? "작은 습관"}에서 꾸준한 실천이 보여요.`
             : "최근 기록에서 특별히 추천할 습관은 없어요. 다음 작은 실천도 응원할게요."}</p>
+          <button type="button" className="weekly-reflection-today" onClick={onToday}>오늘의 습관 보기 <ArrowRight size={16} aria-hidden="true"/></button>
         </div>
       )}
       {reflection && <StarlitClosingFooter kind="reflection" />}
