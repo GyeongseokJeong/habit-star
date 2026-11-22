@@ -47,6 +47,7 @@ import {
 import { useHabitApp } from "@/lib/habits/use-habit-app";
 import type { NativeReminderControls } from "@/lib/habits/native-reminder-controls";
 import { alarmForSelectedTime } from "@/lib/habits/alarm-default-policy";
+import { scheduledTimeGroup, templateGroupForTime, timeForSelectedGroup } from "@/lib/habits/habit-editor-time";
 import { AccountPanel } from "@/components/account/account-panel";
 import { THEME_PREFERENCE_KEY, parseThemePreference, resolveTheme, type ThemePreference } from "@/lib/theme-preference";
 import { StarlitHero } from "@/components/starlit-hero";
@@ -146,7 +147,7 @@ const HABIT_TEMPLATES: {
   { title: "감사 3가지 적기", icon: "🙏", timeGroup: "night", scheduledTime: "22:00" },
   { title: "영어 10분", icon: "📖", timeGroup: "day", scheduledTime: "12:00" },
   { title: "공부 30분", icon: "💻", timeGroup: "night", scheduledTime: "20:00" },
-  { title: "책상 정리", icon: "🗂️", timeGroup: "day", scheduledTime: "17:00" },
+  { title: "책상 정리", icon: "🗂️", timeGroup: "day", scheduledTime: "16:00" },
   { title: "피부 관리", icon: "🌱", timeGroup: "night", scheduledTime: "22:30" },
   { title: "내일 준비하기", icon: "📅", timeGroup: "night", scheduledTime: "21:30" },
   { title: "방 정리하기", icon: "🧹", timeGroup: "day", scheduledTime: "16:00" },
@@ -394,6 +395,7 @@ function HabitEditor({
           setDraft((prev) => ({
             ...prev,
             scheduledTime: time,
+            timeGroup: scheduledTimeGroup(time) ?? prev.timeGroup,
             alarmEnabled: alarmForSelectedTime({
               isNewHabit: !habit,
               android: nativeAlarmEditor,
@@ -481,8 +483,8 @@ function HabitEditor({
                       ...prev,
                       title: preserveName ? prev.title : template.title,
                       icon: template.icon,
-                      timeGroup: template.timeGroup,
-                      // Never overwrite a time the user has chosen, or repeat-day settings.
+                      // Preserve a manually chosen time and its matching group.
+                      timeGroup: templateGroupForTime(prev.scheduledTime, template.timeGroup, timeEdited),
                       scheduledTime: timeEdited ? prev.scheduledTime : template.scheduledTime,
                     }));
                   }}
@@ -555,7 +557,16 @@ function HabitEditor({
                       key={group}
                       className={draft.timeGroup === group ? "selected" : ""}
                       aria-pressed={draft.timeGroup === group}
-                      onClick={() => setDraft((prev) => ({ ...prev, timeGroup: group }))}
+                      onClick={() => {
+                        if (draft.scheduledTime && scheduledTimeGroup(draft.scheduledTime) !== group) {
+                          setTimeEdited(true);
+                        }
+                        setDraft((prev) => ({
+                          ...prev,
+                          timeGroup: group,
+                          scheduledTime: timeForSelectedGroup(prev.scheduledTime, group),
+                        }));
+                      }}
                     >
                       <Icon size={15} aria-hidden="true" /> {GROUPS[group].name}
                     </button>
@@ -606,7 +617,7 @@ function HabitEditor({
           </fieldset>
           {!habit && <div className="habit-editor-optional-time">{scheduledTimeField}</div>}
           {nativeAlarmEditor && (
-            <div>
+            <div className="habit-editor-alarm-row">
               <div className="compact-setting-row">
                 <span className="account-setting-heading">
                   <span>이 습관 알림</span>
