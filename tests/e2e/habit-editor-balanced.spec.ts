@@ -89,7 +89,10 @@ test("B2 creation keeps a manually edited name when another template is chosen",
   await dialog.getByRole("button", { name: "10분 산책 템플릿" }).click();
   await expect(title).toHaveValue("퇴근 후 소설 읽기");
   await expect(time).toHaveValue("08:15");
-  await expect(dialog.getByRole("button", { name: "낮", exact: true })).toHaveAttribute("aria-pressed", "true");
+  // The custom time belongs to morning. A later template must preserve
+  // both the manually selected time and its matching routine period.
+  await expect(dialog.getByRole("button", { name: "아침", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(dialog.getByRole("button", { name: "낮", exact: true })).toHaveAttribute("aria-pressed", "false");
   await dialog.getByRole("button", { name: "새 습관 추가하기" }).click();
   await page.getByRole("tab", { name: "전체", exact: true }).click();
   await expect(page.getByRole("heading", { name: "퇴근 후 소설 읽기", exact: true })).toBeVisible();
