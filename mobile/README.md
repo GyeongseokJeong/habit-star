@@ -91,3 +91,9 @@ GitHub 환경 `play-internal`에 업로드 키의 `ANDROID_UPLOAD_KEYSTORE_BASE6
 - 브라우저 정책상 무조건 자동 실행하는 방식이 아니라 사용자 탭이 필요합니다. 실패 시 앱 아이콘으로 직접 돌아가 사용할 수 있습니다.
 - 웹 배포와 새 APK가 모두 준비되어야 이메일 실기기 종단 테스트가 가능합니다. Supabase URL allowlist에 callback 쿼리가 허용되는지 검증하세요.
 - 정식 릴리스 ID로 전환할 때 웹 intent package와 native manifest를 같이 수정해야 합니다.
+
+### Android 런처 아이콘 V2 (승인 이미지 원본)
+- Android 전용 원본 이미지: `mobile/assets/android-launcher/approved-scene.webp` — 승인된 네이비 밤하늘·금빛 입체 별·보랏빛 언덕 시안을 비트맵으로 보존합니다. 웹/PWA 아이콘은 변경하지 않습니다.
+- `npm run android:sync` → `patch-android.mjs` → `generate-launcher-icons.mjs`에서 매 빌드 시 원본 WebP를 `drawable-nodpi`로 복사하고 레거시·적응형·테마용 런처 XML을 재생성합니다.
+- SHA256 고정 검증으로 디자인 원본이 조용히 재도안되는 일을 방지합니다. 둥근 사각형/원형 런처 마스크 및 48px·72px 축소 시안을 별도로 검토했습니다.
+- 구형 런처는 승인 이미지를 직접 사용하고, Android 8+는 같은 이미지를 적응형 foreground에 배치하며 배경은 네이비로 채워 투명 모서리가 검게 보이지 않게 합니다. Android 13+ 테마용 아이콘은 단색 별을 유지합니다.
