@@ -55,6 +55,7 @@ import { ConstellationGrowthView } from "@/components/constellation-growth-view"
 import { calculateConstellationGrowth, earnedStageFromCompletion } from "@/lib/constellation/growth";
 import { getConstellationStage } from "@/lib/constellation/art";
 import { calculateWeeklyReflection } from "@/lib/habits/weekly-reflection";
+import { hasMemoKeyword, toggleMemoKeyword } from "@/lib/habits/memo-keywords";
 import { WeeklyReflectionView } from "@/components/weekly-reflection-view";
 import { StarlitClosingFooter } from "@/components/starlit-closing-footer";
 export type { Habit, TimeGroup } from "@/lib/habits/domain";
@@ -688,23 +689,23 @@ function HabitDetail({
             "뿌듯함",
             "상쾌한 시작",
             "조금 지침",
-          ].map((word) => (
-            <button
-              type="button"
-              key={word}
-              onClick={() =>
-                setDraft((prev) => ({
+          ].map((word) => {
+            const selected = hasMemoKeyword(draft.memo, word);
+            return (
+              <button
+                type="button"
+                key={word}
+                className={selected ? "selected" : ""}
+                aria-pressed={selected}
+                onClick={() => setDraft((prev) => ({
                   ...prev,
-                  memo: (prev.memo + (prev.memo ? " · " : "") + word).slice(
-                    0,
-                    500,
-                  ),
-                }))
-              }
-            >
-              + {word}
-            </button>
-          ))}
+                  memo: toggleMemoKeyword(prev.memo, word),
+                }))}
+              >
+                {selected ? "✓ " : "+ "}{word}
+              </button>
+            );
+          })}
         </div>
       </fieldset>
       <label className="field">
@@ -721,10 +722,11 @@ function HabitDetail({
       </label>
       <button
         className="primary full"
+        disabled={draft.rating <= 0}
         onClick={() =>
           onSave({
             rating: draft.rating,
-            completed: draft.rating > 0,
+            completed: true,
             memo: draft.memo,
           })
         }
@@ -745,6 +747,15 @@ function HabitDetail({
         <Check size={17} />
         단순 체크만 하기
       </button>
+      {habit.completed && (
+        <button
+          type="button"
+          className="text-button full habit-detail-undo"
+          onClick={() => onSave({ completed: false, rating: 0, memo: draft.memo })}
+        >
+          오늘 실천 기록 취소
+        </button>
+      )}
     </Modal>
   );
 }
@@ -1765,6 +1776,11 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
           <WeeklyReflectionView
             reflection={weeklyReflection}
             onBack={() => { setReflectionOpen(false); setActiveTab("matrix"); }}
+            onToday={() => {
+              tabChosenManually.current = true;
+              setReflectionOpen(false);
+              setActiveTab("all");
+            }}
             onRecord={(habitId) => {
               const habit = visibleHabits.find((item) => item.id === habitId);
               if (habit && today && isScheduled(habit, today) && !habit.completed)
