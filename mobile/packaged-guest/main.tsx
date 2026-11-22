@@ -43,7 +43,8 @@ type DeviceSettings = { openNotificationSettings: () => Promise<void> };
 const deviceSettings = isAndroid ? registerPlugin<DeviceSettings>("ByeolharuDeviceSettings") : null;
 
 function GuestNativeApp() {
-  const [enabled, setEnabled] = useState(false);
+  // null: not configured on this installation; false: explicitly opted out.
+  const [enabled, setEnabled] = useState<boolean | null>(null);
   const [hasHabitIntent, setHasHabitIntent] = useState(false);
   const [wrapupSettings, setWrapupSettings] = useState<WrapupSettings>(() =>
     normalizeWrapupSettings(WRAPUP_DEFAULTS) as WrapupSettings);
@@ -78,7 +79,7 @@ function GuestNativeApp() {
   const auditRevision = useRef(0);
   const snapshot = useRef<Snapshot | null>(null);
   const identityRef = useRef<ReminderIdentity>(identity);
-  const enabledRef = useRef(false);
+  const enabledRef = useRef<boolean | null>(null);
   const wrapupRef = useRef<WrapupSettings>(normalizeWrapupSettings(WRAPUP_DEFAULTS) as WrapupSettings);
   const busyRef = useRef(false);
   const mounted = useRef(false);
@@ -149,7 +150,8 @@ function GuestNativeApp() {
     // A previously enabled device setting may survive a process restart.
     // Restore it only in this isolated package; never ask permissions here.
     try {
-      const saved = localStorage.getItem(OPT_IN_KEY) === "1";
+      const preference = localStorage.getItem(OPT_IN_KEY);
+      const saved = preference === "1" ? true : preference === "0" ? false : null;
       const configured = readWrapupSettings("guest");
       enabledRef.current = saved;
       wrapupRef.current = configured;
@@ -489,7 +491,7 @@ function GuestNativeApp() {
   }, [repairAvailable]);
 
   const nativeReminders: NativeReminderControls | undefined = isAndroid
-    ? { enabled: enabled || hasHabitIntent, active: reminderSwitchChecked(enabled || hasHabitIntent, permissionState), busy, status, permissionState, diagnostic, auditStatus, repairAvailable, repairStatus, wrapupSettings, onWrapupChange, onInspectPending, onAuditPending, onRepairPending, onEnabledChange, onSnapshot }
+    ? { enabled: enabled === true || (enabled === null && hasHabitIntent), active: reminderSwitchChecked(enabled === true || (enabled === null && hasHabitIntent), permissionState), busy, status, permissionState, diagnostic, auditStatus, repairAvailable, repairStatus, wrapupSettings, onWrapupChange, onInspectPending, onAuditPending, onRepairPending, onEnabledChange, onSnapshot }
     : undefined;
   return <Byeolharu nativeReminders={nativeReminders} nativeShare={isAndroid ? shareStarlightPngOnAndroid : undefined} nativeBackupExport={isAndroid ? exportGuestBackupOnAndroid : undefined} nativeAuthReturn={isAndroid ? nativeAuthReturn : undefined} nativeReminderNavigation={isAndroid ? wrapupNavigation : null} />;
 }
