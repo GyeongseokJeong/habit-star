@@ -9,7 +9,7 @@ const guest = { kind: "guest", verified: true };
 const snapshot = (changes={}) => ({
   day:"2026-11-20",
   habits:[{
-    id:"habit-1", title:"산책", alarmEnabled:true, completed:false,
+    id:"habit-1", title:"산책", timeGroup:"morning", alarmEnabled:true, completed:false,
     scheduledTime:"09:00", repeatDays:[0,1,2,3,4,5,6], ...changes,
   }],
 });
