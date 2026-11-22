@@ -112,8 +112,11 @@ for (const width of [320, 390, 430, 1365]) {
       await expect(help.getByRole("heading", { name: "오늘의 실천", exact: true })).toBeVisible();
       await expect(help.getByRole("heading", { name: "별자리 성장", exact: true })).toBeVisible();
       await expect(help.getByRole("heading", { name: "기록 보관과 동기화", exact: true })).toBeVisible();
-      await expect(help).toContainText("같은 별을 다시 누르면 별점이 취소돼요.");
-      await expect(help).toContainText("비회원 기록은 현재 기기에 보관돼요.");
+      // Updated help is intentionally collapsed: verify topics can be opened.
+      await help.getByText("오늘의 실천", { exact: true }).click();
+      await expect(help.getByText("같은 별을 다시 누르면 기록을 취소할 수 있어요.")).toBeVisible();
+      await help.getByText("기록 보관과 동기화", { exact: true }).click();
+      await expect(help.getByText("비회원 기록은 현재 기기에만 보관돼요.")).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     });
   }
