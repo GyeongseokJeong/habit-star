@@ -148,3 +148,39 @@ test("member scheduling uses account calendar, weekdays, and actual UTC instant"
   assert.equal((await app.sync(changed)).status,"updated");
   assert.equal(native.pending[0].schedule.at.toISOString(),"2026-11-21T19:00:00.000Z");
 });
+
+test("period wrap-up opt-in runs independently with the per-habit master OFF", async () => {
+  const native=fakeNative();
+  const lifecycle=createReminderLifecycle({localNotifications:native,now});
+  const settings={
+    morning:{enabled:true,time:"10:30"},
+    day:{enabled:false,time:"16:30"},
+    night:{enabled:false,time:"22:00"},
+  };
+  const onlyWrapup={...context(),optIn:false,wrapupSettings:settings};
+  const first=await lifecycle.sync(onlyWrapup);
+  assert.equal(first.status,"updated");
+  assert.equal(native.pending.length,8);
+  assert.ok(native.pending.every(item=>item.extra.category==="wrapup"));
+  assert.equal((await lifecycle.sync(onlyWrapup)).status,"unchanged");
+  const completed=await lifecycle.sync({
+    ...onlyWrapup, snapshot:snapshot({completed:true}),
+  });
+  assert.equal(completed.status,"updated");
+  assert.equal(native.pending.length,7);
+  await lifecycle.disable();
+  assert.equal(native.pending.length,0);
+});
+test("a wrap-up opt-in on one identity never leaves previous account's group reminders",async()=>{
+  const native=fakeNative();
+  const lifecycle=createReminderLifecycle({localNotifications:native,now});
+  const settings={morning:{enabled:true,time:"10:30"},day:{enabled:false,time:"16:30"},night:{enabled:false,time:"22:00"}};
+  const a=await lifecycle.sync({...context(member),optIn:false,wrapupSettings:settings});
+  assert.equal(a.status,"updated");
+  const memberCount=native.pending.filter(x=>x.extra.scope==="member:user-123").length;
+  assert.equal(memberCount,8);
+  const b=await lifecycle.sync({...context(guest),optIn:false,wrapupSettings:settings});
+  assert.equal(b.cancelledOtherScopes,memberCount);
+  assert.equal(native.pending.filter(x=>x.extra.scope==="member:user-123").length,0);
+  assert.equal(native.pending.filter(x=>x.extra.scope==="guest").length,8);
+});
