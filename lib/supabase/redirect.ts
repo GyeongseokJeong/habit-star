@@ -6,7 +6,9 @@ export function emailAuthRedirect(
 ) {
   const url = new URL(previewRedirect || "/auth/confirm", origin);
   if (recovery) url.searchParams.set("next", "/auth/reset");
-  if (androidReturn) url.searchParams.set("from", "android");
+  if (androidReturn) {
+    url.searchParams.set("from", process.env.NEXT_PUBLIC_ANDROID_RELEASE === "true" ? "android-release" : "android");
+  }
   return url.toString();
 }
 export function applicationOrigin(

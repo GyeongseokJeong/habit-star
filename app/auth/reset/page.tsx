@@ -16,11 +16,14 @@ export default function ResetPassword() {
   const recoveryInvalid = useRef(false);
   const [recoveryReady, setRecoveryReady] = useState(false);
   const [androidReturn, setAndroidReturn] = useState(false);
+  const [release, setRelease] = useState(false);
   const [passwordChanged, setPasswordChanged] = useState(false);
   useEffect(() => {
     if (recoveryChecked.current) return;
     recoveryChecked.current = true;
-    setAndroidReturn(new URLSearchParams(location.search).get("from") === "android");
+    const from = new URLSearchParams(location.search).get("from");
+    setAndroidReturn(from === "android" || from === "android-release");
+    setRelease(from === "android-release");
     const params = new URLSearchParams(window.location.hash.slice(1));
     const recoveryLink = params.has("access_token") || params.has("refresh_token") ||
       params.has("error") || params.get("type") === "recovery";
@@ -136,7 +139,7 @@ export default function ResetPassword() {
         <p role="status" className="auth-feedback">
           {message}
         </p>
-        {androidReturn && passwordChanged && <AndroidReturnLink />}
+        {androidReturn && passwordChanged && <AndroidReturnLink release={release} />}
         <a href="/">별하루로 돌아가기</a>
       </div>
     </main>

@@ -61,7 +61,7 @@ public class MainActivity extends BridgeActivity {
         // flavor. Other standalone demo variants must not refer to its class.
         __GUEST_SETTINGS_PLUGIN_REGISTER__
         super.onCreate(state);
-        if (getPackageName().endsWith(".packagedgueststep9")) {
+        if (getPackageName().endsWith(".packagedgueststep9") || getPackageName().equals("app.byeolharu.android")) {
             installNativeSystemBarInsets();
         }
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {

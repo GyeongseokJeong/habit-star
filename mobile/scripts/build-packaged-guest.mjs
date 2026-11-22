@@ -46,6 +46,7 @@ await build({
     "process.env.NODE_ENV": '"production"',
     "process.env.NEXT_PUBLIC_APP_VERSION": JSON.stringify(provenance.version),
     "process.env.NEXT_PUBLIC_BUILD_SHA": JSON.stringify(provenance.sourceSha),
+    "process.env.NEXT_PUBLIC_ANDROID_RELEASE": JSON.stringify(process.env.BYEOLHARU_ANDROID_RELEASE === "1" ? "true" : "false"),
     "process.env.NEXT_PUBLIC_ANDROID_PACKAGED_GUEST": '"true"',
     "process.env.NEXT_PUBLIC_CLOUD_ENABLED": '"true"',
     "process.env.NEXT_PUBLIC_SUPABASE_URL": JSON.stringify(publicAuth.supabaseUrl),

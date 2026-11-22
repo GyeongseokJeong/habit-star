@@ -38,8 +38,11 @@ export async function GET(request: Request) {
     response.headers.set("Cache-Control", "private, no-store");
     return response;
   }
-  const androidReturn = url.searchParams.get("from") === "android";
-  const resetTarget = androidReturn ? "/auth/reset?from=android" : "/auth/reset";
+  const from = url.searchParams.get("from");
+  const release = from === "android-release";
+  const androidReturn = release || from === "android";
+  const resetTarget = androidReturn ? `/auth/reset?from=${from}` : "/auth/reset";
+  const returnTarget = release ? "/auth/android-return?from=android-release" : "/auth/android-return";
   // Android uses the implicit flow. Its recovery link carries tokens in
   // the URL fragment (not visible to this server route). A fragment-free
   // Location inherits the original fragment per RFC 9110, so the browser can
@@ -53,7 +56,7 @@ export async function GET(request: Request) {
   // Implicit mobile signup verification uses a fragment invisible to this
   // server. The destination only provides UI navigation; no app session.
   if (androidReturn && !code && !token_hash) {
-    const response = NextResponse.redirect(new URL("/auth/android-return", origin));
+    const response = NextResponse.redirect(new URL(returnTarget, origin));
     response.headers.set("Cache-Control", "private, no-store");
     response.headers.set("Referrer-Policy", "no-referrer");
     return response;
@@ -72,8 +75,8 @@ export async function GET(request: Request) {
       result.data.redirectType === "recovery");
   const webTarget = authDestination(url.searchParams, !!result.error, recovery);
   const target = !androidReturn ? webTarget
-    : result.error ? "/auth/android-return?error=1"
-      : webTarget === "/auth/reset" ? resetTarget : "/auth/android-return";
+    : result.error ? returnTarget + (release ? "&error=1" : "?error=1")
+      : webTarget === "/auth/reset" ? resetTarget : returnTarget;
   const response = NextResponse.redirect(new URL(target, origin));
   response.headers.set("Cache-Control", "private, no-store");
   return response;

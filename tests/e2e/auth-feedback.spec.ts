@@ -127,3 +127,13 @@ test("Android return shows expired-link error and removes its fragment", async (
   await expect(page.getByRole("link", { name: "별하루 앱으로 돌아가기" }))
     .toHaveAttribute("href", androidReturnIntent);
 });
+
+test("release signup returns to the release package and recovery keeps the same destination", async ({ page, request }) => {
+  await page.goto("/auth/confirm?from=android-release#type=signup");
+  await expect(page).toHaveURL("http://localhost:3000/auth/android-return?from=android-release");
+  await expect(page.getByRole("link", { name: "별하루 앱으로 돌아가기" })).toHaveAttribute(
+    "href", "intent://auth/return#Intent;scheme=byeolharu-return;package=app.byeolharu.android;end",
+  );
+  const reset = await request.get("/auth/confirm?from=android-release&next=%2Fauth%2Freset", { maxRedirects: 0 });
+  expect(reset.headers().location).toBe("http://localhost:3000/auth/reset?from=android-release");
+});
