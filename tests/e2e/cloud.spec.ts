@@ -350,9 +350,11 @@ test("email password recovery issues a usable new password", async ({
   await expect(page.getByText(/비밀번호를 변경했습니다/)).toBeVisible();
   await page.getByRole("link", { name: "별하루로 돌아가기" }).click();
   await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
-  // The recovery callback may leave a session in this browser. Both cases
-  // must end in the guest scope before verifying the new password.
-  if (await page.getByRole("button", { name: "계정 관리", exact: true }).isVisible()) await logout(page);
+  // The recovery callback signs this browser in asynchronously.
+  // Wait for the verified member identity before signing out: an immediate
+  // isVisible() can observe the initial guest render and skip logout.
+  await expect(page.getByText(email, { exact: true })).toBeVisible({ timeout: 15000 });
+  await logout(page);
   await expect(
     page.getByText("비회원으로 사용 중"),
   ).toBeVisible();
