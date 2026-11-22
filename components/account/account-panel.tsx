@@ -224,11 +224,11 @@ export function AccountPanel({
                     <p role="alert">복구 확인이 필요한 항목 {preview.state.migration.issues.length}개가 있습니다. 비회원 모드에서 백업·확인한 후 이전해주세요.</p>
                   )}
                   <div className="account-compact-actions">
-                    <button type="button" className="primary" disabled={app.busy || (!!preview.state.migration?.issues.length && !preview.state.recoveryAcknowledged)} onClick={async () => {
+                    <button type="button" className="primary" disabled={app.busy || workingAction !== null || (!!preview.state.migration?.issues.length && !preview.state.recoveryAcknowledged)} aria-busy={workingAction === "import"} onClick={() => void runOnce("import", async () => {
                       const result = await app.migrate();
                       if (result?.status === "applied") setPreview(null);
                       if (page === "import" && result) navigate("records");
-                    }}>이 계정으로 병합</button>
+                    })}>{workingAction === "import" ? "가져오는 중…" : "이 계정으로 병합"}</button>
                     <button type="button" className="text-button" onClick={() => page === "import" ? navigate("home") : setPreview(null)}>나중에</button>
                   </div>
                 </div>
