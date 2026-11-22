@@ -15,23 +15,29 @@ import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.BridgeActivity;
 
 /**
- * Debug-only native navigation for the existing 별하루 WebView.
+ * Native back navigation for the bundled 별하루 WebView.
  * No JS interfaces, app secrets, session changes, or WebView reloads.
  */
 public class MainActivity extends BridgeActivity {
     private static final long THEME_CHECK_INTERVAL_MS = 1800L;
 
-    // Back mirrors the existing React dialog controls; never calls dialog.close()
-    // directly because React owns the modal lifecycle.
-    private static final String DISMISS_DIALOG_JS =
+    // React owns both dialogs and the calendar reflection view. Dispatching
+    // a DOM click to the existing React button preserves app navigation state
+    // without modifying history, reloading the WebView, or clearing records.
+    // Priority: open dialog > 7-day reflection > WebView history > root exit.
+    private static final String HANDLE_IN_APP_BACK_JS =
         "(function(){" +
         "var dialog=document.querySelector('dialog[open]');" +
-        "if(!dialog)return false;" +
+        "if(dialog){" +
         "var back=dialog.querySelector('button.modal-back');" +
         "var close=dialog.querySelector('.modal-top button:last-child');" +
         "var action=back||close;" +
-        "if(!action)return false;" +
-        "action.click();return true;" +
+        "if(action){action.click();return true;}" +
+        "}" +
+        "var reflection=document.querySelector('.byeolharu.reflection-layout');" +
+        "var returnToCalendar=reflection&&reflection.querySelector('#weekly-reflection-back');" +
+        "if(returnToCalendar){returnToCalendar.click();return true;}" +
+        "return false;" +
         "})()";
 
     private static final String READ_THEME_JS =
@@ -135,7 +141,7 @@ public class MainActivity extends BridgeActivity {
             return;
         }
         backPending = true;
-        view.evaluateJavascript(DISMISS_DIALOG_JS, result -> {
+        view.evaluateJavascript(HANDLE_IN_APP_BACK_JS, result -> {
             backPending = false;
             if (isFinishing() || isDestroyed()) return;
             if ("true".equals(result)) return;
