@@ -4306,3 +4306,95 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
     transform: none;
   }
 }
+
+
+/* Account settings and help final polish: reuse Starlit Warmth tokens. */
+.account-panel .account-setting-block:first-child { padding-top: 4px; }
+.account-panel .account-setting-block:last-of-type { border-bottom: 0; }
+.account-panel .account-setting-pressable.compact-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 4px 0;
+  margin: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+}
+.account-panel .account-setting-pressable .account-setting-heading {
+  display: grid;
+  gap: 3px;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+}
+.account-panel .account-setting-pressable > .compact-switch-track {
+  flex: 0 0 44px;
+  margin: 0 6px;
+}
+.account-panel .account-setting-pressable[aria-checked="true"] > .compact-switch-track {
+  border-color: var(--selection-bg);
+  background: var(--selection-bg);
+}
+.account-panel .account-setting-pressable[aria-checked="true"] .compact-switch-thumb {
+  transform: translateX(18px);
+  background: var(--selection-fg);
+}
+.account-panel .account-setting-pressable:focus-visible {
+  outline: 2px solid var(--selection-bg);
+  outline-offset: 2px;
+}
+.account-panel .account-help-intro { padding: 11px 4px 18px; }
+.account-panel .account-help-list { border-top: 1px solid var(--line); }
+.account-panel .account-help-list .account-help-group {
+  display: block;
+  margin: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--line);
+}
+.account-panel .account-help-trigger {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-height: 65px;
+  padding: 10px 2px;
+  list-style: none;
+  cursor: pointer;
+  color: var(--ink);
+}
+.account-panel .account-help-trigger::-webkit-details-marker { display: none; }
+.account-panel .account-help-trigger h3 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+.account-panel .account-help-trigger .account-help-icon {
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+}
+.account-panel .account-help-chevron {
+  flex: 0 0 auto;
+  color: var(--body);
+  transition: transform 160ms ease;
+}
+.account-panel .account-help-group[open] .account-help-chevron { transform: rotate(90deg); }
+.account-panel .account-help-group > .account-help-copy {
+  margin: -3px 2px 14px 57px;
+}
+.account-panel .account-help-group > .account-help-copy p { margin: 0; }
+.account-panel .account-help-trigger:focus-visible {
+  outline: 2px solid var(--selection-bg);
+  outline-offset: -2px;
+  border-radius: 8px;
+}
+.account-panel .account-help-support { margin-top: 10px; }
+@media (prefers-reduced-motion: reduce) {
+  .account-panel .account-help-chevron { transition: none; }
+}
