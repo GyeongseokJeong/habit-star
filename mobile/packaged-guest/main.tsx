@@ -8,7 +8,10 @@ import Byeolharu from "../../components/byeolharu";
 import { shareStarlightPngOnAndroid } from "./native-starlight-share";
 import { exportGuestBackupOnAndroid } from "./native-guest-backup";
 import type { Snapshot } from "../../lib/habits/repository";
-import type { NativeReminderControls } from "../../lib/habits/native-reminder-controls";
+import type { NativeReminderControls, WrapupSettings, WrapupGroup } from "../../lib/habits/native-reminder-controls";
+import type { TimeGroup } from "../../lib/habits/domain";
+import { REMINDER_KIND } from "../notifications/reminder-plan.js";
+import { WRAPUP_GROUPS, WRAPUP_DEFAULTS, normalizeWrapupSettings, hasEnabledWrapup } from "../notifications/wrapup-reminders.js";
 import { createReminderLifecycle } from "../notifications/reminder-lifecycle.js";
 import { guestReminderAction } from "../notifications/guest-reminder-readiness.js";
 import { createResumeDispatcher } from "../notifications/native-resume-refresh.js";
@@ -22,6 +25,11 @@ import { reminderSwitchChecked, canManuallyRepairGuestReminders } from "../notif
 // This module is bundled into the isolated Android guest APK only.
 // The website's Next.js entrypoint never imports Capacitor or native controls.
 const OPT_IN_KEY = "byeolharu_android_guest_reminders_optin_v1";
+const WRAPUP_STORAGE_KEY = "byeolharu_android_wrapup_reminders_v1:";
+function readWrapupSettings(scope: string): WrapupSettings {
+  const stored = localStorage.getItem(WRAPUP_STORAGE_KEY + scope);
+  return normalizeWrapupSettings(stored ? JSON.parse(stored) : WRAPUP_DEFAULTS) as WrapupSettings;
+}
 const isAndroid = Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
 const lifecycle = isAndroid ? createReminderLifecycle({ localNotifications: LocalNotifications }) : null;
 const identity = { kind: "guest" as const, verified: true };
@@ -35,6 +43,9 @@ const deviceSettings = isAndroid ? registerPlugin<DeviceSettings>("ByeolharuDevi
 
 function GuestNativeApp() {
   const [enabled, setEnabled] = useState(false);
+  const [wrapupSettings, setWrapupSettings] = useState<WrapupSettings>(() =>
+    normalizeWrapupSettings(WRAPUP_DEFAULTS) as WrapupSettings);
+  const [wrapupNavigation, setWrapupNavigation] = useState<{ tab: TimeGroup; serial: number } | null>(null);
   const [nativeAuthReturn, setNativeAuthReturn] = useState(0);
   useEffect(() => {
     if (!isAndroid) return;
@@ -66,6 +77,7 @@ function GuestNativeApp() {
   const snapshot = useRef<Snapshot | null>(null);
   const identityRef = useRef<ReminderIdentity>(identity);
   const enabledRef = useRef(false);
+  const wrapupRef = useRef<WrapupSettings>(normalizeWrapupSettings(WRAPUP_DEFAULTS) as WrapupSettings);
   const busyRef = useRef(false);
   const mounted = useRef(false);
   const operation = useRef(Promise.resolve());
@@ -76,14 +88,16 @@ function GuestNativeApp() {
 
   const schedule = useCallback((value: boolean, next: Snapshot | null) => {
     if (!lifecycle) return Promise.resolve();
-    const context = { identity: identityRef.current, optIn: value, snapshot: next && {
+    const context = {
+      identity: identityRef.current, optIn: value, wrapupSettings: wrapupRef.current,
+      snapshot: next && {
       day: next.day,
       timeZone: identityRef.current.kind === "member" ? next.state.timezone : undefined,
       habits: next.habits.map(h => ({ ...h, repeatDays: h.repeatDays ? [...h.repeatDays] : undefined })),
     }};
     const task = operation.current.then(async () => {
       if (!mounted.current) return;
-      const action = guestReminderAction(value, context.snapshot);
+      const action = guestReminderAction(value || hasEnabledWrapup(context.wrapupSettings), context.snapshot);
       // The existing Android queue belongs to this package. Missing or stale
       // IndexedDB hydration must not silently revoke already planned alarms.
       if (action === "await-snapshot" || action === "await-today") {
@@ -98,7 +112,7 @@ function GuestNativeApp() {
       if (mounted.current) {
         if (result.status === "permission-required") setStatus("Android 알림 권한을 확인해 주세요.");
         else if (result.status === "snapshot-not-ready") setStatus("오늘 기록을 불러온 후 다시 확인해 주세요.");
-        else if (result.status === "updated" || result.status === "unchanged") setStatus("습관 알림이 설정되었어요.");
+        else if (result.status === "updated" || result.status === "unchanged") setStatus("알림 예약을 확인했어요.");
         else if (result.status === "disabled") setStatus("");
       }
     });
@@ -127,11 +141,14 @@ function GuestNativeApp() {
     // Restore it only in this isolated package; never ask permissions here.
     try {
       const saved = localStorage.getItem(OPT_IN_KEY) === "1";
+      const configured = readWrapupSettings("guest");
       enabledRef.current = saved;
+      wrapupRef.current = configured;
       setEnabled(saved);
-      // When enabled, wait for the repository to hydrate before reconciliation.
-      // Explicitly disabled users still have old owned alarms cleaned up.
-      if (!saved) void schedule(false, null).catch(() => setStatus("알림을 확인하지 못했어요."));
+      setWrapupSettings(configured);
+      // Any enabled reminder type must wait for today's hydrated snapshot.
+      // If BOTH kinds are OFF, remove only this app's scoped reservations.
+      if (!saved && !hasEnabledWrapup(configured)) void schedule(false, null).catch(() => setStatus("알림을 확인하지 못했어요."));
       // React child effects may provide an already-hydrated snapshot before
       // this parent effect restores the device preference. Never miss it.
       else if (snapshot.current) {
@@ -158,6 +175,17 @@ function GuestNativeApp() {
       : identity;
     const switched = reminderIdentityKey(identityRef.current) !== reminderIdentityKey(nextIdentity);
     identityRef.current = nextIdentity;
+    if (switched) {
+      try {
+        const loaded = readWrapupSettings(reminderIdentityKey(nextIdentity));
+        wrapupRef.current = loaded;
+        setWrapupSettings(loaded);
+      } catch {
+        // Do not silently erase old reservations on unreadable preferences.
+        setStatus("마무리 알림 설정을 읽지 못했어요. 기기 저장소를 확인해 주세요.");
+        return;
+      }
+    }
     snapshot.current = next;
     auditRevision.current += 1;
     setRepairAvailable(false);
@@ -261,6 +289,79 @@ function GuestNativeApp() {
     };
   }, [refreshPermission]);
 
+  const onWrapupChange = useCallback(async (
+    group: WrapupGroup, patch: { enabled?: boolean; time?: string },
+  ): Promise<boolean> => {
+    if (!isAndroid || busyRef.current || !WRAPUP_GROUPS.includes(group)) return false;
+    const original = wrapupRef.current;
+    const next = normalizeWrapupSettings({
+      ...original, [group]: { ...original[group], ...patch },
+    }) as WrapupSettings;
+    // A malformed time must never enable an unexpected alarm.
+    if (patch.time !== undefined && next[group].time !== patch.time) return false;
+    if (patch.enabled === true && !next[group].enabled) return false;
+    const scope = reminderIdentityKey(identityRef.current);
+    busyRef.current = true;
+    setBusy(true);
+    try {
+      if (next[group].enabled) {
+        let permission = await LocalNotifications.checkPermissions();
+        if (permission.display !== "granted") permission = await LocalNotifications.requestPermissions();
+        const granted = permission.display === "granted";
+        setPermissionState(granted ? "granted" : "denied");
+        if (!granted) {
+          try { await deviceSettings?.openNotificationSettings(); }
+          catch { /* Native settings bridge is optional; show manual instructions below. */ }
+          setStatus("휴대폰 설정 → 앱 → 별하루 → 알림에서 허용해 주세요.");
+          return false;
+        }
+      }
+      if (hasEnabledWrapup(next) && !snapshot.current) {
+        setStatus("오늘 습관 기록이 준비된 뒤 다시 켜주세요.");
+        return false;
+      }
+      wrapupRef.current = next;
+      try {
+        await schedule(enabledRef.current, snapshot.current);
+        if (scope !== reminderIdentityKey(identityRef.current)) throw Error("account changed");
+        // Persist only after successful scheduling, per device and identity.
+        localStorage.setItem(WRAPUP_STORAGE_KEY + scope, JSON.stringify(next));
+        setWrapupSettings(next);
+        setStatus("시간대 마무리 알림 설정을 저장했어요.");
+        return true;
+      } catch {
+        wrapupRef.current = original;
+        void schedule(enabledRef.current, snapshot.current).catch(() => {});
+        setStatus("마무리 알림 설정에 실패했어요. 다시 시도해 주세요.");
+        return false;
+      }
+    } catch {
+      setStatus("Android 알림 설정을 확인하지 못했어요.");
+      return false;
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  }, [schedule]);
+
+  useEffect(() => {
+    if (!isAndroid) return;
+    let disposed = false;
+    const listener = LocalNotifications.addListener("localNotificationActionPerformed", ({ notification }) => {
+      const extra = notification.extra;
+      const group = extra?.timeGroup;
+      if (!disposed && extra?.kind === REMINDER_KIND && extra?.category === "wrapup" &&
+          extra?.scope === reminderIdentityKey(identityRef.current) &&
+          WRAPUP_GROUPS.includes(group)) {
+        setWrapupNavigation(prev => ({ tab: group as TimeGroup, serial: (prev?.serial ?? 0) + 1 }));
+      }
+    }).catch(() => null);
+    return () => {
+      disposed = true;
+      void listener.then(handle => handle?.remove());
+    };
+  }, []);
+
   const onInspectPending = useCallback(async () => {
     if (!isAndroid || busyRef.current) return;
     busyRef.current = true;
@@ -313,6 +414,7 @@ function GuestNativeApp() {
       const report = auditGuestReminders({
         snapshot: snapshot.current,
         optIn: enabledRef.current,
+        wrapupSettings: wrapupRef.current,
         pending: queue.notifications,
         permission: permissions.display,
         now: new Date(),
@@ -332,7 +434,7 @@ function GuestNativeApp() {
       if (revision === auditRevision.current) {
         setAuditStatus(message + " " + counts +
           (report.truncated ? " · 최대 예약 건수에 도달했어요." : ""));
-        setRepairAvailable(canManuallyRepairGuestReminders(report, enabledRef.current, permissions.display));
+        setRepairAvailable(canManuallyRepairGuestReminders(report, enabledRef.current || hasEnabledWrapup(wrapupRef.current), permissions.display));
       }
     } catch {
       setAuditStatus("예약 비교에 실패했습니다. 습관 데이터와 기기 설정을 확인해 주세요.");
@@ -355,6 +457,7 @@ function GuestNativeApp() {
         localNotifications: LocalNotifications,
         snapshot: snapshot.current,
         optIn: enabledRef.current,
+        wrapupSettings: wrapupRef.current,
         now: new Date(),
       });
       const message = {
@@ -378,9 +481,9 @@ function GuestNativeApp() {
   }, [repairAvailable]);
 
   const nativeReminders: NativeReminderControls | undefined = isAndroid
-    ? { enabled, active: reminderSwitchChecked(enabled, permissionState), busy, status, permissionState, diagnostic, auditStatus, repairAvailable, repairStatus, onInspectPending, onAuditPending, onRepairPending, onEnabledChange, onSnapshot }
+    ? { enabled, active: reminderSwitchChecked(enabled, permissionState), busy, status, permissionState, diagnostic, auditStatus, repairAvailable, repairStatus, wrapupSettings, onWrapupChange, onInspectPending, onAuditPending, onRepairPending, onEnabledChange, onSnapshot }
     : undefined;
-  return <Byeolharu nativeReminders={nativeReminders} nativeShare={isAndroid ? shareStarlightPngOnAndroid : undefined} nativeBackupExport={isAndroid ? exportGuestBackupOnAndroid : undefined} nativeAuthReturn={isAndroid ? nativeAuthReturn : undefined} />;
+  return <Byeolharu nativeReminders={nativeReminders} nativeShare={isAndroid ? shareStarlightPngOnAndroid : undefined} nativeBackupExport={isAndroid ? exportGuestBackupOnAndroid : undefined} nativeAuthReturn={isAndroid ? nativeAuthReturn : undefined} nativeReminderNavigation={isAndroid ? wrapupNavigation : null} />;
 }
 
 const root = document.getElementById("byeolharu-root");

@@ -4584,3 +4584,31 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   cursor: pointer;
 }
 .weekly-reflection-today:active { filter: brightness(.9); }
+
+
+/* Android-only, user-chosen period wrap-up alerts. Reuse the existing
+   44px switch surface and light/dark selection tokens. */
+.android-wrapup-settings { margin-top: 4px; }
+.android-wrapup-period { padding: 10px 0; border-top: 1px solid var(--line); }
+.android-wrapup-label { display: grid; gap: 3px; flex: 1; min-width: 0; color: var(--ink); }
+.android-wrapup-label strong { font-weight: 600; font-size: 13px; }
+.android-wrapup-label small { color: var(--muted); font-size: 11px; }
+.account-panel .android-wrapup-toggle {
+  display: grid; place-items: center; flex: 0 0 56px;
+  width: 56px; height: 44px; min-height: 44px;
+  border: 0; border-radius: 10px; padding: 0; background: transparent;
+}
+.android-wrapup-time {
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: 12px; min-height: 44px; color: var(--muted); font-size: 12px;
+}
+.android-wrapup-time select {
+  min-height: 44px; min-width: 100px;
+  padding: 8px 12px; border-radius: 9px;
+  border: 1px solid var(--control-border);
+  background: var(--control-bg); color: var(--body);
+  color-scheme: inherit; font: inherit; font-size: 13px;
+}
+.android-wrapup-time select:disabled { opacity: .55; }
+.android-wrapup-time select:focus-visible { outline: 2px solid var(--sage); outline-offset: 2px; }
+.android-wrapup-note { margin: 6px 0 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
