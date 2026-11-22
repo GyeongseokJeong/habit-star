@@ -47,6 +47,7 @@ import {
 import { useHabitApp } from "@/lib/habits/use-habit-app";
 import type { NativeReminderControls } from "@/lib/habits/native-reminder-controls";
 import { AccountPanel } from "@/components/account/account-panel";
+import { THEME_PREFERENCE_KEY, parseThemePreference, resolveTheme, type ThemePreference } from "@/lib/theme-preference";
 import { StarlitHero } from "@/components/starlit-hero";
 import { countEarlierPendingHabits, countOtherPendingHabits, initialRoutineTab, startupDataReady } from "@/lib/habits/time-tab";
 import { getFirstUseState, canCelebrateFirstPractice } from "@/lib/habits/onboarding";
@@ -1110,7 +1111,10 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
   const [sampleCleanupOpen, setSampleCleanupOpen] = useState(false);
   const [sampleCleanupBusy, setSampleCleanupBusy] = useState(false);
   const celebrationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [themeMode, setThemeMode] = useState<ThemePreference>("system");
+  const [systemDark, setSystemDark] = useState(false);
+  const [themePreferenceLoaded, setThemePreferenceLoaded] = useState(false);
+  const theme = resolveTheme(themeMode, systemDark);
   const [compactView, setCompactView] = useState(false);
   const [compactPreferenceLoaded, setCompactPreferenceLoaded] = useState(false);
   const [completedOpen, setCompletedOpen] = useState(false);
@@ -1196,14 +1200,19 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
   useEffect(() => {
     const date = new Date();
     try {
-      if (
-        (localStorage.getItem("byeolharu_v2_theme") ??
-          localStorage.getItem("byeolharu_v1_theme")) === "dark"
-      )
-        setTheme("dark");
+      setThemeMode(parseThemePreference(
+        localStorage.getItem(THEME_PREFERENCE_KEY),
+        localStorage.getItem("byeolharu_v2_theme") ??
+          localStorage.getItem("byeolharu_v1_theme"),
+      ));
     } catch {
-      setStorageWarning(true);
+      // Display preferences must never block the habit database.
     }
+    const appearance = window.matchMedia("(prefers-color-scheme: dark)");
+    setSystemDark(appearance.matches);
+    const onAppearanceChange = (event: MediaQueryListEvent) => setSystemDark(event.matches);
+    appearance.addEventListener("change", onAppearanceChange);
+    setThemePreferenceLoaded(true);
     try {
       setCompactView(localStorage.getItem("byeolharu_compact_view_v1") === "1");
     } catch {
@@ -1223,6 +1232,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
     return () => {
       clearInterval(clock);
       window.removeEventListener("beforeinstallprompt", install);
+      appearance.removeEventListener("change", onAppearanceChange);
       if (toastTimer.current) clearTimeout(toastTimer.current);
       if (celebrationTimer.current) clearTimeout(celebrationTimer.current);
       if (firstPracticeTimer.current) clearTimeout(firstPracticeTimer.current);
@@ -1236,24 +1246,21 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
   }, []);
 
   useLayoutEffect(() => {
-    if (ready) document.documentElement.dataset.byeolharuTheme = theme;
-  }, [ready, theme]);
+    if (themePreferenceLoaded) document.documentElement.dataset.byeolharuTheme = theme;
+  }, [themePreferenceLoaded, theme]);
 
   useEffect(() => {
-    if (!ready) return;
+    if (!themePreferenceLoaded) return;
     const themeColor = document.querySelector<HTMLMetaElement>(
       'meta[name="theme-color"]',
     );
-    themeColor?.setAttribute(
-      "content",
-      theme === "light" ? "#F7F6F2" : "#0C111B",
-    );
+    themeColor?.setAttribute("content", theme === "light" ? "#F7F6F2" : "#0C111B");
     try {
-      localStorage.setItem("byeolharu_v2_theme", theme);
+      localStorage.setItem(THEME_PREFERENCE_KEY, themeMode);
     } catch {
-      setStorageWarning(true);
+      // Device display settings are optional and independent of habit data.
     }
-  }, [theme, ready]);
+  }, [theme, themeMode, themePreferenceLoaded]);
 
   useEffect(() => {
     if (!compactPreferenceLoaded) return;
@@ -1766,9 +1773,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
               aria-label={
                 theme === "light" ? "다크 모드로 전환" : "라이트 모드로 전환"
               }
-              onClick={() =>
-                setTheme((prev) => (prev === "light" ? "dark" : "light"))
-              }
+              onClick={() => setThemeMode(theme === "light" ? "dark" : "light")}
             >
               {theme === "light" ? <Moon size={19} /> : <Sun size={19} />}
             </button>
@@ -2301,8 +2306,8 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
             app={app}
             page={accountPage}
             onNavigate={setAccountPage}
-            theme={theme}
-            onThemeChange={setTheme}
+            theme={themeMode}
+            onThemeChange={setThemeMode}
             compactView={compactView}
             onCompactViewChange={updateCompactView}
             nativeReminders={nativeReminders}
