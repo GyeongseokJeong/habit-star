@@ -46,7 +46,9 @@ import {
 } from "@/lib/habits/domain";
 import { useHabitApp } from "@/lib/habits/use-habit-app";
 import type { NativeReminderControls } from "@/lib/habits/native-reminder-controls";
+import { alarmForSelectedTime } from "@/lib/habits/alarm-default-policy";
 import { AccountPanel } from "@/components/account/account-panel";
+import { THEME_PREFERENCE_KEY, parseThemePreference, resolveTheme, type ThemePreference } from "@/lib/theme-preference";
 import { StarlitHero } from "@/components/starlit-hero";
 import { countEarlierPendingHabits, countOtherPendingHabits, initialRoutineTab, startupDataReady } from "@/lib/habits/time-tab";
 import { getFirstUseState, canCelebrateFirstPractice } from "@/lib/habits/onboarding";
@@ -58,6 +60,7 @@ import { calculateWeeklyReflection } from "@/lib/habits/weekly-reflection";
 import { hasMemoKeyword, toggleMemoKeyword } from "@/lib/habits/memo-keywords";
 import { WeeklyReflectionView } from "@/components/weekly-reflection-view";
 import { StarlitClosingFooter } from "@/components/starlit-closing-footer";
+import { SyncNotice } from "@/components/sync-notice";
 export type { Habit, TimeGroup } from "@/lib/habits/domain";
 const FIRST_PRACTICE_FEEDBACK_MS = 3400;
 const FIRST_PRACTICE_HOLD_MS = 3600;
@@ -331,7 +334,7 @@ function HabitEditor({
 }: {
   habit?: Habit;
   defaultGroup: TimeGroup;
-  onSave: (draft: HabitSettingsPatch) => void;
+  onSave: (draft: HabitSettingsPatch, meta?: { alarmPermissionDenied: boolean }) => Promise<void>;
   onDelete?: () => void;
   onClose: () => void;
   nativeAlarmEditor?: boolean;
@@ -341,6 +344,7 @@ function HabitEditor({
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [alarmChecking, setAlarmChecking] = useState(false);
+  const [alarmTouched, setAlarmTouched] = useState(false);
   const [alarmNotice, setAlarmNotice] = useState("");
   const [moreTemplates, setMoreTemplates] = useState(false);
   const [nameEdited, setNameEdited] = useState(false);
@@ -385,11 +389,18 @@ function HabitEditor({
         value={draft.scheduledTime || ""}
         onChange={(e) => {
           setTimeEdited(true);
+          setAlarmNotice("");
+          const time = e.target.value;
           setDraft((prev) => ({
             ...prev,
-            scheduledTime: e.target.value,
-            // Native reminder needs a valid scheduled time before enabling.
-            ...(nativeAlarmEditor && !e.target.value ? { alarmEnabled: false } : {}),
+            scheduledTime: time,
+            alarmEnabled: alarmForSelectedTime({
+              isNewHabit: !habit,
+              android: nativeAlarmEditor,
+              time,
+              current: prev.alarmEnabled,
+              userToggledAlarm: alarmTouched,
+            }),
           }));
         }}
       />
@@ -406,15 +417,34 @@ function HabitEditor({
         className={habit ? "habit-editor-form" : "habit-editor-form habit-editor-creation-b2"}
         onSubmit={(event) => {
           event.preventDefault();
-          if (draft.title.trim())
-            onSave({
-              title: draft.title.trim(),
-              icon: draft.icon,
-              timeGroup: draft.timeGroup,
-              repeatDays: draft.repeatDays,
-              scheduledTime: draft.scheduledTime || undefined,
-              alarmEnabled: draft.alarmEnabled,
-            });
+          if (!draft.title.trim() || alarmChecking) return;
+          setAlarmChecking(true);
+          void (async () => {
+            let alarmEnabled = Boolean(nativeAlarmEditor && draft.scheduledTime && draft.alarmEnabled);
+            let alarmPermissionDenied = false;
+            try {
+              if (alarmEnabled && !nativeAlarmActive) {
+                try {
+                  alarmEnabled = Boolean(await onEnsureNativeAlarm?.());
+                } catch {
+                  alarmEnabled = false;
+                }
+                alarmPermissionDenied = !alarmEnabled;
+              }
+              await onSave({
+                title: draft.title.trim(),
+                icon: draft.icon,
+                timeGroup: draft.timeGroup,
+                repeatDays: draft.repeatDays,
+                scheduledTime: draft.scheduledTime || undefined,
+                alarmEnabled: nativeAlarmEditor ? alarmEnabled : draft.alarmEnabled,
+              }, { alarmPermissionDenied });
+            } catch {
+              setAlarmNotice("습관을 저장하지 못했어요. 다시 시도해 주세요.");
+            } finally {
+              setAlarmChecking(false);
+            }
+          })();
         }}
       >
         {!habit && (
@@ -580,18 +610,21 @@ function HabitEditor({
               <div className="compact-setting-row">
                 <span className="account-setting-heading">
                   <span>이 습관 알림</span>
-                  <small>{draft.scheduledTime ? "설정한 시간에 알려드려요" : "예정 시간을 먼저 선택해 주세요"}</small>
+                  <small>{!draft.scheduledTime ? "예정 시간을 먼저 선택해 주세요" :
+                    draft.alarmEnabled ? (nativeAlarmActive ? "설정한 시간에 알려드려요" : "저장할 때 알림 권한을 확인해요") :
+                    "알림 없이 습관만 기록해요"}</small>
                 </span>
                 <button
                   type="button"
                   className="compact-setting-toggle"
                   role="switch"
                   aria-label="이 습관 알림"
-                  aria-checked={Boolean(draft.alarmEnabled && nativeAlarmActive)}
+                  aria-checked={Boolean(draft.alarmEnabled)}
                   disabled={alarmChecking || (!draft.scheduledTime && !draft.alarmEnabled)}
                   onClick={() => {
                     if (alarmChecking) return;
-                    if (draft.alarmEnabled && nativeAlarmActive) {
+                    setAlarmTouched(true);
+                    if (draft.alarmEnabled) {
                       setDraft((prev) => ({ ...prev, alarmEnabled: false }));
                       setAlarmNotice("");
                       return;
@@ -617,9 +650,7 @@ function HabitEditor({
                   }}
                 ><span className="compact-switch-track" aria-hidden="true"><span className="compact-switch-thumb" /></span></button>
               </div>
-              {(alarmNotice || (draft.alarmEnabled && !nativeAlarmActive && nativeAlarmStatus)) && (
-                <p className="account-note" role="status">{alarmNotice || nativeAlarmStatus}</p>
-              )}
+              {alarmNotice && <p className="account-note" role="status">{alarmNotice}</p>}
             </div>
           )}
         </section>
@@ -1110,7 +1141,10 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
   const [sampleCleanupOpen, setSampleCleanupOpen] = useState(false);
   const [sampleCleanupBusy, setSampleCleanupBusy] = useState(false);
   const celebrationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [themeMode, setThemeMode] = useState<ThemePreference>("system");
+  const [systemDark, setSystemDark] = useState(false);
+  const [themePreferenceLoaded, setThemePreferenceLoaded] = useState(false);
+  const theme = resolveTheme(themeMode, systemDark);
   const [compactView, setCompactView] = useState(false);
   const [compactPreferenceLoaded, setCompactPreferenceLoaded] = useState(false);
   const [completedOpen, setCompletedOpen] = useState(false);
@@ -1196,14 +1230,19 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
   useEffect(() => {
     const date = new Date();
     try {
-      if (
-        (localStorage.getItem("byeolharu_v2_theme") ??
-          localStorage.getItem("byeolharu_v1_theme")) === "dark"
-      )
-        setTheme("dark");
+      setThemeMode(parseThemePreference(
+        localStorage.getItem(THEME_PREFERENCE_KEY),
+        localStorage.getItem("byeolharu_v2_theme") ??
+          localStorage.getItem("byeolharu_v1_theme"),
+      ));
     } catch {
-      setStorageWarning(true);
+      // Display preferences must never block the habit database.
     }
+    const appearance = window.matchMedia("(prefers-color-scheme: dark)");
+    setSystemDark(appearance.matches);
+    const onAppearanceChange = (event: MediaQueryListEvent) => setSystemDark(event.matches);
+    appearance.addEventListener("change", onAppearanceChange);
+    setThemePreferenceLoaded(true);
     try {
       setCompactView(localStorage.getItem("byeolharu_compact_view_v1") === "1");
     } catch {
@@ -1223,6 +1262,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
     return () => {
       clearInterval(clock);
       window.removeEventListener("beforeinstallprompt", install);
+      appearance.removeEventListener("change", onAppearanceChange);
       if (toastTimer.current) clearTimeout(toastTimer.current);
       if (celebrationTimer.current) clearTimeout(celebrationTimer.current);
       if (firstPracticeTimer.current) clearTimeout(firstPracticeTimer.current);
@@ -1236,24 +1276,21 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
   }, []);
 
   useLayoutEffect(() => {
-    if (ready) document.documentElement.dataset.byeolharuTheme = theme;
-  }, [ready, theme]);
+    if (themePreferenceLoaded) document.documentElement.dataset.byeolharuTheme = theme;
+  }, [themePreferenceLoaded, theme]);
 
   useEffect(() => {
-    if (!ready) return;
+    if (!themePreferenceLoaded) return;
     const themeColor = document.querySelector<HTMLMetaElement>(
       'meta[name="theme-color"]',
     );
-    themeColor?.setAttribute(
-      "content",
-      theme === "light" ? "#F7F6F2" : "#0C111B",
-    );
+    themeColor?.setAttribute("content", theme === "light" ? "#F7F6F2" : "#0C111B");
     try {
-      localStorage.setItem("byeolharu_v2_theme", theme);
+      localStorage.setItem(THEME_PREFERENCE_KEY, themeMode);
     } catch {
-      setStorageWarning(true);
+      // Device display settings are optional and independent of habit data.
     }
-  }, [theme, ready]);
+  }, [theme, themeMode, themePreferenceLoaded]);
 
   useEffect(() => {
     if (!compactPreferenceLoaded) return;
@@ -1388,7 +1425,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
         setRatingOverrides(next);
       });
   };
-  const handleSave = async (data: HabitSettingsPatch) => {
+  const handleSave = async (data: HabitSettingsPatch, meta?: { alarmPermissionDenied: boolean }) => {
     if (editing === "new") {
       const newHabit: Habit = {
         id: uid(),
@@ -1410,15 +1447,19 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
       const scheduledToday = app.snapshot?.day
         ? isScheduled(newHabit, app.snapshot.day)
         : true;
-      showToast(scheduledToday
-        ? `✦ '${newHabit.title}' 습관이 추가되었습니다!`
-        : `✦ '${newHabit.title}' 추가 완료! 선택한 반복 요일에 표시돼요.`);
+      showToast(meta?.alarmPermissionDenied
+        ? "✦ 습관은 저장했어요. 알림 권한이 없어 알림은 꺼졌어요."
+        : scheduledToday
+          ? `✦ '${newHabit.title}' 습관이 추가되었습니다!`
+          : `✦ '${newHabit.title}' 추가 완료! 선택한 반복 요일에 표시돼요.`);
     } else if (editing) {
       const id = editing.id;
       await setHabits((prev) =>
         prev.map((h) => (h.id === id ? applyHabitSettings(h, data) : h)),
       );
-      showToast("✦ 습관이 수정되었습니다!");
+      showToast(meta?.alarmPermissionDenied
+        ? "✦ 습관은 수정했어요. 알림 권한이 없어 알림은 꺼졌어요."
+        : "✦ 습관이 수정되었습니다!");
     }
     setEditing(null);
   };
@@ -1766,9 +1807,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
               aria-label={
                 theme === "light" ? "다크 모드로 전환" : "라이트 모드로 전환"
               }
-              onClick={() =>
-                setTheme((prev) => (prev === "light" ? "dark" : "light"))
-              }
+              onClick={() => setThemeMode(theme === "light" ? "dark" : "light")}
             >
               {theme === "light" ? <Moon size={19} /> : <Sun size={19} />}
             </button>
@@ -2188,9 +2227,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
               ? activeTab
               : group
           }
-          onSave={(data) => {
-            void handleSave(data).catch(() => {});
-          }}
+          onSave={(data, meta) => handleSave(data, meta)}
           onDelete={
             editing !== "new"
               ? () => {
@@ -2301,8 +2338,8 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
             app={app}
             page={accountPage}
             onNavigate={setAccountPage}
-            theme={theme}
-            onThemeChange={setTheme}
+            theme={themeMode}
+            onThemeChange={setThemeMode}
             compactView={compactView}
             onCompactViewChange={updateCompactView}
             nativeReminders={nativeReminders}
@@ -2365,19 +2402,14 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
           {toast}
         </div>
       )}
-      {(storageWarning || app.error) && (
-        <div className="storage-warning" role="alert">
-          {app.error ||
-            "브라우저 저장소를 사용할 수 없어요. 저장 설정을 확인해주세요."}
-          <button onClick={() => setAccountOpen(true)}>백업·계정 확인</button>
-          <button
-            aria-label="저장 경고 닫기"
-            onClick={() => setStorageWarning(false)}
-          >
-            <X size={14} />
-          </button>
-        </div>
-      )}
+      <SyncNotice
+        error={app.error}
+        storageWarning={storageWarning}
+        scope={scope}
+        onRetry={() => app.sync()}
+        onOpenLogin={() => { setAccountPage("login"); setAccountOpen(true); }}
+        onOpenRecords={() => { setAccountPage("records"); setAccountOpen(true); }}
+      />
     </div>
   );
 }

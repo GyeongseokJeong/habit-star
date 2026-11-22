@@ -7,6 +7,7 @@ import { readFileSync, writeFileSync, readdirSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
+import { applyLauncherIcons } from "./generate-launcher-icons.mjs";
 
 const mobileRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const sourceRoot = resolve(mobileRoot, "android/app/src/main/java");
@@ -83,3 +84,6 @@ if (process.env.BYEOLHARU_ANDROID_RELEASE === "1") {
   assert.equal((gradle.match(/^\s*versionName "[^"]+"\s*$/gm) || []).length, 1, "Expected one default versionName");
   writeFileSync(gradlePath, gradle.replace(/(\bversionCode )\d+/, (_, prefix) => prefix + code).replace(/(\bversionName )"[^"]+"/, '$1"' + name + '"'));
 }
+
+// Replace Capacitor's default launcher icon in both debug and release variants.
+applyLauncherIcons(resolve(mobileRoot, "android/app/src/main"));

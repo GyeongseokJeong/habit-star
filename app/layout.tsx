@@ -3,18 +3,24 @@ import "@fontsource-variable/noto-sans-kr";
 
 import "./globals.css";
 
-// Run before React hydration so a saved dark theme never paints the light shell first.
+// Resolve the saved selection and OS preference before React hydration.
 const themeBootstrapScript = `
 (() => {
+  let mode = "system";
   try {
-    const savedTheme = localStorage.getItem("byeolharu_v2_theme")
+    const stored = localStorage.getItem("byeolharu_v3_theme_mode");
+    const legacy = localStorage.getItem("byeolharu_v2_theme")
       ?? localStorage.getItem("byeolharu_v1_theme");
-    if (savedTheme === "dark") {
-      document.documentElement.dataset.byeolharuTheme = "dark";
-    }
+    mode = stored === "light" || stored === "dark" || stored === "system"
+      ? stored : legacy === "dark" ? "dark" : "system";
   } catch {
-    // Storage may be unavailable; keep the existing light-theme fallback.
+    // Blocked optional storage falls back to the device preference.
   }
+  const dark = mode === "dark" ||
+    (mode === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+  document.documentElement.dataset.byeolharuTheme = dark ? "dark" : "light";
+  document.querySelector('meta[name="theme-color"]')
+    ?.setAttribute("content", dark ? "#0C111B" : "#F7F6F2");
 })();
 `;
 
@@ -30,7 +36,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#19242a",
 };
 export default function RootLayout({
   children,
@@ -38,6 +43,7 @@ export default function RootLayout({
   return (
     <html lang="ko" suppressHydrationWarning>
       <head>
+        <meta name="theme-color" content="#F7F6F2" />
         <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
       </head>
       <body>{children}</body>

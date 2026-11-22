@@ -415,13 +415,13 @@ test("guest storage failure clears after a successful retry without losing the r
   });
   const star = card.getByRole("button", { name: "미온수 한 잔 & 영양제 2점" });
   await star.click();
-  await expect(page.locator(".storage-warning")).toContainText("저장하지 못했습니다");
+  await expect(page.locator(".sync-notice[role=\"alert\"]")).toContainText("기록 저장을 확인해 주세요");
   await expect(star).toHaveAttribute("aria-pressed", "false");
 
   // The retry commits successfully; a stale error must not remain visible.
   await star.click();
   await expect(star).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator(".storage-warning")).toHaveCount(0);
+  await expect(page.locator(".sync-notice")).toHaveCount(0);
 
   // Confirm persistence, not only the optimistic star fill.
   await expect.poll(async () => {
@@ -450,5 +450,5 @@ test("guest storage failure clears after a successful retry without losing the r
   await page.locator(".normal-done-toggle").click();
   await expect(page.getByRole("button", { name: "미온수 한 잔 & 영양제 2점" }))
     .toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator(".storage-warning")).toHaveCount(0);
+  await expect(page.locator(".sync-notice")).toHaveCount(0);
 });
