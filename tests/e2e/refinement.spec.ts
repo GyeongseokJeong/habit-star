@@ -50,7 +50,10 @@ for (const viewport of [
     await page
       .getByRole("button", { name: "새 습관 추가", exact: true })
       .click();
-    await expect(page.locator(".emoji-picker button")).toHaveCount(12);
+    await expect(page.locator(".emoji-picker button")).toHaveCount(5);
+    // The remaining presets are still accessible without disturbing fixed order.
+    await page.getByRole("button", { name: "아이콘 더 보기" }).click();
+    await expect(page.locator(".emoji-picker button")).toHaveCount(36);
     await page.getByRole("button", { name: "🌱 아이콘", exact: true }).click();
     await expect(
       page.getByRole("button", { name: "🌱 아이콘", exact: true }),

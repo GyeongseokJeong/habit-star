@@ -4426,3 +4426,119 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 @media (prefers-reduced-motion: reduce) {
   .account-panel .account-help-chevron { transition: none; }
 }
+
+/* B2 · compact habit creation. Editing retains the approved balanced layout. */
+.modal:has(.habit-editor-creation-b2) .modal-description {
+  margin: 3px 0 11px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.habit-editor-creation-b2 .template-field {
+  margin: 6px 0 12px;
+}
+.habit-editor-creation-b2 .habit-editor-field-head {
+  margin-bottom: 5px;
+}
+.habit-editor-creation-b2 .template-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.habit-editor-creation-b2 .template-picker button {
+  flex: 1 1 auto;
+  justify-content: center;
+  width: auto;
+  min-height: 44px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.habit-editor-creation-b2 .template-picker button > span:last-child {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  font-size: 12px;
+}
+.habit-editor-creation-b2 .habit-editor-template-notice {
+  margin: 7px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--body);
+}
+.habit-editor-creation-b2 .habit-editor-name {
+  margin: 10px 0 12px;
+}
+.habit-editor-creation-b2 .habit-editor-icons {
+  margin: 0 0 12px;
+}
+.habit-editor-creation-b2 .emoji-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.habit-editor-creation-b2 .emoji-picker button {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+}
+.habit-editor-creation-b2 .habit-editor-schedule {
+  padding-top: 11px;
+}
+.habit-editor-creation-b2 .habit-editor-schedule-title {
+  margin-bottom: 9px;
+}
+.habit-editor-creation-b2 .habit-editor-schedule-grid {
+  display: block;
+}
+.habit-editor-creation-b2 .habit-editor-schedule-grid .habit-editor-time-group legend {
+  margin-bottom: 6px;
+}
+.habit-editor-creation-b2 .habit-editor-repeat {
+  margin: 11px 0 4px;
+}
+.habit-editor-creation-b2 .repeat-presets {
+  gap: 6px;
+}
+.habit-editor-creation-b2 .repeat-presets button {
+  padding: 8px 5px;
+  min-width: 0;
+}
+.habit-editor-creation-b2 .habit-editor-optional-time {
+  margin: 8px 0 0;
+}
+.habit-editor-creation-b2 .habit-editor-time-field {
+  margin: 0;
+}
+.habit-editor-creation-b2 .habit-editor-time-field > span {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.habit-editor-creation-b2 .habit-editor-time-field small {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 400;
+}
+.habit-editor-creation-b2 .habit-editor-time-field input {
+  min-height: 44px;
+  padding: 8px 12px;
+}
+.habit-editor-creation-b2 .habit-editor-footer {
+  margin-top: 11px;
+  padding: 9px 0 max(9px, env(safe-area-inset-bottom));
+}
+.habit-editor-creation-b2 .habit-editor-footer .primary {
+  min-height: 48px;
+}
+@media (max-width: 360px) {
+  .habit-editor-creation-b2 .template-picker button {
+    flex: 1 1 calc(50% - 3px);
+    padding-inline: 7px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .habit-editor-creation-b2 .template-picker button,
+  .habit-editor-creation-b2 .emoji-picker button {
+    transition: none;
+  }
+}
