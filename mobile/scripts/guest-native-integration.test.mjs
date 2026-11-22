@@ -38,7 +38,8 @@ test("STEP 10 respects existing per-habit opt-in without requesting OS permissio
   assert.match(app, /enabledRef\.current/);
   assert.match(app, /effectiveHabitReminderOptIn\(value, next\)/);
   assert.match(app, /setHasHabitIntent\(hasConfiguredHabitReminders\(next\)\)/);
-  assert.match(app, /localStorage\.getItem\(OPT_IN_KEY\) === "1"/);
+  assert.match(app, /const preference = localStorage\.getItem\(OPT_IN_KEY\)/);
+  assert.match(app, /preference === "1" \? true : preference === "0" \? false : null/);
   assert.match(app, /localStorage\.setItem\(OPT_IN_KEY, next \? "1" : "0"\)/);
   assert.match(app, /if \(next\) \{/);
   assert.match(app, /await LocalNotifications\.requestPermissions\(\)/);
