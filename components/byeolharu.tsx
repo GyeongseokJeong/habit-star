@@ -2226,9 +2226,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
               ? activeTab
               : group
           }
-          onSave={(data) => {
-            void handleSave(data).catch(() => {});
-          }}
+          onSave={(data, meta) => handleSave(data, meta)}
           onDelete={
             editing !== "new"
               ? () => {
