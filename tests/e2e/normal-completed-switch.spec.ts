@@ -13,14 +13,25 @@ for (const width of [320, 390, 430]) {
     await expect(toggle).toHaveAttribute("aria-checked", "false");
     const geometry = await toggle.evaluate((el) => {
       const button = el.getBoundingClientRect();
-      const t = el.querySelector(".compact-switch-track")!.getBoundingClientRect();
-      return { touch: [button.width, button.height], track: [t.width, t.height], centered: Math.abs(t.x + t.width / 2 - button.x - button.width / 2) < 1 };
+      const track = el.querySelector(".compact-switch-track")!.getBoundingClientRect();
+      const label = el.querySelector(".account-setting-heading")!.getBoundingClientRect();
+      return {
+        touch: [button.width, button.height],
+        track: [track.width, track.height],
+        verticallyCentered: Math.abs((track.top + track.height / 2) - (button.top + button.height / 2)) < 1,
+        rightAligned: Math.abs(button.right - track.right - 6) < 2,
+        labelDoesNotOverlap: label.right <= track.left,
+      };
     });
     expect(geometry.touch[0]).toBeGreaterThanOrEqual(44);
     expect(geometry.touch[1]).toBeGreaterThanOrEqual(44);
     expect(geometry.track[0]).toBe(44);
     expect(geometry.track[1]).toBe(26);
-    expect(geometry.centered).toBe(true);
+    // The whole setting row is now the touch target, with its visual
+    // switch vertically centered on the right and text on the left.
+    expect(geometry.verticallyCentered).toBe(true);
+    expect(geometry.rightAligned).toBe(true);
+    expect(geometry.labelDoesNotOverlap).toBe(true);
     const before = await thumb.evaluate((el) => getComputedStyle(el).transform);
     await toggle.click();
     await expect(toggle).toHaveAttribute("aria-checked", "true");
