@@ -58,7 +58,7 @@ test("repair only exposed after audit mismatch in guest Android UI",()=>{
  const main=readFileSync(resolve(root,"mobile/packaged-guest/main.tsx"),"utf8");
  const settings=readFileSync(resolve(root,"components/account/account-panel.tsx"),"utf8");
  const web=readFileSync(resolve(root,"app/page.tsx"),"utf8");
- assert.match(main,/canManuallyRepairGuestReminders\(report, enabledRef\.current, permissions\.display\)/);
+ assert.match(main,/canManuallyRepairGuestReminders\(report, enabledRef\.current \|\| hasEnabledWrapup\(wrapupRef\.current\), permissions\.display\)/);
  assert.match(main,/repairGuestReminders\(\{/);
  assert.match(settings,/nativeReminders\.repairAvailable &&/);
   assert.ok(settings.includes('runOnce("repair-reminders", nativeReminders.onRepairPending)'));

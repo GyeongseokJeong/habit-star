@@ -46,8 +46,8 @@ test("STEP 10 uses only committed snapshots and no native automatic opt-in", () 
 test("STEP 11 preserves scheduled jobs until the guest repository finishes loading", () => {
   const app = read("mobile/packaged-guest/main.tsx");
   const gate = read("mobile/notifications/guest-reminder-readiness.js");
-  assert.match(app, /guestReminderAction\(value, context\.snapshot\)/);
+  assert.match(app, /guestReminderAction\(value \|\| hasEnabledWrapup\(context\.wrapupSettings\), context\.snapshot\)/);
   assert.match(app, /action === "await-snapshot" \|\| action === "await-today"/);
-  assert.match(app, /if \(!saved\) void schedule\(false, null\)/);
+  assert.match(app, /if \(!saved && !hasEnabledWrapup\(configured\)\) void schedule\(false, null\)/);
   assert.match(gate, /return "await-today"/);
 });

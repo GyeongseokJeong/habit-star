@@ -7,8 +7,9 @@
  */
 import {
   buildReminderPlan, localDayKey, reminderId,
-  toNativeNotification, REMINDER_KIND,
+  toNativeNotification, REMINDER_KIND, MAX_REMINDERS,
 } from "./reminder-plan.js";
+import { buildWrapupCandidates, normalizeWrapupSettings } from "./wrapup-reminders.js";
 
 const SCOPE_PATTERN = /^(guest|member:[A-Za-z0-9_-]{1,128})$/;
 
@@ -25,7 +26,7 @@ export function requireReminderScope(scope) {
  */
 export function buildScopedReminderPlan(
   snapshot,
-  { scope, now = new Date(), daysAhead = 8 } = {},
+  { scope, now = new Date(), daysAhead = 8, habitOptIn = true, wrapupSettings = null } = {},
 ) {
   requireReminderScope(scope);
   if (
@@ -40,12 +41,19 @@ export function buildScopedReminderPlan(
     .filter((habit) => habit && habit.completed === true)
     .map((habit) => habit.id);
 
-  const source = buildReminderPlan(snapshot.habits, {
+  const habitSource = buildReminderPlan(habitOptIn ? snapshot.habits : [], {
     now, daysAhead, completedTodayIds, timeZone: snapshot.timeZone,
   });
-
+  const settings = normalizeWrapupSettings(wrapupSettings);
+  const wrapups = buildWrapupCandidates(snapshot, { now, daysAhead }, settings);
+  // Reserve the nearest 48 alarms across both kinds. Never exceed the Android
+  // cap; include same-day wrap-ups before distant future habit alarms.
+  const candidates = [...habitSource.notifications, ...wrapups].sort((a,b) =>
+    a.at - b.at || (a.category === "wrapup" ? 1 : 0) - (b.category === "wrapup" ? 1 : 0) || a.id - b.id
+  );
+  const total = habitSource.total + wrapups.length;
   const seenIds = new Set();
-  const scoped = source.notifications.map((item) => {
+  const scoped = candidates.slice(0, MAX_REMINDERS).map((item) => {
     const id = reminderId(scope + ":" + item.habitId, item.day);
     if (seenIds.has(id)) throw new Error("사용자 범위 내 알림 ID 충돌");
     seenIds.add(id);
@@ -54,7 +62,9 @@ export function buildScopedReminderPlan(
       item.at.getTime() + ":" + scope;
     return { ...item, id, fingerprint };
   });
-  return { ...source, notifications: scoped, scope };
+  return { notifications: scoped, scope, total,
+    truncated: total > MAX_REMINDERS,
+  };
 }
 
 /**

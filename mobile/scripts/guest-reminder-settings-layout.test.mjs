@@ -40,3 +40,15 @@ test("packaged-only CSS keeps advanced diagnostics readable and tappable",()=>{
  assert.match(nativeCss,/\.android-reminder-detail-actions > button/);
  assert.match(nativeCss,/min-height: 44px/);
 });
+
+test("three Android-only independent finish-period settings expose accessible switches and editable times",()=>{
+ const ui=readFileSync(resolve(root,"components/account/account-panel.tsx"),"utf8");
+ const entry=readFileSync(resolve(root,"mobile/packaged-guest/main.tsx"),"utf8");
+ assert.match(ui,/aria-label="시간대 마무리 알림"/);
+ assert.match(ui,/role="switch" className="compact-setting-toggle android-wrapup-toggle"/);
+ assert.match(ui,/aria-checked={choice.enabled}/);
+ assert.match(ui,/value={choice.time}/);
+ assert.match(ui,/nativeReminders.onWrapupChange/);
+ assert.match(entry,/localNotificationActionPerformed/);
+ assert.doesNotMatch(web,/onWrapupChange|localNotificationActionPerformed/);
+});

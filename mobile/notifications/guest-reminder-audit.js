@@ -4,6 +4,7 @@
  * Diagnostic only: a matching queue does not guarantee on-time delivery.
  */
 import { localDayKey, REMINDER_KIND } from "./reminder-plan.js";
+import { hasEnabledWrapup, normalizeWrapupSettings } from "./wrapup-reminders.js";
 import {
   buildScopedReminderPlan,
   diffScopedNotifications,
@@ -18,6 +19,7 @@ function pendingGuest(pending) {
 export function auditGuestReminders({
   snapshot,
   optIn,
+  wrapupSettings,
   pending,
   permission,
   now = new Date(),
@@ -27,7 +29,8 @@ export function auditGuestReminders({
   }
 
   const actualCount = pendingGuest(pending).length;
-  if (optIn !== true) {
+  const wrapup = normalizeWrapupSettings(wrapupSettings);
+  if (optIn !== true && !hasEnabledWrapup(wrapup)) {
     return {
       status: actualCount ? "unexpected-pending" : "disabled",
       expectedCount: 0,
@@ -68,6 +71,8 @@ export function auditGuestReminders({
     scope: "guest",
     now,
     daysAhead: 8,
+    habitOptIn: optIn === true,
+    wrapupSettings: wrapup,
   });
   const diff = diffScopedNotifications(pending, desired);
 

@@ -11,9 +11,14 @@ import { APP_BUILD_INFO } from "@/lib/build-info";
 import { inspectPortableBackup, MAX_GUEST_BACKUP_BYTES } from "@/lib/habits/backup-file";
 import type { useHabitApp } from "@/lib/habits/use-habit-app";
 import type { Snapshot } from "@/lib/habits/repository";
-import type { NativeReminderControls } from "@/lib/habits/native-reminder-controls";
+import type { NativeReminderControls, WrapupGroup } from "@/lib/habits/native-reminder-controls";
 import { AuthForm, type AuthMode } from "./auth-form";
 
+const wrapupPeriods: { group: WrapupGroup; name: string; range: string; times: string[] }[] = [
+  { group: "morning", name: "아침", range: "05:00~10:59", times: ["09:30","10:00","10:30"] },
+  { group: "day", name: "낮", range: "11:00~16:59", times: ["15:30","16:00","16:30"] },
+  { group: "night", name: "밤", range: "17:00~다음 날 04:59", times: ["21:00","21:30","22:00","22:30"] },
+];
 type App = ReturnType<typeof useHabitApp>;
 export type AccountPage = "home" | "records" | "import" | "settings" | "help" | "security" | AuthMode;
 
@@ -438,6 +443,51 @@ export function AccountPanel({
               </div>
             )}
           </div>
+          {nativeReminders && (
+            <div className="account-setting-block android-wrapup-settings" aria-label="시간대 마무리 알림">
+              <div className="account-setting-heading">
+                <span>시간대 마무리 알림</span>
+                <small>개별 알림을 켠 습관이 미완료일 때만, 시간대마다 한 번 알려드려요.</small>
+              </div>
+              {wrapupPeriods.map(({ group, name, range, times }) => {
+                const choice = nativeReminders.wrapupSettings[group];
+                const working = nativeReminders.busy || workingAction !== null || app.busy;
+                return (
+                  <div className="android-wrapup-period" key={group}>
+                    <div className="compact-setting-row">
+                      <span className="android-wrapup-label"><strong>{name} 마무리 알림</strong><small>{range}</small></span>
+                      <button type="button" role="switch" className="compact-setting-toggle android-wrapup-toggle"
+                        aria-label={name + " 마무리 알림"} aria-checked={choice.enabled}
+                        disabled={working} aria-busy={workingAction === "wrapup-" + group}
+                        onClick={() => void runOnce("wrapup-" + group, async () => {
+                          if (!await nativeReminders.onWrapupChange(group, { enabled: !choice.enabled })) {
+                            throw Error("알림 설정을 저장하지 못했어요. Android 알림 권한을 확인해 주세요.");
+                          }
+                        })}>
+                        <span className="compact-switch-track" aria-hidden="true"><span className="compact-switch-thumb" /></span>
+                      </button>
+                    </div>
+                    <label className="android-wrapup-time" htmlFor={"wrapup-time-" + group}>
+                      알림 시각
+                      <select id={"wrapup-time-" + group} value={choice.time} disabled={!choice.enabled || working}
+                        onChange={(event) => void runOnce("wrapup-time-" + group, async () => {
+                          if (!await nativeReminders.onWrapupChange(group, { time: event.target.value })) {
+                            throw Error("알림 시간을 변경하지 못했어요.");
+                          }
+                        })}>
+                        {times.map(time => <option key={time} value={time}>{time}</option>)}
+                      </select>
+                    </label>
+                  </div>
+                );
+              })}
+              <p className="android-wrapup-note">
+                하루 최대 {Object.values(nativeReminders.wrapupSettings).filter(p => p.enabled).length}회 추가 알림 · 이 기기에서만 적용돼요.
+              </p>
+              {(nativeReminders.busy || workingAction?.startsWith("wrapup")) && <p className="account-note" role="status">알림 설정을 확인하고 있어요…</p>}
+              {message && <p className="account-note" role="alert">{message}</p>}
+            </div>
+          )}
           {nativeReminders && (
             <details className="android-reminder-details">
               <summary>알림 문제 해결 <ChevronRight size={16} aria-hidden="true" /></summary>

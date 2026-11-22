@@ -5,6 +5,9 @@ import type { Snapshot } from "./repository";
  * The public website never instantiates native notification controls.
  * A committed snapshot plus verified guest/member identity is the only scheduling source.
  */
+export type WrapupGroup = "morning" | "day" | "night";
+export type WrapupSettings = Record<WrapupGroup, { enabled: boolean; time: string }>;
+
 export type NativeReminderControls = {
   enabled: boolean;
   active: boolean;
@@ -16,6 +19,9 @@ export type NativeReminderControls = {
   onInspectPending: () => Promise<void>;
   onAuditPending: () => Promise<void>;
   onRepairPending: () => Promise<void>;
+  /** Local-only, per-device and per-verified-identity alert settings. */
+  wrapupSettings: WrapupSettings;
+  onWrapupChange: (group: WrapupGroup, patch: { enabled?: boolean; time?: string }) => Promise<boolean>;
   repairAvailable: boolean;
   repairStatus: string;
   auditStatus: string;

@@ -10,6 +10,7 @@
  * an audited identity/snapshot adapter and a user-facing permission control.
  */
 import { REMINDER_KIND, DEMO_SCOPE } from "./reminder-plan.js";
+import { normalizeWrapupSettings, hasEnabledWrapup } from "./wrapup-reminders.js";
 import { requireReminderScope, buildScopedReminderPlan, reconcileScopedReminders } from "./scoped-reminder-runtime.js";
 
 function identityScope(identity) {
@@ -93,13 +94,15 @@ export function createReminderLifecycle({ localNotifications, now = () => new Da
         }
       : null;
     const optIn = source.optIn === true;
+    const wrapupSettings = normalizeWrapupSettings(source.wrapupSettings);
+    const wrapupEnabled = hasEnabledWrapup(wrapupSettings);
 
     const task = queue.then(async () => {
       if (current !== revision) return { status: "superseded" };
       const scope = identityScope(identity);
       // Explicit off or logout must remove ALL app-owned pending reminders,
       // without changing any habit data or cancelling the STEP 5 demo.
-      if (!optIn) {
+      if (!optIn && !wrapupEnabled) {
         const cancelled = await cancelManaged(localNotifications);
         return { status: "disabled", cancelled };
       }
@@ -109,7 +112,7 @@ export function createReminderLifecycle({ localNotifications, now = () => new Da
       }
       let plan;
       try {
-        plan = buildScopedReminderPlan(snapshot, { scope, now: now(), daysAhead: 8 });
+        plan = buildScopedReminderPlan(snapshot, { scope, now: now(), daysAhead: 8, habitOptIn: optIn, wrapupSettings });
       } catch (error) {
         // Do not leave stale reminders behind after malformed/stale data.
         const cancelled = await cancelManaged(localNotifications);

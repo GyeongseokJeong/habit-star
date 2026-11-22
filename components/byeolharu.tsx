@@ -1068,11 +1068,12 @@ function MonthlyMatrix({
   );
 }
 
-export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupExport, nativeAuthReturn }: {
+export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupExport, nativeAuthReturn, nativeReminderNavigation }: {
   nativeReminders?: NativeReminderControls;
   nativeShare?: (png: Blob, filename: string) => Promise<void>;
   nativeBackupExport?: (content: string) => Promise<void>;
   nativeAuthReturn?: number;
+  nativeReminderNavigation?: { tab: TimeGroup; serial: number } | null;
 } = {}) {
   const app = useHabitApp(initialHabits, nativeBackupExport);
   const habits = app.snapshot?.habits ?? [];
@@ -1126,6 +1127,17 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
   // Resolve once per loaded identity, unless the user has navigated manually.
   const startupTabResolved = useRef<string | null>(null);
   const tabChosenManually = useRef(false);
+  const handledReminderNavigation = useRef(0);
+  useEffect(() => {
+    if (!ready || !nativeReminderNavigation ||
+        nativeReminderNavigation.serial <= handledReminderNavigation.current) return;
+    handledReminderNavigation.current = nativeReminderNavigation.serial;
+    tabChosenManually.current = true;
+    setActiveTab(nativeReminderNavigation.tab);
+    setAccountOpen(false);
+    setConstellationOpen(false);
+    setReflectionOpen(false);
+  }, [ready, nativeReminderNavigation]);
   const [month, setMonth] = useState(new Date(2026, 10, 1));
   const [editing, setEditing] = useState<Habit | "new" | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);

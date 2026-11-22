@@ -49,7 +49,7 @@ test("manual repair is exposed only after a real mismatch with opt-in and OS per
   assert.equal(canManuallyRepairGuestReminders(mismatched,true,"unknown"),false);
   assert.equal(canManuallyRepairGuestReminders(mismatched,false,"granted"),false);
   assert.equal(canManuallyRepairGuestReminders(null,true,"granted"),false);
-  assert.match(entry,/setRepairAvailable\(canManuallyRepairGuestReminders\(report, enabledRef\.current, permissions\.display\)\)/);
+  assert.match(entry,/setRepairAvailable\(canManuallyRepairGuestReminders\(report, enabledRef\.current \|\| hasEnabledWrapup\(wrapupRef\.current\), permissions\.display\)\)/);
   assert.match(account,/nativeReminders\.repairAvailable &&/);
   // Repair itself still checks permission and fresh snapshot at execution time.
   const repair=readFileSync(resolve(root,"mobile/notifications/guest-reminder-repair.js"),"utf8");
