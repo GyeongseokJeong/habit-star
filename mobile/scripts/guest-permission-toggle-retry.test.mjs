@@ -77,10 +77,10 @@ test("habit editor asks Android to enable reminders before turning its alarm on"
   assert.match(app,/if \(enabled\) setDraft\(\(prev\) => \(\{ \.\.\.prev, alarmEnabled: true \}\)\)/);
   assert.match(app,/alarmChecking \|\| \(!draft\.scheduledTime && !draft\.alarmEnabled\)/);
   // The editor previews explicit reminder intent; OS permission is checked at save.
-  assert.match(app,/aria-checked=\\{Boolean\\(draft\\.alarmEnabled\\)\\}/);
-  assert.match(app,/alarmForSelectedTime\\(/);
+  assert.match(app,/aria-checked=\{Boolean\(draft\.alarmEnabled\)\}/);
+  assert.match(app,/alarmForSelectedTime\(/);
   assert.match(app,/alarmPermissionDenied = !alarmEnabled/);
-  assert.match(app,/await onSave\\(/);
+  assert.match(app,/await onSave\(/);
   assert.match(controls,/onEnabledChange: \(next: boolean\) => Promise<boolean>/);
   assert.match(entry,/const onEnabledChange = useCallback\(async \(next: boolean\): Promise<boolean>/);
   assert.match(entry,/return false;/);
