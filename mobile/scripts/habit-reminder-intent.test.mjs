@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createReminderLifecycle } from "../notifications/reminder-lifecycle.js";
 import { effectiveHabitReminderOptIn, hasConfiguredHabitReminders } from "../notifications/habit-reminder-intent.js";
-const now=()=>new Date(2026,10,20,8);
+const now=()=>new Date("2026-11-19T23:00:00.000Z"); // 08:00 Asia/Seoul
 const member={kind:"member",userId:"member-1",verified:true};
 const guest={kind:"guest",verified:true};
 const h=(changes={})=>({id:"water",title:"물 마시기",timeGroup:"morning",alarmEnabled:true,scheduledTime:"09:00",completed:false,repeatDays:[0,1,2,3,4,5,6],...changes});
