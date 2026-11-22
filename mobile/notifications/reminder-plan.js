@@ -173,10 +173,13 @@ export function toNativeNotification(planItem, scope) {
   if (typeof scope !== "string" || !scope.trim()) {
     throw new Error("알림 소유 범위를 지정해야 합니다.");
   }
+  const isWrapup = planItem.category === "wrapup";
   return {
     id: planItem.id,
     title: "별하루 ✦ " + planItem.title,
-    body: "오늘의 작은 실천을 떠올려 볼까요?",
+    body: isWrapup
+      ? `${planItem.title.split(" ")[0]}의 작은 실천 ${planItem.remainingCount}개가 남아 있어요. 가볍게 돌아볼까요?`
+      : "오늘의 작은 실천을 떠올려 볼까요?",
     schedule: {
       at: planItem.at,
       // A user-selected habit reminder should also run while the phone is idle.
@@ -189,7 +192,9 @@ export function toNativeNotification(planItem, scope) {
     extra: {
       kind: REMINDER_KIND,
       scope,
+      category: isWrapup ? "wrapup" : "habit",
       habitId: planItem.habitId,
+      ...(isWrapup ? { timeGroup: planItem.timeGroup, remainingCount: planItem.remainingCount } : {}),
       day: planItem.day,
       fingerprint: planItem.fingerprint,
     },
