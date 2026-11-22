@@ -1537,7 +1537,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
   const completionFeedback = (
     <div className="routine-completion-card">
       <Check size={22} aria-hidden="true" />
-      <p className="routine-completion-label" role="status">
+      <p className="routine-completion-label">
         {isTimeRoutine ? `${GROUPS[activeTab].name} 루틴을 모두 마쳤어요` : "오늘의 실천을 모두 마쳤어요 ✨"}
       </p>
       {otherPendingCount > 0 && (
