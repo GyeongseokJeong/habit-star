@@ -4542,3 +4542,45 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
     transition: none;
   }
 }
+
+
+/* C3 minimal interaction polish. Existing cards, spacing, CTA palette and landscape stay unchanged. */
+.keyword-chips button[aria-pressed="true"] {
+  border-color: var(--selection-bg);
+  background: color-mix(in srgb, var(--selection-bg) 18%, var(--surface));
+  color: var(--ink);
+  font-weight: 600;
+}
+.keyword-chips button:focus-visible,
+.weekly-reflection-today:focus-visible {
+  outline: 2px solid var(--selection-bg);
+  outline-offset: 2px;
+}
+.modal .primary:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+  filter: saturate(.65);
+}
+.habit-detail-undo {
+  color: var(--danger);
+  font-size: 13px;
+  margin-top: 4px;
+}
+.weekly-reflection-today {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  margin-top: 12px;
+  padding: 9px 16px;
+  border: 1px solid var(--selection-bg);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.weekly-reflection-today:active { filter: brightness(.9); }
