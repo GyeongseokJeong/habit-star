@@ -3209,7 +3209,10 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   border-radius: 10px;
   font-size: 13px;
 }
-.account-theme-options > button[aria-pressed="true"] { background: var(--selection-bg); color: var(--selection-fg); border-color: var(--selection-bg); font-weight: 700; }
+.account-theme-options > button[aria-pressed="true"] { background: var(--selection-bg); color: var(--selection-fg); border-color: var(--selection-bg); font-weight: 700; box-shadow: 0 2px 8px #13112012; }
+.account-theme-options > button:focus-visible { outline-offset: 2px; }
+.account-theme-options > button > span { white-space: nowrap; }
+.account-theme-note { margin: 8px 0 0; font-size: 11px; line-height: 1.55; color: var(--muted); }
 .account-timezone-row > svg { color: var(--sage); }
 .account-timezone-row > span { display: grid; flex: 1; gap: 3px; min-width: 0; }
 .account-timezone-row strong { font-size: 13px; color: var(--ink); font-weight: 600; }

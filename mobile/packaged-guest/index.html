@@ -8,10 +8,21 @@
   <link rel="stylesheet" href="./app.css">
   <link rel="stylesheet" href="./safe-area.css">
   <script>
+    let mode = "system";
     try {
-      const theme = localStorage.getItem("byeolharu_v2_theme") || localStorage.getItem("byeolharu_v1_theme");
-      if (theme === "dark") document.documentElement.dataset.byeolharuTheme = "dark";
-    } catch {}
+      const stored = localStorage.getItem("byeolharu_v3_theme_mode");
+      const legacy = localStorage.getItem("byeolharu_v2_theme")
+        ?? localStorage.getItem("byeolharu_v1_theme");
+      mode = stored === "light" || stored === "dark" || stored === "system"
+        ? stored : legacy === "dark" ? "dark" : "system";
+    } catch {
+      // Optional local display settings may be unavailable.
+    }
+    const dark = mode === "dark" ||
+      (mode === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.dataset.byeolharuTheme = dark ? "dark" : "light";
+    document.querySelector('meta[name="theme-color"]')
+      ?.setAttribute("content", dark ? "#0C111B" : "#F7F6F2");
   </script>
   <script>
     // A readable fail-safe for fatal JavaScript errors or broken bundled assets.
