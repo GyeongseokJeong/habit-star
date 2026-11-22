@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownToLine, ChevronRight, CheckCircle2, CloudOff,
   Database, Download, RefreshCw, Settings2, ShieldCheck, Sparkles, UserRound, CircleHelp,
-  AlertCircle, Clock3, Laptop, Moon, Sun, LoaderCircle, Star, Cloud, LogOut,
+  AlertCircle, Clock3, Laptop, Moon, Sun, MonitorSmartphone, LoaderCircle, Star, Cloud, LogOut,
 } from "lucide-react";
 import { cloudEnabled } from "@/lib/supabase/client";
 import { APP_BUILD_INFO } from "@/lib/build-info";
@@ -13,6 +13,7 @@ import type { useHabitApp } from "@/lib/habits/use-habit-app";
 import type { Snapshot } from "@/lib/habits/repository";
 import type { NativeReminderControls, WrapupGroup } from "@/lib/habits/native-reminder-controls";
 import { AuthForm, type AuthMode } from "./auth-form";
+import type { ThemePreference } from "@/lib/theme-preference";
 
 const wrapupPeriods: { group: WrapupGroup; name: string; range: string; times: string[] }[] = [
   { group: "morning", name: "아침", range: "05:00~10:59", times: ["09:30","10:00","10:30"] },
@@ -64,8 +65,8 @@ export function AccountPanel({
   app: App;
   page: AccountPage;
   onNavigate: (next: AccountPage) => void;
-  theme: "light" | "dark";
-  onThemeChange: (next: "light" | "dark") => void;
+  theme: ThemePreference;
+  onThemeChange: (next: ThemePreference) => void;
   compactView: boolean;
   onCompactViewChange: (enabled: boolean) => void;
   onInstall?: () => void;
@@ -399,9 +400,11 @@ export function AccountPanel({
           <div className="account-setting-block">
             <div className="account-setting-heading"><span>화면 테마</span></div>
             <div className="account-theme-options" role="group" aria-label="화면 테마">
-              <button type="button" aria-pressed={theme === "light"} onClick={() => onThemeChange("light")}><Sun size={18}/>라이트</button>
-              <button type="button" aria-pressed={theme === "dark"} onClick={() => onThemeChange("dark")}><Moon size={18}/>다크</button>
+              <button type="button" aria-pressed={theme === "system"} onClick={() => onThemeChange("system")}><MonitorSmartphone size={19} aria-hidden="true"/><span>시스템</span></button>
+              <button type="button" aria-pressed={theme === "light"} onClick={() => onThemeChange("light")}><Sun size={19} aria-hidden="true"/><span>라이트</span></button>
+              <button type="button" aria-pressed={theme === "dark"} onClick={() => onThemeChange("dark")}><Moon size={19} aria-hidden="true"/><span>다크</span></button>
             </div>
+            <p className="account-theme-note">{theme === "system" ? "기기의 화면 설정에 맞춰 자동으로 바뀌어요." : "선택한 테마가 기기 설정과 관계없이 유지돼요."}</p>
           </div>
           <div className="account-setting-block">
             <button
