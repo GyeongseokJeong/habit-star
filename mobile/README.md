@@ -41,7 +41,9 @@ cd android && ./gradlew assembleDebug
 - **알림과 이메일** — 새 앱에서 알림 권한과 실제 수신을 확인한 뒤 기존 앱의 알림을 끕니다. 두 앱이 설치된 상태에서 각각 요청한 가입·재설정 이메일이 요청한 앱으로 돌아오는지 확인합니다. 정식 앱의 웹 복귀 링크와 네이티브 등록은 한 변경으로 검증합니다.
 - **서명과 내부 테스트** — Play App Signing을 사용하고 업로드 키는 디버그 키와 분리해 저장소 밖에서 관리합니다. 릴리스 AAB를 내부 테스트에 올려 최초 설치와 다음 버전 업데이트에서 기록·로그인·알림이 유지되는지 확인합니다.
 
-CI의 `release-bundle` 작업은 별도 작업 디렉터리에서 정식 ID와 런처 이름으로 네이티브 프로젝트를 생성하고 `bundleRelease`를 실행합니다. 검증된 미서명 AAB는 `byeolharu-android-release-unsigned` 아티팩트로 받습니다. Play 내부 테스트에는 업로드 키 서명 및 버전 관리가 추가로 필요합니다. 이메일 복귀에는 정식 앱 전용 `from=android-release`를 사용하므로 같은 버전의 웹 인증 경로를 먼저 배포합니다.
+CI의 `release-bundle` 작업은 별도 작업 디렉터리에서 정식 ID와 런처 이름으로 네이티브 프로젝트를 생성하고 `bundleRelease`를 실행합니다. 검증된 미서명 AAB는 `byeolharu-android-release-unsigned` 아티팩트로 받습니다. 내부 테스트 버전은 `mobile/release-version.json`에서 관리합니다. 첫 업로드 기본값은 1 / 0.1.0이며 기존 Play 업로드가 있으면 사용 가능한 더 높은 code로 바꿉니다. 후속 업로드마다 code를 올립니다.
+
+GitHub 환경 `play-internal`에 업로드 키의 `ANDROID_UPLOAD_KEYSTORE_BASE64`, `ANDROID_UPLOAD_STORE_PASSWORD`, `ANDROID_UPLOAD_KEY_PASSWORD`, `ANDROID_UPLOAD_KEY_ALIAS`를 등록합니다. PKCS12에서 두 비밀번호가 같으면 같은 값을 각각 등록합니다. Android Shell PoC를 main에서 수동 실행할 때 `sign_internal`을 선택하면 검증된 AAB를 서명하고 인증서를 검사한 뒤 `byeolharu-play-internal-signed`를 제공합니다. 이 파일을 Play Console 내부 테스트 트랙에 업로드합니다. 이메일 복귀에는 정식 앱 전용 `from=android-release`를 사용하므로 같은 버전의 웹 인증 경로를 먼저 배포합니다.
 
 과거 Android STEP 1~22의 실험 기록은 [ANDROID_POC_HISTORY.md](ANDROID_POC_HISTORY.md)에 보관합니다. **그 문서의 이전 빌드 명령·실험 플래그·브랜치 안내는 현재 사용할 수 없습니다.**
 

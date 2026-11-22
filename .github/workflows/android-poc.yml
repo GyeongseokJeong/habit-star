@@ -4,6 +4,11 @@ name: Android Shell PoC
 # Historical standalone PoC jobs were retired; the native regression tests remain.
 on:
   workflow_dispatch:
+    inputs:
+      sign_internal:
+        description: Sign the main release bundle for Play internal testing
+        type: boolean
+        default: false
   pull_request:
     branches:
       - main
@@ -129,10 +134,61 @@ jobs:
           bundle=mobile/android/app/build/outputs/bundle/release/app-release.aab
           java -jar "$RUNNER_TEMP/bundletool.jar" validate --bundle="$bundle"
           test "$(java -jar "$RUNNER_TEMP/bundletool.jar" dump manifest --bundle="$bundle" --xpath=/manifest/@package)" = "app.byeolharu.android"
+          version_code=$(node -p "require('./mobile/release-version.json').code")
+          version_name=$(node -p "require('./mobile/release-version.json').name")
+          test "$(java -jar "$RUNNER_TEMP/bundletool.jar" dump manifest --bundle="$bundle" --xpath=/manifest/@android:versionCode)" = "$version_code"
+          test "$(java -jar "$RUNNER_TEMP/bundletool.jar" dump manifest --bundle="$bundle" --xpath=/manifest/@android:versionName)" = "$version_name"
           unzip -p "$bundle" base/assets/public/app.js | wc -c | awk '$1 == 0 { exit 1 }'
+      - name: Exercise bundle signing with a disposable certificate
+        env:
+          STORE_PASS: ci-fixture-only
+          KEY_PASS: ci-fixture-only
+        run: |
+          keytool -genkeypair -noprompt -alias fixture -keyalg RSA -validity 3650 -dname CN=CI -keystore "$RUNNER_TEMP/fixture.p12" -storepass:env STORE_PASS
+          bash mobile/scripts/sign-aab.sh mobile/android/app/build/outputs/bundle/release/app-release.aab "$RUNNER_TEMP/fixture.aab" "$RUNNER_TEMP/fixture.p12" fixture
       - uses: actions/upload-artifact@v4
         with:
           name: byeolharu-android-release-unsigned
           path: mobile/android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 7
+
+  sign-internal:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.sign_internal
+    needs: release-bundle
+    runs-on: ubuntu-latest
+    environment: play-internal
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/download-artifact@v4
+        with:
+          name: byeolharu-android-release-unsigned
+          path: unsigned
+      - name: Sign verified AAB with Play upload key
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+          STORE_PASS: ${{ secrets.ANDROID_UPLOAD_STORE_PASSWORD }}
+          KEY_PASS: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+          UPLOAD_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          umask 077
+          : "${KEYSTORE_B64:?Missing upload keystore}" "${UPLOAD_ALIAS:?Missing upload alias}"
+          keyfile=$(mktemp)
+          trap 'rm -f "$keyfile"' EXIT
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$keyfile"
+          bash mobile/scripts/sign-aab.sh unsigned/app-release.aab byeolharu-internal.aab "$keyfile" "$UPLOAD_ALIAS"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: byeolharu-play-internal-signed
+          path: byeolharu-internal.aab
           if-no-files-found: error
           retention-days: 7
