@@ -327,7 +327,9 @@ export function AccountPanel({
             <section className="account-extra" aria-label="가져오기 상태">
               <h4>{state.importJournal.phase === "conflict" ? "가져오기 충돌" : state.importJournal.phase === "auth_required" ? "가져오기 인증 만료" : state.importJournal.phase === "failed" ? "가져오기 실패" : state.importJournal.phase === "verifying" ? "가져오기 검증 중" : "가져오기 대기"}</h4>
               <p>원본과 중단 지점을 보존했습니다. 연결·인증 또는 충돌을 해결한 뒤 재개해주세요.</p>
-              <button type="button" className="secondary" disabled={app.busy} onClick={() => void app.migrate()}>가져오기 재개</button>
+              <button type="button" className="secondary" disabled={app.busy || workingAction !== null} aria-busy={workingAction === "resume-import"} onClick={() => void runOnce("resume-import", async () => { await app.migrate(); })}>
+                {workingAction === "resume-import" ? <><LoaderCircle size={16} className="is-spinning" aria-hidden="true" /> 가져오기 재개 중…</> : "가져오기 재개"}
+              </button>
             </section>
           )}
           {showImportReceipt && !state?.importJournal && state?.importReceipt && (
@@ -358,7 +360,10 @@ export function AccountPanel({
               <p>원본은 변경하지 않았습니다. 백업을 보관하고 항목을 확인해주세요.</p>
               <details><summary>검증 결과 {state.migration.issues.length}개</summary>
                 <pre>{JSON.stringify(state.migration.issues,null,2)}</pre></details>
-              {!state.recoveryAcknowledged && <button type="button" className="secondary" onClick={() => void app.acknowledgeRecovery().catch(() => setMessage("백업을 확인해주세요."))}>원본 백업 후 유효한 기록 사용 확인</button>}
+              {!state.recoveryAcknowledged && <button type="button" className="secondary" disabled={app.busy || workingAction !== null} aria-busy={workingAction === "ack-recovery"} onClick={() => void runOnce("ack-recovery", async () => {
+                try { await app.acknowledgeRecovery(); }
+                catch { throw Error("백업을 확인해주세요."); }
+              })}>{workingAction === "ack-recovery" ? "백업 및 확인 중…" : "원본 백업 후 유효한 기록 사용 확인"}</button>}
             </section>
           )}
           {app.user && (
@@ -450,15 +455,17 @@ export function AccountPanel({
                   <button
                     type="button"
                     className="secondary"
-                    disabled={nativeReminders.busy}
-                    onClick={() => void nativeReminders.onInspectPending()}
-                  >알림 예약 확인</button>
+                    disabled={app.busy || nativeReminders.busy || workingAction !== null}
+                    aria-busy={workingAction === "inspect-reminders"}
+                    onClick={() => void runOnce("inspect-reminders", nativeReminders.onInspectPending)}
+                  >{workingAction === "inspect-reminders" ? "예약 확인 중…" : "알림 예약 확인"}</button>
                   {!app.user && <button
                     type="button"
                     className="secondary"
-                    disabled={nativeReminders.busy}
-                    onClick={() => void nativeReminders.onAuditPending()}
-                  >습관 설정과 예약 비교</button>}
+                    disabled={app.busy || nativeReminders.busy || workingAction !== null}
+                    aria-busy={workingAction === "audit-reminders"}
+                    onClick={() => void runOnce("audit-reminders", nativeReminders.onAuditPending)}
+                  >{workingAction === "audit-reminders" ? "예약 비교 중…" : "습관 설정과 예약 비교"}</button>}
                 </div>
                 {!!nativeReminders.diagnostic && (
                   <p className="account-note" role="status">{nativeReminders.diagnostic}</p>
@@ -470,9 +477,10 @@ export function AccountPanel({
                   <button
                     type="button"
                     className="secondary"
-                    disabled={nativeReminders.busy}
-                    onClick={() => void nativeReminders.onRepairPending()}
-                  >알림 예약 다시 맞추기</button>
+                    disabled={app.busy || nativeReminders.busy || workingAction !== null}
+                    aria-busy={workingAction === "repair-reminders"}
+                    onClick={() => void runOnce("repair-reminders", nativeReminders.onRepairPending)}
+                  >{workingAction === "repair-reminders" ? "예약 복구 중…" : "알림 예약 다시 맞추기"}</button>
                 )}
                 {!!nativeReminders.repairStatus && (
                   <p className="account-note" role="status">{nativeReminders.repairStatus}</p>

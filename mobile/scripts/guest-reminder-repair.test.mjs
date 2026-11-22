@@ -61,6 +61,8 @@ test("repair only exposed after audit mismatch in guest Android UI",()=>{
  assert.match(main,/canManuallyRepairGuestReminders\(report, enabledRef\.current, permissions\.display\)/);
  assert.match(main,/repairGuestReminders\(\{/);
  assert.match(settings,/nativeReminders\.repairAvailable &&/);
- assert.match(settings,/onRepairPending\(\)/);
+  assert.ok(settings.includes('runOnce("repair-reminders", nativeReminders.onRepairPending)'));
+  assert.match(settings,/aria-busy={workingAction === "repair-reminders"}/);
+  assert.ok(settings.includes('disabled={app.busy || nativeReminders.busy || workingAction !== null}'));
  assert.doesNotMatch(web,/onRepairPending|repairGuestReminders/);
 });
