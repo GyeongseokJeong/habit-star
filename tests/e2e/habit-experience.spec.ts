@@ -452,3 +452,29 @@ test("guest storage failure clears after a successful retry without losing the r
     .toHaveAttribute("aria-pressed", "true");
   await expect(page.locator(".sync-notice")).toHaveCount(0);
 });
+
+
+test("the scheduled time stays aligned with the selected routine period", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 740 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "새 습관 추가", exact: true }).click();
+  const editor=page.getByRole("dialog", { name: "나를 위한 새로운 습관" });
+  const time=editor.getByLabel("예정 시간");
+  // Optional time is not silently enabled by changing routine group.
+  await expect(time).toHaveValue("");
+  await editor.getByRole("button", { name: "밤", exact: true }).click();
+  await expect(time).toHaveValue("");
+
+  // Choosing a clock time switches to its true period, including the night wrap.
+  await time.fill("16:48");
+  await expect(editor.getByRole("button", { name: "낮", exact: true })).toHaveAttribute("aria-pressed","true");
+  await editor.getByRole("button", { name: "밤", exact: true }).click();
+  await expect(time).toHaveValue("21:00");
+  await time.fill("02:30");
+  await expect(editor.getByRole("button", { name: "밤", exact: true })).toHaveAttribute("aria-pressed","true");
+
+  // Focus remains visible but contained inside the picker border.
+  await time.focus();
+  await expect(time).toHaveCSS("outline-offset","-2px");
+  await expect(time).toHaveCSS("min-height","48px");
+});

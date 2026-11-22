@@ -4638,3 +4638,54 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 .android-wrapup-time select:disabled { opacity: .55; }
 .android-wrapup-time select:focus-visible { outline: 2px solid var(--sage); outline-offset: 2px; }
 .android-wrapup-note { margin: 6px 0 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+
+
+/* Editor time / reminder pair: separate the picker focus ring from the switch.
+   Scope to this form so account toggles and the wider design stay untouched. */
+.habit-editor-form .habit-editor-time-field input[type="time"] {
+  box-sizing: border-box;
+  min-height: 48px;
+}
+.habit-editor-form .habit-editor-time-field input[type="time"]:focus-visible {
+  outline: 2px solid var(--sage);
+  outline-offset: -2px;
+}
+.habit-editor-form .habit-editor-alarm-row {
+  margin-top: 18px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+.habit-editor-form .habit-editor-alarm-row .compact-setting-row { min-height: 52px; }
+.habit-editor-form .habit-editor-alarm-row .account-setting-heading {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+}
+.habit-editor-form .habit-editor-alarm-row .account-setting-heading small {
+  line-height: 1.45;
+}
+.habit-editor-form .habit-editor-alarm-row .compact-setting-toggle {
+  display: grid;
+  place-items: center;
+  flex: 0 0 56px;
+  width: 56px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+.habit-editor-form .habit-editor-alarm-row .compact-setting-toggle:focus-visible {
+  outline: 2px solid var(--sage);
+  outline-offset: -2px;
+}
+.habit-editor-form .habit-editor-alarm-row .compact-setting-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
