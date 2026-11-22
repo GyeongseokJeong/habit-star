@@ -25,7 +25,7 @@ test("visible Android reminder switch reflects actual OS ability, not only saved
   assert.equal(reminderSwitchNextAction(true,"granted"),false);
   assert.doesNotMatch(account,/aria-label="습관 알림"/);
   assert.match(account,/nativeReminders\.permissionState === "denied"/);
-  assert.match(entry,/reminderSwitchChecked\(enabled \|\| hasHabitIntent, permissionState\)/);
+  assert.match(entry,/reminderSwitchChecked\(enabled === true \|\| \(enabled === null && hasHabitIntent\), permissionState\)/);
   // Native preferences remain distinct from a momentary OS permission toggle.
   assert.match(entry,/localStorage\.setItem\(OPT_IN_KEY, next \? "1" : "0"\)/);
 });
