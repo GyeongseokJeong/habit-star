@@ -4556,7 +4556,7 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   outline: 2px solid var(--selection-bg);
   outline-offset: 2px;
 }
-.modal .primary:disabled {
+.modal:has(.detail-heading) .primary:disabled {
   opacity: .5;
   cursor: not-allowed;
   filter: saturate(.65);
