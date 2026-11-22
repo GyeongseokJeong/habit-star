@@ -59,6 +59,7 @@ import { calculateWeeklyReflection } from "@/lib/habits/weekly-reflection";
 import { hasMemoKeyword, toggleMemoKeyword } from "@/lib/habits/memo-keywords";
 import { WeeklyReflectionView } from "@/components/weekly-reflection-view";
 import { StarlitClosingFooter } from "@/components/starlit-closing-footer";
+import { SyncNotice } from "@/components/sync-notice";
 export type { Habit, TimeGroup } from "@/lib/habits/domain";
 const FIRST_PRACTICE_FEEDBACK_MS = 3400;
 const FIRST_PRACTICE_HOLD_MS = 3600;
@@ -2370,19 +2371,14 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
           {toast}
         </div>
       )}
-      {(storageWarning || app.error) && (
-        <div className="storage-warning" role="alert">
-          {app.error ||
-            "브라우저 저장소를 사용할 수 없어요. 저장 설정을 확인해주세요."}
-          <button onClick={() => setAccountOpen(true)}>백업·계정 확인</button>
-          <button
-            aria-label="저장 경고 닫기"
-            onClick={() => setStorageWarning(false)}
-          >
-            <X size={14} />
-          </button>
-        </div>
-      )}
+      <SyncNotice
+        error={app.error}
+        storageWarning={storageWarning}
+        scope={scope}
+        onRetry={() => app.sync()}
+        onOpenLogin={() => { setAccountPage("login"); setAccountOpen(true); }}
+        onOpenRecords={() => { setAccountPage("records"); setAccountOpen(true); }}
+      />
     </div>
   );
 }
