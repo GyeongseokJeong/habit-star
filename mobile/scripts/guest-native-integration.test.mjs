@@ -32,10 +32,12 @@ test("guest opt-in UI is passed only as an optional prop", () => {
   assert.match(ui, /onEnsureNativeAlarm=\{nativeReminders \? \(\) => nativeReminders\.onEnabledChange\(true\)/);
   assert.match(ui, /disabled=\{alarmChecking \|\| \(!draft\.scheduledTime && !draft\.alarmEnabled\)\}/);
 });
-test("STEP 10 uses only committed snapshots and no native automatic opt-in", () => {
+test("STEP 10 respects existing per-habit opt-in without requesting OS permissions on startup", () => {
   const app = read("mobile/packaged-guest/main.tsx");
   assert.match(app, /onSnapshot = useCallback/);
   assert.match(app, /enabledRef\.current/);
+  assert.match(app, /effectiveHabitReminderOptIn\(value, next\)/);
+  assert.match(app, /setHasHabitIntent\(hasConfiguredHabitReminders\(next\)\)/);
   assert.match(app, /localStorage\.getItem\(OPT_IN_KEY\) === "1"/);
   assert.match(app, /localStorage\.setItem\(OPT_IN_KEY, next \? "1" : "0"\)/);
   assert.match(app, /if \(next\) \{/);
@@ -46,8 +48,9 @@ test("STEP 10 uses only committed snapshots and no native automatic opt-in", () 
 test("STEP 11 preserves scheduled jobs until the guest repository finishes loading", () => {
   const app = read("mobile/packaged-guest/main.tsx");
   const gate = read("mobile/notifications/guest-reminder-readiness.js");
-  assert.match(app, /guestReminderAction\(value \|\| hasEnabledWrapup\(context\.wrapupSettings\), context\.snapshot\)/);
+  assert.match(app, /guestReminderAction\(context\.optIn \|\| hasEnabledWrapup\(context\.wrapupSettings\), context\.snapshot\)/);
   assert.match(app, /action === "await-snapshot" \|\| action === "await-today"/);
-  assert.match(app, /if \(!saved && !hasEnabledWrapup\(configured\)\) void schedule\(false, null\)/);
+  assert.doesNotMatch(app, /if \(!saved.*schedule\(false, null\)/);
+  assert.match(app, /if \(snapshot\.current\) \{/);
   assert.match(gate, /return "await-today"/);
 });

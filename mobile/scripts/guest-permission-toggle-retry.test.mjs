@@ -25,7 +25,7 @@ test("visible Android reminder switch reflects actual OS ability, not only saved
   assert.equal(reminderSwitchNextAction(true,"granted"),false);
   assert.doesNotMatch(account,/aria-label="습관 알림"/);
   assert.match(account,/nativeReminders\.permissionState === "denied"/);
-  assert.match(entry,/reminderSwitchChecked\(enabled, permissionState\)/);
+  assert.match(entry,/reminderSwitchChecked\(enabled \|\| hasHabitIntent, permissionState\)/);
   // Native preferences remain distinct from a momentary OS permission toggle.
   assert.match(entry,/localStorage\.setItem\(OPT_IN_KEY, next \? "1" : "0"\)/);
 });
@@ -49,7 +49,7 @@ test("manual repair is exposed only after a real mismatch with opt-in and OS per
   assert.equal(canManuallyRepairGuestReminders(mismatched,true,"unknown"),false);
   assert.equal(canManuallyRepairGuestReminders(mismatched,false,"granted"),false);
   assert.equal(canManuallyRepairGuestReminders(null,true,"granted"),false);
-  assert.match(entry,/setRepairAvailable\(canManuallyRepairGuestReminders\(report, enabledRef\.current \|\| hasEnabledWrapup\(wrapupRef\.current\), permissions\.display\)\)/);
+  assert.match(entry,/setRepairAvailable\(canManuallyRepairGuestReminders\(report, effectiveHabitReminderOptIn\(enabledRef\.current, snapshot\.current\) \|\| hasEnabledWrapup\(wrapupRef\.current\), permissions\.display\)\)/);
   assert.match(account,/nativeReminders\.repairAvailable &&/);
   // Repair itself still checks permission and fresh snapshot at execution time.
   const repair=readFileSync(resolve(root,"mobile/notifications/guest-reminder-repair.js"),"utf8");
