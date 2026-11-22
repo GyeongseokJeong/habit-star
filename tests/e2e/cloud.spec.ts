@@ -310,6 +310,7 @@ test("email confirmation, two-device offline sync, conflict resolution, import a
 
 test("email password recovery issues a usable new password", async ({
   page,
+  browser,
   request,
 }) => {
   const email = `reset-${crypto.randomUUID()}@example.test`,
@@ -356,7 +357,15 @@ test("email password recovery issues a usable new password", async ({
     page.getByText("비회원으로 사용 중"),
   ).toBeVisible();
   await page.getByRole("button", { name: "닫기", exact: true }).click();
-  await login(page, email, nextPassword);
+  // Verify changed credentials in a fresh session. The recovery link can
+  // maintain its own browser auth state after navigating back to the app.
+  const freshContext = await browser.newContext();
+  try {
+    const freshPage = await freshContext.newPage();
+    await login(freshPage, email, nextPassword);
+  } finally {
+    await freshContext.close();
+  }
 });
 
 async function register(page: Page, request: APIRequestContext) {
