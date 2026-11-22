@@ -4,6 +4,7 @@
  * settings or any other notification scopes. Never call at app startup.
  */
 import { localDayKey } from "./reminder-plan.js";
+import { hasEnabledWrapup, normalizeWrapupSettings } from "./wrapup-reminders.js";
 import {
   buildScopedReminderPlan,
   reconcileScopedReminders,
@@ -13,10 +14,12 @@ export async function repairGuestReminders({
   localNotifications,
   snapshot,
   optIn,
+  wrapupSettings,
   now = new Date(),
 } = {}) {
   // A user must have explicitly opted in before any native reservation write.
-  if (optIn !== true) return { status: "disabled", added: 0, cancelled: 0 };
+  const wrapup = normalizeWrapupSettings(wrapupSettings);
+  if (optIn !== true && !hasEnabledWrapup(wrapup)) return { status: "disabled", added: 0, cancelled: 0 };
   if (!(now instanceof Date) || !Number.isFinite(now.getTime())) {
     throw new Error("단말 시간을 확인할 수 없습니다.");
   }
@@ -33,6 +36,8 @@ export async function repairGuestReminders({
     scope: "guest",
     now,
     daysAhead: 8,
+    habitOptIn: optIn === true,
+    wrapupSettings: wrapup,
   });
   // Reuses the production queue diff and its foreign-ID collision guard.
   // Only guest-owned jobs are cancelled/replaced. This can partly fail at
