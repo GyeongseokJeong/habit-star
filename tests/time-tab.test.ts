@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countEarlierPendingHabits, currentTimeGroup, initialRoutineTab, startupDataReady } from "../lib/habits/time-tab";
+import { countEarlierPendingHabits, countOtherPendingHabits, currentTimeGroup, initialRoutineTab, startupDataReady } from "../lib/habits/time-tab";
 
 const at = (hour: number, minute = 0) =>
   new Date(`2026-11-19T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00+09:00`);
@@ -86,5 +86,40 @@ describe("elapsed time-group reminder visibility", () => {
     expect(countEarlierPendingHabits("night", habits, -1)).toBe(0);
     expect(countEarlierPendingHabits("night", habits, 24)).toBe(0);
     expect(countEarlierPendingHabits("night", habits, 17.5)).toBe(0);
+  });
+});
+
+describe("completed time-tab navigation", () => {
+  const habits = [
+    { timeGroup: "morning" as const, completed: true, id: "morning-done" },
+    { timeGroup: "day" as const, completed: true, id: "day-done" },
+    { timeGroup: "night" as const, completed: false, id: "night-pending" },
+    { timeGroup: "night" as const, completed: false, id: "night-pending-2" },
+  ];
+
+  it("counts later night habits when the daytime routine is completed", () => {
+    expect(countOtherPendingHabits("day", habits)).toBe(2);
+    expect(countOtherPendingHabits("morning", habits)).toBe(2);
+  });
+  it("does not suggest a link on the All/Calendar tabs, or when none remain", () => {
+    expect(countOtherPendingHabits("all", habits)).toBe(0);
+    expect(countOtherPendingHabits("matrix", habits)).toBe(0);
+    expect(countOtherPendingHabits("night", habits)).toBe(0);
+    expect(countOtherPendingHabits("day", habits.map((h) => ({ ...h, completed: true })))).toBe(0);
+  });
+  it("respects held completion and never mutates scheduled records", () => {
+    const before = JSON.stringify(habits);
+    const held = new Set(["night-pending"]);
+    expect(countOtherPendingHabits("day", habits, (h) => h.completed || held.has(h.id))).toBe(1);
+    expect(JSON.stringify(habits)).toBe(before);
+  });
+  it("also counts earlier unfinished routines, not unfinished items in the selected group", () => {
+    const mixed = [
+      { timeGroup: "morning" as const, completed: false },
+      { timeGroup: "day" as const, completed: true },
+      { timeGroup: "night" as const, completed: false },
+    ];
+    expect(countOtherPendingHabits("day", mixed)).toBe(2);
+    expect(countOtherPendingHabits("morning", mixed)).toBe(1);
   });
 });
