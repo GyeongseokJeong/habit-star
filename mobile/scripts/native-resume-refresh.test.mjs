@@ -35,6 +35,6 @@ test("native package refreshes real repository snapshot before scheduling", () =
   assert.match(store,/document\.addEventListener\("visibilitychange", visibleOnce\)/);
   assert.match(store,/if \(now - lastForegroundTick < 800\) return/);
   assert.match(store,/await r\.ensureDay\(\);\s*await refresh\(r\)/);
-  assert.match(entry,/else if \(snapshot\.current\)/, "already-loaded guest snapshot must be reconciled after opt-in restoration");
+  assert.match(entry,/if \(snapshot\.current\) \{/, "already-loaded member or guest snapshot must reconcile after preference restoration");
   assert.doesNotMatch(entry,/setInterval\(/);
 });
