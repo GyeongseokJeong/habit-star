@@ -6,11 +6,12 @@ for (const width of [320, 390, 430]) {
     await page.goto("/");
     await page.getByRole("button", { name: "새 습관 추가", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "나를 위한 새로운 습관" });
-    await expect(dialog.getByRole("button", { name: /템플릿$/ })).toHaveCount(6);
-    await expect(dialog.locator(".emoji-picker button")).toHaveCount(12);
+    await expect(dialog.getByRole("button", { name: /템플릿$/ })).toHaveCount(3);
+    await expect(dialog.locator(".emoji-picker button")).toHaveCount(5);
     await expect(dialog.getByRole("heading", { name: "실천 일정" })).toBeVisible();
     await expect(dialog.getByRole("button", { name: "매일", exact: true })).toHaveAttribute("aria-pressed", "true");
     await expect(dialog.getByLabel("예정 시간")).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "취소", exact: true })).toHaveCount(0);
     await expect(dialog.getByRole("switch", { name: "루틴 알림" })).toHaveCount(0);
     expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
