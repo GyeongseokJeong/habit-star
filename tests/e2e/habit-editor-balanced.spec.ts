@@ -65,3 +65,47 @@ test("expanded templates and icons fill only the requested fields", async ({ pag
   await expect(edit.getByLabel("예정 시간")).toHaveValue("08:35");
   await expect(edit.getByRole("button", { name: "평일", exact: true })).toHaveAttribute("aria-pressed", "true");
 });
+
+
+test("B2 creation keeps a manually edited name when another template is chosen", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 740 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "새 습관 추가", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "나를 위한 새로운 습관" });
+  const title = dialog.getByPlaceholder("예: 하루 10분 책 읽기");
+
+  await dialog.getByRole("button", { name: "독서 20분 템플릿" }).click();
+  await expect(title).toHaveValue("독서 20분");
+  await title.fill("퇴근 후 소설 읽기");
+  await dialog.getByRole("button", { name: "물 마시기 템플릿" }).click();
+  await expect(title).toHaveValue("퇴근 후 소설 읽기");
+  await expect(dialog.getByRole("status")).toContainText("작성한 이름은 유지");
+  await expect(dialog.getByRole("button", { name: "💧 아이콘" })).toHaveAttribute("aria-pressed", "true");
+  await expect(dialog.getByRole("button", { name: "아침", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(dialog.getByLabel("예정 시간")).toHaveValue("07:00");
+
+  const time = dialog.getByLabel("예정 시간");
+  await time.fill("08:15");
+  await dialog.getByRole("button", { name: "10분 산책 템플릿" }).click();
+  await expect(title).toHaveValue("퇴근 후 소설 읽기");
+  await expect(time).toHaveValue("08:15");
+  await expect(dialog.getByRole("button", { name: "낮", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await dialog.getByRole("button", { name: "새 습관 추가하기" }).click();
+  await expect(page.getByRole("heading", { name: "퇴근 후 소설 읽기", exact: true })).toBeVisible();
+});
+
+test("B2 creation uses compact quick options while existing habit editing is unchanged", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 740 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "새 습관 추가", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "나를 위한 새로운 습관" });
+  const templates = dialog.locator(".template-picker button");
+  await expect(templates).toHaveCount(3);
+  await expect(dialog.locator(".emoji-picker button")).toHaveCount(5);
+  await expect(dialog.locator(".habit-editor-optional-time")).toBeVisible();
+  await expect(dialog.locator(".habit-editor-footer .text-button")).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: "아이콘 더 보기" })).toBeVisible();
+  await dialog.getByRole("button", { name: "아이콘 더 보기" }).click();
+  await expect(dialog.locator(".emoji-picker button")).toHaveCount(36);
+  await expect(dialog.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).resolves.toBe(true);
+});
