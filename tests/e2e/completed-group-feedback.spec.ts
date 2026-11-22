@@ -65,7 +65,7 @@ test("compact view reuses the same short cue, with no forced expansion", async (
   await expect(toggle).not.toHaveClass(/completion-nudge/, { timeout: 4000 });
 });
 
-test("successive completions restart the active fold animation without opening it", async ({ page }) => {
+test("successive completions replay the fold cue without opening it", async ({ page }) => {
   await page.clock.setFixedTime(new Date("2026-11-20T22:00:00+09:00"));
   await seedLegacyFiveHabits(page);
   await page.goto("/");
@@ -80,16 +80,16 @@ test("successive completions restart the active fold animation without opening i
   await expect(toggle).toHaveClass(/completion-nudge-1/, { timeout: 5000 });
   await expect(toggle).toHaveCSS("animation-name", "completed-group-nudge-1");
 
-  // The next habit completes while the previous 1.1s cue is still active.
+  // CI may take longer than the 1.1s cue between rating two habits.
+  // Wait for the first cue to finish, then prove a later completion triggers
+  // a fresh cue rather than assuming both actions overlap in wall-clock time.
+  await expect(toggle).not.toHaveClass(/completion-nudge/, { timeout: 4000 });
   const stretch = page.locator(".normal-pending-list .habit-card").filter({
     has: page.getByRole("heading", { name: "취침 전 스트레칭 10분" }),
   });
   await stretch.getByRole("button", { name: "취침 전 스트레칭 10분 5점" }).click();
-  // A 1.1s CSS nudge can expire before Playwright reaches its assertion on
-  // loaded CI runners. One-completion tests above cover the visual cue itself.
-  // Here the durable behavior matters: both completions enter the fold,
-  // the group never auto-opens, and the cue always clears.
-  await expect(toggle).toContainText("완료한 습관 5개", { timeout: 5000 });
+  await expect(toggle).toHaveClass(/completion-nudge-1/, { timeout: 5000 });
+  await expect(toggle).toHaveCSS("animation-name", "completed-group-nudge-1");
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
   await expect(toggle).not.toHaveClass(/completion-nudge/, { timeout: 4000 });
 });

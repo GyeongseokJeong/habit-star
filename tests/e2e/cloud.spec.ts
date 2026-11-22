@@ -349,10 +349,18 @@ test("email password recovery issues a usable new password", async ({
     .click();
   await expect(page.getByText(/비밀번호를 변경했습니다/)).toBeVisible();
   await page.getByRole("link", { name: "별하루로 돌아가기" }).click();
-  await expect(page.getByRole("button", { name: "계정 및 데이터 관리" })).toBeVisible();
-  // Recovery callbacks may restore an authenticated session or display a guest
-  // state, depending on auth timing. Do not assert either in the old browser;
-  // verify the new password through independent authentication instead.
+  await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+  // The recovery callback signs this browser in asynchronously.
+  // Wait for the verified member identity before signing out: an immediate
+  // isVisible() can observe the initial guest render and skip logout.
+  await expect(page.getByText(email, { exact: true })).toBeVisible({ timeout: 15000 });
+  await logout(page);
+  await expect(
+    page.getByText("비회원으로 사용 중"),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "닫기", exact: true }).click();
+  // Verify changed credentials in a fresh session. The recovery link can
+  // maintain its own browser auth state after navigating back to the app.
   const freshContext = await browser.newContext();
   try {
     const freshPage = await freshContext.newPage();
