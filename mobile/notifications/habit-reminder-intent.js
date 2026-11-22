@@ -9,5 +9,8 @@ export function hasConfiguredHabitReminders(snapshot) {
   );
 }
 export function effectiveHabitReminderOptIn(legacyDeviceOptIn, snapshot) {
+  // An explicit opt-out must continue to win. Only an ABSENT preference
+  // inherits existing habit-level ON switches after a fresh installation.
+  if (legacyDeviceOptIn === false) return false;
   return legacyDeviceOptIn === true || hasConfiguredHabitReminders(snapshot);
 }
