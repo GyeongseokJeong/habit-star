@@ -31,11 +31,16 @@ test("shared account settings render native reminder actions only when provided 
  assert.doesNotMatch(native,/import.*@capacitor/);
 });
 
-test("web habit time edits preserve prior behavior; native editor alone clears invalid alarm toggle",()=>{
+test("web time edits preserve reminders; Android alone conditionally opts in after direct time choice",()=>{
  const app=read("components/byeolharu.tsx");
- assert.match(app,/nativeAlarmEditor && !e\.target\.value \? \{ alarmEnabled: false \} : \{\}/);
- assert.doesNotMatch(app,/scheduledTime: e\.target\.value, alarmEnabled:/);
- assert.match(app,/nativeAlarmEditor = false/);
+ const policy=read("lib/habits/alarm-default-policy.ts");
+ assert.match(app,/alarmForSelectedTime\(\{/);
+ assert.match(app,/isNewHabit: !habit/);
+ assert.match(app,/android: nativeAlarmEditor/);
+ assert.match(app,/userToggledAlarm: alarmTouched/);
+ assert.match(app,/alarmEnabled: nativeAlarmEditor \? alarmEnabled : draft.alarmEnabled/);
+ assert.match(policy,/if \(android && isNewHabit && !userToggledAlarm\) return true/);
+ assert.match(policy,/if \(!time\) return false/);
  assert.match(app,/disabled=\{alarmChecking \|\| \(!draft\.scheduledTime && !draft\.alarmEnabled\)\}/);
 });
 
