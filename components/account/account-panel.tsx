@@ -277,9 +277,9 @@ export function AccountPanel({
           {!app.user && !cloudEnabled() && <p className="account-note">클라우드 연결이 아직 설정되지 않았습니다. 비회원 기록은 계속 사용할 수 있어요.</p>}
           <nav className="account-menu" aria-label="계정 메뉴">
             <button type="button" aria-label="데이터 관리" onClick={() => navigate("records")}><Database size={19} /><span>데이터 관리<small>동기화 · 백업 · 복원</small></span><ChevronRight size={17} /></button>
-            <button type="button" aria-label="앱 설정" onClick={() => navigate("settings")}><Settings2 size={19} /><span>앱 설정<small>화면 테마 · 시간대</small></span><ChevronRight size={17} /></button>
-            <button type="button" aria-label="사용 안내" onClick={() => navigate("help")}><CircleHelp size={19} /><span>사용 안내<small>별점 기록 · 데이터 보관</small></span><ChevronRight size={17} /></button>
-            {app.user && <button type="button" aria-label="계정 관리" onClick={() => navigate("security")}><UserRound size={19} /><span>계정 관리<small>계정 정보 · 로그아웃</small></span><ChevronRight size={17} /></button>}
+            <button type="button" aria-label="앱 설정" onClick={() => navigate("settings")}><Settings2 size={19} /><span>앱 설정<small>테마 · 간편 보기 · 시간대</small></span><ChevronRight size={17} /></button>
+            {app.user && <button type="button" aria-label="계정 관리" onClick={() => navigate("security")}><UserRound size={19} /><span>계정 관리<small>로그인 정보 · 로그아웃</small></span><ChevronRight size={17} /></button>}
+            <button type="button" aria-label="사용 안내" onClick={() => navigate("help")}><CircleHelp size={19} /><span>사용 안내<small>기록 · 성장 · 데이터 보관</small></span><ChevronRight size={17} /></button>
           </nav>
         </>
       )}
@@ -394,25 +394,25 @@ export function AccountPanel({
             </div>
           </div>
           <div className="account-setting-block">
-            <div className="compact-setting-row">
+            <button
+              type="button"
+              className="compact-setting-row compact-setting-toggle account-setting-pressable"
+              role="switch"
+              aria-label="간편 보기"
+              aria-checked={compactView}
+              onClick={() => onCompactViewChange(!compactView)}
+            >
               <span className="account-setting-heading"><span>간편 보기</span><small>습관을 한 줄로 보고, 완료한 습관은 접어요</small></span>
-              <button
-                type="button"
-                className="compact-setting-toggle"
-                role="switch"
-                aria-label="간편 보기"
-                aria-checked={compactView}
-                onClick={() => onCompactViewChange(!compactView)}
-              ><span className="compact-switch-track" aria-hidden="true"><span className="compact-switch-thumb" /></span></button>
-            </div>
+              <span className="compact-switch-track" aria-hidden="true"><span className="compact-switch-thumb" /></span>
+            </button>
           </div>
           <div className="account-setting-block">
             <div className="account-setting-heading"><span>시간대</span><small>{app.user ? "습관 기록의 날짜 기준" : "기기의 시간대를 사용해요"}</small></div>
             <div className="account-timezone-row"><Clock3 size={19}/><span><strong>{zoneName(state?.timezone ?? deviceZone)}</strong></span>
-              {app.user && <button type="button" className="secondary" aria-expanded={timezonePicker} onClick={() => setTimezonePicker(!timezonePicker)}>변경</button>}
+              {app.user && <button type="button" className="secondary" aria-expanded={timezonePicker} aria-controls="account-timezone-picker" disabled={changingZone || app.busy} onClick={() => setTimezonePicker(!timezonePicker)}>{changingZone ? "변경 중…" : "변경"}</button>}
             </div>
             {app.user && timezonePicker && (
-              <div className="account-timezone-picker">
+              <div id="account-timezone-picker" className="account-timezone-picker" aria-busy={changingZone}>
                 <button type="button" className="account-device-timezone" disabled={app.busy || changingZone || deviceZone === state?.timezone} onClick={() => void setTimezone(deviceZone)}>
                   <Laptop size={17}/><span>기기 시간대 사용<small>{zoneName(deviceZone)}</small></span>
                   {deviceZone === state?.timezone ? "선택됨" : <ChevronRight size={16}/>}
@@ -420,6 +420,7 @@ export function AccountPanel({
                 <label className="field">도시 또는 시간대 검색
                   <input type="search" value={zoneQuery} placeholder="예: 서울, Tokyo, London" onChange={(e) => setZoneQuery(e.target.value)} />
                 </label>
+                {changingZone && <p className="account-note" role="status">시간대를 변경하고 있어요…</p>}
                 <div className="account-timezone-list" role="group" aria-label="시간대 선택">
                   {matchingZones.map((zone) => (
                     <button type="button" key={zone} disabled={app.busy || changingZone} aria-pressed={zone === state?.timezone} onClick={() => void setTimezone(zone)}>
@@ -492,40 +493,42 @@ export function AccountPanel({
           <div className="account-help-intro">
             <Sparkles size={23} aria-hidden="true" />
             <h3>작은 실천이 별빛이 되는 곳</h3>
-            <p>별하루의 핵심 기능을 알아보세요.</p>
           </div>
           <div className="account-help-list">
-            <div className="account-help-group">
-              <span className="account-help-icon" aria-hidden="true"><Star size={20} /></span>
-              <div className="account-help-copy">
+            <details className="account-help-group">
+              <summary className="account-help-trigger">
+                <span className="account-help-icon" aria-hidden="true"><Star size={20} /></span>
                 <h3>오늘의 실천</h3>
-                <p>
-                  <span>습관을 완료하고 별 1~5개로 만족도를 남겨요.</span>
-                  <span>같은 별을 다시 누르면 별점이 취소돼요.</span>
-                </p>
-              </div>
-            </div>
-            <div className="account-help-group">
-              <span className="account-help-icon" aria-hidden="true"><Sparkles size={20} /></span>
+                <ChevronRight size={17} className="account-help-chevron" aria-hidden="true" />
+              </summary>
               <div className="account-help-copy">
+                <p><span>습관을 실천한 날 별 1~5개로 기록해요.</span><span>같은 별을 다시 누르면 기록을 취소할 수 있어요.</span></p>
+              </div>
+            </details>
+            <details className="account-help-group">
+              <summary className="account-help-trigger">
+                <span className="account-help-icon" aria-hidden="true"><Sparkles size={20} /></span>
                 <h3>별자리 성장</h3>
-                <p>
-                  <span>실천이 쌓이면 나만의 별자리가 성장해요.</span>
-                  <span>최근 7일 돌아보기에서 변화를 확인하세요.</span>
-                </p>
-              </div>
-            </div>
-            <div className="account-help-group">
-              <span className="account-help-icon" aria-hidden="true"><Cloud size={20} /></span>
+                <ChevronRight size={17} className="account-help-chevron" aria-hidden="true" />
+              </summary>
               <div className="account-help-copy">
+                <p><span>실천이 쌓이면 나만의 별자리가 성장해요.</span><span>최근 7일 돌아보기에서 지난 실천을 살펴볼 수 있어요.</span></p>
+              </div>
+            </details>
+            <details className="account-help-group">
+              <summary className="account-help-trigger">
+                <span className="account-help-icon" aria-hidden="true"><Cloud size={20} /></span>
                 <h3>기록 보관과 동기화</h3>
+                <ChevronRight size={17} className="account-help-chevron" aria-hidden="true" />
+              </summary>
+              <div className="account-help-copy">
                 <p>
-                  <span>비회원 기록은 현재 기기에 보관돼요.</span>
+                  <span>비회원 기록은 현재 기기에만 보관돼요.</span>
                   <span>로그인하면 회원 기록을 클라우드에 동기화해요.</span>
                   <span>비회원 기록은 확인 후 직접 가져올 수 있어요.</span>
                 </p>
               </div>
-            </div>
+            </details>
           </div>
           <button type="button" className="account-help-support" onClick={() => navigate(nativeReminders ? "settings" : "records")}>
             <CircleHelp size={18} aria-hidden="true" />
