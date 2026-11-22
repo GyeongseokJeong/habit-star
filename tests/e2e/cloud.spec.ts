@@ -57,8 +57,8 @@ async function openRecords(page: Page) {
 }
 async function openImport(page: Page) {
   await openRecords(page);
-  const advanced = page.getByText("고급 데이터 관리", { exact: true });
-  const importAction = page.getByRole("button", { name: "이 기기의 비회원 기록 가져오기" });
+  const advanced = page.getByText("기록 이전 · 고급 관리", { exact: true });
+  const importAction = page.getByRole("button", { name: "이 기기의 비회원 기록 확인" });
   await expect(advanced).toBeVisible();
   if (!(await importAction.isVisible())) await advanced.click();
   await expect(importAction).toBeVisible();
@@ -325,8 +325,9 @@ test("email password recovery issues a usable new password", async ({
   await confirm(page, request, email);
   await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
   await expect(page.getByText(email, { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "계정 관리", exact: true }).click();
-  await page.getByRole("button", { name: "다시 로그인", exact: true }).click();
+  await logout(page);
+  await expect(page.getByText("비회원으로 사용 중")).toBeVisible();
+  await page.getByRole("button", { name: "로그인", exact: true }).click();
   await page
     .getByRole("button", { name: "비밀번호 찾기", exact: true })
     .click();
@@ -348,7 +349,9 @@ test("email password recovery issues a usable new password", async ({
   await expect(page.getByText(/비밀번호를 변경했습니다/)).toBeVisible();
   await page.getByRole("link", { name: "별하루로 돌아가기" }).click();
   await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
-  await logout(page);
+  // The recovery callback may leave a session in this browser. Both cases
+  // must end in the guest scope before verifying the new password.
+  if (await page.getByRole("button", { name: "계정 관리", exact: true }).isVisible()) await logout(page);
   await expect(
     page.getByText("비회원으로 사용 중"),
   ).toBeVisible();
