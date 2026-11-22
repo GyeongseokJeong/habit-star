@@ -48,7 +48,7 @@ import { useHabitApp } from "@/lib/habits/use-habit-app";
 import type { NativeReminderControls } from "@/lib/habits/native-reminder-controls";
 import { AccountPanel } from "@/components/account/account-panel";
 import { StarlitHero } from "@/components/starlit-hero";
-import { countEarlierPendingHabits, initialRoutineTab, startupDataReady } from "@/lib/habits/time-tab";
+import { countEarlierPendingHabits, countOtherPendingHabits, initialRoutineTab, startupDataReady } from "@/lib/habits/time-tab";
 import { getFirstUseState, canCelebrateFirstPractice } from "@/lib/habits/onboarding";
 import { sortHabitsForDisplay } from "@/lib/habits/display-order";
 import { ConstellationGrowthView } from "@/components/constellation-growth-view";
@@ -1527,15 +1527,34 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
     }, 1100);
   }, [completedGroupKey, completionDataReady, compactCompleted.length, activeTab]);
   // Completion feedback is scoped to the selected tab, not the entire day.
+  // A finished time tab may still have scheduled habits in other periods today.
   const isTimeRoutine = activeTab !== "all" && activeTab !== "matrix";
   const showRoutineCompletion = isTimeRoutine && filtered.length > 0 && compactPending.length === 0;
-  const completionFeedback = isTimeRoutine ? (
-    <p className="routine-completion-card">
+  const otherPendingCount = showRoutineCompletion && completionDataReady
+    ? countOtherPendingHabits(activeTab, scheduledHabits,
+        (habit) => heldCompletion.get(habit.id) ?? habit.completed)
+    : 0;
+  const completionFeedback = (
+    <div className="routine-completion-card">
       <Check size={22} aria-hidden="true" />
-      {GROUPS[activeTab].name} 루틴을 모두 마쳤어요
-    </p>
-  ) : (
-    <p className={compactView ? "compact-all-done" : "normal-all-done"}>오늘의 실천을 모두 마쳤어요 ✨</p>
+      <p className="routine-completion-label" role="status">
+        {isTimeRoutine ? `${GROUPS[activeTab].name} 루틴을 모두 마쳤어요` : "오늘의 실천을 모두 마쳤어요 ✨"}
+      </p>
+      {otherPendingCount > 0 && (
+        <button
+          type="button"
+          className="routine-completion-link"
+          onClick={() => {
+            tabChosenManually.current = true;
+            document.getElementById("tab-all")?.focus();
+            setActiveTab("all");
+          }}
+        >
+          <span>다른 시간대에 예정된 습관 {otherPendingCount}개</span>
+          <span className="routine-completion-action">전체 보기 <ChevronRight size={16} aria-hidden="true" /></span>
+        </button>
+      )}
+    </div>
   );
   useEffect(() => {
     setCompletedOpen(false);
@@ -2050,7 +2069,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
                         ))}
                     </section>
                   )}
-                  {earlierPendingCount > 0 && (
+                  {earlierPendingCount > 0 && !showRoutineCompletion && (
                     <button
                       type="button"
                       className="earlier-pending-link"
