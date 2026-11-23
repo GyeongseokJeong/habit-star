@@ -352,6 +352,9 @@ function HabitEditor({
   nativeAlarmActive = false,
   nativeAlarmStatus = "",
   onEnsureNativeAlarm,
+  nativeFirstPermissionOffer = false,
+  onRequestFirstPermission,
+  onDismissFirstPermission,
   guardUnsaved = false,
 }: {
   habit?: Habit;
@@ -363,12 +366,34 @@ function HabitEditor({
   nativeAlarmActive?: boolean;
   nativeAlarmStatus?: string;
   onEnsureNativeAlarm?: () => Promise<boolean>;
+  nativeFirstPermissionOffer?: boolean;
+  onRequestFirstPermission?: () => Promise<boolean>;
+  onDismissFirstPermission?: () => void;
   guardUnsaved?: boolean;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [alarmChecking, setAlarmChecking] = useState(false);
   const [alarmTouched, setAlarmTouched] = useState(false);
   const [alarmNotice, setAlarmNotice] = useState("");
+  const [permissionPromptOpen, setPermissionPromptOpen] = useState(false);
+  const [permissionPromptBusy, setPermissionPromptBusy] = useState(false);
+  const permissionPromptResolve = useRef<((granted: boolean) => void) | null>(null);
+  const promptForFirstPermission = async () => {
+    if (!nativeFirstPermissionOffer || !onRequestFirstPermission || !onDismissFirstPermission) return true;
+    return new Promise<boolean>((resolve) => {
+      permissionPromptResolve.current = resolve;
+      setPermissionPromptOpen(true);
+    });
+  };
+  const settleFirstPermissionPrompt = (granted: boolean) => {
+    permissionPromptResolve.current?.(granted);
+    permissionPromptResolve.current = null;
+    setPermissionPromptOpen(false);
+  };
+  const enableNativeAlarm = async () => {
+    if (!(await promptForFirstPermission())) return false;
+    return Boolean(await onEnsureNativeAlarm?.());
+  };
   const [moreTemplates, setMoreTemplates] = useState(false);
   const [nameEdited, setNameEdited] = useState(false);
   const [templateNotice, setTemplateNotice] = useState("");
@@ -447,6 +472,30 @@ function HabitEditor({
       onClose={requestClose}
     >
       {discardPrompt && <UnsavedChangesPrompt onContinue={() => setDiscardPrompt(false)} onDiscard={onClose} />}
+      {permissionPromptOpen && (
+        <ConfirmDialog
+          title="습관 알림을 받아볼까요?"
+          description="설정한 시간에 실천을 알려드려요."
+          cancelLabel="나중에"
+          confirmLabel="알림 허용하기"
+          confirmTone="neutral"
+          primaryAction="confirm"
+          icon="bell"
+          busy={permissionPromptBusy}
+          onCancel={() => {
+            onDismissFirstPermission?.();
+            settleFirstPermissionPrompt(false);
+          }}
+          onConfirm={() => {
+            if (permissionPromptBusy) return;
+            setPermissionPromptBusy(true);
+            void onRequestFirstPermission?.()
+              .then((granted) => settleFirstPermissionPrompt(granted))
+              .catch(() => settleFirstPermissionPrompt(false))
+              .finally(() => setPermissionPromptBusy(false));
+          }}
+        />
+      )}
       {confirmDelete && onDelete && (
         <ConfirmDialog
           title="이 습관을 삭제할까요?"
@@ -470,7 +519,7 @@ function HabitEditor({
             try {
               if (alarmEnabled && !nativeAlarmActive) {
                 try {
-                  alarmEnabled = Boolean(await onEnsureNativeAlarm?.());
+                  alarmEnabled = await enableNativeAlarm();
                 } catch {
                   alarmEnabled = false;
                 }
@@ -692,7 +741,7 @@ function HabitEditor({
                     setAlarmNotice("");
                     void (async () => {
                       try {
-                        const enabled = await onEnsureNativeAlarm?.();
+                        const enabled = await enableNativeAlarm();
                         if (enabled) setDraft((prev) => ({ ...prev, alarmEnabled: true }));
                         else setAlarmNotice("Android 알림 사용을 허용한 뒤 다시 켜주세요.");
                       } catch {
@@ -1985,25 +2034,6 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
                 <Plus size={17} />새 습관 추가
               </button>
             </div>
-            {ready && nativeReminders?.showPermissionOffer && (
-              <section className="android-permission-invite" aria-label="습관 알림 안내">
-                <div className="android-permission-invite-symbol" aria-hidden="true"><BellRing size={19} /></div>
-                <div className="android-permission-invite-copy">
-                  <h2>습관 알림을 받아보세요</h2>
-                  <p>설정한 시간에 실천을 알려드려요.</p>
-                </div>
-                <div className="android-permission-invite-actions">
-                  <button type="button" className="android-permission-invite-later"
-                    disabled={nativeReminders.busy} onClick={nativeReminders.onDismissPermissionOffer}>나중에</button>
-                  <button type="button" className="android-permission-invite-primary"
-                    disabled={nativeReminders.busy} onClick={() => {
-                      void nativeReminders.onRequestPermission().then((granted) => {
-                        if (!granted) showToast("알림은 앱 설정에서 언제든 허용할 수 있어요.");
-                      });
-                    }}>알림 허용</button>
-                </div>
-              </section>
-            )}
             {sampleHabits.length > 0 && (
               <div className="sample-cleanup-strip">
                 <span>예시 습관 {sampleHabits.length}개</span>
@@ -2317,6 +2347,9 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
           nativeAlarmActive={nativeReminders?.active}
           nativeAlarmStatus={nativeReminders?.status}
           onEnsureNativeAlarm={nativeReminders ? () => nativeReminders.onEnabledChange(true) : undefined}
+          nativeFirstPermissionOffer={nativeReminders?.showPermissionOffer}
+          onRequestFirstPermission={nativeReminders?.onRequestPermission}
+          onDismissFirstPermission={nativeReminders?.onDismissPermissionOffer}
         />
       )}
       {detail && (
