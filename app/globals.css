@@ -4856,3 +4856,78 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 @media (prefers-reduced-motion: reduce) {
   .account-panel .account-timezone-trigger svg { transition: none; }
 }
+
+
+/* Account Design System v1 — shared visual hierarchy for functional account pages. */
+.account-panel.account-hub .account-detail { padding-top: 4px !important; }
+.account-panel.account-hub .account-ui-section-title,
+.account-panel .account-settings-final .account-settings-group-title.account-ui-section-title {
+  display: flex; align-items: center; min-height: 22px;
+  margin: 24px 0 10px !important; padding: 0 !important;
+  font-size: 14px !important; line-height: 1.5; letter-spacing: 0;
+  font-weight: 700; color: var(--ink);
+}
+.account-panel.account-hub .account-detail > .account-ui-section-title:first-child,
+.account-panel .account-settings-final > .account-ui-section-title:first-child { margin-top: 0 !important; }
+.account-panel.account-hub .account-ui-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.account-panel.account-hub .account-ui-status-card { padding: 13px 14px; }
+.account-panel .account-settings-final .android-permission-summary.account-ui-status-card {
+  margin: 0 0 12px; padding: 10px 14px;
+  border: 1px solid var(--line); border-radius: 14px; background: var(--surface);
+}
+.account-panel .account-settings-final .android-wrapup-settings.account-ui-card {
+  margin: 0; padding: 12px 14px 6px;
+  border: 1px solid var(--line); border-radius: 14px; background: var(--surface);
+}
+.account-panel .account-settings-final .android-wrapup-period { border: 0; }
+.account-panel .account-settings-final .android-wrapup-period + .android-wrapup-period { border-top: 1px solid var(--line); }
+.account-panel .account-settings-final .android-wrapup-inline-row { min-height: 56px; }
+.account-panel .account-settings-final .account-setting-block { padding: 12px 0; }
+.account-panel .account-settings-final .account-app-info { margin-top: 22px; }
+.account-panel.account-hub .account-sync-overview.account-ui-card {
+  padding: 13px 14px; margin: 0; border-radius: 14px; background: var(--surface);
+}
+.account-panel.account-hub .account-action-group.account-ui-card {
+  margin: 0 0 14px; padding: 0 14px; border-radius: 14px; background: var(--surface);
+}
+.account-panel.account-hub .account-action-group .account-action-row,
+.account-panel.account-hub .account-action-group .account-restore-details > summary {
+  min-height: 56px; align-items: center; font-size: 14px; font-weight: 600;
+}
+.account-panel.account-hub .account-action-group .account-action-row > svg:first-child { color: var(--sage); flex: none; }
+.account-panel.account-hub .account-action-group .account-action-row > svg:last-child { color: var(--muted); flex: none; }
+.account-panel.account-hub .account-help-intro { padding: 8px 0 18px; text-align: center; }
+.account-panel.account-hub .account-help-intro > svg { width: 23px; height: 23px; margin-bottom: 6px; }
+.account-panel.account-hub .account-help-intro > h3 {
+  margin: 0 !important; font-size: 16px !important;
+  font-weight: 650; line-height: 1.5; letter-spacing: -.2px;
+}
+.account-panel.account-hub .account-help-list.account-ui-card {
+  margin: 0; padding: 0 14px; border: 1px solid var(--line);
+  border-radius: 14px; background: var(--surface);
+}
+.account-panel.account-hub .account-help-list .account-help-group { border: 0; padding: 0; }
+.account-panel.account-hub .account-help-list .account-help-group + .account-help-group { border-top: 1px solid var(--line); }
+.account-panel.account-hub .account-help-trigger { min-height: 56px; padding: 9px 0; gap: 12px; }
+.account-panel.account-hub .account-help-trigger .account-help-icon {
+  flex: 0 0 24px; width: 24px; height: 24px;
+  border-radius: 0; background: transparent; color: var(--sage);
+}
+.account-panel.account-hub .account-help-trigger .account-help-icon svg { width: 21px; height: 21px; }
+.account-panel.account-hub .account-help-trigger h3 {
+  margin: 0 !important; font-size: 14px !important; font-weight: 600; letter-spacing: 0;
+}
+.account-panel.account-hub .account-help-group > .account-help-copy { margin: -2px 0 13px 36px; color: var(--body); }
+.account-panel.account-hub .account-help-support { margin-top: 12px; padding: 9px 1px; min-height: 48px; }
+.account-panel.account-hub .account-help-support > svg:first-child { color: var(--sage); }
+.account-panel.account-hub .account-help-support > svg:last-child { color: var(--muted); }
+@media (max-width: 350px) {
+  .account-panel.account-hub .account-ui-status-card { padding: 10px 11px; }
+  .account-panel.account-hub .account-action-group.account-ui-card,
+  .account-panel.account-hub .account-help-list.account-ui-card { padding-inline: 11px; }
+  .account-panel .account-settings-final .android-wrapup-settings.account-ui-card { padding-inline: 11px; }
+}

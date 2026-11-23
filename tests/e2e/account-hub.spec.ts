@@ -203,3 +203,28 @@ test("settings whole-row switch is accessible and preserves its state between sc
   await page.getByRole("button", { name: "앱 설정", exact: true }).click();
   await expect(page.getByRole("switch", { name: "간편 보기" })).toHaveAttribute("aria-checked", current === "true" ? "false" : "true");
 });
+
+test("three account detail views reuse common card design without navigation regression", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 780 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+  await page.getByRole("button", { name: "앱 설정", exact: true }).click();
+  await expect(page.locator(".account-settings-final .account-ui-section-title").first()).toBeVisible();
+  await expect(page.locator(".account-settings-landscape")).toHaveCount(0);
+  await page.getByRole("button", { name: "내 계정으로" }).click();
+  await page.getByRole("button", { name: "데이터 관리", exact: true }).click();
+  const status = page.locator(".account-sync-overview.account-ui-card");
+  await expect(status).toBeVisible();
+  await expect(page.locator(".account-action-group.account-ui-card")).toBeVisible();
+  const statusRadius = await status.evaluate(el => getComputedStyle(el).borderRadius);
+  await page.getByRole("button", { name: "내 계정으로" }).click();
+  await page.getByRole("button", { name: "사용 안내", exact: true }).click();
+  const helpCard = page.locator(".account-help-list.account-ui-card");
+  await expect(helpCard).toBeVisible();
+  const helpRadius = await helpCard.evaluate(el => getComputedStyle(el).borderRadius);
+  expect(helpRadius).toBe(statusRadius);
+  await page.locator(".account-help-group summary").first().click();
+  await expect(page.getByText("같은 별을 다시 누르면 기록을 취소할 수 있어요.")).toBeVisible();
+  expect(await page.locator(".account-screen-body").evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+  await expect(page.getByRole("button", { name: "기록 저장에 문제가 있나요?" })).toBeVisible();
+});

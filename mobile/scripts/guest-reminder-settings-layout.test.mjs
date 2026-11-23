@@ -24,9 +24,9 @@ test("release settings remove developer diagnostics without removing native reco
 
 test("settings order keeps notifications, appearance, and recording distinct",()=>{
  const section=ui.slice(ui.indexOf('{page === "settings" && ('),ui.indexOf('{page === "help" && ('));
- const first=section.indexOf('account-settings-group-title"><BellRing');
- const second=section.indexOf('account-settings-group-title"><MonitorSmartphone');
- const third=section.indexOf('account-settings-group-title"><Clock3');
+ const first=section.indexOf('AccountSectionTitle className="account-settings-group-title">알림');
+ const second=section.indexOf('AccountSectionTitle className="account-settings-group-title">화면');
+ const third=section.indexOf('AccountSectionTitle className="account-settings-group-title">기록');
  assert.ok(first>=0 && second>first && third>second);
  assert.match(section,/>기록 시간대</);
  assert.match(section,/role="switch"/);
@@ -72,4 +72,12 @@ test("v3 settings preserve back and close, responsive controls and safe-area beh
  assert.match(ui,/aria-label=\{name \+ " 마무리 알림 시간"\}/);
  assert.match(ui,/account-timezone-trigger/);
  assert.match(nativeCss,/account-screen/);
+});
+
+test("account screens share design elements and no settings-only landscape",()=>{
+ assert.match(ui,/account-ui-card account-help-list/);
+ assert.match(ui,/account-ui-card account-action-group/);
+ assert.match(ui,/account-ui-card account-setting-block android-wrapup-settings/);
+ assert.doesNotMatch(ui,/account-settings-landscape/);
+ assert.match(css,/Account Design System v1/);
 });
