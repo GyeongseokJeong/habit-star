@@ -3,17 +3,14 @@
 import {
   useCallback,
   useEffect,
-  useId,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
-import { createPortal } from "react-dom";
 import {
   ArrowDownToLine,
-  AlertCircle,
   Check,
   CalendarDays,
   BellRing,
