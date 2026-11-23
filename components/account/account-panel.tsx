@@ -515,7 +515,7 @@ export function AccountPanel({
               </button>
             ) : (
               <div className="account-timezone-static"><span>{zoneName(deviceZone)}</span></div>
-            )>
+            )}
             {app.user && timezonePicker && (
               <div id="account-timezone-picker" className="account-timezone-picker" aria-busy={changingZone}>
                 <button type="button" className="account-device-timezone" disabled={app.busy || changingZone || deviceZone === state?.timezone} onClick={() => void setTimezone(deviceZone)}>
