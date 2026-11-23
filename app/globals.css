@@ -4931,3 +4931,47 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   .account-panel.account-hub .account-help-list.account-ui-card { padding-inline: 11px; }
   .account-panel .account-settings-final .android-wrapup-settings.account-ui-card { padding-inline: 11px; }
 }
+
+
+/* Android Navigation v1.1: guard drafts without altering website/PWA close behavior. */
+.android-unsaved-prompt {
+  position: relative;
+  z-index: 1;
+  margin: 10px 0 16px;
+  padding: 14px;
+  border: 1px solid var(--control-border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.android-unsaved-prompt > strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.android-unsaved-prompt > p {
+  margin: 5px 0 13px;
+  color: var(--body);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.android-unsaved-actions {
+  display: flex;
+  gap: 8px;
+}
+.android-unsaved-actions > button {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 44px;
+  padding: 9px 7px;
+  font-size: 13px;
+}
+.android-unsaved-actions > button:focus-visible {
+  outline: 2px solid var(--selection-bg);
+  outline-offset: 2px;
+}
+@media (max-width: 350px) {
+  .android-unsaved-prompt { padding: 12px; }
+  .android-unsaved-actions { gap: 6px; }
+}
