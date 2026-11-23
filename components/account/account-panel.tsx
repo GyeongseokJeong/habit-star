@@ -14,6 +14,7 @@ import type { Snapshot } from "@/lib/habits/repository";
 import type { NativeReminderControls, WrapupGroup } from "@/lib/habits/native-reminder-controls";
 import { AuthForm, type AuthMode } from "./auth-form";
 import { AccountSectionTitle } from "./account-design";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import type { ThemePreference } from "@/lib/theme-preference";
 
 const wrapupPeriods: { group: WrapupGroup; name: string; range: string; times: string[] }[] = [
@@ -79,6 +80,12 @@ export function AccountPanel({
   const [showImportReceipt, setShowImportReceipt] = useState(false);
   const observedReceipt = useRef(app.snapshot?.state.importReceipt?.verifiedAt ?? null);
   const [backupBusy, setBackupBusy] = useState(false);
+  const [pendingRestore, setPendingRestore] = useState<{
+    content: string;
+    scope: string;
+    habitCount: number;
+    entryCount: number;
+  } | null>(null);
   const activeAction = useRef<string | null>(null);
   const [workingAction, setWorkingAction] = useState<string | null>(null);
   const [preview, setPreview] = useState<Snapshot | null>(null);
@@ -204,7 +211,7 @@ export function AccountPanel({
     }
   };
   const restoreBackup = async (file: File | undefined) => {
-    if (!file || backupBusy || app.busy) return;
+    if (!file || backupBusy || app.busy || pendingRestore) return;
     setMessage("");
     setBackupBusy(true);
     try {
@@ -215,10 +222,12 @@ export function AccountPanel({
       }
       const content = await file.text();
       if (nativeBackup) {
-        const expectedScope = app.user ? "member:" + app.user.id : "guest";
-        const { habitCount, entryCount } = inspectPortableBackup(content, expectedScope);
-        const confirmText = `${app.user ? "현재 회원 계정" : "비회원"} 백업을 복원할까요?\n습관 ${habitCount}개 · 기록 ${entryCount}개\n현재 기기에 기록이 있다면 복원되지 않으며, 원본은 삭제되지 않습니다.`;
-        if (!window.confirm(confirmText)) return;
+        // Validate the complete JSON, account scope, and record counts before
+        // displaying a confirmation. Do not restore during file selection.
+        const scope = app.user ? "member:" + app.user.id : "guest";
+        const { habitCount, entryCount } = inspectPortableBackup(content, scope);
+        setPendingRestore({ content, scope, habitCount, entryCount });
+        return;
       }
       await app.restore(content);
       setMessage("백업을 복원했습니다.");
@@ -227,6 +236,23 @@ export function AccountPanel({
     } finally {
       setBackupBusy(false);
     }
+  };
+  const confirmRestore = async () => {
+    if (!pendingRestore || backupBusy || app.busy || activeAction.current) return;
+    const selected = pendingRestore;
+    const currentScope = app.user ? "member:" + app.user.id : "guest";
+    if (currentScope !== selected.scope) {
+      setPendingRestore(null);
+      setMessage("계정이 변경되어 복원을 중단했습니다. 백업 파일을 다시 선택해주세요.");
+      return;
+    }
+    await runOnce("restore", async () => {
+      // Re-validate immediately before the write; do not trust prior UI state.
+      inspectPortableBackup(selected.content, selected.scope);
+      await app.restore(selected.content);
+      setPendingRestore(null);
+      setMessage("백업을 복원했습니다.");
+    });
   };
 
   const importPreview = preview ? (
@@ -256,6 +282,23 @@ export function AccountPanel({
   }
   return (
     <div className="account-panel account-hub">
+      {pendingRestore && nativeBackup && (
+        <ConfirmDialog
+          title="백업을 복원할까요?"
+          description={<>
+            {pendingRestore.scope === "guest" ? "비회원" : "현재 회원 계정"} 백업 · 습관 {pendingRestore.habitCount}개 · 기록 {pendingRestore.entryCount}개
+            <span className="account-restore-confirm-note">
+              현재 기기에 기록이 있다면 복원되지 않으며, 기존 기록은 삭제되지 않습니다.
+            </span>
+          </>}
+          cancelLabel="취소"
+          confirmLabel="복원하기"
+          confirmTone="neutral"
+          busy={workingAction === "restore" || app.busy}
+          onCancel={() => setPendingRestore(null)}
+          onConfirm={() => { void confirmRestore(); }}
+        />
+      )}
       {page === "home" && (
         <>
           <div className="account-hero">
@@ -354,11 +397,11 @@ export function AccountPanel({
             <label className="field account-backup-field">백업 파일 선택
               <input className="account-backup-input" type="file" accept=".json,application/json" disabled={!app.snapshot || app.busy || backupBusy || workingAction !== null} aria-busy={workingAction === "restore"} onChange={async (e) => {
                 const file = e.target.files?.[0];
-                await runOnce("restore", async () => { await restoreBackup(file); });
+                await restoreBackup(file);
                 e.target.value = "";
               }} />
             </label>
-            {workingAction === "restore" && <p role="status">백업 파일을 확인하고 있어요…</p>}
+            {(backupBusy || workingAction === "restore") && <p role="status">백업 파일을 확인하고 있어요…</p>}
           </details>
           </div>
           {!!state?.migration?.issues.length && (

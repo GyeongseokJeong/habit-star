@@ -4933,9 +4933,9 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 }
 
 
-/* Android Navigation v1.2: real top-layer discard confirmation.
+/* Starlit Warmth ConfirmDialog v1: common top-layer confirmation.
    Independent of the original editor flow and responsive in both themes. */
-.android-unsaved-dialog {
+.byeolharu-confirm-dialog {
   color-scheme: inherit;
   width: min(340px, calc(100% - 40px));
   max-width: 340px;
@@ -4950,22 +4950,22 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   overflow: auto;
   overscroll-behavior: contain;
 }
-.android-unsaved-dialog::backdrop {
+.byeolharu-confirm-dialog::backdrop {
   background: rgb(9 14 25 / 68%);
   backdrop-filter: blur(3px);
 }
-.android-unsaved-dialog-content { padding: 22px 20px 14px; }
-.android-unsaved-dialog-heading {
+.byeolharu-confirm-dialog-content { padding: 22px 20px 14px; }
+.byeolharu-confirm-dialog-heading {
   display: flex;
   align-items: flex-start;
   gap: 10px;
 }
-.android-unsaved-dialog-heading svg {
+.byeolharu-confirm-dialog-heading svg {
   flex: none;
   margin-top: 2px;
   color: var(--gold);
 }
-.android-unsaved-dialog-heading h2 {
+.byeolharu-confirm-dialog-heading h2 {
   margin: 0;
   color: var(--ink);
   font-size: 17px;
@@ -4973,18 +4973,18 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   letter-spacing: -.3px;
   font-weight: 700;
 }
-.android-unsaved-dialog-content > p {
+.byeolharu-confirm-dialog-content > p {
   margin: 10px 0 20px;
   color: var(--body);
   font-size: 13px;
   line-height: 1.6;
 }
-.android-unsaved-dialog-actions {
+.byeolharu-confirm-dialog-actions {
   display: grid;
   grid-template-columns: minmax(0,1fr);
   gap: 4px;
 }
-.android-unsaved-dialog-actions > button {
+.byeolharu-confirm-dialog-actions > button {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4995,24 +4995,34 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   font-size: 14px;
   font-weight: 600;
 }
-.android-unsaved-dialog-actions > .primary {
+.byeolharu-confirm-dialog-actions > .primary {
   color: var(--selection-fg);
   background: var(--selection-bg);
   border: 1px solid var(--selection-bg);
 }
-.android-unsaved-dialog-actions .android-unsaved-discard {
+.byeolharu-confirm-dialog-actions .byeolharu-confirm-action {
   border: 0;
   background: transparent;
   color: var(--danger);
 }
-.android-unsaved-dialog-actions > button:focus-visible {
+.byeolharu-confirm-dialog-actions > button:focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: 2px;
 }
 @media (max-width: 350px) {
-  .android-unsaved-dialog { width: calc(100% - 32px); }
-  .android-unsaved-dialog-content { padding: 18px 16px 12px; }
+  .byeolharu-confirm-dialog { width: calc(100% - 32px); }
+  .byeolharu-confirm-dialog-content { padding: 18px 16px 12px; }
 }
 @media (prefers-reduced-motion: no-preference) {
-  .android-unsaved-dialog[open] { animation: modal-in .16s ease-out; }
+  .byeolharu-confirm-dialog[open] { animation: modal-in .16s ease-out; }
+}
+
+.byeolharu-confirm-dialog-actions .byeolharu-confirm-action.is-neutral {
+  color: var(--ink);
+}
+.account-restore-confirm-note {
+  display: block;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
 }

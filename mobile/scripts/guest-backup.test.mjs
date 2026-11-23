@@ -24,9 +24,12 @@ test("Android guest backup exports through user-selected FileProvider destinatio
   assert.match(app,/nativeBackup=\{Boolean\(nativeBackupExport\)\}/);
   assert.match(account,/실제로 저장되었는지 확인해주세요/);
   assert.match(account,/25MB 이하의 별하루 JSON 백업 파일/);
-  assert.match(account,/inspectPortableBackup\(content, expectedScope\)/);
+  assert.match(account,/inspectPortableBackup\(content, scope\)/);
   assert.match(account,/app\.user \? "member:" \+ app\.user\.id : "guest"/);
-  assert.match(account,/window\.confirm\(confirmText\)/);
+  assert.match(account,/title="백업을 복원할까요\?"/);
+  assert.match(account,/inspectPortableBackup\(selected\.content, selected\.scope\)/);
+  assert.match(account,/currentScope !== selected\.scope/);
+  assert.doesNotMatch(account,/window\.confirm\(/);
   // Existing local repository remains the final authority for detailed
   // entity checks and refuses overwriting a nonempty data store.
   const repository = read("lib/habits/repository.ts");

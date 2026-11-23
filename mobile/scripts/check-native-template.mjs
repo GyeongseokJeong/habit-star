@@ -72,13 +72,13 @@ assert.ok(backScript.indexOf("dialog[open]") < backScript.indexOf(".byeolharu.re
   "A modal over the reflection must close before navigating to the calendar");
 const themeScript = javaStringConstant("READ_THEME_JS");
 
-function runBack({ dialog = null, discard = null, reflection = null, selected = null, interacted = false } = {}) {
+function runBack({ dialog = null, confirmDialog = null, reflection = null, selected = null, interacted = false } = {}) {
   const clicks = [];
   const all = { click: () => clicks.push("all") };
   const guard = { __byeolharuBackInteraction: interacted };
   const document = {
     querySelector: selector => {
-      if (selector === ".android-unsaved-dialog[open]") return discard;
+      if (selector === ".byeolharu-confirm-dialog[open]") return confirmDialog;
       if (selector === "dialog[open]") return dialog;
       if (selector === ".byeolharu.reflection-layout") return reflection;
       if (selector === "[role=tab][aria-selected=true]") return selected;
@@ -115,17 +115,17 @@ const modal = {
   },
 };
 const keepClicks = [];
-const discardPrompt = {
-  querySelector: selector => selector === "[data-unsaved-continue]"
+const confirmPrompt = {
+  querySelector: selector => selector === "[data-confirm-cancel]"
     ? { click: () => keepClicks.push("continue") } : null,
 };
-assert.equal(runBack({ discard: discardPrompt, dialog: modal, reflection: fromReflection }).result, "handled");
+assert.equal(runBack({ confirmDialog: confirmPrompt, dialog: modal, reflection: fromReflection }).result, "handled");
 assert.deepEqual(keepClicks, ["continue"], "Native Back must dismiss only the top-layer confirmation");
 assert.deepEqual(dialogClicks, [], "Underlying editor must not close while its confirmation is open");
-assert.equal(runBack({ discard: { querySelector: () => null }, dialog: modal }).result, "handled",
+assert.equal(runBack({ confirmDialog: { querySelector: () => null }, dialog: modal }).result, "handled",
   "Do not fall through to editor/exit if confirmation controls are briefly missing");
-assert.ok(backScript.indexOf(".android-unsaved-dialog[open]") < backScript.indexOf("dialog[open]"),
-  "Nested confirmation always takes priority over the editor");
+assert.ok(backScript.indexOf(".byeolharu-confirm-dialog[open]") < backScript.indexOf("dialog[open]"),
+  "Shared confirmation always takes priority over the underlying page");
 assert.equal(runBack({ dialog: modal, reflection: fromReflection }).result, "handled");
 assert.deepEqual(dialogClicks, ["back"], "Account detail must return to its parent first");
 assert.equal(fromReflection.clicks, 1, "Dialog takes priority over reflection");

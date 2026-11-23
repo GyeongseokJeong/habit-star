@@ -482,3 +482,39 @@ test("the scheduled time stays aligned with the selected routine period", async 
   await expect(time).toHaveCSS("outline-offset","-2px");
   await expect(time).toHaveCSS("min-height","48px");
 });
+
+
+test("habit deletion uses a separate confirmation that preserves the editor on cancel", async ({ page }) => {
+  await page.clock.install({ time: new Date("2026-11-19T12:00:00Z") });
+  await page.setViewportSize({ width: 390, height: 740 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "새 습관 추가", exact: true }).click();
+  const editor = page.getByRole("dialog", { name: "나를 위한 새로운 습관" });
+  await editor.getByPlaceholder("예: 하루 10분 책 읽기").fill("삭제 테스트 습관");
+  await editor.getByRole("button", { name: "새 습관 추가하기" }).click();
+  await page.getByRole("button", { name: "삭제 테스트 습관 수정" }).click();
+
+  const edit = page.getByRole("dialog", { name: "습관 수정하기" });
+  const originalName = edit.getByPlaceholder("예: 하루 10분 책 읽기");
+  await expect(originalName).toHaveValue("삭제 테스트 습관");
+  await edit.getByRole("button", { name: "이 습관 삭제하기" }).click();
+
+  const confirmation = page.getByRole("dialog", { name: "이 습관을 삭제할까요?" });
+  await expect(confirmation).toBeVisible();
+  await expect(edit).toBeVisible();
+  const before = await edit.evaluate(element => {
+    const field = element.querySelector<HTMLInputElement>('input[placeholder="예: 하루 10분 책 읽기"]');
+    return { top: element.getBoundingClientRect().top, name: field?.value };
+  });
+  await confirmation.getByRole("button", { name: "습관 유지하기" }).click();
+  await expect(confirmation).not.toBeVisible();
+  await expect(originalName).toHaveValue(before.name ?? "");
+  await edit.getByRole("button", { name: "이 습관 삭제하기" }).click();
+  await page.keyboard.press("Escape");
+  await expect(confirmation).not.toBeVisible();
+  await expect(edit).toBeVisible();
+  await edit.getByRole("button", { name: "이 습관 삭제하기" }).click();
+  await confirmation.getByRole("button", { name: "습관 삭제하기" }).click();
+  await expect(edit).not.toBeVisible();
+  await expect(page.getByRole("button", { name: "삭제 테스트 습관 수정" })).toHaveCount(0);
+});

@@ -57,23 +57,40 @@ test("STEP 11 preserves scheduled jobs until the guest repository finishes loadi
 });
 
 
-test("Android draft exit guard intercepts native Back and X but leaves web/PWA unaffected", () => {
+test("shared confirmation protects unsaved drafts, habit deletion and Android restore", () => {
   const ui = read("components/byeolharu.tsx");
+  const panel = read("components/account/account-panel.tsx");
+  const confirm = read("components/confirm-dialog.tsx");
+  const css = read("app/globals.css");
+  const native = read("mobile/native/MainActivity.java.template");
   const comparison = read("lib/habits/unsaved-draft.ts");
+
   assert.match(ui, /onClose=\{requestClose\}/);
   assert.match(ui, /guardUnsaved=\{Boolean\(nativeReminders\)\}/);
   assert.match(ui, /hasUnsavedHabitSettings\(initialDraft\.current, draft\)/);
   assert.match(ui, /hasUnsavedDailyRecord\(initialDraft\.current, draft\)/);
-  assert.match(ui, /<UnsavedChangesPrompt onContinue=\{\(\) => setDiscardPrompt\(false\)\} onDiscard=\{onClose\}/);
-  assert.match(ui, /변경사항 버리기/);
+  assert.match(ui, /title="이 습관을 삭제할까요\?"/);
+  assert.match(ui, /cancelLabel="습관 유지하기"/);
+  assert.match(ui, /confirmLabel="습관 삭제하기"/);
+  assert.doesNotMatch(ui, /className="delete-confirmation"/);
   assert.match(comparison, /initial\.scheduledTime/);
   assert.match(comparison, /initial\.memo/);
-  assert.match(ui, /createPortal\(/);
-  assert.match(ui, /className="android-unsaved-dialog"/);
-  assert.match(ui, /dialog\?\.showModal\(\)/);
-  assert.match(ui, /onCancel=\{\(event\) => \{ event\.preventDefault\(\); onContinue\(\); \}\}/);
-  assert.match(ui, /data-unsaved-continue/);
-  assert.match(read("app/globals.css"), /\.android-unsaved-dialog::backdrop/);
-  assert.match(read("app/globals.css"), /\.android-unsaved-dialog-actions > button/);
-  assert.doesNotMatch(read("app/globals.css"), /\.android-unsaved-prompt \{/);
+
+  assert.match(panel, /title="백업을 복원할까요\?"/);
+  assert.match(panel, /inspectPortableBackup\(content, scope\)/);
+  assert.match(panel, /inspectPortableBackup\(selected\.content, selected\.scope\)/);
+  assert.match(panel, /await app\.restore\(selected\.content\)/);
+  assert.match(panel, /currentScope !== selected\.scope/);
+  assert.doesNotMatch(panel, /window\.confirm\(/);
+
+  assert.match(confirm, /createPortal\(/);
+  assert.match(confirm, /dialog\?\.showModal\(\)/);
+  assert.match(confirm, /onCancel=\{\(event\) => \{/);
+  assert.match(confirm, /data-confirm-cancel/);
+  assert.match(confirm, /disabled=\{busy\}/);
+  assert.match(css, /\.byeolharu-confirm-dialog::backdrop/);
+  assert.match(css, /\.byeolharu-confirm-dialog-actions > button/);
+  assert.match(native, /byeolharu-confirm-dialog\[open\]/);
+  assert.match(native, /data-confirm-cancel/);
+  assert.doesNotMatch(css, /\.android-unsaved-dialog\s*\{/);
 });
