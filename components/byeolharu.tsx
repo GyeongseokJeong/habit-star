@@ -450,9 +450,9 @@ function HabitEditor({
       {confirmDelete && onDelete && (
         <ConfirmDialog
           title="이 습관을 삭제할까요?"
-          description="삭제하면 습관 목록에서 사라져요. 과거 실천 기록은 그대로 남아요."
-          cancelLabel="습관 유지하기"
-          confirmLabel="습관 삭제하기"
+          description={<><span className="confirm-description-line">목록에서는 사라지지만,</span><span className="confirm-description-line">지난 실천 기록은 그대로 남아요.</span></>}
+          cancelLabel="유지하기"
+          confirmLabel="삭제하기"
           onCancel={() => setConfirmDelete(false)}
           onConfirm={onDelete}
         />
@@ -1920,25 +1920,6 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
             </p>
           </div>
         </div>
-        {ready && nativeReminders?.showPermissionOffer && (
-          <section className="android-permission-invite" aria-label="습관 알림 안내">
-            <div className="android-permission-invite-symbol" aria-hidden="true"><BellRing size={21} /></div>
-            <div className="android-permission-invite-copy">
-              <h2>작은 실천을 잊지 않도록</h2>
-              <p>원하는 시간에 습관 알림을 받아보세요.</p>
-            </div>
-            <div className="android-permission-invite-actions">
-              <button type="button" className="android-permission-invite-primary"
-                disabled={nativeReminders.busy} onClick={() => {
-                  void nativeReminders.onRequestPermission().then((granted) => {
-                    if (!granted) showToast("알림은 앱 설정에서 언제든 허용할 수 있어요.");
-                  });
-                }}>알림 허용하기</button>
-              <button type="button" className="android-permission-invite-later"
-                disabled={nativeReminders.busy} onClick={nativeReminders.onDismissPermissionOffer}>나중에</button>
-            </div>
-          </section>
-        )}
         <StarlitHero
           points={ready ? growthPoints : undefined}
           onViewConstellation={ready ? () => setConstellationOpen(true) : undefined}
@@ -2004,6 +1985,25 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
                 <Plus size={17} />새 습관 추가
               </button>
             </div>
+            {ready && nativeReminders?.showPermissionOffer && (
+              <section className="android-permission-invite" aria-label="습관 알림 안내">
+                <div className="android-permission-invite-symbol" aria-hidden="true"><BellRing size={19} /></div>
+                <div className="android-permission-invite-copy">
+                  <h2>습관 알림을 받아보세요</h2>
+                  <p>설정한 시간에 실천을 알려드려요.</p>
+                </div>
+                <div className="android-permission-invite-actions">
+                  <button type="button" className="android-permission-invite-later"
+                    disabled={nativeReminders.busy} onClick={nativeReminders.onDismissPermissionOffer}>나중에</button>
+                  <button type="button" className="android-permission-invite-primary"
+                    disabled={nativeReminders.busy} onClick={() => {
+                      void nativeReminders.onRequestPermission().then((granted) => {
+                        if (!granted) showToast("알림은 앱 설정에서 언제든 허용할 수 있어요.");
+                      });
+                    }}>알림 허용</button>
+                </div>
+              </section>
+            )}
             {sampleHabits.length > 0 && (
               <div className="sample-cleanup-strip">
                 <span>예시 습관 {sampleHabits.length}개</span>
