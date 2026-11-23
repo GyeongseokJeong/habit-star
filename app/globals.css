@@ -3700,6 +3700,15 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
     padding: 10px 12px;
   }
 }
+@media (min-width: 361px) and (max-width: 371px) {
+  /* Seven 44px weekday targets need 320px with 2px gaps. Give the row
+     its own side breathing room without resizing any touch target. */
+  .habit-editor-form .repeat-weekdays {
+    margin-left: -8px;
+    margin-right: -8px;
+    gap: 2px;
+  }
+}
 @media (max-width: 360px) {
   /* The 320px bottom sheet has 16px side padding. Use that space to fit
      seven 44px circles without wrapping or horizontal scrolling. */

@@ -9,7 +9,7 @@ const templates = [
   { title: "하루 기록하기", icon: "✍️", group: "밤" },
 ];
 
-for (const width of [320, 390, 430]) {
+for (const width of [320, 361, 390, 430]) {
   test(`templates stay editable and compact at ${width}px`, async ({
     page,
   }) => {

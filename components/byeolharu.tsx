@@ -515,6 +515,7 @@ function HabitEditor({
       {!habit && <p className="modal-description">작은 실천부터, 나만의 속도로 시작해요.</p>}
       <form
         className={habit ? "habit-editor-form" : "habit-editor-form habit-editor-creation-b2"}
+        aria-busy={alarmChecking}
         onSubmit={(event) => {
           event.preventDefault();
           if (!draft.title.trim() || alarmChecking) return;
@@ -764,14 +765,14 @@ function HabitEditor({
           )}
         </section>
         {onDelete && (
-          <button type="button" className="delete-button" onClick={() => setConfirmDelete(true)}>
+          <button type="button" className="delete-button" disabled={alarmChecking} onClick={() => setConfirmDelete(true)}>
             <Trash2 size={16} /> 이 습관 삭제하기
           </button>
         )}
         <div className="habit-editor-footer">
           <button type="submit" className="primary full" disabled={alarmChecking}>
             <Check size={18} />
-            {alarmChecking ? "알림 권한 확인 중…" : habit ? "수정 완료" : "새 습관 추가하기"}
+            {alarmChecking ? "저장 중…" : habit ? "수정 완료" : "새 습관 추가하기"}
           </button>
           {habit && <button type="button" className="text-button full" onClick={requestClose}>취소</button>}
         </div>
