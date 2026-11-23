@@ -17,11 +17,11 @@ for (const method of ["onResume", "onPause", "onDestroy"]) {
 assert.match(java, /getOnBackPressedDispatcher\(\)/);
 assert.match(java, /view\.canGoBack\(\)/);
 assert.match(java, /view\.goBack\(\)/);
-assert.match(java, /moveTaskToBack\\(true\\)/);
+assert.ok(java.includes("moveTaskToBack(true)"));
 assert.match(java, /BACK_EXIT_WINDOW_MS = 2000L/);
-assert.match(java, /SystemClock\\.uptimeMillis\\(\\)/);
+assert.ok(java.includes("SystemClock.uptimeMillis()"));
 assert.match(java, /lastRootBackAt = 0L/);
-assert.match(java, /Toast\\.makeText\\(this, "한 번 더 누르면 앱을 종료해요"/);
+assert.ok(java.includes('Toast.makeText(this, "한 번 더 누르면 앱을 종료해요"'));
 assert.match(java, /handler\.removeCallbacks\(themeSync\)/);
 assert.match(java, /setAppearanceLightStatusBars\(light\)/);
 assert.match(java, /setAppearanceLightNavigationBars\(light\)/);
@@ -125,9 +125,9 @@ assert.ok(backScript.indexOf("dialog[open]") < backScript.indexOf(".byeolharu.re
 assert.ok(backScript.indexOf(".byeolharu.reflection-layout") < backScript.indexOf("[role=tab][aria-selected=true]"));
 assert.ok(java.indexOf("if (view.canGoBack())") < java.indexOf("handleRootBack();", java.indexOf("if (view.canGoBack())")),
   "WebView history must be resolved before the root double-back guard");
-assert.match(java, /"\\\"handled\\\"".equals\\(result\\)/);
-assert.match(java, /void handleRootBack\\(\\)/);
-assert.match(java, /lastRootBackAt = 0L;\\s*foreground = false;/);
+assert.ok(java.includes(String.raw`if ("\"handled\"".equals(result))`));
+assert.ok(java.includes("void handleRootBack()"));
+assert.ok(/lastRootBackAt = 0L;\s*foreground = false;/.test(java));
 
 function runTheme(value) {
   return runInNewContext(themeScript, {
