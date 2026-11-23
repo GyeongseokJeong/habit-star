@@ -4459,6 +4459,31 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   .account-panel .account-help-chevron { transition: none; }
 }
 
+/* Habit editor v3: consistent field hierarchy across creation and editing.
+   Preserve all control sizes, token colors and the compact creation rhythm. */
+.habit-editor-form .habit-editor-name,
+.habit-editor-form .habit-editor-time-field,
+.habit-editor-form .habit-editor-time-group legend,
+.habit-editor-form .habit-editor-repeat legend {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+.habit-editor-form .habit-editor-time-field > span {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.habit-editor-form .habit-editor-time-field small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+.habit-editor-form .habit-editor-name input,
+.habit-editor-form .habit-editor-time-field input {
+  font-weight: 400;
+}
+
 /* B2 · compact habit creation. Editing retains the approved balanced layout. */
 .modal:has(.habit-editor-creation-b2) .modal-description {
   margin: 3px 0 11px;
