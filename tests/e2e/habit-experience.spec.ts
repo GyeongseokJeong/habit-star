@@ -112,7 +112,7 @@ test("templates are keyboard accessible in dark mode", async ({ page }) => {
   const dark = page.getByRole("button", { name: "다크 모드로 전환" });
   await expect(dark).toBeEnabled();
   await dark.click();
-  await expect(page.locator(".byeolharu")).toHaveClass(/\\bdark\\b/);
+  await expect(page.locator(".byeolharu")).toHaveClass(/\bdark\b/);
   await expect(page.locator("html")).toHaveAttribute("data-byeolharu-theme", "dark");
   await page.getByRole("button", { name: "새 습관 추가" }).click();
   const template = page.getByRole("button", { name: "독서 20분 템플릿" });
