@@ -13,6 +13,7 @@ import {
   ArrowDownToLine,
   Check,
   CalendarDays,
+  BellRing,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -1874,6 +1875,25 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
             </p>
           </div>
         </div>
+        {ready && nativeReminders?.showPermissionOffer && (
+          <section className="android-permission-invite" aria-label="습관 알림 안내">
+            <div className="android-permission-invite-symbol" aria-hidden="true"><BellRing size={21} /></div>
+            <div className="android-permission-invite-copy">
+              <h2>작은 실천을 잊지 않도록</h2>
+              <p>원하는 시간에 습관 알림을 받아보세요.</p>
+            </div>
+            <div className="android-permission-invite-actions">
+              <button type="button" className="android-permission-invite-primary"
+                disabled={nativeReminders.busy} onClick={() => {
+                  void nativeReminders.onRequestPermission().then((granted) => {
+                    if (!granted) showToast("알림은 앱 설정에서 언제든 허용할 수 있어요.");
+                  });
+                }}>알림 허용하기</button>
+              <button type="button" className="android-permission-invite-later"
+                disabled={nativeReminders.busy} onClick={nativeReminders.onDismissPermissionOffer}>나중에</button>
+            </div>
+          </section>
+        )}
         <StarlitHero
           points={ready ? growthPoints : undefined}
           onViewConstellation={ready ? () => setConstellationOpen(true) : undefined}
