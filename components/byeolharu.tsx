@@ -441,7 +441,7 @@ function HabitEditor({
 
   const scheduledTimeField = (
     <label className="field habit-editor-time-field">
-      <span>예정 시간 {!habit && <small aria-hidden="true">(선택)</small>}</span>
+      <span>예정 시간 <small aria-hidden="true">(선택)</small></span>
       <input
         type="time"
         value={draft.scheduledTime || ""}
