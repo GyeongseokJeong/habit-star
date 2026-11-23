@@ -2299,24 +2299,18 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
         )}
       </main>
       {sampleCleanupOpen && (
-        <Modal
-          title="예시 습관 정리"
-          onClose={() => { if (!sampleCleanupBusy) setSampleCleanupOpen(false); }}
-          fallbackFocusId="tab-all"
-        >
-          <p className="modal-description">예시 습관 {sampleHabits.length}개를 한 번에 정리할까요?</p>
-          <p className="sample-cleanup-description">
-            직접 만든 습관은 그대로 남아요. 예시에 직접 남겼던 과거 기록도 보존됩니다.
-          </p>
-          <div className="sample-cleanup-actions">
-            <button type="button" className="delete-button" disabled={sampleCleanupBusy}
-              onClick={() => { void handleClearSampleHabits(); }}>
-              {sampleCleanupBusy ? "정리 중…" : "예시만 정리하기"}
-            </button>
-            <button type="button" className="secondary" disabled={sampleCleanupBusy}
-              onClick={() => setSampleCleanupOpen(false)}>취소</button>
-          </div>
-        </Modal>
+        <ConfirmDialog
+          title={`예시 습관 ${sampleHabits.length}개를 정리할까요?`}
+          description={<>
+            <span className="confirm-description-line">직접 만든 습관은 그대로 남아요.</span>
+            <span className="confirm-description-line">지난 실천 기록도 보존돼요.</span>
+          </>}
+          cancelLabel="유지하기"
+          confirmLabel="예시만 정리"
+          busy={sampleCleanupBusy}
+          onCancel={() => setSampleCleanupOpen(false)}
+          onConfirm={() => { void handleClearSampleHabits(); }}
+        />
       )}
       {editing && (
         <HabitEditor
