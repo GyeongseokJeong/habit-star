@@ -48,7 +48,7 @@ test("invalid inputs fail closed",()=>{
   assert.throws(()=>summarizeGuestPending(null,now));
   assert.throws(()=>summarizeGuestPending([],new Date(NaN)));
 });
-test("guest app exposes diagnostics without modifying the public website",()=>{
+test("Android diagnostics engine remains native-only without developer buttons in public settings",()=>{
   const root=resolve(import.meta.dirname,"../..");
   const entry=readFileSync(resolve(root,"mobile/packaged-guest/main.tsx"),"utf8");
   const account=readFileSync(resolve(root,"components/account/account-panel.tsx"),"utf8");
@@ -56,8 +56,9 @@ test("guest app exposes diagnostics without modifying the public website",()=>{
   assert.match(entry,/summarizeGuestPending\(pending.notifications, new Date\(\), scope\)/);
   assert.match(entry,/LocalNotifications\.checkPermissions\(\)/);
   assert.match(entry,/LocalNotifications\.getPending\(\)/);
-  assert.ok(account.includes('runOnce("inspect-reminders", nativeReminders.onInspectPending)'));
-  assert.match(account,/aria-busy={workingAction === "inspect-reminders"}/);
-  assert.ok(account.includes('disabled={app.busy || nativeReminders.busy || workingAction !== null}'));
+  assert.match(entry,/const onInspectPending = useCallback/);
+  assert.match(entry,/onInspectPending, onAuditPending, onRepairPending/);
+  assert.doesNotMatch(account,/onInspectPending|inspect-reminders|알림 문제 해결/);
+  assert.match(account,/nativeReminders\.onRequestPermission\(\)/);
   assert.doesNotMatch(website,/LocalNotifications|onInspectPending|Capacitor/);
 });
