@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownToLine, ChevronRight, CheckCircle2, CloudOff,
   Database, Download, RefreshCw, Settings2, ShieldCheck, Sparkles, UserRound, CircleHelp,
-  AlertCircle, Clock3, Laptop, Moon, Sun, MonitorSmartphone, LoaderCircle, Star, Cloud, LogOut, BellRing,
+  AlertCircle, Clock3, Laptop, Moon, Sun, Sunrise, MonitorSmartphone, LoaderCircle, Star, Cloud, LogOut, BellRing,
 } from "lucide-react";
 import { cloudEnabled } from "@/lib/supabase/client";
 import { APP_BUILD_INFO } from "@/lib/build-info";
@@ -400,21 +400,26 @@ export function AccountPanel({
           {message && (
             <p className="account-settings-message" role={/실패|오류|못했|확인해 주세요/.test(message) ? "alert" : "status"}>{message}</p>
           )}
-          {nativeReminders && <h3 className="account-settings-group-title">알림</h3>}
+          {nativeReminders && <h3 className="account-settings-group-title"><BellRing size={18} aria-hidden="true" />알림</h3>}
           {nativeReminders && (
-            <div className="account-setting-block android-permission-summary" aria-label="기기 알림 권한">
-              <div className="account-setting-heading"><span>기기 알림</span></div>
-              <div className="android-permission-state-row">
-                <span className="android-permission-state">
-                  {nativeReminders.permissionState === "granted"
-                    ? <><CheckCircle2 size={17} aria-hidden="true" /> 기기 알림 허용됨</>
-                    : nativeReminders.permissionState === "denied"
-                      ? <><AlertCircle size={17} aria-hidden="true" /> 기기 알림 차단됨</>
-                      : nativeReminders.permissionState === "prompt"
-                        ? <><BellRing size={17} aria-hidden="true" /> 아직 허용하지 않았어요</>
-                        : "알림 권한 확인 중…"}
+            <div className="account-setting-block android-permission-summary" role="group" aria-label="기기 알림 권한">
+              <div className="android-permission-compact">
+                <BellRing size={19} aria-hidden="true" className="android-permission-icon" />
+                <span className="android-permission-text">
+                  <strong>기기 알림</strong>
+                  <small>{nativeReminders.permissionState === "denied"
+                    ? "권한이 차단되어 알림이 오지 않아요."
+                    : nativeReminders.permissionState === "prompt"
+                      ? "허용하면 선택한 습관 알림을 받을 수 있어요."
+                      : "습관 알림을 받아요."}</small>
                 </span>
-                {nativeReminders.permissionState !== "granted" && nativeReminders.permissionState !== "unknown" && (
+                {nativeReminders.permissionState === "granted" ? (
+                  <span className="android-permission-granted" role="status">
+                    <CheckCircle2 size={16} aria-hidden="true" /> 허용됨
+                  </span>
+                ) : nativeReminders.permissionState === "unknown" ? (
+                  <span className="android-permission-unknown" role="status">확인 중…</span>
+                ) : (
                   <button type="button" className="secondary android-permission-action"
                     disabled={nativeReminders.busy || workingAction !== null || app.busy}
                     aria-busy={workingAction === "device-permission"}
@@ -425,9 +430,6 @@ export function AccountPanel({
                   </button>
                 )}
               </div>
-              {nativeReminders.permissionState === "denied" && (
-                <p className="android-permission-help" role="status">기기에서 알림이 차단되어 설정한 습관 알림을 받을 수 없어요.</p>
-              )}
               {!!nativeReminders.status && /실패|못했|확인해 주세요|허용해 주세요|차단/.test(nativeReminders.status) && (
                 <p className="android-permission-help" role="status">{nativeReminders.status}</p>
               )}
@@ -437,15 +439,28 @@ export function AccountPanel({
             <div className="account-setting-block android-wrapup-settings" aria-label="시간대 마무리 알림">
               <div className="account-setting-heading">
                 <span>마무리 알림</span>
-                <small>개별 알림이 켜진 미완료 습관만 알려드려요.</small>
+                <small>완료하지 않은 습관이 있을 때만 알려드려요.</small>
               </div>
               {wrapupPeriods.map(({ group, name, times }) => {
                 const choice = nativeReminders.wrapupSettings[group];
                 const working = nativeReminders.busy || workingAction !== null || app.busy;
+                const PeriodIcon = group === "morning" ? Sunrise : group === "day" ? Sun : Moon;
                 return (
                   <div className="android-wrapup-period" key={group}>
-                    <div className="compact-setting-row">
-                      <span className="android-wrapup-label"><strong>{name}</strong><small>{choice.enabled ? "켜짐" : "꺼짐"}</small></span>
+                    <div className="android-wrapup-inline-row">
+                      <span className="android-wrapup-label"><PeriodIcon size={19} aria-hidden="true" /><strong>{name}</strong></span>
+                      <label className="android-wrapup-time" htmlFor={"wrapup-time-" + group}>
+                        <span className="sr-only">{name} 마무리 알림 시간</span>
+                        <select id={"wrapup-time-" + group} value={choice.time} disabled={!choice.enabled || working}
+                          aria-label={name + " 마무리 알림 시간"}
+                          onChange={(event) => void runOnce("wrapup-time-" + group, async () => {
+                            if (!await nativeReminders.onWrapupChange(group, { time: event.target.value })) {
+                              throw Error("알림 시간을 변경하지 못했어요.");
+                            }
+                          })}>
+                          {times.map(time => <option key={time} value={time}>{time}</option>)}
+                        </select>
+                      </label>
                       <button type="button" role="switch" className="compact-setting-toggle android-wrapup-toggle"
                         aria-label={name + " 마무리 알림"} aria-checked={choice.enabled}
                         disabled={working} aria-busy={workingAction === "wrapup-" + group}
@@ -457,30 +472,14 @@ export function AccountPanel({
                         <span className="compact-switch-track" aria-hidden="true"><span className="compact-switch-thumb" /></span>
                       </button>
                     </div>
-                    {choice.enabled && (
-                      <label className="android-wrapup-time" htmlFor={"wrapup-time-" + group}>
-                        알림 시각
-                        <select id={"wrapup-time-" + group} value={choice.time} disabled={working}
-                          onChange={(event) => void runOnce("wrapup-time-" + group, async () => {
-                            if (!await nativeReminders.onWrapupChange(group, { time: event.target.value })) {
-                              throw Error("알림 시간을 변경하지 못했어요.");
-                            }
-                          })}>
-                          {times.map(time => <option key={time} value={time}>{time}</option>)}
-                        </select>
-                      </label>
-                    )}
                   </div>
                 );
               })}
-              <p className="android-wrapup-note">
-                개별 습관 알림은 습관 수정 화면에서 설정할 수 있어요.
-              </p>
               {(nativeReminders.busy || workingAction?.startsWith("wrapup")) && <p className="account-note" role="status">알림 설정을 확인하고 있어요…</p>}
             </div>
           )}
 
-          <h3 className="account-settings-group-title">화면</h3>
+          <h3 className="account-settings-group-title"><MonitorSmartphone size={18} aria-hidden="true" />화면</h3>
           <div className="account-setting-block">
             <div className="account-setting-heading"><span>화면 테마</span></div>
             <div className="account-theme-options" role="group" aria-label="화면 테마">
@@ -488,7 +487,7 @@ export function AccountPanel({
               <button type="button" aria-pressed={theme === "light"} onClick={() => onThemeChange("light")}><Sun size={19} aria-hidden="true"/><span>라이트</span></button>
               <button type="button" aria-pressed={theme === "dark"} onClick={() => onThemeChange("dark")}><Moon size={19} aria-hidden="true"/><span>다크</span></button>
             </div>
-            <p className="account-theme-note">{theme === "system" ? "기기의 화면 설정에 맞춰 자동으로 바뀌어요." : "선택한 테마가 기기 설정과 관계없이 유지돼요."}</p>
+
           </div>
           <div className="account-setting-block">
             <button
@@ -504,12 +503,19 @@ export function AccountPanel({
             </button>
           </div>
 
-          <h3 className="account-settings-group-title">기록</h3>
+          <h3 className="account-settings-group-title"><Clock3 size={18} aria-hidden="true" />기록</h3>
           <div className="account-setting-block">
             <div className="account-setting-heading"><span>기록 시간대</span><small>{app.user ? "습관 기록의 날짜 기준" : "기기의 시간대를 사용해요"}</small></div>
-            <div className="account-timezone-row"><Clock3 size={19}/><span><strong>{zoneName(state?.timezone ?? deviceZone)}</strong></span>
-              {app.user && <button type="button" className="secondary" aria-expanded={timezonePicker} aria-controls="account-timezone-picker" disabled={changingZone || app.busy} onClick={() => setTimezonePicker(!timezonePicker)}>{changingZone ? "변경 중…" : "변경"}</button>}
-            </div>
+            {app.user ? (
+              <button type="button" className="account-timezone-trigger"
+                aria-expanded={timezonePicker} aria-controls="account-timezone-picker"
+                disabled={changingZone || app.busy} onClick={() => setTimezonePicker(!timezonePicker)}>
+                <span>{zoneName(state?.timezone ?? deviceZone)}</span>
+                <ChevronRight size={18} aria-hidden="true" className={timezonePicker ? "is-expanded" : ""} />
+              </button>
+            ) : (
+              <div className="account-timezone-static"><span>{zoneName(deviceZone)}</span></div>
+            )>
             {app.user && timezonePicker && (
               <div id="account-timezone-picker" className="account-timezone-picker" aria-busy={changingZone}>
                 <button type="button" className="account-device-timezone" disabled={app.busy || changingZone || deviceZone === state?.timezone} onClick={() => void setTimezone(deviceZone)}>
@@ -537,6 +543,15 @@ export function AccountPanel({
             <summary>앱 정보 <ChevronRight size={16} aria-hidden="true"/></summary>
             <p className="account-note" data-testid="build-info" aria-label="앱 빌드 정보">{nativeReminders ? "Android" : "Web"} · v{APP_BUILD_INFO.version} · 빌드 {APP_BUILD_INFO.shortSha}</p>
           </details>
+          {nativeReminders && (
+            <div className="account-settings-landscape" aria-hidden="true">
+              <svg viewBox="0 0 360 48" preserveAspectRatio="none" focusable="false">
+                <path className="account-landscape-hill-back" d="M0 29 Q37 8 83 26 T180 24 T278 21 T360 25 V48 H0Z" />
+                <path className="account-landscape-hill-front" d="M0 40 Q48 25 100 39 T209 34 T300 36 T360 30 V48 H0Z" />
+                <circle cx="72" cy="11" r="1" /><circle cx="246" cy="9" r="1" /><circle cx="297" cy="18" r=".8" />
+              </svg>
+            </div>
+          )}
         </section>
       )}
 
