@@ -4612,6 +4612,37 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 .weekly-reflection-today:active { filter: brightness(.9); }
 
 
+/* Android-only: quiet first-use invitation and release-ready permission summary. */
+.android-permission-invite {
+  display: grid; grid-template-columns: 44px minmax(0, 1fr);
+  align-items: center; gap: 6px 12px;
+  margin: 0 0 18px; padding: 14px 16px;
+  border: 1px solid var(--line); border-radius: 16px;
+  background: var(--surface); color: var(--ink);
+}
+.android-permission-invite-symbol {
+  width: 44px; height: 44px; display: grid; place-items: center;
+  border-radius: 13px; background: var(--sage-soft); color: var(--sage);
+}
+.android-permission-invite-copy { min-width: 0; }
+.android-permission-invite-copy h2 { margin: 0; font-size: 14px; line-height: 1.5; font-weight: 700; }
+.android-permission-invite-copy p { margin: 3px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.android-permission-invite-actions { grid-column: 2; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.android-permission-invite-actions button {
+  min-height: 44px; padding: 9px 13px; border-radius: 10px; font-size: 12px; font-weight: 600;
+}
+.android-permission-invite-primary { border: 1px solid var(--selection-bg); background: var(--selection-bg); color: var(--selection-fg); }
+.android-permission-invite-later { border: 1px solid var(--control-border); background: var(--control-bg); color: var(--ink); }
+.android-permission-state-row { display: flex; align-items: center; gap: 12px; justify-content: space-between; flex-wrap: wrap; }
+.android-permission-state { display: inline-flex; align-items: center; gap: 7px; min-height: 28px; font-size: 13px; font-weight: 600; color: var(--ink); }
+.android-permission-state svg { flex: none; color: var(--sage); }
+.android-permission-action { min-height: 44px; white-space: nowrap; }
+.android-permission-help { margin: 8px 0 0; line-height: 1.55; color: var(--muted); font-size: 12px; }
+@media (max-width: 350px) {
+  .android-permission-invite { padding: 12px; gap: 5px 9px; }
+  .android-permission-invite-actions { grid-column: 1 / -1; }
+}
+
 /* Android-only, user-chosen period wrap-up alerts. Reuse the existing
    44px switch surface and light/dark selection tokens. */
 .android-wrapup-settings { margin-top: 4px; }
