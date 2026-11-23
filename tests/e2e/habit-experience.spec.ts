@@ -106,10 +106,14 @@ for (const width of [320, 390, 430]) {
 test("templates are keyboard accessible in dark mode", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 740 });
   await page.goto("/");
-  await expect(
-    page.getByRole("button", { name: "다크 모드로 전환" }),
-  ).toBeEnabled();
-  await page.getByRole("button", { name: "다크 모드로 전환" }).click();
+  // The mode stored on the device is restored asynchronously. Do not click
+  // before hydration finishes, or a late restore can revert the dark toggle.
+  await expect(page.locator("html")).toHaveAttribute("data-byeolharu-theme", /^(light|dark)$/);
+  const dark = page.getByRole("button", { name: "다크 모드로 전환" });
+  await expect(dark).toBeEnabled();
+  await dark.click();
+  await expect(page.locator(".byeolharu")).toHaveClass(/\\bdark\\b/);
+  await expect(page.locator("html")).toHaveAttribute("data-byeolharu-theme", "dark");
   await page.getByRole("button", { name: "새 습관 추가" }).click();
   const template = page.getByRole("button", { name: "독서 20분 템플릿" });
   await template.focus();
