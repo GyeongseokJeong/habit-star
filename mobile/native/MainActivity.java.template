@@ -34,8 +34,6 @@ public class MainActivity extends BridgeActivity {
         "window.__byeolharuBackClickGuard=true;" +
         "document.addEventListener('click',function(){window.__byeolharuBackInteraction=true;},true);" +
         "}" +
-        // A nested discard confirmation is the topmost modal. Back must
-        // dismiss it, not the underlying habit editor or account dialog.
         "var discard=document.querySelector('.android-unsaved-dialog[open]');" +
         "if(discard){" +
         "var keep=discard.querySelector('[data-unsaved-continue]');" +
