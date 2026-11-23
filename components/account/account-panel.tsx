@@ -13,6 +13,7 @@ import type { useHabitApp } from "@/lib/habits/use-habit-app";
 import type { Snapshot } from "@/lib/habits/repository";
 import type { NativeReminderControls, WrapupGroup } from "@/lib/habits/native-reminder-controls";
 import { AuthForm, type AuthMode } from "./auth-form";
+import { AccountSectionTitle } from "./account-design";
 import type { ThemePreference } from "@/lib/theme-preference";
 
 const wrapupPeriods: { group: WrapupGroup; name: string; range: string; times: string[] }[] = [
@@ -283,7 +284,7 @@ export function AccountPanel({
           {!app.user && !cloudEnabled() && <p className="account-note">클라우드 연결이 아직 설정되지 않았습니다. 비회원 기록은 계속 사용할 수 있어요.</p>}
           <nav className="account-menu" aria-label="계정 메뉴">
             <button type="button" aria-label="데이터 관리" onClick={() => navigate("records")}><Database size={19} /><span>데이터 관리<small>동기화 · 백업 · 복원</small></span><ChevronRight size={17} /></button>
-            <button type="button" aria-label="앱 설정" onClick={() => navigate("settings")}><Settings2 size={19} /><span>앱 설정<small>테마 · 간편 보기 · 시간대</small></span><ChevronRight size={17} /></button>
+            <button type="button" aria-label="앱 설정" onClick={() => navigate("settings")}><Settings2 size={19} /><span>앱 설정<small>{nativeReminders ? "알림 · 화면 · 기록" : "테마 · 간편 보기 · 시간대"}</small></span><ChevronRight size={17} /></button>
             {app.user && <button type="button" aria-label="계정 관리" onClick={() => navigate("security")}><UserRound size={19} /><span>계정 관리<small>로그인 정보 · 로그아웃</small></span><ChevronRight size={17} /></button>}
             <button type="button" aria-label="사용 안내" onClick={() => navigate("help")}><CircleHelp size={19} /><span>사용 안내<small>기록 · 성장 · 데이터 보관</small></span><ChevronRight size={17} /></button>
           </nav>
@@ -292,7 +293,7 @@ export function AccountPanel({
 
       {page === "records" && (
         <section className="account-detail" aria-label="데이터 관리">
-          <div className={"account-sync-overview is-" + statusTone} role={critical ? "alert" : "status"} aria-live={critical ? "assertive" : "polite"}>
+          <div className={"account-ui-card account-ui-status-card account-sync-overview is-" + statusTone} role={critical ? "alert" : "status"} aria-live={critical ? "assertive" : "polite"}>
             <div className="account-sync-heading">
               <StatusIcon size={20} aria-hidden="true" className={syncing ? "is-spinning" : ""}/>
               <strong>{app.user ? (app.error || status) : "이 기기에 기록을 저장하고 있어요"}</strong>
@@ -342,8 +343,8 @@ export function AccountPanel({
             <p role="status" className="account-note account-import-verified">가져오기 완료 · 서버와 로컬 기록을 확인했습니다.</p>
           )}
           <div className="account-divider" />
-          <h4 className="account-section-title">백업 및 복원</h4>
-          <div className="account-action-group">
+          <AccountSectionTitle className="account-section-title">백업 및 복원</AccountSectionTitle>
+          <div className="account-ui-card account-action-group">
           <button type="button" className="account-action-row" disabled={backupBusy || app.busy || workingAction !== null || (nativeBackup && !app.snapshot)} aria-busy={workingAction === "backup"} onClick={() => void runOnce("backup", exportBackup)}>
             <Download size={18} /><span>{workingAction === "backup" ? "백업 준비 중…" : nativeBackup ? "기록 백업 파일 내보내기" : "기록 백업 내려받기"}</span><ChevronRight size={16} />
           </button>
@@ -400,9 +401,9 @@ export function AccountPanel({
           {message && (
             <p className="account-settings-message" role={/실패|오류|못했|확인해 주세요/.test(message) ? "alert" : "status"}>{message}</p>
           )}
-          {nativeReminders && <h3 className="account-settings-group-title"><BellRing size={18} aria-hidden="true" />알림</h3>}
+          {nativeReminders && <AccountSectionTitle className="account-settings-group-title">알림</AccountSectionTitle>}
           {nativeReminders && (
-            <div className="account-setting-block android-permission-summary" role="group" aria-label="기기 알림 권한">
+            <div className="account-ui-card account-ui-status-card account-setting-block android-permission-summary" role="group" aria-label="기기 알림 권한">
               <div className="android-permission-compact">
                 <BellRing size={19} aria-hidden="true" className="android-permission-icon" />
                 <span className="android-permission-text">
@@ -436,7 +437,7 @@ export function AccountPanel({
             </div>
           )}
           {nativeReminders && (
-            <div className="account-setting-block android-wrapup-settings" aria-label="시간대 마무리 알림">
+            <div className="account-ui-card account-setting-block android-wrapup-settings" aria-label="시간대 마무리 알림">
               <div className="account-setting-heading">
                 <span>마무리 알림</span>
                 <small>완료하지 않은 습관이 있을 때만 알려드려요.</small>
@@ -479,7 +480,7 @@ export function AccountPanel({
             </div>
           )}
 
-          <h3 className="account-settings-group-title"><MonitorSmartphone size={18} aria-hidden="true" />화면</h3>
+          <AccountSectionTitle className="account-settings-group-title">화면</AccountSectionTitle>
           <div className="account-setting-block">
             <div className="account-setting-heading"><span>화면 테마</span></div>
             <div className="account-theme-options" role="group" aria-label="화면 테마">
@@ -503,7 +504,7 @@ export function AccountPanel({
             </button>
           </div>
 
-          <h3 className="account-settings-group-title"><Clock3 size={18} aria-hidden="true" />기록</h3>
+          <AccountSectionTitle className="account-settings-group-title">기록</AccountSectionTitle>
           <div className="account-setting-block">
             <div className="account-setting-heading"><span>기록 시간대</span><small>{app.user ? "습관 기록의 날짜 기준" : "기기의 시간대를 사용해요"}</small></div>
             {app.user ? (
@@ -543,15 +544,6 @@ export function AccountPanel({
             <summary>앱 정보 <ChevronRight size={16} aria-hidden="true"/></summary>
             <p className="account-note" data-testid="build-info" aria-label="앱 빌드 정보">{nativeReminders ? "Android" : "Web"} · v{APP_BUILD_INFO.version} · 빌드 {APP_BUILD_INFO.shortSha}</p>
           </details>
-          {nativeReminders && (
-            <div className="account-settings-landscape" aria-hidden="true">
-              <svg viewBox="0 0 360 48" preserveAspectRatio="none" focusable="false">
-                <path className="account-landscape-hill-back" d="M0 29 Q37 8 83 26 T180 24 T278 21 T360 25 V48 H0Z" />
-                <path className="account-landscape-hill-front" d="M0 40 Q48 25 100 39 T209 34 T300 36 T360 30 V48 H0Z" />
-                <circle cx="72" cy="11" r="1" /><circle cx="246" cy="9" r="1" /><circle cx="297" cy="18" r=".8" />
-              </svg>
-            </div>
-          )}
         </section>
       )}
 
@@ -561,7 +553,7 @@ export function AccountPanel({
             <Sparkles size={23} aria-hidden="true" />
             <h3>작은 실천이 별빛이 되는 곳</h3>
           </div>
-          <div className="account-help-list">
+          <div className="account-ui-card account-help-list">
             <details className="account-help-group">
               <summary className="account-help-trigger">
                 <span className="account-help-icon" aria-hidden="true"><Star size={20} /></span>
@@ -597,11 +589,13 @@ export function AccountPanel({
               </div>
             </details>
           </div>
+          (nativeReminders?.permissionState === "denied" || nativeReminders?.permissionState === "prompt" || !nativeReminders) && (
           <button type="button" className="account-help-support" onClick={() => navigate(nativeReminders ? "settings" : "records")}>
             <CircleHelp size={18} aria-hidden="true" />
-            <span>{nativeReminders ? "알림 권한 확인하기" : "기록 저장에 문제가 있나요?"}</span>
+            <span>{nativeReminders ? "알림 권한 설정" : "기록 저장에 문제가 있나요?"}</span>
             <ChevronRight size={17} aria-hidden="true" />
           </button>
+          )}
         </section>
       )}
 
