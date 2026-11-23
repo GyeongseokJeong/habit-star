@@ -29,8 +29,9 @@ test("native settings warn on denied permission without mutating user opt-in or 
   assert.match(main,/void refreshPermission\(\)/);
   assert.match(main,/presentation\.queueNote/);
   assert.match(main,/setPermissionState/);
-  // Release UX surfaces permission state directly; advanced diagnostics stay collapsed.
-  assert.match(account,/<details className="android-reminder-details">/);
+  // Device permissions remain directly actionable; diagnostic tools are not shown in public settings.
+  assert.match(account,/aria-label="기기 알림 권한"/);
+  assert.doesNotMatch(account,/android-reminder-details|onInspectPending/);
   assert.match(account,/nativeReminders\.permissionState === "denied"/);
   assert.match(account,/기기에서 알림이 차단되어 설정한 습관 알림을 받을 수 없어요/);
   assert.doesNotMatch(account,/aria-checked=\{nativeReminders\.active\}/);
