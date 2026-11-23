@@ -118,3 +118,30 @@ test("B2 creation uses compact quick options while existing habit editing is unc
   await expect(dialog.locator(".emoji-picker button")).toHaveCount(36);
   await expect(dialog.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).resolves.toBe(true);
 });
+
+test("creation and editing share readable labels while scheduled time remains optional", async ({ page }) => {
+  await page.clock.install({ time: new Date("2026-11-19T12:00:00Z") });
+  await page.setViewportSize({ width: 390, height: 740 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "새 습관 추가", exact: true }).click();
+  const create = page.getByRole("dialog", { name: "나를 위한 새로운 습관" });
+  const labels = create.locator(".habit-editor-name, .habit-editor-time-field, .habit-editor-time-group legend, .habit-editor-repeat legend");
+  const styles = await labels.evaluateAll(elements => elements.map(element => ({
+    size: getComputedStyle(element).fontSize,
+    color: getComputedStyle(element).color,
+  })));
+  expect(styles.map(style => style.size)).toEqual(["14px", "14px", "14px", "14px"]);
+  expect(new Set(styles.map(style => style.color)).size).toBe(1);
+  await expect(create.getByLabel("예정 시간")).toHaveValue("");
+  await create.getByPlaceholder("예: 하루 10분 책 읽기").fill("시간 없는 습관");
+  await create.getByRole("button", { name: "새 습관 추가하기" }).click();
+
+  await page.getByRole("button", { name: "시간 없는 습관 수정" }).click();
+  const edit = page.getByRole("dialog", { name: "습관 수정하기" });
+  await expect(edit.locator(".habit-editor-time-field small")).toHaveText("(선택)");
+  await expect(edit.getByLabel("예정 시간")).toHaveValue("");
+  await expect(edit.locator(".habit-editor-name")).toHaveCSS("font-size", "14px");
+  await expect(edit.locator(".habit-editor-repeat legend")).toHaveCSS("font-size", "14px");
+  await edit.getByRole("button", { name: "수정 완료" }).click();
+  await expect(edit).not.toBeVisible();
+});
