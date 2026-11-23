@@ -24,9 +24,9 @@ test("release settings remove developer diagnostics without removing native reco
 
 test("settings order keeps notifications, appearance, and recording distinct",()=>{
  const section=ui.slice(ui.indexOf('{page === "settings" && ('),ui.indexOf('{page === "help" && ('));
- const first=section.indexOf('account-settings-group-title">알림');
- const second=section.indexOf('account-settings-group-title">화면');
- const third=section.indexOf('account-settings-group-title">기록');
+ const first=section.indexOf('account-settings-group-title"><BellRing');
+ const second=section.indexOf('account-settings-group-title"><MonitorSmartphone');
+ const third=section.indexOf('account-settings-group-title"><Clock3');
  assert.ok(first>=0 && second>first && third>second);
  assert.match(section,/>기록 시간대</);
  assert.match(section,/role="switch"/);
