@@ -53,16 +53,17 @@ test("foreign ID collision prevents any native modification",async()=>{
  await assert.rejects(()=>run(native),/충돌/);
  assert.equal(native.calls.includes("schedule"),false);assert.equal(native.calls.includes("cancel"),false);
 });
-test("repair only exposed after audit mismatch in guest Android UI",()=>{
+test("guest-only repair remains guarded by audit and permission but not exposed in public settings",()=>{
  const root=resolve(import.meta.dirname,"../..");
  const main=readFileSync(resolve(root,"mobile/packaged-guest/main.tsx"),"utf8");
  const settings=readFileSync(resolve(root,"components/account/account-panel.tsx"),"utf8");
  const web=readFileSync(resolve(root,"app/page.tsx"),"utf8");
  assert.match(main,/canManuallyRepairGuestReminders\(report, effectiveHabitReminderOptIn\(enabledRef\.current, snapshot\.current\) \|\| hasEnabledWrapup\(wrapupRef\.current\), permissions\.display\)/);
+ assert.match(main,/const onRepairPending = useCallback/);
+ assert.match(main,/identityRef\.current\.kind !== "guest"/);
+ assert.match(main,/!repairAvailable/);
  assert.match(main,/repairGuestReminders\(\{/);
- assert.match(settings,/nativeReminders\.repairAvailable &&/);
-  assert.ok(settings.includes('runOnce("repair-reminders", nativeReminders.onRepairPending)'));
-  assert.match(settings,/aria-busy={workingAction === "repair-reminders"}/);
-  assert.ok(settings.includes('disabled={app.busy || nativeReminders.busy || workingAction !== null}'));
+ assert.doesNotMatch(settings,/nativeReminders\.repairAvailable|onRepairPending|repair-reminders/);
+ assert.match(settings,/aria-label="기기 알림 권한"/);
  assert.doesNotMatch(web,/onRepairPending|repairGuestReminders/);
 });
