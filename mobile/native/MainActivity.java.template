@@ -8,6 +8,8 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
+import android.widget.Toast;
 import android.webkit.WebView;
 import androidx.activity.OnBackPressedCallback;
 import androidx.core.view.WindowCompat;
@@ -20,24 +22,39 @@ import com.getcapacitor.BridgeActivity;
  */
 public class MainActivity extends BridgeActivity {
     private static final long THEME_CHECK_INTERVAL_MS = 1800L;
+    private static final long BACK_EXIT_WINDOW_MS = 2000L;
 
-    // React owns both dialogs and the calendar reflection view. Dispatching
-    // a DOM click to the existing React button preserves app navigation state
-    // without modifying history, reloading the WebView, or clearing records.
-    // Priority: open dialog > 7-day reflection > WebView history > root exit.
+    // React owns dialog, reflection, and routine-tab navigation.
+    // Return a typed result so native exit confirmation is never mistaken for
+    // an in-app transition. Do not mutate history or clear local records.
+    // Priority: modal > reflection > active tab > WebView history > root.
     private static final String HANDLE_IN_APP_BACK_JS =
         "(function(){" +
+        // One capture listener invalidates a pending root-exit confirmation
+        // whenever the user interacts with the app between two back presses.
+        "if(!window.__byeolharuBackClickGuard){" +
+        "window.__byeolharuBackClickGuard=true;" +
+        "document.addEventListener('click',function(){window.__byeolharuBackInteraction=true;},true);" +
+        "}" +
         "var dialog=document.querySelector('dialog[open]');" +
         "if(dialog){" +
         "var back=dialog.querySelector('button.modal-back');" +
         "var close=dialog.querySelector('.modal-top button:last-child');" +
         "var action=back||close;" +
-        "if(action){action.click();return true;}" +
+        "if(action){action.click();return 'handled';}" +
+        // Fail closed: a modal whose controls are temporarily unavailable must
+        // never trigger a root exit under its overlay.
+        "return 'handled';" +
         "}" +
         "var reflection=document.querySelector('.byeolharu.reflection-layout');" +
         "var returnToCalendar=reflection&&reflection.querySelector('#weekly-reflection-back');" +
-        "if(returnToCalendar){returnToCalendar.click();return true;}" +
-        "return false;" +
+        "if(reflection){if(returnToCalendar){returnToCalendar.click();}return 'handled';}" +
+        "var selected=document.querySelector('[role=tab][aria-selected=true]');" +
+        "var all=document.getElementById('tab-all');" +
+        "if(selected&&all&&selected.id!=='tab-all'){all.click();return 'handled';}" +
+        "var interacted=window.__byeolharuBackInteraction===true;" +
+        "window.__byeolharuBackInteraction=false;" +
+        "return interacted?'root-changed':'root';" +
         "})()";
 
     private static final String READ_THEME_JS =
@@ -50,6 +67,7 @@ public class MainActivity extends BridgeActivity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private boolean foreground;
     private boolean backPending;
+    private long lastRootBackAt;
     private Boolean lastLightBars;
     private ViewGroup nativeContentRoot;
     private final Runnable themeSync = new Runnable() {
@@ -80,6 +98,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onResume() {
         super.onResume();
+        lastRootBackAt = 0L;
         foreground = true;
         handler.removeCallbacks(themeSync);
         handler.post(themeSync);
@@ -87,6 +106,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onPause() {
+        lastRootBackAt = 0L;
         foreground = false;
         handler.removeCallbacks(themeSync);
         super.onPause();
@@ -94,6 +114,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onDestroy() {
+        lastRootBackAt = 0L;
         handler.removeCallbacks(themeSync);
         super.onDestroy();
     }
@@ -137,21 +158,44 @@ public class MainActivity extends BridgeActivity {
         if (backPending) return;
         final WebView view = currentWebView();
         if (view == null) {
-            finish();
+            // During WebView startup, do not silently terminate on one press.
+            handleRootBack();
             return;
         }
         backPending = true;
         view.evaluateJavascript(HANDLE_IN_APP_BACK_JS, result -> {
             backPending = false;
-            if (isFinishing() || isDestroyed()) return;
-            if ("true".equals(result)) return;
-            if (view.canGoBack()) {
-                view.goBack();
-            } else {
-                // Android root-back should return to the launcher, not clear data.
-                finish();
+            if (isFinishing() || isDestroyed() || !foreground) return;
+            if ("\\\"handled\\\"".equals(result)) {
+                lastRootBackAt = 0L;
+                return;
             }
+            // Never exit if the WebView could not resolve its React screen.
+            if (!"\\\"root\\\"".equals(result) && !"\\\"root-changed\\\"".equals(result)) {
+                lastRootBackAt = 0L;
+                return;
+            }
+            if (view.canGoBack()) {
+                lastRootBackAt = 0L;
+                view.goBack();
+                return;
+            }
+            if ("\\\"root-changed\\\"".equals(result)) lastRootBackAt = 0L;
+            handleRootBack();
         });
+    }
+
+    private void handleRootBack() {
+        long now = SystemClock.uptimeMillis();
+        if (lastRootBackAt > 0L && now - lastRootBackAt <= BACK_EXIT_WINDOW_MS) {
+            lastRootBackAt = 0L;
+            // Leave the task in the background instead of killing the process
+            // or discarding unsynced edits. Relaunch returns to the same state.
+            moveTaskToBack(true);
+            return;
+        }
+        lastRootBackAt = now;
+        Toast.makeText(this, "한 번 더 누르면 앱을 종료해요", Toast.LENGTH_SHORT).show();
     }
 
     private void syncSystemBarContrast() {
