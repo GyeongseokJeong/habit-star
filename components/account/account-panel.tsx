@@ -473,7 +473,9 @@ export function AccountPanel({
               {nativeReminders.permissionState === "denied" && (
                 <p className="android-permission-help" role="status">기기에서 알림이 차단되어 설정한 습관 알림을 받을 수 없어요.</p>
               )}
-              {!!nativeReminders.status && <p className="android-permission-help" role="status">{nativeReminders.status}</p>}
+              {!!nativeReminders.status && /실패|못했|확인해 주세요|허용해 주세요|차단/.test(nativeReminders.status) && (
+                <p className="android-permission-help" role="status">{nativeReminders.status}</p>
+              )}
             </div>
           )}
           {nativeReminders && (
@@ -528,7 +530,9 @@ export function AccountPanel({
               <summary>알림 문제 해결 <ChevronRight size={16} aria-hidden="true" /></summary>
               <div className="android-reminder-details-body">
                 <p className="account-note">알림은 각 습관의 수정 화면에서 켜고 끌 수 있어요.</p>
-                <p className="account-note">권한 상태와 허용 경로는 위 알림 권한에서 확인할 수 있어요.</p>
+                {!!nativeReminders.status && (
+                  <p className="account-note" role="status">{nativeReminders.status}</p>
+                )}
                 <div className="android-reminder-detail-actions">
                   <button
                     type="button"
