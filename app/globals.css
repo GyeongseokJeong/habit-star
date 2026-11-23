@@ -4762,3 +4762,97 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   .account-panel .account-settings-final .android-permission-summary { padding: 10px 11px; }
   .account-panel .account-settings-final .android-permission-state-row { align-items: flex-start; }
 }
+
+
+/* Android settings v3: one-row wrap-up controls, accessible touch targets,
+   responsive 320px layouts, and quieter permission state. */
+.account-panel .account-settings-final .account-settings-group-title {
+  display: flex; align-items: center; gap: 8px;
+  margin: 12px 0 5px; min-height: 28px;
+  font-size: 13px; font-weight: 700; color: var(--ink);
+}
+.account-panel .account-settings-group-title svg { color: var(--sage); flex: none; }
+.account-panel .account-settings-final .android-permission-summary {
+  padding: 9px 12px; background: var(--soft);
+}
+.account-panel .android-permission-compact {
+  display: flex; align-items: center; gap: 9px; min-height: 44px; min-width: 0;
+}
+.account-panel .android-permission-icon { flex: 0 0 20px; color: var(--sage); }
+.account-panel .android-permission-text { display: grid; gap: 3px; flex: 1 1 auto; min-width: 0; }
+.account-panel .android-permission-text strong { color: var(--ink); font-size: 13px; font-weight: 650; }
+.account-panel .android-permission-text small { color: var(--muted); font-size: 11px; line-height: 1.45; }
+.account-panel .android-permission-granted {
+  display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto;
+  color: var(--ink); font-weight: 650; font-size: 12px; white-space: nowrap;
+}
+.account-panel .android-permission-granted svg { color: var(--sage); }
+.account-panel .android-permission-unknown { font-size: 12px; color: var(--muted); }
+.account-panel .android-permission-action {
+  flex: 0 0 auto; min-height: 44px;
+  padding: 8px 10px; font-size: 12px; line-height: 1.4; white-space: nowrap;
+}
+.account-panel .android-permission-action:focus-visible,
+.account-panel .android-wrapup-toggle:focus-visible,
+.account-panel .account-timezone-trigger:focus-visible {
+  outline: 2px solid var(--selection-bg); outline-offset: 2px;
+}
+.account-panel .account-settings-final .android-wrapup-settings { padding-top: 8px; }
+.account-panel .account-settings-final .android-wrapup-period { padding: 0; }
+.account-panel .android-wrapup-inline-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) 102px 56px;
+  align-items: center; gap: 7px; min-height: 56px;
+}
+.account-panel .account-settings-final .android-wrapup-label {
+  display: inline-flex; align-items: center; gap: 8px; min-width: 0;
+  color: var(--ink);
+}
+.account-panel .account-settings-final .android-wrapup-label svg { flex: none; color: var(--sage); }
+.account-panel .account-settings-final .android-wrapup-label strong { font-size: 14px; }
+.account-panel .account-settings-final .android-wrapup-time {
+  display: block; min-width: 0; min-height: 44px; padding: 0;
+}
+.account-panel .account-settings-final .android-wrapup-time select {
+  width: 100%; min-width: 0; height: 44px; min-height: 44px;
+  padding: 7px 6px 7px 10px; border-radius: 10px;
+  background: var(--control-bg); color: var(--ink); font-size: 13px; font-weight: 600;
+}
+.account-panel .account-settings-final .android-wrapup-time select:disabled { opacity: .55; }
+.account-panel .account-settings-final .android-wrapup-toggle {
+  min-height: 44px; width: 56px; height: 44px; padding: 0;
+}
+.account-panel .account-settings-final .android-wrapup-toggle:disabled { opacity: .6; cursor: progress; }
+.account-panel .account-theme-options { gap: 6px; }
+.account-panel .account-theme-options > button { min-width: 0; padding: 8px 4px; gap: 5px; }
+.account-panel .account-settings-final .account-timezone-trigger,
+.account-panel .account-settings-final .account-timezone-static {
+  display: flex; width: 100%; min-height: 44px; align-items: center;
+  justify-content: space-between; gap: 8px; margin: 0;
+  padding: 7px 2px; color: var(--ink); font-size: 13px; text-align: left;
+  border: 0; border-radius: 8px; background: transparent;
+}
+.account-panel .account-timezone-trigger > span { min-width: 0; overflow-wrap: anywhere; }
+.account-panel .account-timezone-trigger svg { flex: 0 0 auto; color: var(--muted); transition: transform .15s; }
+.account-panel .account-timezone-trigger svg.is-expanded { transform: rotate(90deg); }
+.account-panel .account-timezone-static > span { color: var(--muted); }
+.account-panel .account-settings-final .account-app-info { margin-top: 8px; }
+.account-panel .account-settings-landscape {
+  margin: 12px -2px -5px; height: 42px;
+  color: var(--sage); opacity: .36;
+  overflow: hidden; pointer-events: none;
+}
+.account-panel .account-settings-landscape svg { display: block; width: 100%; height: 100%; fill: currentColor; }
+.account-panel .account-landscape-hill-back { opacity: .2; }
+.account-panel .account-landscape-hill-front { opacity: .3; }
+@media (max-width: 350px) {
+  .account-panel .android-wrapup-inline-row { grid-template-columns: minmax(0, 1fr) 88px 52px; gap: 4px; }
+  .account-panel .account-settings-final .android-wrapup-toggle { width: 52px; }
+  .account-panel .android-permission-compact { flex-wrap: wrap; gap: 6px 8px; }
+  .account-panel .android-permission-action { margin-left: 29px; }
+  .account-panel .android-wrapup-label { gap: 4px; }
+  .account-panel .android-wrapup-label svg { width: 17px; height: 17px; }
+  .account-panel .account-theme-options > button { font-size: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .account-panel .account-timezone-trigger svg { transition: none; }
+}
