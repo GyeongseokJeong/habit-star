@@ -14,6 +14,7 @@ import type { Snapshot } from "@/lib/habits/repository";
 import type { NativeReminderControls, WrapupGroup } from "@/lib/habits/native-reminder-controls";
 import { AuthForm, type AuthMode } from "./auth-form";
 import { AccountSectionTitle } from "./account-design";
+import { accountFeedbackTone } from "./account-feedback-tone";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import type { ThemePreference } from "@/lib/theme-preference";
 
@@ -77,6 +78,15 @@ export function AccountPanel({
 }) {
   const state = app.snapshot?.state;
   const [message, setMessage] = useState("");
+  const [feedbackVisible, setFeedbackVisible] = useState(true);
+  const accountFeedback = app.error || message;
+  const feedbackTone = accountFeedbackTone(accountFeedback);
+  useEffect(() => {
+    setFeedbackVisible(true);
+    if (!message || app.error || accountFeedbackTone(message) !== "success") return;
+    const timeout = setTimeout(() => setFeedbackVisible(false), 4000);
+    return () => clearTimeout(timeout);
+  }, [message, app.error]);
   const [showImportReceipt, setShowImportReceipt] = useState(false);
   const observedReceipt = useRef(app.snapshot?.state.importReceipt?.verifiedAt ?? null);
   const [backupBusy, setBackupBusy] = useState(false);
@@ -442,7 +452,7 @@ export function AccountPanel({
       {page === "settings" && (
         <section className="account-detail account-settings-final" aria-label="앱 설정">
           {message && (
-            <p className="account-settings-message" role={/실패|오류|못했|확인해 주세요/.test(message) ? "alert" : "status"}>{message}</p>
+            <p className={"account-settings-message is-" + accountFeedbackTone(message)} role={accountFeedbackTone(message) === "error" ? "alert" : "status"}>{message}</p>
           )}
           {nativeReminders && <AccountSectionTitle className="account-settings-group-title">알림</AccountSectionTitle>}
           {nativeReminders && (
@@ -656,7 +666,13 @@ export function AccountPanel({
           </div>
         </section>
       )}
-      {(message || app.error) && <p role="status" aria-live="polite" className="auth-feedback">{message || app.error}</p>}
+      {accountFeedback && (page !== "settings" || !!app.error) && feedbackVisible && (
+        <p role={feedbackTone === "error" ? "alert" : "status"}
+          aria-live={feedbackTone === "error" ? "assertive" : "polite"}
+          className={"auth-feedback account-feedback is-" + feedbackTone}>
+          {accountFeedback}
+        </p>
+      )}
     </div>
   );
 }
