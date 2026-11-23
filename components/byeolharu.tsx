@@ -46,6 +46,7 @@ import {
   stats,
 } from "@/lib/habits/domain";
 import { useHabitApp } from "@/lib/habits/use-habit-app";
+import { hasUnsavedHabitSettings, hasUnsavedDailyRecord } from "@/lib/habits/unsaved-draft";
 import type { NativeReminderControls } from "@/lib/habits/native-reminder-controls";
 import { alarmForSelectedTime } from "@/lib/habits/alarm-default-policy";
 import { scheduledTimeGroup, templateGroupForTime, timeForSelectedGroup } from "@/lib/habits/habit-editor-time";
@@ -323,6 +324,25 @@ function Modal({
 }
 
 
+/** Reuses the existing modal: native Back and the X both trigger this guard. */
+function UnsavedChangesPrompt({ onContinue, onDiscard }: {
+  onContinue: () => void;
+  onDiscard: () => void;
+}) {
+  const continueRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => { continueRef.current?.focus(); }, []);
+  return (
+    <div className="android-unsaved-prompt" role="alert" aria-live="assertive">
+      <strong>작성 중인 변경사항이 있어요</strong>
+      <p>저장하지 않고 나가면 변경사항이 사라져요.</p>
+      <div className="android-unsaved-actions">
+        <button type="button" ref={continueRef} className="secondary" onClick={onContinue}>계속 작성</button>
+        <button type="button" className="delete-button" onClick={onDiscard}>변경사항 버리기</button>
+      </div>
+    </div>
+  );
+}
+
 function HabitEditor({
   habit,
   defaultGroup,
@@ -333,6 +353,7 @@ function HabitEditor({
   nativeAlarmActive = false,
   nativeAlarmStatus = "",
   onEnsureNativeAlarm,
+  guardUnsaved = false,
 }: {
   habit?: Habit;
   defaultGroup: TimeGroup;
@@ -343,6 +364,7 @@ function HabitEditor({
   nativeAlarmActive?: boolean;
   nativeAlarmStatus?: string;
   onEnsureNativeAlarm?: () => Promise<boolean>;
+  guardUnsaved?: boolean;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [alarmChecking, setAlarmChecking] = useState(false);
@@ -361,6 +383,16 @@ function HabitEditor({
     repeatDays: habit?.repeatDays ?? [...WEEKDAYS],
     alarmEnabled: habit?.alarmEnabled ?? false,
   }));
+  const initialDraft = useRef(draft);
+  const [discardPrompt, setDiscardPrompt] = useState(false);
+  const requestClose = () => {
+    if (alarmChecking) return;
+    if (guardUnsaved && hasUnsavedHabitSettings(initialDraft.current, draft)) {
+      setDiscardPrompt(true);
+      return;
+    }
+    onClose();
+  };
   // Keep built-in icons at stable positions when a selection changes.
   // Show unknown saved icons at the end without reordering the preset palette.
   const knownIcon = EMOJIS.includes(draft.icon) || MORE_EMOJIS.includes(draft.icon);
@@ -413,8 +445,9 @@ function HabitEditor({
   return (
     <Modal
       title={habit ? "습관 수정하기" : "나를 위한 새로운 습관"}
-      onClose={onClose}
+      onClose={requestClose}
     >
+      {discardPrompt && <UnsavedChangesPrompt onContinue={() => setDiscardPrompt(false)} onDiscard={onClose} />}
       {!habit && <p className="modal-description">작은 실천부터, 나만의 속도로 시작해요.</p>}
       <form
         className={habit ? "habit-editor-form" : "habit-editor-form habit-editor-creation-b2"}
@@ -686,7 +719,7 @@ function HabitEditor({
             <Check size={18} />
             {alarmChecking ? "알림 권한 확인 중…" : habit ? "수정 완료" : "새 습관 추가하기"}
           </button>
-          {habit && <button type="button" className="text-button full" onClick={onClose}>취소</button>}
+          {habit && <button type="button" className="text-button full" onClick={requestClose}>취소</button>}
         </div>
       </form>
     </Modal>
@@ -698,19 +731,31 @@ function HabitDetail({
   onSave,
   onClose,
   fallbackFocusId,
+  guardUnsaved = false,
 }: {
   habit: Habit;
   onSave: (data: DailyRecordPatch) => void;
   onClose: () => void;
   fallbackFocusId: string;
+  guardUnsaved?: boolean;
 }) {
   const [draft, setDraft] = useState<DailyRecordPatch>({
     rating: habit.rating,
     completed: habit.completed,
     memo: habit.memo,
   });
+  const initialDraft = useRef(draft);
+  const [discardPrompt, setDiscardPrompt] = useState(false);
+  const requestClose = () => {
+    if (guardUnsaved && hasUnsavedDailyRecord(initialDraft.current, draft)) {
+      setDiscardPrompt(true);
+      return;
+    }
+    onClose();
+  };
   return (
-    <Modal title="오늘의 실천 기록" onClose={onClose} fallbackFocusId={fallbackFocusId}>
+    <Modal title="오늘의 실천 기록" onClose={requestClose} fallbackFocusId={fallbackFocusId}>
+      {discardPrompt && <UnsavedChangesPrompt onContinue={() => setDiscardPrompt(false)} onDiscard={onClose} />}
       <div className="detail-heading">
         <span className={`habit-emoji ${habit.timeGroup}`}>{habit.icon}</span>
         <h3>{habit.title}</h3>
@@ -2268,6 +2313,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
               : undefined
           }
           onClose={() => setEditing(null)}
+          guardUnsaved={Boolean(nativeReminders)}
           nativeAlarmEditor={Boolean(nativeReminders)}
           nativeAlarmActive={nativeReminders?.active}
           nativeAlarmStatus={nativeReminders?.status}
@@ -2279,6 +2325,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
           key={detail.id}
           habit={detail}
           fallbackFocusId={reflectionOpen ? "weekly-reflection-back" : `tab-${activeTab}`}
+          guardUnsaved={Boolean(nativeReminders)}
           onClose={() => setDetailId(null)}
           onSave={(data) => {
             const actionDay = today;
