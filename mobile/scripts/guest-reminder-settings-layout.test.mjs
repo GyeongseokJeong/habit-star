@@ -81,3 +81,30 @@ test("account screens share design elements and no settings-only landscape",()=>
  assert.doesNotMatch(ui,/account-settings-landscape/);
  assert.match(css,/Account Design System v1/);
 });
+
+
+test("home permission invitation stays inline, compact and below the growth experience", () => {
+ const app=readFileSync(resolve(root,"components/byeolharu.tsx"),"utf8");
+ assert.equal((app.match(/className="android-permission-invite"/g)||[]).length,1);
+ assert.ok(app.indexOf("<StarlitHero") < app.indexOf('className="android-permission-invite"'));
+ assert.ok(app.indexOf('className="routine-heading"') < app.indexOf('className="android-permission-invite"'));
+ assert.match(app,/nativeReminders\?\.showPermissionOffer/);
+ assert.match(app,/nativeReminders\.onRequestPermission\(\)/);
+ assert.match(app,/nativeReminders\.onDismissPermissionOffer/);
+ assert.match(css,/\.android-permission-invite-actions \{/);
+ assert.match(css,/\.android-permission-invite \{[\s\S]*?grid-template-columns: 36px minmax\(0, 1fr\) auto/);
+});
+
+test("account feedback uses semantic tone and the delete confirmation stays two lines", () => {
+ const app=readFileSync(resolve(root,"components/byeolharu.tsx"),"utf8");
+ const tone=readFileSync(resolve(root,"components/account/account-feedback-tone.ts"),"utf8");
+ assert.match(ui,/className=\{"auth-feedback account-feedback is-" \+ feedbackTone\}/);
+ assert.match(ui,/role=\{feedbackTone === "error" \? "alert" : "status"\}/);
+ assert.match(ui,/setTimeout\(\(\) => setFeedbackVisible\(false\), 4000\)/);
+ assert.match(css,/\.account-panel\.account-hub > \.account-feedback \{\s*margin: 16px 0 0/);
+ assert.match(css,/\.account-panel\.account-hub > \.account-feedback\.is-error/);
+ assert.match(tone,/못했/);
+ assert.match(app,/confirm-description-line/);
+ assert.match(app,/cancelLabel="유지하기"/);
+ assert.match(app,/confirmLabel="삭제하기"/);
+});
