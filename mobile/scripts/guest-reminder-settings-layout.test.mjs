@@ -81,3 +81,51 @@ test("account screens share design elements and no settings-only landscape",()=>
  assert.doesNotMatch(ui,/account-settings-landscape/);
  assert.match(css,/Account Design System v1/);
 });
+
+
+test("Android first habit reminder uses a one-time in-context modal, not a home banner", () => {
+ const app=readFileSync(resolve(root,"components/byeolharu.tsx"),"utf8");
+ const confirm=readFileSync(resolve(root,"components/confirm-dialog.tsx"),"utf8");
+ const native=readFileSync(resolve(root,"mobile/packaged-guest/main.tsx"),"utf8");
+ assert.doesNotMatch(app,/className="android-permission-invite"/);
+ assert.match(app,/title="습관 알림을 받아볼까요\?"/);
+ assert.match(app,/cancelLabel="나중에"/);
+ assert.match(app,/confirmLabel="알림 허용하기"/);
+ assert.match(app,/primaryAction="confirm"/);
+ assert.match(app,/onDismissFirstPermission\?\.\(\)/);
+ assert.match(app,/nativeFirstPermissionOffer=\{nativeReminders\?\.showPermissionOffer\}/);
+ assert.match(app,/onRequestFirstPermission=\{nativeReminders\?\.onRequestPermission\}/);
+ assert.match(app,/if \(!\(await promptForFirstPermission\(\)\)\) return false/);
+ assert.match(app,/alarmEnabled = await enableNativeAlarm\(\)/);
+ assert.match(app,/const enabled = await enableNativeAlarm\(\)/);
+ assert.match(confirm,/primaryAction === "confirm"/);
+ assert.match(confirm,/data-confirm-cancel/);
+ assert.match(native,/shouldShowPermissionOffer\(/);
+ assert.match(native,/onDismissPermissionOffer: dismissPermissionOffer/);
+ assert.doesNotMatch(css,/\.android-permission-invite\s*\{/);
+});
+
+test("sample cleanup uses one shared, non-destructive confirmation", () => {
+ const app=readFileSync(resolve(root,"components/byeolharu.tsx"),"utf8");
+ assert.match(app,/title=\{\`예시 습관 \$\{sampleHabits.length\}개를 정리할까요\?\`\}/);
+ assert.match(app,/confirmLabel="예시만 정리"/);
+ assert.match(app,/cancelLabel="유지하기"/);
+ assert.match(app,/busy=\{sampleCleanupBusy\}/);
+ assert.doesNotMatch(app,/className="sample-cleanup-actions"/);
+ assert.match(app,/sampleIds\.has\(habit.id\)/);
+ assert.match(app,/previous\.filter\(\(habit\) => !sampleIds\.has\(habit\.id\)\)/);
+});
+
+test("account feedback uses semantic tone and the delete confirmation stays two lines", () => {
+ const app=readFileSync(resolve(root,"components/byeolharu.tsx"),"utf8");
+ const tone=readFileSync(resolve(root,"components/account/account-feedback-tone.ts"),"utf8");
+ assert.match(ui,/className=\{"auth-feedback account-feedback is-" \+ feedbackTone\}/);
+ assert.match(ui,/role=\{feedbackTone === "error" \? "alert" : "status"\}/);
+ assert.match(ui,/setTimeout\(\(\) => setFeedbackVisible\(false\), 4000\)/);
+ assert.match(css,/\.account-panel\.account-hub > \.account-feedback \{\s*margin: 16px 0 0/);
+ assert.match(css,/\.account-panel\.account-hub > \.account-feedback\.is-error/);
+ assert.match(tone,/못했/);
+ assert.match(app,/confirm-description-line/);
+ assert.match(app,/cancelLabel="유지하기"/);
+ assert.match(app,/confirmLabel="삭제하기"/);
+});

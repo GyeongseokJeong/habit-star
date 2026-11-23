@@ -15,12 +15,17 @@ test("new guest begins with only two demos and can clear them without touching t
   await page.locator(".normal-done-toggle").click();
 
   await page.getByRole("button", { name: "예시 한 번에 정리" }).click();
-  const modal = page.getByRole("dialog", { name: "예시 습관 정리" });
+  const modal = page.getByRole("dialog", { name: "예시 습관 2개를 정리할까요?" });
   await expect(modal.getByText("직접 만든 습관은 그대로 남아요.", { exact: false })).toBeVisible();
-  await modal.getByRole("button", { name: "취소" }).click();
+  await expect(page.locator(".sample-cleanup-strip")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(modal).not.toBeVisible();
   await expect(page.locator(".sample-cleanup-strip")).toContainText("예시 습관 2개");
   await page.getByRole("button", { name: "예시 한 번에 정리" }).click();
-  await modal.getByRole("button", { name: "예시만 정리하기" }).click();
+  await modal.getByRole("button", { name: "유지하기" }).click();
+  await expect(page.locator(".sample-cleanup-strip")).toContainText("예시 습관 2개");
+  await page.getByRole("button", { name: "예시 한 번에 정리" }).click();
+  await modal.getByRole("button", { name: "예시만 정리" }).click();
   await expect(modal).toHaveCount(0);
   await expect(page.locator(".sample-cleanup-strip, .habit-sample-badge")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "아직 등록된 습관이 없어요" })).toBeVisible();
@@ -41,7 +46,7 @@ test("one-action cleanup deletes demos only, preserving a user-created routine a
   await expect(page.getByRole("heading", { name: "내가 만든 습관" })).toBeVisible();
 
   await page.getByRole("button", { name: "예시 한 번에 정리" }).click();
-  await page.getByRole("dialog", { name: "예시 습관 정리" }).getByRole("button", { name: "예시만 정리하기" }).click();
+  await page.getByRole("dialog", { name: "예시 습관 2개를 정리할까요?" }).getByRole("button", { name: "예시만 정리" }).click();
   await expect(page.getByRole("heading", { name: "내가 만든 습관" })).toBeVisible();
   await expect(page.locator(".sample-cleanup-strip, .habit-sample-badge")).toHaveCount(0);
   await page.reload();
@@ -61,7 +66,7 @@ test("compact view can clear demos without leaving a phantom completion group", 
   await expect(page.locator(".compact-sample-badge")).toHaveCount(2);
   await page.locator(".compact-done-toggle").click();
   await page.getByRole("button", { name: "예시 한 번에 정리" }).click();
-  await page.getByRole("dialog", { name: "예시 습관 정리" }).getByRole("button", { name: "예시만 정리하기" }).click();
+  await page.getByRole("dialog", { name: "예시 습관 2개를 정리할까요?" }).getByRole("button", { name: "예시만 정리" }).click();
   await expect(page.locator(".compact-sample-badge, .compact-done-toggle")).toHaveCount(0);
   await expect(page.locator(".compact-all-done")).toContainText("아직 등록된 습관이 없어요");
 });

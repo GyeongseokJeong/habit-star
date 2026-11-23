@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, BellRing } from "lucide-react";
 
 export type ConfirmDialogProps = {
   title: string;
@@ -13,6 +13,9 @@ export type ConfirmDialogProps = {
   onConfirm: () => void;
   busy?: boolean;
   confirmTone?: "danger" | "neutral";
+  /** Non-destructive opt-in can use the confirmation as the primary action. */
+  primaryAction?: "cancel" | "confirm";
+  icon?: "alert" | "bell";
 };
 
 /**
@@ -32,6 +35,8 @@ export function ConfirmDialog({
   onConfirm,
   busy = false,
   confirmTone = "danger",
+  primaryAction = "cancel",
+  icon = "alert",
 }: ConfirmDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -57,6 +62,27 @@ export function ConfirmDialog({
     : document.querySelector<HTMLElement>(".byeolharu") ?? document.body;
   if (!portalTarget) return null;
 
+  const cancelButton = (
+    <button
+      ref={cancelRef}
+      type="button"
+      className={primaryAction === "cancel" ? "primary full" : "text-button full byeolharu-confirm-action is-neutral"}
+      data-confirm-cancel
+      disabled={busy}
+      onClick={onCancel}
+    >{cancelLabel}</button>
+  );
+  const confirmButton = (
+    <button
+      type="button"
+      className={primaryAction === "confirm"
+        ? "primary full"
+        : "text-button full byeolharu-confirm-action" + (confirmTone === "neutral" ? " is-neutral" : "")}
+      disabled={busy}
+      onClick={onConfirm}
+    >{busy ? "처리 중…" : confirmLabel}</button>
+  );
+
   return createPortal(
     <dialog
       ref={dialogRef}
@@ -78,26 +104,12 @@ export function ConfirmDialog({
     >
       <div className="byeolharu-confirm-dialog-content">
         <div className="byeolharu-confirm-dialog-heading">
-          <AlertCircle size={20} aria-hidden="true" />
+          {icon === "bell" ? <BellRing size={20} aria-hidden="true" /> : <AlertCircle size={20} aria-hidden="true" />}
           <h2 id={titleId}>{title}</h2>
         </div>
         <p id={descriptionId}>{description}</p>
         <div className="byeolharu-confirm-dialog-actions">
-          <button
-            ref={cancelRef}
-            type="button"
-            className="primary full"
-            data-confirm-cancel
-            disabled={busy}
-            onClick={onCancel}
-          >{cancelLabel}</button>
-          <button
-            type="button"
-            className={"text-button full byeolharu-confirm-action" +
-              (confirmTone === "neutral" ? " is-neutral" : "")}
-            disabled={busy}
-            onClick={onConfirm}
-          >{busy ? "처리 중…" : confirmLabel}</button>
+          {primaryAction === "confirm" ? <>{confirmButton}{cancelButton}</> : <>{cancelButton}{confirmButton}</>}
         </div>
       </div>
     </dialog>,

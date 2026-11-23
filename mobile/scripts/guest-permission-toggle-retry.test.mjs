@@ -73,7 +73,10 @@ test("habit editor asks Android to enable reminders before turning its alarm on"
   const app=readFileSync(resolve(root,"components/byeolharu.tsx"),"utf8");
   const controls=readFileSync(resolve(root,"lib/habits/native-reminder-controls.ts"),"utf8");
   assert.match(app,/onEnsureNativeAlarm=\{nativeReminders \? \(\) => nativeReminders\.onEnabledChange\(true\)/);
-  assert.match(app,/const enabled = await onEnsureNativeAlarm\?\.\(\)/);
+  assert.match(app,/const enabled = await enableNativeAlarm\(\)/);
+  assert.match(app,/return Boolean\(await onEnsureNativeAlarm\?\.\(\)\)/);
+  assert.match(app,/if \(!\(await promptForFirstPermission\(\)\)\) return false/);
+  assert.match(app,/onRequestFirstPermission=\{nativeReminders\?\.onRequestPermission\}/);
   assert.match(app,/if \(enabled\) setDraft\(\(prev\) => \(\{ \.\.\.prev, alarmEnabled: true \}\)\)/);
   assert.match(app,/alarmChecking \|\| \(!draft\.scheduledTime && !draft\.alarmEnabled\)/);
   // The editor previews explicit reminder intent; OS permission is checked at save.

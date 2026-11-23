@@ -506,7 +506,7 @@ test("habit deletion uses a separate confirmation that preserves the editor on c
     const field = element.querySelector<HTMLInputElement>('input[placeholder="예: 하루 10분 책 읽기"]');
     return { top: element.getBoundingClientRect().top, name: field?.value };
   });
-  await confirmation.getByRole("button", { name: "습관 유지하기" }).click();
+  await confirmation.getByRole("button", { name: "유지하기" }).click();
   await expect(confirmation).not.toBeVisible();
   await expect(originalName).toHaveValue(before.name ?? "");
   await edit.getByRole("button", { name: "이 습관 삭제하기" }).click();
@@ -514,7 +514,7 @@ test("habit deletion uses a separate confirmation that preserves the editor on c
   await expect(confirmation).not.toBeVisible();
   await expect(edit).toBeVisible();
   await edit.getByRole("button", { name: "이 습관 삭제하기" }).click();
-  await confirmation.getByRole("button", { name: "습관 삭제하기" }).click();
+  await confirmation.getByRole("button", { name: "삭제하기" }).click();
   await expect(edit).not.toBeVisible();
   await expect(page.getByRole("button", { name: "삭제 테스트 습관 수정" })).toHaveCount(0);
 });

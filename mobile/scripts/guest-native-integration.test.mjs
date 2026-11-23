@@ -70,8 +70,8 @@ test("shared confirmation protects unsaved drafts, habit deletion and Android re
   assert.match(ui, /hasUnsavedHabitSettings\(initialDraft\.current, draft\)/);
   assert.match(ui, /hasUnsavedDailyRecord\(initialDraft\.current, draft\)/);
   assert.match(ui, /title="이 습관을 삭제할까요\?"/);
-  assert.match(ui, /cancelLabel="습관 유지하기"/);
-  assert.match(ui, /confirmLabel="습관 삭제하기"/);
+  assert.match(ui, /cancelLabel="유지하기"/);
+  assert.match(ui, /confirmLabel="삭제하기"/);
   assert.doesNotMatch(ui, /className="delete-confirmation"/);
   assert.match(comparison, /initial\.scheduledTime/);
   assert.match(comparison, /initial\.memo/);
