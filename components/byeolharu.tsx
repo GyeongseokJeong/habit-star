@@ -3,14 +3,17 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowDownToLine,
+  AlertCircle,
   Check,
   CalendarDays,
   BellRing,
@@ -324,22 +327,71 @@ function Modal({
 }
 
 
-/** Reuses the existing modal: native Back and the X both trigger this guard. */
+/**
+ * Android-only discard confirmation. Rendered as an actual second modal
+ * dialog in the top layer, never in the editor's document flow.
+ * The underlying editor stays mounted with its draft and scroll position.
+ */
 function UnsavedChangesPrompt({ onContinue, onDiscard }: {
   onContinue: () => void;
   onDiscard: () => void;
 }) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const continueRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => { continueRef.current?.focus(); }, []);
-  return (
-    <div className="android-unsaved-prompt" role="alert" aria-live="assertive">
-      <strong>작성 중인 변경사항이 있어요</strong>
-      <p>저장하지 않고 나가면 변경사항이 사라져요.</p>
-      <div className="android-unsaved-actions">
-        <button type="button" ref={continueRef} className="secondary" onClick={onContinue}>계속 작성</button>
-        <button type="button" className="delete-button" onClick={onDiscard}>변경사항 버리기</button>
+  const titleId = useId();
+  const descriptionId = useId();
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    const previouslyFocused = document.activeElement;
+    dialog?.showModal();
+    continueRef.current?.focus({ preventScroll: true });
+    return () => {
+      if (dialog?.open) dialog.close();
+      if (previouslyFocused instanceof HTMLElement && previouslyFocused.isConnected) {
+        previouslyFocused.focus({ preventScroll: true });
+      }
+    };
+  }, []);
+
+  // Keep Starlit Warmth theme tokens inherited from the owning app;
+  // the dialog's top-layer backdrop still blocks the underlying modal.
+  const portalTarget = document.querySelector<HTMLElement>(".byeolharu") ?? document.body;
+  return createPortal(
+    <dialog
+      ref={dialogRef}
+      className="android-unsaved-dialog"
+      aria-labelledby={titleId}
+      aria-describedby={descriptionId}
+      onCancel={(event) => { event.preventDefault(); onContinue(); }}
+      onClick={(event) => {
+        // Tapping the backdrop cancels discarding; only the explicit red action discards.
+        if (event.target === dialogRef.current) onContinue();
+      }}
+    >
+      <div className="android-unsaved-dialog-content">
+        <div className="android-unsaved-dialog-heading">
+          <AlertCircle size={20} aria-hidden="true" />
+          <h2 id={titleId}>저장하지 않고 나갈까요?</h2>
+        </div>
+        <p id={descriptionId}>작성 중인 변경사항이 사라져요.</p>
+        <div className="android-unsaved-dialog-actions">
+          <button
+            ref={continueRef}
+            type="button"
+            className="primary full"
+            data-unsaved-continue
+            onClick={onContinue}
+          >계속 작성</button>
+          <button
+            type="button"
+            className="text-button full android-unsaved-discard"
+            onClick={onDiscard}
+          >변경사항 버리기</button>
+        </div>
       </div>
-    </div>
+    </dialog>,
+    portalTarget,
   );
 }
 
