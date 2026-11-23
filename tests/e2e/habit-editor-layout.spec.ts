@@ -69,6 +69,17 @@ test("choosing an extra-icon template reveals it in its fixed position", async (
   const icons = await dialog.locator("#habit-editor-icons button").evaluateAll((buttons) =>
     buttons.map((button) => button.getAttribute("aria-label")),
   );
-  expect(icons.indexOf("💊 아이콘")).toBe(12);
+  // A template never expands the full icon list implicitly. The selected
+  // uncommon icon is kept visible in the compact palette.
+  expect(icons).toHaveLength(6);
+  expect(icons.indexOf("💊 아이콘")).toBe(5);
   expect(icons[0]).toBe("💧 아이콘");
+  await expect(dialog.getByRole("button", { name: "아이콘 더 보기" })).toHaveAttribute("aria-expanded", "false");
+  await dialog.getByRole("button", { name: "아이콘 더 보기" }).click();
+  const expandedIcons = await dialog.locator("#habit-editor-icons button").evaluateAll((buttons) =>
+    buttons.map((button) => button.getAttribute("aria-label")),
+  );
+  expect(expandedIcons).toHaveLength(36);
+  expect(expandedIcons.indexOf("💊 아이콘")).toBe(12);
+  await expect(dialog.getByRole("button", { name: "💊 아이콘" })).toHaveAttribute("aria-pressed", "true");
 });
