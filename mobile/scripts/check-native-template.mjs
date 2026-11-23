@@ -17,7 +17,11 @@ for (const method of ["onResume", "onPause", "onDestroy"]) {
 assert.match(java, /getOnBackPressedDispatcher\(\)/);
 assert.match(java, /view\.canGoBack\(\)/);
 assert.match(java, /view\.goBack\(\)/);
-assert.match(java, /finish\(\)/);
+assert.ok(java.includes("moveTaskToBack(true)"));
+assert.match(java, /BACK_EXIT_WINDOW_MS = 2000L/);
+assert.ok(java.includes("SystemClock.uptimeMillis()"));
+assert.match(java, /lastRootBackAt = 0L/);
+assert.ok(java.includes('Toast.makeText(this, "한 번 더 누르면 앱을 종료해요"'));
 assert.match(java, /handler\.removeCallbacks\(themeSync\)/);
 assert.match(java, /setAppearanceLightStatusBars\(light\)/);
 assert.match(java, /setAppearanceLightNavigationBars\(light\)/);
@@ -68,38 +72,62 @@ assert.ok(backScript.indexOf("dialog[open]") < backScript.indexOf(".byeolharu.re
   "A modal over the reflection must close before navigating to the calendar");
 const themeScript = javaStringConstant("READ_THEME_JS");
 
-function runBack(dialog, reflection = null) {
-  return runInNewContext(backScript, {
-    document: {
-      querySelector: selector => selector === "dialog[open]" ? dialog
-        : selector === ".byeolharu.reflection-layout" ? reflection : null,
+function runBack({ dialog = null, reflection = null, selected = null, interacted = false } = {}) {
+  const clicks = [];
+  const all = { click: () => clicks.push("all") };
+  const guard = { __byeolharuBackInteraction: interacted };
+  const document = {
+    querySelector: selector => {
+      if (selector === "dialog[open]") return dialog;
+      if (selector === ".byeolharu.reflection-layout") return reflection;
+      if (selector === "[role=tab][aria-selected=true]") return selected;
+      return null;
     },
-  });
+    getElementById: id => id === "tab-all" ? all : null,
+    addEventListener: () => {},
+  };
+  const result = runInNewContext(backScript, { document, window: guard });
+  return { result, clicks, interacted: guard.__byeolharuBackInteraction };
 }
-assert.equal(runBack(null), false, "At app root, let Android handle WebView history/back");
-let reflectionBackClicks = 0;
-const reflection = {
-  querySelector: selector => selector === "#weekly-reflection-back"
-    ? { click: () => { reflectionBackClicks++; } } : null,
-};
-assert.equal(runBack(null, reflection), true, "Hardware back must leave the 7-day reflection");
-assert.equal(reflectionBackClicks, 1, "Use the existing React 달력으로 action, not native WebView.goBack");
-assert.equal(runBack(null, { querySelector: () => null }), false,
-  "Only a currently visible reflection with its return button handles back");
-let click = "";
+assert.equal(runBack().result, "root", "No intermediate screen means the native root-exit guard");
+assert.equal(runBack({ interacted: true }).result, "root-changed",
+  "Interactions must invalidate the previous exit confirmation");
+assert.equal(runBack({ selected: { id: "tab-all" } }).result, "root",
+  "All habits is the only root routine tab");
+for (const tab of ["tab-morning", "tab-day", "tab-night", "tab-matrix"]) {
+  const result = runBack({ selected: { id: tab } });
+  assert.equal(result.result, "handled", `Back from ${tab} must return to all habits`);
+  assert.deepEqual(result.clicks, ["all"]);
+}
+const fromReflection = { querySelector: selector => selector === "#weekly-reflection-back"
+  ? { click: () => { fromReflection.clicks++; } } : null, clicks: 0 };
+assert.equal(runBack({ reflection: fromReflection, selected: { id: "tab-matrix" } }).result, "handled");
+assert.equal(fromReflection.clicks, 1);
+assert.equal(runBack({ reflection: { querySelector: () => null } }).result, "handled",
+  "Never exit when a reflection is open even if its return button is missing");
+const dialogClicks = [];
 const modal = {
-  querySelector: (selector) => {
-    if (selector === "button.modal-back") return { click: () => { click = "account-back"; } };
-    if (selector === ".modal-top button:last-child") return { click: () => { click = "close"; } };
+  querySelector: selector => {
+    if (selector === "button.modal-back") return { click: () => dialogClicks.push("back") };
+    if (selector === ".modal-top button:last-child") return { click: () => dialogClicks.push("close") };
     return null;
   },
 };
-assert.equal(runBack(modal, reflection), true);
-assert.equal(click, "account-back", "Open dialog back takes priority over reflection navigation");
-assert.equal(reflectionBackClicks, 1, "Modal back must not also leave the reflection");
-assert.equal(runBack({ querySelector: (selector) => selector === ".modal-top button:last-child" ? { click: () => { click = "close"; } } : null }), true);
-assert.equal(click, "close", "Regular modal should invoke its existing React close control");
-assert.equal(runBack({ querySelector: () => null }), false, "Missing controls should not swallow Android back");
+assert.equal(runBack({ dialog: modal, reflection: fromReflection }).result, "handled");
+assert.deepEqual(dialogClicks, ["back"], "Account detail must return to its parent first");
+assert.equal(fromReflection.clicks, 1, "Dialog takes priority over reflection");
+assert.equal(runBack({ dialog: { querySelector: selector => selector === ".modal-top button:last-child"
+  ? { click: () => dialogClicks.push("close") } : null } }).result, "handled");
+assert.deepEqual(dialogClicks, ["back", "close"]);
+assert.equal(runBack({ dialog: { querySelector: () => null } }).result, "handled",
+  "Missing modal controls must never fall through to exit");
+assert.ok(backScript.indexOf("dialog[open]") < backScript.indexOf(".byeolharu.reflection-layout"));
+assert.ok(backScript.indexOf(".byeolharu.reflection-layout") < backScript.indexOf("[role=tab][aria-selected=true]"));
+assert.ok(java.indexOf("if (view.canGoBack())") < java.indexOf("handleRootBack();", java.indexOf("if (view.canGoBack())")),
+  "WebView history must be resolved before the root double-back guard");
+assert.ok(java.includes(String.raw`if ("\"handled\"".equals(result))`));
+assert.ok(java.includes("void handleRootBack()"));
+assert.ok(/lastRootBackAt = 0L;\s*foreground = false;/.test(java));
 
 function runTheme(value) {
   return runInNewContext(themeScript, {
@@ -112,4 +140,4 @@ function runTheme(value) {
 assert.equal(runTheme("dark"), "dark");
 assert.equal(runTheme("light"), "light");
 assert.equal(runTheme(null), "unknown");
-console.log("Native back: modal > reflection > WebView history > root exit; theme checks OK (not a device test)");
+console.log("Native back: dialog > reflection > routine tab > history > 2-second root exit, theme OK (not a device test)");
