@@ -4933,45 +4933,86 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 }
 
 
-/* Android Navigation v1.1: guard drafts without altering website/PWA close behavior. */
-.android-unsaved-prompt {
-  position: relative;
-  z-index: 1;
-  margin: 10px 0 16px;
-  padding: 14px;
-  border: 1px solid var(--control-border);
-  border-radius: 14px;
+/* Android Navigation v1.2: real top-layer discard confirmation.
+   Independent of the original editor flow and responsive in both themes. */
+.android-unsaved-dialog {
+  color-scheme: inherit;
+  width: min(340px, calc(100% - 40px));
+  max-width: 340px;
+  max-height: calc(100dvh - 40px);
+  padding: 0;
+  margin: auto;
+  border: 1px solid var(--line);
+  border-radius: 18px;
   background: var(--surface);
   color: var(--ink);
+  box-shadow: 0 20px 65px #070a14a0;
+  overflow: auto;
+  overscroll-behavior: contain;
 }
-.android-unsaved-prompt > strong {
-  display: block;
-  font-size: 14px;
+.android-unsaved-dialog::backdrop {
+  background: rgb(9 14 25 / 68%);
+  backdrop-filter: blur(3px);
+}
+.android-unsaved-dialog-content { padding: 22px 20px 14px; }
+.android-unsaved-dialog-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.android-unsaved-dialog-heading svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--gold);
+}
+.android-unsaved-dialog-heading h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 17px;
+  line-height: 1.45;
+  letter-spacing: -.3px;
   font-weight: 700;
-  line-height: 1.5;
 }
-.android-unsaved-prompt > p {
-  margin: 5px 0 13px;
+.android-unsaved-dialog-content > p {
+  margin: 10px 0 20px;
   color: var(--body);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
 }
-.android-unsaved-actions {
+.android-unsaved-dialog-actions {
+  display: grid;
+  grid-template-columns: minmax(0,1fr);
+  gap: 4px;
+}
+.android-unsaved-dialog-actions > button {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 46px;
+  margin: 0;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
 }
-.android-unsaved-actions > button {
-  flex: 1 1 0;
-  min-width: 0;
-  min-height: 44px;
-  padding: 9px 7px;
-  font-size: 13px;
+.android-unsaved-dialog-actions > .primary {
+  color: var(--selection-fg);
+  background: var(--selection-bg);
+  border: 1px solid var(--selection-bg);
 }
-.android-unsaved-actions > button:focus-visible {
-  outline: 2px solid var(--selection-bg);
+.android-unsaved-dialog-actions .android-unsaved-discard {
+  border: 0;
+  background: transparent;
+  color: var(--danger);
+}
+.android-unsaved-dialog-actions > button:focus-visible {
+  outline: 2px solid var(--gold);
   outline-offset: 2px;
 }
 @media (max-width: 350px) {
-  .android-unsaved-prompt { padding: 12px; }
-  .android-unsaved-actions { gap: 6px; }
+  .android-unsaved-dialog { width: calc(100% - 32px); }
+  .android-unsaved-dialog-content { padding: 18px 16px 12px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .android-unsaved-dialog[open] { animation: modal-in .16s ease-out; }
 }
