@@ -65,7 +65,11 @@ export function ConfirmDialog({
       aria-describedby={descriptionId}
       aria-busy={busy}
       onCancel={(event) => {
+        // React portal events bubble through the logical parent Modal even
+        // though the native dialogs are top-layer siblings. Stop propagation
+        // or one Escape can close both the confirmation and its editor.
         event.preventDefault();
+        event.stopPropagation();
         if (!busy) onCancel();
       }}
       onClick={(event) => {
