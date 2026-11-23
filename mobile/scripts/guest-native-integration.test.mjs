@@ -68,5 +68,12 @@ test("Android draft exit guard intercepts native Back and X but leaves web/PWA u
   assert.match(ui, /변경사항 버리기/);
   assert.match(comparison, /initial\.scheduledTime/);
   assert.match(comparison, /initial\.memo/);
-  assert.match(read("app/globals.css"), /\.android-unsaved-actions > button/);
+  assert.match(ui, /createPortal\(/);
+  assert.match(ui, /className="android-unsaved-dialog"/);
+  assert.match(ui, /dialog\?\.showModal\(\)/);
+  assert.match(ui, /onCancel=\{\(event\) => \{ event\.preventDefault\(\); onContinue\(\); \}\}/);
+  assert.match(ui, /data-unsaved-continue/);
+  assert.match(read("app/globals.css"), /\.android-unsaved-dialog::backdrop/);
+  assert.match(read("app/globals.css"), /\.android-unsaved-dialog-actions > button/);
+  assert.doesNotMatch(read("app/globals.css"), /\.android-unsaved-prompt \{/);
 });

@@ -34,6 +34,11 @@ public class MainActivity extends BridgeActivity {
         "window.__byeolharuBackClickGuard=true;" +
         "document.addEventListener('click',function(){window.__byeolharuBackInteraction=true;},true);" +
         "}" +
+        "var discard=document.querySelector('.android-unsaved-dialog[open]');" +
+        "if(discard){" +
+        "var keep=discard.querySelector('[data-unsaved-continue]');" +
+        "if(keep){keep.click();}return 'handled';" +
+        "}" +
         "var dialog=document.querySelector('dialog[open]');" +
         "if(dialog){" +
         "var back=dialog.querySelector('button.modal-back');" +
