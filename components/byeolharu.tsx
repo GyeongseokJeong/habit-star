@@ -489,10 +489,16 @@ function HabitEditor({
           onConfirm={() => {
             if (permissionPromptBusy) return;
             setPermissionPromptBusy(true);
-            void onRequestFirstPermission?.()
-              .then((granted) => settleFirstPermissionPrompt(granted))
-              .catch(() => settleFirstPermissionPrompt(false))
-              .finally(() => setPermissionPromptBusy(false));
+            void (async () => {
+              try {
+                const granted = Boolean(await onRequestFirstPermission?.());
+                settleFirstPermissionPrompt(granted);
+              } catch {
+                settleFirstPermissionPrompt(false);
+              } finally {
+                setPermissionPromptBusy(false);
+              }
+            })();
           }}
         />
       )}
