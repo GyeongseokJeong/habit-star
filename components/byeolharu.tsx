@@ -54,6 +54,7 @@ import type { NativeReminderControls } from "@/lib/habits/native-reminder-contro
 import { alarmForSelectedTime } from "@/lib/habits/alarm-default-policy";
 import { scheduledTimeGroup, templateGroupForTime, timeForSelectedGroup } from "@/lib/habits/habit-editor-time";
 import { AccountPanel } from "@/components/account/account-panel";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { THEME_PREFERENCE_KEY, parseThemePreference, resolveTheme, type ThemePreference } from "@/lib/theme-preference";
 import { StarlitHero } from "@/components/starlit-hero";
 import { countEarlierPendingHabits, countOtherPendingHabits, initialRoutineTab, startupDataReady } from "@/lib/habits/time-tab";
@@ -327,71 +328,20 @@ function Modal({
 }
 
 
-/**
- * Android-only discard confirmation. Rendered as an actual second modal
- * dialog in the top layer, never in the editor's document flow.
- * The underlying editor stays mounted with its draft and scroll position.
- */
+/** Android unsaved changes use the shared Starlit Warmth confirmation. */
 function UnsavedChangesPrompt({ onContinue, onDiscard }: {
   onContinue: () => void;
   onDiscard: () => void;
 }) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const continueRef = useRef<HTMLButtonElement>(null);
-  const titleId = useId();
-  const descriptionId = useId();
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    const previouslyFocused = document.activeElement;
-    dialog?.showModal();
-    continueRef.current?.focus({ preventScroll: true });
-    return () => {
-      if (dialog?.open) dialog.close();
-      if (previouslyFocused instanceof HTMLElement && previouslyFocused.isConnected) {
-        previouslyFocused.focus({ preventScroll: true });
-      }
-    };
-  }, []);
-
-  // Keep Starlit Warmth theme tokens inherited from the owning app;
-  // the dialog's top-layer backdrop still blocks the underlying modal.
-  const portalTarget = document.querySelector<HTMLElement>(".byeolharu") ?? document.body;
-  return createPortal(
-    <dialog
-      ref={dialogRef}
-      className="android-unsaved-dialog"
-      aria-labelledby={titleId}
-      aria-describedby={descriptionId}
-      onCancel={(event) => { event.preventDefault(); onContinue(); }}
-      onClick={(event) => {
-        // Tapping the backdrop cancels discarding; only the explicit red action discards.
-        if (event.target === dialogRef.current) onContinue();
-      }}
-    >
-      <div className="android-unsaved-dialog-content">
-        <div className="android-unsaved-dialog-heading">
-          <AlertCircle size={20} aria-hidden="true" />
-          <h2 id={titleId}>저장하지 않고 나갈까요?</h2>
-        </div>
-        <p id={descriptionId}>작성 중인 변경사항이 사라져요.</p>
-        <div className="android-unsaved-dialog-actions">
-          <button
-            ref={continueRef}
-            type="button"
-            className="primary full"
-            data-unsaved-continue
-            onClick={onContinue}
-          >계속 작성</button>
-          <button
-            type="button"
-            className="text-button full android-unsaved-discard"
-            onClick={onDiscard}
-          >변경사항 버리기</button>
-        </div>
-      </div>
-    </dialog>,
-    portalTarget,
+  return (
+    <ConfirmDialog
+      title="저장하지 않고 나갈까요?"
+      description="작성 중인 변경사항이 사라져요."
+      cancelLabel="계속 작성"
+      confirmLabel="변경사항 버리기"
+      onCancel={onContinue}
+      onConfirm={onDiscard}
+    />
   );
 }
 
@@ -500,6 +450,16 @@ function HabitEditor({
       onClose={requestClose}
     >
       {discardPrompt && <UnsavedChangesPrompt onContinue={() => setDiscardPrompt(false)} onDiscard={onClose} />}
+      {confirmDelete && onDelete && (
+        <ConfirmDialog
+          title="이 습관을 삭제할까요?"
+          description="삭제하면 습관 목록에서 사라져요. 과거 실천 기록은 그대로 남아요."
+          cancelLabel="습관 유지하기"
+          confirmLabel="습관 삭제하기"
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={onDelete}
+        />
+      )}
       {!habit && <p className="modal-description">작은 실천부터, 나만의 속도로 시작해요.</p>}
       <form
         className={habit ? "habit-editor-form" : "habit-editor-form habit-editor-creation-b2"}
@@ -751,21 +711,11 @@ function HabitEditor({
             </div>
           )}
         </section>
-        {onDelete && (confirmDelete ? (
-          <div className="delete-confirmation" role="group" aria-label="습관 삭제 확인">
-            <p>이 습관을 삭제할까요? 이전 날짜의 기록은 그대로 남아요.</p>
-            <div className="form-row">
-              <button type="button" className="secondary full" onClick={() => setConfirmDelete(false)}>취소</button>
-              <button type="button" className="delete-button" onClick={onDelete}>
-                <Trash2 size={16} /> 삭제 확인
-              </button>
-            </div>
-          </div>
-        ) : (
+        {onDelete && (
           <button type="button" className="delete-button" onClick={() => setConfirmDelete(true)}>
             <Trash2 size={16} /> 이 습관 삭제하기
           </button>
-        ))}
+        )}
         <div className="habit-editor-footer">
           <button type="submit" className="primary full" disabled={alarmChecking}>
             <Check size={18} />
