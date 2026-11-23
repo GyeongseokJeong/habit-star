@@ -166,12 +166,12 @@ public class MainActivity extends BridgeActivity {
         view.evaluateJavascript(HANDLE_IN_APP_BACK_JS, result -> {
             backPending = false;
             if (isFinishing() || isDestroyed() || !foreground) return;
-            if ("\\\"handled\\\"".equals(result)) {
+            if ("\"handled\"".equals(result)) {
                 lastRootBackAt = 0L;
                 return;
             }
             // Never exit if the WebView could not resolve its React screen.
-            if (!"\\\"root\\\"".equals(result) && !"\\\"root-changed\\\"".equals(result)) {
+            if (!"\"root\"".equals(result) && !"\"root-changed\"".equals(result)) {
                 lastRootBackAt = 0L;
                 return;
             }
@@ -180,7 +180,7 @@ public class MainActivity extends BridgeActivity {
                 view.goBack();
                 return;
             }
-            if ("\\\"root-changed\\\"".equals(result)) lastRootBackAt = 0L;
+            if ("\"root-changed\"".equals(result)) lastRootBackAt = 0L;
             handleRootBack();
         });
     }
