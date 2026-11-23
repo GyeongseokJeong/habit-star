@@ -589,7 +589,7 @@ export function AccountPanel({
               </div>
             </details>
           </div>
-          (nativeReminders?.permissionState === "denied" || nativeReminders?.permissionState === "prompt" || !nativeReminders) && (
+          {(nativeReminders?.permissionState === "denied" || nativeReminders?.permissionState === "prompt" || !nativeReminders) && (
           <button type="button" className="account-help-support" onClick={() => navigate(nativeReminders ? "settings" : "records")}>
             <CircleHelp size={18} aria-hidden="true" />
             <span>{nativeReminders ? "알림 권한 설정" : "기록 저장에 문제가 있나요?"}</span>
