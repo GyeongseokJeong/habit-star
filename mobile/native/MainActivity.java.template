@@ -30,8 +30,6 @@ public class MainActivity extends BridgeActivity {
     // Priority: modal > reflection > active tab > WebView history > root.
     private static final String HANDLE_IN_APP_BACK_JS =
         "(function(){" +
-        // One capture listener invalidates a pending root-exit confirmation
-        // whenever the user interacts with the app between two back presses.
         "if(!window.__byeolharuBackClickGuard){" +
         "window.__byeolharuBackClickGuard=true;" +
         "document.addEventListener('click',function(){window.__byeolharuBackInteraction=true;},true);" +
@@ -42,8 +40,6 @@ public class MainActivity extends BridgeActivity {
         "var close=dialog.querySelector('.modal-top button:last-child');" +
         "var action=back||close;" +
         "if(action){action.click();return 'handled';}" +
-        // Fail closed: a modal whose controls are temporarily unavailable must
-        // never trigger a root exit under its overlay.
         "return 'handled';" +
         "}" +
         "var reflection=document.querySelector('.byeolharu.reflection-layout');" +
