@@ -70,15 +70,16 @@ test("foreign guest notification ID conflict fails closed instead of editing any
   queue[0]={id:queue[0].id,extra:{kind:REMINDER_KIND,scope:"member:somebody"}};
   assert.throws(()=>audit(snapshot(),queue),/충돌/);
 });
-test("Android-only UI has a read-only audit and website does not expose it",()=>{
+test("Android audit engine remains available internally but not in user settings or website",()=>{
   const root=resolve(import.meta.dirname,"../..");
   const entry=readFileSync(resolve(root,"mobile/packaged-guest/main.tsx"),"utf8");
   const account=readFileSync(resolve(root,"components/account/account-panel.tsx"),"utf8");
   const web=readFileSync(resolve(root,"app/page.tsx"),"utf8");
   assert.match(entry,/auditGuestReminders\(\{/);
   assert.match(entry,/LocalNotifications\.getPending\(\)/);
-  assert.ok(account.includes('runOnce("audit-reminders", nativeReminders.onAuditPending)'));
-  assert.match(account,/aria-busy={workingAction === "audit-reminders"}/);
-  assert.ok(account.includes('disabled={app.busy || nativeReminders.busy || workingAction !== null}'));
+  assert.match(entry,/const onAuditPending = useCallback/);
+  assert.match(entry,/onAuditPending, onRepairPending, onEnabledChange/);
+  assert.doesNotMatch(account,/onAuditPending|audit-reminders|android-reminder-details/);
+  assert.match(account,/aria-label="기기 알림 권한"/);
   assert.doesNotMatch(web,/onAuditPending|auditGuestReminders/);
 });
