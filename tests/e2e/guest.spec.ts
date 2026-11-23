@@ -288,10 +288,10 @@ test("editing, star cancellation, plain completion, deferred reminders, theme an
   await page
     .getByRole("button", { name: "이 습관 삭제하기", exact: true })
     .click();
-  await expect(
-    page.getByText("이 습관을 삭제할까요? 이전 날짜의 기록은 그대로 남아요."),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "삭제 확인", exact: true }).click();
+  const deleteConfirmation = page.getByRole("dialog", { name: "이 습관을 삭제할까요?" });
+  await expect(deleteConfirmation).toBeVisible();
+  await expect(deleteConfirmation).toContainText("과거 실천 기록은 그대로 남아요.");
+  await deleteConfirmation.getByRole("button", { name: "습관 삭제하기" }).click();
   await expect(
     page.getByRole("dialog", { name: "습관 수정하기" }),
   ).not.toBeVisible();
