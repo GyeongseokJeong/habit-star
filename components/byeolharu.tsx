@@ -1819,6 +1819,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
               aria-label={
                 theme === "light" ? "다크 모드로 전환" : "라이트 모드로 전환"
               }
+              disabled={!themePreferenceLoaded}
               onClick={() => setThemeMode(theme === "light" ? "dark" : "light")}
             >
               {theme === "light" ? <Moon size={19} /> : <Sun size={19} />}
