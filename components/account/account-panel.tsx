@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownToLine, ChevronRight, CheckCircle2, CloudOff,
   Database, Download, RefreshCw, Settings2, ShieldCheck, Sparkles, UserRound, CircleHelp,
-  AlertCircle, Clock3, Laptop, Moon, Sun, MonitorSmartphone, LoaderCircle, Star, Cloud, LogOut,
+  AlertCircle, Clock3, Laptop, Moon, Sun, MonitorSmartphone, LoaderCircle, Star, Cloud, LogOut, BellRing,
 } from "lucide-react";
 import { cloudEnabled } from "@/lib/supabase/client";
 import { APP_BUILD_INFO } from "@/lib/build-info";
@@ -447,6 +447,36 @@ export function AccountPanel({
             )}
           </div>
           {nativeReminders && (
+            <div className="account-setting-block android-permission-summary" aria-label="기기 알림 권한">
+              <div className="account-setting-heading"><span>알림 권한</span><small>알림을 허용해도 원하지 않는 습관 알림은 켜지지 않아요.</small></div>
+              <div className="android-permission-state-row">
+                <span className="android-permission-state">
+                  {nativeReminders.permissionState === "granted"
+                    ? <><CheckCircle2 size={17} aria-hidden="true" /> 기기 알림 허용됨</>
+                    : nativeReminders.permissionState === "denied"
+                      ? <><AlertCircle size={17} aria-hidden="true" /> 기기 알림 차단됨</>
+                      : nativeReminders.permissionState === "prompt"
+                        ? <><BellRing size={17} aria-hidden="true" /> 아직 허용하지 않았어요</>
+                        : "알림 권한 확인 중…"}
+                </span>
+                {nativeReminders.permissionState !== "granted" && nativeReminders.permissionState !== "unknown" && (
+                  <button type="button" className="secondary android-permission-action"
+                    disabled={nativeReminders.busy || workingAction !== null || app.busy}
+                    aria-busy={workingAction === "device-permission"}
+                    onClick={() => void runOnce("device-permission", async () => {
+                      await nativeReminders.onRequestPermission();
+                    })}>
+                    {nativeReminders.permissionState === "denied" ? "기기 설정 열기" : "알림 허용하기"}
+                  </button>
+                )}
+              </div>
+              {nativeReminders.permissionState === "denied" && (
+                <p className="android-permission-help" role="status">기기에서 알림이 차단되어 설정한 습관 알림을 받을 수 없어요.</p>
+              )}
+              {!!nativeReminders.status && <p className="android-permission-help" role="status">{nativeReminders.status}</p>}
+            </div>
+          )}
+          {nativeReminders && (
             <div className="account-setting-block android-wrapup-settings" aria-label="시간대 마무리 알림">
               <div className="account-setting-heading">
                 <span>시간대 마무리 알림</span>
@@ -470,17 +500,19 @@ export function AccountPanel({
                         <span className="compact-switch-track" aria-hidden="true"><span className="compact-switch-thumb" /></span>
                       </button>
                     </div>
-                    <label className="android-wrapup-time" htmlFor={"wrapup-time-" + group}>
-                      알림 시각
-                      <select id={"wrapup-time-" + group} value={choice.time} disabled={!choice.enabled || working}
-                        onChange={(event) => void runOnce("wrapup-time-" + group, async () => {
-                          if (!await nativeReminders.onWrapupChange(group, { time: event.target.value })) {
-                            throw Error("알림 시간을 변경하지 못했어요.");
-                          }
-                        })}>
-                        {times.map(time => <option key={time} value={time}>{time}</option>)}
-                      </select>
-                    </label>
+                    {choice.enabled && (
+                      <label className="android-wrapup-time" htmlFor={"wrapup-time-" + group}>
+                        알림 시각
+                        <select id={"wrapup-time-" + group} value={choice.time} disabled={working}
+                          onChange={(event) => void runOnce("wrapup-time-" + group, async () => {
+                            if (!await nativeReminders.onWrapupChange(group, { time: event.target.value })) {
+                              throw Error("알림 시간을 변경하지 못했어요.");
+                            }
+                          })}>
+                          {times.map(time => <option key={time} value={time}>{time}</option>)}
+                        </select>
+                      </label>
+                    )}
                   </div>
                 );
               })}
@@ -496,14 +528,7 @@ export function AccountPanel({
               <summary>알림 문제 해결 <ChevronRight size={16} aria-hidden="true" /></summary>
               <div className="android-reminder-details-body">
                 <p className="account-note">알림은 각 습관의 수정 화면에서 켜고 끌 수 있어요.</p>
-                {nativeReminders.permissionState === "denied" && (
-                  <p className="account-note" role="status">
-                    기기 알림 권한이 차단되어 있어요. 습관 알림을 다시 켜면 Android 권한 설정으로 이동할 수 있어요.
-                  </p>
-                )}
-                {!!nativeReminders.status && (
-                  <p className="account-note" role="status">{nativeReminders.status}</p>
-                )}
+                <p className="account-note">권한 상태와 허용 경로는 위 알림 권한에서 확인할 수 있어요.</p>
                 <div className="android-reminder-detail-actions">
                   <button
                     type="button"
