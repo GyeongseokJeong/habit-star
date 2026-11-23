@@ -518,3 +518,40 @@ test("habit deletion uses a separate confirmation that preserves the editor on c
   await expect(edit).not.toBeVisible();
   await expect(page.getByRole("button", { name: "삭제 테스트 습관 수정" })).toHaveCount(0);
 });
+
+
+test("editing keeps uncommon icon visible without expanding the entire icon palette", async ({ page }) => {
+  await page.clock.install({ time: new Date("2026-11-19T12:00:00Z") });
+  await page.setViewportSize({ width: 390, height: 740 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "새 습관 추가", exact: true }).click();
+  const create = page.getByRole("dialog", { name: "나를 위한 새로운 습관" });
+  await create.getByPlaceholder("예: 하루 10분 책 읽기").fill("나의 명상");
+  await create.getByRole("button", { name: "아이콘 더 보기" }).click();
+  await create.getByRole("button", { name: "🙏 아이콘" }).click();
+  await create.getByRole("button", { name: "새 습관 추가하기" }).click();
+
+  await page.getByRole("button", { name: "나의 명상 수정" }).click();
+  const edit = page.getByRole("dialog", { name: "습관 수정하기" });
+  const icons = edit.locator(".habit-editor-icons .emoji-picker button");
+  await expect(icons).toHaveCount(6);
+  await expect(edit.getByRole("button", { name: "🙏 아이콘" })).toHaveAttribute("aria-pressed", "true");
+  await expect(edit.getByRole("button", { name: "아이콘 더 보기" })).toHaveAttribute("aria-expanded", "false");
+  await edit.getByRole("button", { name: "아이콘 더 보기" }).click();
+  await expect(icons).toHaveCount(36);
+  await expect(edit.getByRole("button", { name: "🙏 아이콘" })).toHaveAttribute("aria-pressed", "true");
+});
+
+test("manually selected time clears a template selection indicator", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 740 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "새 습관 추가", exact: true }).click();
+  const create = page.getByRole("dialog", { name: "나를 위한 새로운 습관" });
+  const template = create.getByRole("button", { name: "독서 20분 템플릿" });
+  await template.click();
+  await expect(template).toHaveAttribute("aria-pressed", "true");
+  await create.getByLabel("예정 시간").fill("22:10");
+  await expect(template).toHaveAttribute("aria-pressed", "false");
+  await expect(create.getByPlaceholder("예: 하루 10분 책 읽기")).toHaveValue("독서 20분");
+});
+

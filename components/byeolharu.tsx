@@ -397,7 +397,7 @@ function HabitEditor({
   const [moreTemplates, setMoreTemplates] = useState(false);
   const [nameEdited, setNameEdited] = useState(false);
   const [templateNotice, setTemplateNotice] = useState("");
-  const [moreIcons, setMoreIcons] = useState(() => Boolean(habit?.icon && MORE_EMOJIS.includes(habit.icon)));
+  const [moreIcons, setMoreIcons] = useState(false);
   const [timeEdited, setTimeEdited] = useState(false);
   const [draft, setDraft] = useState<HabitSettingsPatch>(() => ({
     title: habit?.title ?? "",
@@ -425,9 +425,9 @@ function HabitEditor({
     ...EMOJIS.filter((icon) => !QUICK_HABIT_ICONS.includes(icon)),
     ...MORE_EMOJIS,
   ];
-  const baseIcons = habit
-    ? [...EMOJIS, ...(moreIcons ? MORE_EMOJIS : [])]
-    : (moreIcons ? creationIconPalette : QUICK_HABIT_ICONS);
+  // Keep creation and editing compact until the user explicitly expands the palette.
+  // An existing uncommon icon stays visible below, without opening all icons.
+  const baseIcons = moreIcons ? creationIconPalette : QUICK_HABIT_ICONS;
   const visibleIcons = [
     ...baseIcons,
     ...(!baseIcons.includes(draft.icon) && (!knownIcon || !moreIcons) ? [draft.icon] : []),
@@ -572,10 +572,10 @@ function HabitEditor({
                   aria-pressed={
                     draft.title === template.title &&
                     draft.icon === template.icon &&
-                    draft.timeGroup === template.timeGroup
+                    draft.timeGroup === template.timeGroup &&
+                    draft.scheduledTime === template.scheduledTime
                   }
                   onClick={() => {
-                    if (!QUICK_HABIT_ICONS.includes(template.icon)) setMoreIcons(true);
                     const preserveName = nameEdited && Boolean(draft.title.trim());
                     setTemplateNotice(preserveName ? "작성한 이름은 유지하고 추천 설정만 적용했어요." : "");
                     setDraft((prev) => ({
