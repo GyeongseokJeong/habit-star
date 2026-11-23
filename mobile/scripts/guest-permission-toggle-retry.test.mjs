@@ -39,7 +39,7 @@ test("turning visible switch ON re-requests permission then opens Android settin
   assert.match(patcher, /assert\.equal\(\s*targetPackage,\s*process\.env\.BYEOLHARU_ANDROID_RELEASE === "1"\s*\? "app\.byeolharu\.android"\s*: "io\.github\.gyeongseokjeong\.byeolharu\.packagedgueststep9",\s*"Refusing to patch another Android package"/);
   assert.doesNotMatch(publicWeb,/ByeolharuDeviceSettings|nativeReminders|onEnabledChange/);
 });
-test("manual repair is exposed only after a real mismatch with opt-in and OS permission",()=>{
+test("internal repair remains gated behind a real mismatch without public settings controls",()=>{
   const mismatched={status:"out-of-sync"};
   assert.equal(canManuallyRepairGuestReminders(mismatched,true,"granted"),true);
   for(const status of ["synced","permission-required","snapshot-not-ready","disabled","unexpected-pending"]){
@@ -50,7 +50,7 @@ test("manual repair is exposed only after a real mismatch with opt-in and OS per
   assert.equal(canManuallyRepairGuestReminders(mismatched,false,"granted"),false);
   assert.equal(canManuallyRepairGuestReminders(null,true,"granted"),false);
   assert.match(entry,/setRepairAvailable\(canManuallyRepairGuestReminders\(report, effectiveHabitReminderOptIn\(enabledRef\.current, snapshot\.current\) \|\| hasEnabledWrapup\(wrapupRef\.current\), permissions\.display\)\)/);
-  assert.match(account,/nativeReminders\.repairAvailable &&/);
+  assert.doesNotMatch(account,/nativeReminders\.repairAvailable|onRepairPending|알림 문제 해결/);
   // Repair itself still checks permission and fresh snapshot at execution time.
   const repair=readFileSync(resolve(root,"mobile/notifications/guest-reminder-repair.js"),"utf8");
   assert.match(repair,/localNotifications\.checkPermissions\(\)/);
@@ -65,7 +65,7 @@ test("denied OS permission cannot silently clear opt-in, native queue or habit d
   assert.doesNotMatch(denial,/localStorage\.setItem|schedule\(|lifecycle\.disable\(|setEnabled\(false\)/);
   assert.match(entry,/if \(!granted\) \{\s*try/);
   assert.match(account,/기기에서 알림이 차단되어 설정한 습관 알림을 받을 수 없어요/);
-  assert.match(account,/<summary>알림 문제 해결/);
+  assert.match(account,/aria-label="기기 알림 권한"/);
   assert.doesNotMatch(account,/aria-checked=\{nativeReminders\.active\}/);
 });
 
