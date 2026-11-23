@@ -6,10 +6,16 @@ for (const width of [320, 390, 430, 1365]) {
       await page.setViewportSize({ width, height: 844 });
       await page.goto("/");
       await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
-      if (theme === "dark") {
-        const dark = page.getByRole("button", { name: "다크 모드로 전환" });
-        if (await dark.isVisible()) await dark.click();
-      }
+      // The theme preference is restored after hydration. Wait for it before
+      // toggling or measuring CSS; a fast worker can otherwise sample light
+      // wave stops while the dark update is still rendering.
+      await expect(page.locator("html")).toHaveAttribute("data-byeolharu-theme", /^(light|dark)$/);
+      const switchToRequestedTheme = page.getByRole("button", {
+        name: theme === "dark" ? "다크 모드로 전환" : "라이트 모드로 전환",
+      });
+      if (await switchToRequestedTheme.isVisible()) await switchToRequestedTheme.click();
+      await expect(page.locator(".byeolharu")).toHaveClass(new RegExp(`\\b${theme}\\b`));
+      await expect(page.locator("html")).toHaveAttribute("data-byeolharu-theme", theme);
       await page.getByRole("tab", { name: "전체", exact: true }).click();
 
       const closing = page.locator("footer.closing-footer[aria-label='하루의 마무리']");
