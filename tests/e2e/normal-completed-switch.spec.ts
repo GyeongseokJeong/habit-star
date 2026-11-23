@@ -122,3 +122,37 @@ test("keyboard completing the last current-period habit keeps focus on the stabl
   await expect(page.getByRole("tab", { name: "낮", exact: true })).toBeFocused();
   await expect(page.locator(".upcoming-heading")).toHaveCount(0);
 });
+
+for (const width of [320, 390, 430]) {
+  test(`completed habit status stays with its metadata at ${width}px without stealing title space`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("/");
+    await page.getByRole("tab", { name: "전체", exact: true }).click();
+    const pending = page.locator(".normal-pending-list .habit-card").first();
+    await expect(pending).toBeVisible();
+    const title = (await pending.locator("h3").innerText()).trim();
+    await pending.getByRole("button", { name: title + " 4점" }).click();
+    await page.locator(".normal-done-toggle").click();
+    const completed = page.locator(".normal-completed-list .habit-card").filter({ has: page.getByRole("heading", { name: title, exact: true }) });
+    await expect(completed).toBeVisible();
+    await expect(completed.locator(".card-actions .status-pill")).toHaveCount(0);
+    await expect(completed.locator(".card-meta-row .status-pill.done")).toHaveText(/실천 완료/);
+    await expect(completed.locator(".card-meta-row .time-badge")).toBeVisible();
+    const layout = await completed.evaluate((card) => {
+      const title = card.querySelector(".card-content")!.getBoundingClientRect();
+      const edit = card.querySelector(".card-actions .icon-button")!.getBoundingClientRect();
+      const meta = card.querySelector(".card-meta-row")!.getBoundingClientRect();
+      return {
+        titleEndsBeforeEdit: title.right <= edit.left + 1,
+        metaInCard: meta.right <= card.getBoundingClientRect().right + 1,
+      };
+    });
+    expect(layout.titleEndsBeforeEdit).toBe(true);
+    expect(layout.metaInCard).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await completed.locator(".card-content").focus();
+    await expect(completed.locator(".card-content")).toHaveCSS("outline-style", "solid");
+    await completed.getByRole("button", { name: title + " 수정" }).focus();
+    await expect(completed.getByRole("button", { name: title + " 수정" })).toHaveCSS("outline-style", "solid");
+  });
+}
