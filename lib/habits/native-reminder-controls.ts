@@ -11,7 +11,11 @@ export type WrapupSettings = Record<WrapupGroup, { enabled: boolean; time: strin
 export type NativeReminderControls = {
   enabled: boolean;
   active: boolean;
-  permissionState: "unknown" | "granted" | "denied";
+  permissionState: "unknown" | "prompt" | "granted" | "denied";
+  /** Android-first-run invitation, independent of the saved reminder switches. */
+  showPermissionOffer: boolean;
+  onRequestPermission: () => Promise<boolean>;
+  onDismissPermissionOffer: () => void;
   busy: boolean;
   status: string;
   /** True only when the native setting and permission request succeeded. */
