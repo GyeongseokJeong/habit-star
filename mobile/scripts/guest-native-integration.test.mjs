@@ -55,3 +55,18 @@ test("STEP 11 preserves scheduled jobs until the guest repository finishes loadi
   assert.match(app, /if \(snapshot\.current\) \{/);
   assert.match(gate, /return "await-today"/);
 });
+
+
+test("Android draft exit guard intercepts native Back and X but leaves web/PWA unaffected", () => {
+  const ui = read("components/byeolharu.tsx");
+  const comparison = read("lib/habits/unsaved-draft.ts");
+  assert.match(ui, /onClose=\{requestClose\}/);
+  assert.match(ui, /guardUnsaved=\{Boolean\(nativeReminders\)\}/);
+  assert.match(ui, /hasUnsavedHabitSettings\(initialDraft\.current, draft\)/);
+  assert.match(ui, /hasUnsavedDailyRecord\(initialDraft\.current, draft\)/);
+  assert.match(ui, /<UnsavedChangesPrompt onContinue=\{\(\) => setDiscardPrompt\(false\)\} onDiscard=\{onClose\}/);
+  assert.match(ui, /변경사항 버리기/);
+  assert.match(comparison, /initial\.scheduledTime/);
+  assert.match(comparison, /initial\.memo/);
+  assert.match(read("app/globals.css"), /\.android-unsaved-actions > button/);
+});
