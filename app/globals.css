@@ -771,6 +771,23 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   text-overflow: ellipsis;
   overflow: hidden;
 }
+/* Keep the completed state beside timing instead of competing with the title
+   and 44px edit action; allow stacking naturally on narrow cards. */
+.card-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 9px;
+  min-width: 0;
+}
+.card-meta-row .time-badge { min-width: 0; }
+.card-meta-row .status-pill.done { flex: 0 0 auto; }
+.habit-card .card-content:focus-visible,
+.habit-card .card-actions .icon-button:focus-visible {
+  outline: 2px solid var(--selection-bg);
+  outline-offset: 2px;
+}
+
 .time-badge {
   display: inline-flex;
   align-items: center;
