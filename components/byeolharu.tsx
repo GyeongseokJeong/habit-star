@@ -960,12 +960,6 @@ function HabitCard({
       <div className="card-top">
         <span className={`habit-emoji ${habit.timeGroup}`}>{habit.icon}</span>
         <div className="card-actions">
-          {habit.completed && (
-            <span className="status-pill done">
-              <Check size={10} aria-hidden="true" />
-              실천 완료
-            </span>
-          )}
           <button
             className="icon-button small"
             aria-label={`${habit.title} 수정`}
@@ -982,7 +976,15 @@ function HabitCard({
         <h3>{habit.title}</h3>
         {isSample && <span className="habit-sample-badge">예시</span>}
         {habit.memo && <p>{habit.memo}</p>}
-        <HabitTimeMeta habit={habit} showTimeGroup={showTimeGroup} />
+        <span className="card-meta-row">
+          <HabitTimeMeta habit={habit} showTimeGroup={showTimeGroup} />
+          {habit.completed && (
+            <span className="status-pill done">
+              <Check size={10} aria-hidden="true" />
+              실천 완료
+            </span>
+          )}
+        </span>
       </button>
       <div
         className="card-rating"
