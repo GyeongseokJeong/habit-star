@@ -10,6 +10,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
+import android.content.res.ColorStateList;
+import android.graphics.drawable.Icon;
 import android.content.pm.ApplicationInfo;
 import android.os.Build;
 import android.os.Handler;
@@ -127,6 +129,25 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
         return "dark".equals(theme) || ("system".equals(theme) &&
           (c.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES);
     }
+    // A render chooses one theme for its entire RemoteViews tree.
+    // API 31+ resolves both alternatives inside the launcher on re-apply;
+    // older hosts receive a concrete theme, including in their row adapter URI.
+    static String renderTheme(Context c,int id) {
+        String theme=options(c).getString(id+":theme","system");
+        return "system".equals(theme)&&Build.VERSION.SDK_INT>=31?"system":dark(c,id)?"dark":"light";
+    }
+    static void textColor(RemoteViews v,int id,String theme,String light,String dark) {
+        if ("system".equals(theme)&&Build.VERSION.SDK_INT>=31)
+            v.setColorInt(id,"setTextColor",Color.parseColor(light),Color.parseColor(dark));
+        else v.setTextColor(id,Color.parseColor("dark".equals(theme)?dark:light));
+    }
+    static void checkIcon(Context c,RemoteViews v,int id,String theme,boolean completed) {
+        int light=completed?R.drawable.byeolharu_widget_check_light:R.drawable.byeolharu_widget_circle_light;
+        int dark=completed?R.drawable.byeolharu_widget_check_dark:R.drawable.byeolharu_widget_circle_dark;
+        if ("system".equals(theme)&&Build.VERSION.SDK_INT>=31)
+            v.setIcon(id,"setImageIcon",Icon.createWithResource(c,light),Icon.createWithResource(c,dark));
+        else v.setImageViewResource(id,"dark".equals(theme)?dark:light);
+    }
     static List<JSONObject> rows(Context c,int id,JSONObject data,boolean hide) {
         List<JSONObject> list=new ArrayList<>();
         if (!configured(c,id) || data==null) return list;
@@ -169,6 +190,7 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
         schedule(c,data);
     }
     @Override public void onUpdate(Context c,AppWidgetManager m,int[] ids) { refreshAll(c); }
+    @Override public void onAppWidgetOptionsChanged(Context c,AppWidgetManager m,int id,android.os.Bundle options) { refreshAll(c); }
     @Override public void onDeleted(Context c,int[] ids) {
         synchronized (ByeolharuWidgetProvider.class) {
             SharedPreferences.Editor e=options(c).edit();
@@ -232,8 +254,19 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
     }
     static void render(Context c,int id,JSONObject data) {
         if(!owns(c,id))return;
-        boolean dark=dark(c,id), consent=configured(c,id), ready=consent&&data!=null;
-        RemoteViews v=new RemoteViews(c.getPackageName(),dark?R.layout.byeolharu_widget_dark:R.layout.byeolharu_widget_light);
+        String theme=renderTheme(c,id);
+        boolean consent=configured(c,id), ready=consent&&data!=null;
+        RemoteViews v=new RemoteViews(c.getPackageName(),"dark".equals(theme)?R.layout.byeolharu_widget_dark:R.layout.byeolharu_widget_light);
+        if ("system".equals(theme)&&Build.VERSION.SDK_INT>=31) {
+            // Rounded shape is preserved; only its tint changes.
+            v.setColorStateList(R.id.widget_root,"setBackgroundTintList",
+                ColorStateList.valueOf(Color.parseColor("#FFFCF7")),ColorStateList.valueOf(Color.parseColor("#1C2233")));
+            textColor(v,R.id.widget_star,theme,"#92703B","#E5C78D");
+            textColor(v,R.id.widget_label,theme,"#302D38","#F0EDF5");
+            textColor(v,R.id.widget_count,theme,"#92703B","#E5C78D");
+            textColor(v,R.id.widget_empty,theme,"#716B79","#A4AABD");
+            textColor(v,R.id.widget_private,theme,"#716B79","#A4AABD");
+        }
         List<JSONObject> all=rows(c,id,data,false);
         int done=0;for(JSONObject row:all)if(row.optBoolean("completed"))done++;
         v.setTextViewText(R.id.widget_label,label(filter(c,id,data)));
@@ -251,7 +284,8 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
         v.setOnClickPendingIntent(R.id.widget_empty,PendingIntent.getActivity(c,8102,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
         v.setOnClickPendingIntent(R.id.widget_private,PendingIntent.getActivity(c,8102,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
         Intent service=new Intent(c,ByeolharuWidgetListService.class).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,id)
-            .setData(Uri.parse("byeolharu-widget://list/"+id+"/"+(dark?"dark":"light")+"/"+(ready?"visible":"hidden")));
+            .putExtra("renderTheme",theme)
+            .setData(Uri.parse("byeolharu-widget://list/"+id+"/"+theme+"/"+(ready?"visible":"hidden")));
         v.setRemoteAdapter(R.id.widget_list,service);
         if(experimental(c)&&ready) {
             Intent tap=new Intent(c,Mini.class).setAction(PRACTICE)

@@ -194,7 +194,7 @@ for(const theme of ["dark","light"]){
  const height=Number(header.match(/android:layout_height="(\d+)dp"/)?.[1]);
  assert.ok(height>=44, theme+" app-opening header must be at least 44dp");
  assert.match(header,/android:layout_width="match_parent"/);
- assert.match(layout,/android:paddingStart="8dp" android:paddingEnd="8dp" android:paddingTop="4dp" android:paddingBottom="4dp"/);
+ assert.match(layout,/android:paddingStart="6dp" android:paddingEnd="4dp" android:paddingTop="4dp" android:paddingBottom="4dp"/);
 }
 console.log("Compact widget layout, configuration and privacy source contracts OK (not a launcher test)");
 
@@ -208,3 +208,22 @@ assert.match(settingsJava,/hasListeners\("widgetPracticeRequest"\)/);
 assert.match(widgetService,/setOnClickFillInIntent\(R.id.widget_check/);
 const actionRow=readFileSync(resolve(root,"native/widgets/layout/byeolharu_widget_row_action.xml"),"utf8");
 assert.match(actionRow,/widget_check" android:layout_width="48dp" android:layout_height="48dp"/);
+
+// V6: one theme contract for parent and row adapter; no independent night lookup.
+assert.match(widget,/setColorStateList\(R.id.widget_root,"setBackgroundTintList"/);
+assert.match(widget,/v.setColorInt\(id,"setTextColor"/);
+assert.match(widget,/v.setIcon\(id,"setImageIcon"/);
+assert.match(widget,/putExtra\("renderTheme",theme\)/);
+assert.match(widgetService,/getStringExtra\("renderTheme"\)/);
+assert.doesNotMatch(widgetService,/ByeolharuWidgetProvider.dark\(c,id\)/);
+assert.doesNotMatch(widgetService,/setTextViewText\(R.id.widget_check/);
+assert.match(patcher,/android:name="\.ByeolharuWidgetApplication"/);
+const appTemplate=readFileSync(resolve(root,"native/widgets/ByeolharuWidgetApplication.java.template"),"utf8");
+assert.match(appTemplate,/onConfigurationChanged\(Configuration config\)/);
+assert.match(appTemplate,/ByeolharuWidgetProvider.refreshAll\(this\)/);
+for(const theme of ["dark","light"])for(const state of ["check","circle"]){
+ const icon=readFileSync(resolve(root,`native/widgets/drawable/byeolharu_widget_${state}_${theme}.xml`),"utf8");
+ assert.match(icon,/android:width="22dp" android:height="22dp"/);
+ assert.match(icon,/<path /);
+}
+assert.match(actionRow,/<ImageView android:id="@\+id\/widget_check"/);

@@ -147,3 +147,7 @@ GitHub 환경 `play-internal`에 업로드 키의 `ANDROID_UPLOAD_KEYSTORE_BASE6
 - 위젯 캐시에 UUID 임시 핸들만 추가. 원본 명령·계정/습관 ID는 기존 WebView 메모리 내에만 존재. 최신 스냅샷 교체 시 핸들 무효화. 명시적 non-exported Receiver PendingIntent의 widget URI 및 표시 동의/필터/핸들을 재검증, 단일 요청 claim, 8초 제한. Android 제한으로 지연되면 완료 표시를 위조하지 않고 앱 확인 안내. 앱 완전 종료 후 실행 경로는 미구현. 자동 재시도/토큰 복제 없음.
 - 기존 검증된 hook repository/epoch/session/로그아웃 guard를 재확인하고 동일 IndexedDB 트랜잭션에서 저장. 저장 후 기존 snapshot→widget/성장/알림 및 Outbox 흐름 재사용. 기존 편집/팝업 중 요청 거부. 실기기 미검증이며 프로세스 종료, WebView 타이머 중단, Doze, 스크린리더, 작은 2×2에서 제목 가용 폭, 연속 체크 및 복수 위젯 검증 필요.
 - 타임아웃은 실패 확정이 아니므로 앱에서 기록 확인하도록 안내한다. 원본 커밋이 이미 끝난 경우 다음 정상 스냅샷으로 반영. cold start 지원과 release 활성화는 별도 PR/검증 이후.
+
+## Widget V6-1 — Galaxy 실기기 테마/목록 개선 (#189)
+- 증거: Galaxy One UI에서 시스템 다크 OFF 직후 글자만 라이트 색상으로 변하고 패널은 네이비 유지, 앱 재진입 후 전체 라이트로 갱신됨. 기존 parent/row 별도 테마 판단 원인 제거: renderTheme을 adapter에 전달하고 Android 12+ RemoteViews day/night 색상·아이콘·배경 tint를 동일 구성에 적용. Application.onConfigurationChanged 전체 갱신을 보조 경로로 추가. 구버전은 실행 중 구성 변경과 기존 갱신 경로에 의존. 프로세스 종료 및 One UI host reapply 동작은 실기기 재검증 전 보장하지 않음.
+- 체크/미완료 표시를 22dp 전용 벡터로 교체. debug 직접 체크 48×48dp 유지, 오른쪽 정렬 및 좌우/아이콘 간격 축소. 스크롤 하단 2dp 여백 및 위젯 options 갱신. 고정 48dp 행을 유지하므로 임의 런처 높이에서 부분 행이 보일 수 있음; 실제 높이에서 전체 행을 보이게 하는 후속 검토 필요. 설정 V6-2 별도 PR. 데이터/동의/기록 정책 불변.
