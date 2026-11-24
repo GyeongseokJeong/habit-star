@@ -154,3 +154,46 @@ assert.equal(runTheme("dark"), "dark");
 assert.equal(runTheme("light"), "light");
 assert.equal(runTheme(null), "unknown");
 console.log("Native back: dialog > reflection > routine tab > history > 2-second root exit, theme OK (not a device test)");
+
+const widget = readFileSync(resolve(root, "native/widgets/ByeolharuWidgetProvider.java.template"), "utf8");
+const configActivity = readFileSync(resolve(root,"native/widgets/ByeolharuWidgetConfigActivity.java.template"),"utf8");
+assert.match(settingsJava, /publishWidgetSummary/);
+assert.match(patcher, /ByeolharuWidgetProvider/);
+assert.match(patcher, /android:permission="android.permission.BIND_REMOTEVIEWS"/);
+assert.match(widget, /FLAG_IMMUTABLE/);
+assert.match(widget, /setOnClickPendingIntent\(R.id.widget_header,/);
+assert.match(widget, /expiry > now/);
+assert.match(widget, /getNoBackupFilesDir/);
+assert.match(widget, /anyConfigured\(c\)/);
+assert.match(configActivity, /consent.isChecked\(\)/);
+assert.match(configActivity, /existing=prefs.contains\(id\+":consent"\)/);
+assert.match(configActivity, /save.setEnabled\(existing \|\| consent.isChecked\(\)\)/);
+assert.match(configActivity, /save.setEnabled\(existing \|\| checked\)/);
+assert.match(configActivity, /saveOptions\(this,id,consent.isChecked\(\)/);
+assert.match(widget, /putBoolean\(id\+":consent",consent\)/);
+assert.match(widget, /if \(!anyConfigured\(c\)\) \{ clear\(c\); return null; \}/);
+assert.match(widget, /setViewVisibility\(R.id.widget_content,ready\?View.VISIBLE:View.GONE\)/);
+assert.match(widget, /setViewVisibility\(R.id.widget_private,ready\?View.GONE:View.VISIBLE\)/);
+const widgetService = readFileSync(resolve(root,"native/widgets/ByeolharuWidgetListService.java.template"),"utf8");
+assert.match(widgetService, /if\(!ByeolharuWidgetProvider.configured\(c,id\)\|\|position/);
+assert.doesNotMatch(widget, /habitId|memberId|memo|userId|authToken/);
+for(const [kind,height] of [["mini",2],["compact",3]]){
+ const info=readFileSync(resolve(root,`native/widgets/xml/byeolharu_widget_${kind}_info.xml`),"utf8");
+ assert.ok(info.includes('android:targetCellWidth="2"'));
+ assert.ok(info.includes(`android:targetCellHeight="${height}"`));
+ assert.match(info,/ByeolharuWidgetConfigActivity/);
+}
+for(const theme of ["dark","light"]){
+ const layout=readFileSync(resolve(root,`native/widgets/layout/byeolharu_widget_${theme}.xml`),"utf8");
+ assert.match(layout,/widget_list/);
+ assert.match(layout,/widget_count/);
+ assert.match(layout,/widget_content" android:visibility="gone"/);
+ assert.match(layout,/widget_private/);
+ const header=layout.match(/<LinearLayout\b[^>]*android:id="@\+id\/widget_header"[^>]*>/)?.[0];
+ assert.ok(header, theme+" widget header missing");
+ const height=Number(header.match(/android:layout_height="(\d+)dp"/)?.[1]);
+ assert.ok(height>=44, theme+" app-opening header must be at least 44dp");
+ assert.match(header,/android:layout_width="match_parent"/);
+ assert.match(layout,/android:paddingStart="8dp" android:paddingEnd="8dp" android:paddingTop="4dp" android:paddingBottom="4dp"/);
+}
+console.log("Compact widget layout, configuration and privacy source contracts OK (not a launcher test)");

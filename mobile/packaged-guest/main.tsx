@@ -8,6 +8,7 @@ import Byeolharu from "../../components/byeolharu";
 import { shareStarlightPngOnAndroid } from "./native-starlight-share";
 import { exportGuestBackupOnAndroid } from "./native-guest-backup";
 import type { Snapshot } from "../../lib/habits/repository";
+import { buildWidgetSummary, type WidgetSummary } from "../../lib/habits/widget-summary";
 import type { NativeReminderControls, WrapupSettings, WrapupGroup } from "../../lib/habits/native-reminder-controls";
 import type { TimeGroup } from "../../lib/habits/domain";
 import { parseHabitReminder, type HabitReminderNavigation } from "../../lib/habits/reminder-navigation";
@@ -45,6 +46,7 @@ type ReminderIdentity =
 const reminderIdentityKey = (value: ReminderIdentity) =>
   value.kind === "guest" ? "guest" : "member:" + value.userId;
 type DeviceSettings = {
+  publishWidgetSummary: (summary: WidgetSummary | { ready: false }) => Promise<void>;
   openNotificationSettings: () => Promise<void>;
   getActiveReminderPosts: () => Promise<{ posts: {id: number; postedAt: number}[] }>;
 };
@@ -227,7 +229,16 @@ function GuestNativeApp() {
     return () => { mounted.current = false; };
   }, [schedule, refreshPermission]);
 
+  const widgetQueue = useRef(Promise.resolve());
   const onSnapshot = useCallback((next: Snapshot | null, memberUserId: string | null) => {
+    // Serialize projections, including a clear during auth transitions.
+    // Widget failures must never interrupt the primary record/sync path.
+    if (deviceSettings) {
+      let summary: WidgetSummary | { ready: false } = { ready: false };
+      try { summary = buildWidgetSummary(next, memberUserId) ?? summary; } catch {}
+      widgetQueue.current = widgetQueue.current.catch(() => {}).then(() =>
+        deviceSettings.publishWidgetSummary(summary)).catch(() => {});
+    }
     // A null snapshot with no member identity is the initial/auth transition
     // loading state, not a verified sign-out. Keep prior alarms until a new
     // account's repository has actually hydrated.

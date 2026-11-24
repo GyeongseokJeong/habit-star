@@ -3,7 +3,7 @@
  * Keeping the native template separate avoids committing disposable Gradle
  * output during PoC; a future release must commit the native Android project.
  */
-import { readFileSync, writeFileSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, readdirSync, mkdirSync, copyFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
@@ -79,6 +79,53 @@ if (!returnManifest.includes("android.permission.SCHEDULE_EXACT_ALARM")) {
   assert.ok(header, "Missing Android manifest root");
   returnManifest = returnManifest.replace(header[0],
     header[0] + '\n    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />');
+}
+// Compact V4 widgets (both validated packages).
+const widgetNative = resolve(mobileRoot, "native/widgets");
+const mainRoot = resolve(mobileRoot, "android/app/src/main");
+for (const name of ["ByeolharuWidgetProvider", "ByeolharuWidgetConfigActivity", "ByeolharuWidgetListService"]) {
+  writeFileSync(join(dirname(path), name + ".java"),
+    readFileSync(join(widgetNative, name + ".java.template"), "utf8").replaceAll("__PACKAGE__", targetPackage));
+}
+for (const folder of ["layout", "xml", "drawable"]) {
+  const dest = join(mainRoot, "res", folder);
+  mkdirSync(dest, { recursive: true });
+  for (const file of readdirSync(join(widgetNative, folder))) {
+    const source = join(widgetNative, folder, file);
+    if (folder === "xml") writeFileSync(join(dest, file), readFileSync(source, "utf8").replaceAll("__PACKAGE__", targetPackage));
+    else copyFileSync(source, join(dest, file));
+  }
+}
+// Remove retired unmerged prototype registrations if an existing generated tree is reused.
+returnManifest = returnManifest.replace(/<receiver\b[^>]*android:name="\.ByeolharuWidgetProvider\$(?:Growth|Practice)"[^>]*>[\s\S]*?<\/receiver>\s*/g, "");
+for (const [name, resource, label] of [
+  ["Mini", "byeolharu_widget_mini_info", "별하루 · 미니"],
+  ["Compact", "byeolharu_widget_compact_info", "별하루 · 간편"],
+]) {
+  const receiver = ".ByeolharuWidgetProvider$" + name;
+  if (!returnManifest.includes(`android:name="${receiver}"`)) {
+    assert.ok(returnManifest.includes("</application>"), "Missing Android application");
+    returnManifest = returnManifest.replace("</application>", `
+        <receiver android:name="${receiver}" android:exported="false" android:label="${label}">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/${resource}" />
+        </receiver>
+    </application>`);
+  }
+}
+if (!returnManifest.includes('android:name=".ByeolharuWidgetConfigActivity"')) {
+  returnManifest = returnManifest.replace("</application>", `
+    <activity android:name=".ByeolharuWidgetConfigActivity" android:exported="true">
+      <intent-filter><action android:name="android.appwidget.action.APPWIDGET_CONFIGURE"/></intent-filter>
+    </activity>
+    <service android:name=".ByeolharuWidgetListService" android:exported="false"
+      android:permission="android.permission.BIND_REMOTEVIEWS"/>
+    </application>`);
 }
 if (returnManifest !== initialManifest) writeFileSync(returnManifestPath, returnManifest);
 
