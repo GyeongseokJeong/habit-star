@@ -39,7 +39,7 @@ public class ByeolharuWidgetConfigActivity extends Activity {
     private int previewRows=1;
     private TextView previewCaption,applyHint;
     private LinearLayout preview;
-    private Switch hide;
+    private Switch hide,showIcons;
     private CheckBox consent;
     private Button save;
     private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
@@ -166,8 +166,16 @@ public class ByeolharuWidgetConfigActivity extends Activity {
         v.setTextSize(TypedValue.COMPLEX_UNIT_DIP,size*previewScale);
         v.setGravity(Gravity.CENTER_VERTICAL);return v;
     }
+    private Switch displaySwitch(String label,boolean checked){
+        Switch control=new Switch(this);control.setText(label);control.setTextColor(ink());control.setTextSize(14);
+        control.setMinHeight(dp(48));control.setPadding(dp(12),0,dp(12),0);
+        control.setBackgroundTintList(null);control.setBackground(controlBackground(Color.TRANSPARENT,0,12,accent()));
+        control.setThumbTintList(ColorStateList.valueOf(Color.WHITE));
+        control.setTrackTintList(new ColorStateList(new int[][]{new int[]{android.R.attr.state_checked},new int[]{}},new int[]{plum(),color(night?"#596171":"#C8BFB3")}));
+        control.setChecked(checked);return control;
+    }
     private void refreshPreview(){
-        if(preview==null||hide==null||consent==null)return;
+        if(preview==null||hide==null||showIcons==null||consent==null)return;
         boolean dark=themeIndex==2||(themeIndex==0&&night);
         int fg=color(dark?"#F0EDF5":"#302D38"),sub=color(dark?"#A4AABD":"#716B79"),gold=color(dark?"#E5C78D":"#92703B");
         preview.removeAllViews();preview.setBackground(shape(color(dark?"#1C2233":"#FFFCF7"),color(dark?"#41495B":"#E2D9CC"),18));
@@ -175,22 +183,26 @@ public class ByeolharuWidgetConfigActivity extends Activity {
         // uses device local time, explicitly labeled, not a member timezone.
         String group=filterIndex==0?ByeolharuWidgetProvider.group(null):FILTERS[filterIndex];
         String title=ByeolharuWidgetProvider.label(group);
-        String[] names;
+        String[][] samples;
         switch(group){
-            case "morning":names=new String[]{"💧  물 한 잔","🌱  영양제 챙기기","🧘  스트레칭"};break;
-            case "day":names=new String[]{"🥗  건강한 식사","🚶  산책하기","💧  물 마시기"};break;
-            case "night":names=new String[]{"💪  운동하기","📚  독서 30분","🌙  일찍 잠들기"};break;
-            default:names=new String[]{"💧  물 한 잔","🌱  영양제 챙기기","🥗  건강한 식사","🚶  산책하기","📚  독서 30분","🌙  일찍 잠들기"};
+            case "morning":samples=new String[][]{{"💧","물 한 잔"},{"🌱","영양제 챙기기"},{"🧘","스트레칭"}};break;
+            case "day":samples=new String[][]{{"🥗","건강한 식사"},{"🚶","산책하기"},{"💧","물 마시기"}};break;
+            case "night":samples=new String[][]{{"💪","운동하기"},{"📚","독서 30분"},{"🌙","일찍 잠들기"}};break;
+            default:samples=new String[][]{{"💧","물 한 잔"},{"🌱","영양제 챙기기"},{"🥗","건강한 식사"},{"🚶","산책하기"},{"📚","독서 30분"},{"🌙","일찍 잠들기"}};
         }
         LinearLayout header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);
         header.addView(previewText("✦ "+title,14,gold,true),new LinearLayout.LayoutParams(0,scaled(44),1));
-        header.addView(previewText("1/"+names.length,14,gold,true),new LinearLayout.LayoutParams(-2,scaled(44)));preview.addView(header);header.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+        header.addView(previewText("1/"+samples.length,14,gold,true),new LinearLayout.LayoutParams(-2,scaled(44)));preview.addView(header);header.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
         int shown=0;
-        for(int i=0;i<names.length&&shown<previewRows;i++){
+        for(int i=0;i<samples.length&&shown<previewRows;i++){
             if(i==0&&hide.isChecked())continue;
             LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);
-            TextView name=previewText(names[i],14,i==0?sub:fg,false);name.setMaxLines(2);name.setEllipsize(android.text.TextUtils.TruncateAt.END);
-            row.addView(name,new LinearLayout.LayoutParams(0,scaled(48),1));
+            if(showIcons.isChecked()){
+                TextView habitIcon=previewText(samples[i][0],16,fg,false);habitIcon.setGravity(Gravity.CENTER);
+                row.addView(habitIcon,new LinearLayout.LayoutParams(scaled(20),scaled(48)));
+            }
+            TextView name=previewText(samples[i][1],14,i==0?sub:fg,false);name.setMaxLines(2);name.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            LinearLayout.LayoutParams nameParams=new LinearLayout.LayoutParams(0,scaled(48),1);nameParams.setMarginStart(scaled(3));row.addView(name,nameParams);
             ImageView icon=new ImageView(this);icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
             icon.setImageResource(i==0?(dark?R.drawable.byeolharu_widget_check_dark:R.drawable.byeolharu_widget_check_light):(dark?R.drawable.byeolharu_widget_circle_dark:R.drawable.byeolharu_widget_circle_light));
             row.addView(icon,new LinearLayout.LayoutParams(scaled(22),scaled(22)));preview.addView(row);row.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);shown++;
@@ -198,15 +210,15 @@ public class ByeolharuWidgetConfigActivity extends Activity {
         // All rows and names here are synthetic even before consent. Consent
         // is enforced only for actual widget publication in saveOptions.
         previewCaption.setText(filterIndex==0?"미리보기 · 예시 습관 (기기 시간 기준)":"미리보기 · 예시 습관");
-        preview.setContentDescription("예시 위젯, "+title+", 완료 1개, 전체 "+names.length+"개");
+        preview.setContentDescription("예시 위젯, "+title+", 완료 1개, 전체 "+samples.length+"개");
     }
     private void updateApplyHint(boolean existing,boolean checked){
         applyHint.setText(!checked?(existing?"적용하면 홈 화면의 습관이 숨겨집니다.":"표시 동의 후 위젯을 추가할 수 있어요."):"");
         applyHint.setVisibility(checked?View.GONE:View.VISIBLE);
     }
     @Override protected void onSaveInstanceState(Bundle out){
-        super.onSaveInstanceState(out);if(hide==null||consent==null)return;
-        out.putInt("filter",filterIndex);out.putInt("theme",themeIndex);out.putBoolean("hide",hide.isChecked());out.putBoolean("consent",consent.isChecked());
+        super.onSaveInstanceState(out);if(hide==null||showIcons==null||consent==null)return;
+        out.putInt("filter",filterIndex);out.putInt("theme",themeIndex);out.putBoolean("hide",hide.isChecked());out.putBoolean("showIcons",showIcons.isChecked());out.putBoolean("consent",consent.isChecked());
     }
     @Override protected void onCreate(Bundle saved){
         super.onCreate(saved);
@@ -237,7 +249,7 @@ public class ByeolharuWidgetConfigActivity extends Activity {
         // One description for the illustrative panel, no fake clickable rows.
         preview.setFocusable(true);
         space(root,8);previewCaption=text("미리보기 · 예시 습관",12,muted(),false);previewCaption.setGravity(Gravity.CENTER);root.addView(previewCaption);
-        section(root,"표시할 습관");
+        section(root,"습관 표시");
         // Two direct-choice groups share one logical filter; native radio semantics.
         RadioGroup first=choices(root,new String[]{LABELS[0],LABELS[1]},Math.min(filterIndex,1),true,null,i->{});
         space(root,8);
@@ -245,7 +257,13 @@ public class ByeolharuWidgetConfigActivity extends Activity {
         if(filterIndex<2)second.clearCheck();else first.clearCheck();
         first.setOnCheckedChangeListener((g,selected)->{if(selected==-1)return;second.clearCheck();filterIndex=g.indexOfChild(g.findViewById(selected));refreshPreview();});
         second.setOnCheckedChangeListener((g,selected)->{if(selected==-1)return;first.clearCheck();filterIndex=2+g.indexOfChild(g.findViewById(selected));refreshPreview();});
-        space(root,12);hide=new Switch(this);hide.setText("완료한 습관 숨기기");hide.setTextColor(ink());hide.setTextSize(14);hide.setMinHeight(dp(48));hide.setPadding(dp(12),0,dp(12),0);hide.setBackgroundTintList(null);hide.setBackground(controlBackground(surface(),0,12,accent()));hide.setThumbTintList(ColorStateList.valueOf(Color.WHITE));hide.setTrackTintList(new ColorStateList(new int[][]{new int[]{android.R.attr.state_checked},new int[]{}},new int[]{plum(),color(night?"#596171":"#C8BFB3")}));hide.setChecked(saved==null?prefs.getBoolean(id+":hide",false):saved.getBoolean("hide"));root.addView(hide);
+        space(root,12);LinearLayout displayOptions=column();displayOptions.setBackground(shape(surface(),0,12));root.addView(displayOptions);
+        hide=displaySwitch("완료한 습관 숨기기",saved==null?prefs.getBoolean(id+":hide",false):saved.getBoolean("hide"));
+        displayOptions.addView(hide);
+        View displayDivider=new View(this);displayDivider.setBackgroundColor(color(night?"#343D4D":"#E2D9CC"));
+        LinearLayout.LayoutParams dividerParams=new LinearLayout.LayoutParams(-1,dp(1));dividerParams.setMarginStart(dp(12));dividerParams.setMarginEnd(dp(12));displayOptions.addView(displayDivider,dividerParams);
+        showIcons=displaySwitch("습관 아이콘 표시",saved==null?ByeolharuWidgetProvider.showHabitIcons(this,id):saved.getBoolean("showIcons",true));
+        displayOptions.addView(showIcons);
         section(root,"화면 테마");choices(root,new String[]{"시스템","라이트","다크"},themeIndex,true,new int[]{R.drawable.byeolharu_widget_theme_system,R.drawable.byeolharu_widget_theme_light,R.drawable.byeolharu_widget_theme_dark},i->{themeIndex=i;refreshPreview();});
         space(root,20);View line=new View(this);line.setBackgroundColor(color(night?"#343D4D":"#E2D9CC"));root.addView(line,new LinearLayout.LayoutParams(-1,dp(1)));space(root,8);LinearLayout privacy=column();root.addView(privacy);
         consent=new CheckBox(this);consent.setText("홈 화면에 습관 표시");consent.setTextColor(ink());consent.setButtonTintList(controlTint());consent.setMinHeight(dp(48));consent.setChecked(saved==null?prefs.getBoolean(id+":consent",false):saved.getBoolean("consent"));privacy.addView(consent);
@@ -256,9 +274,10 @@ public class ByeolharuWidgetConfigActivity extends Activity {
         save.setEnabled(existing || consent.isChecked());save.setAlpha(save.isEnabled()?1f:0.45f);updateApplyHint(existing,consent.isChecked());
         consent.setOnCheckedChangeListener((b,checked)->{save.setEnabled(existing || checked);save.setAlpha(save.isEnabled()?1f:0.45f);updateApplyHint(existing,checked);});
         hide.setOnCheckedChangeListener((b,checked)->refreshPreview());
+        showIcons.setOnCheckedChangeListener((b,checked)->refreshPreview());
         save.setOnClickListener(v->{
             if(!ByeolharuWidgetProvider.owns(this,id)||(!existing && !consent.isChecked()))return;
-            if(!ByeolharuWidgetProvider.saveOptions(this,id,consent.isChecked(),FILTERS[filterIndex],hide.isChecked(),THEMES[themeIndex]))return;
+            if(!ByeolharuWidgetProvider.saveOptions(this,id,consent.isChecked(),FILTERS[filterIndex],hide.isChecked(),THEMES[themeIndex],showIcons.isChecked()))return;
             setResult(RESULT_OK,result);finish();
         });
         refreshPreview();
