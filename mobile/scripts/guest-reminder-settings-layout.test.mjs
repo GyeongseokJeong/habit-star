@@ -12,7 +12,8 @@ const web=readFileSync(resolve(root,"app/page.tsx"),"utf8");
 test("release settings remove developer diagnostics without removing native recovery engines",()=>{
  assert.doesNotMatch(ui,/android-reminder-details|알림 문제 해결|onInspectPending|onAuditPending|onRepairPending/);
  assert.doesNotMatch(nativeCss,/android-reminder-details|android-reminder-detail-actions/);
- assert.match(ui,/aria-label="기기 알림 권한"/);
+ assert.match(ui,/aria-label="알림 설정 안내"/);
+ assert.doesNotMatch(ui,/onInspectLatency|latencyStatus|최근 알림 지연 확인/);
  assert.match(ui,/nativeReminders\.onRequestPermission\(\)/);
  assert.match(ui,/nativeReminders\.permissionState === "denied"/);
  const entry=readFileSync(resolve(root,"mobile/packaged-guest/main.tsx"),"utf8");
@@ -51,15 +52,18 @@ test("three independent wrap-up settings keep user intent and reveal time only w
  assert.doesNotMatch(web,/onWrapupChange|localNotificationActionPerformed/);
 });
 
-test("v3 release settings show actionable denied permission but no misleading granted chevron",()=>{
+test("release settings show help only for OS permission that needs a user action",()=>{
  const settings=ui.slice(ui.indexOf('{page === "settings" && ('),ui.indexOf('{page === "help" && ('));
- const perm=settings.slice(settings.indexOf('android-permission-summary'),settings.indexOf('android-wrapup-settings'));
- assert.match(perm,/permissionState === "granted"/);
- assert.match(perm,/기기 설정 열기/);
- assert.match(perm,/알림 허용하기/);
- assert.match(perm,/onRequestPermission/);
- assert.doesNotMatch(perm,/<ChevronRight/);
- assert.match(perm,/role="status"/);
+ const notice=settings.slice(settings.indexOf('android-reminder-action-notice'),settings.indexOf('android-wrapup-settings'));
+ assert.match(ui,/const displayPermissionNeeded = Boolean/);
+ assert.match(ui,/const exactPermissionNeeded = Boolean/);
+ assert.match(settings,/displayPermissionNeeded \|\| exactPermissionNeeded/);
+ assert.match(notice,/onRequestPermission/);
+ assert.match(notice,/onRequestExactPermission/);
+ assert.match(notice,/aria-label="알림 설정 안내"/);
+ assert.doesNotMatch(notice,/<ChevronRight/);
+ assert.doesNotMatch(settings,/onInspectLatency|latencyStatus|최근 알림 지연 확인/);
+ assert.match(settings,/role="status"/);
 });
 
 test("v3 settings preserve back and close, responsive controls and safe-area behavior",()=>{
