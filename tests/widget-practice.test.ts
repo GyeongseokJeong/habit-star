@@ -115,11 +115,18 @@ describe("widget practice transaction", () => {
     try {
       await r.initialize();
       const snapshot = await r.load();
-      expect(snapshot.habits.some(h=>h.id===demo.id)).toBe(true);
-      expect(createWidgetPracticeCommand(snapshot,r.scope,demo.id)).toBeNull();
-      const base = snapshot.state.entities[entityKey("habit_entries",demo.id,snapshot.day)];
-      expect(await r.applyWidgetPractice({scope:r.scope,day:snapshot.day,habitId:demo.id,
+      // Migration allocates a new persisted UUID even for fresh guest examples.
+      const persistedId = snapshot.state.migration?.mapping[demo.id];
+      expect(persistedId).toBeTruthy();
+      if (!persistedId) throw Error("expected migrated example ID");
+      expect(snapshot.habits.some(h=>h.id===persistedId)).toBe(true);
+      expect(createWidgetPracticeCommand(snapshot,r.scope,persistedId)).toBeNull();
+      const base = snapshot.state.entities[entityKey("habit_entries",persistedId,snapshot.day)];
+      expect(base).toBeDefined();
+      const before = await r.state();
+      expect(await r.applyWidgetPractice({scope:r.scope,day:snapshot.day,habitId:persistedId,
         revision:snapshot.state.localRevision??0,version:base.version,expectedCompleted:false,expectedRating:0,completed:true})).toBe("unavailable");
+      expect(await r.state()).toEqual(before);
     } finally { r.close(); }
   });
 });
