@@ -80,6 +80,6 @@ test("Android audit engine remains available internally but not in user settings
   assert.match(entry,/const onAuditPending = useCallback/);
   assert.match(entry,/onAuditPending, onRepairPending, onEnabledChange/);
   assert.doesNotMatch(account,/onAuditPending|audit-reminders|android-reminder-details/);
-  assert.match(account,/aria-label="기기 알림 권한"/);
+  assert.match(account,/aria-label="알림 설정 안내"/);
   assert.doesNotMatch(web,/onAuditPending|auditGuestReminders/);
 });
