@@ -64,6 +64,6 @@ test("guest-only repair remains guarded by audit and permission but not exposed 
  assert.match(main,/!repairAvailable/);
  assert.match(main,/repairGuestReminders\(\{/);
  assert.doesNotMatch(settings,/nativeReminders\.repairAvailable|onRepairPending|repair-reminders/);
- assert.match(settings,/aria-label="기기 알림 권한"/);
+ assert.match(settings,/aria-label="알림 설정 안내"/);
  assert.doesNotMatch(web,/onRepairPending|repairGuestReminders/);
 });
