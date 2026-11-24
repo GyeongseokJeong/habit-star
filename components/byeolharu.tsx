@@ -1687,6 +1687,15 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
       app.user ? app.snapshot.state.timezone : undefined,
     ));
   }, [now, app.snapshot, app.user, scheduledHabits]);
+  const registerWidgetPractice = nativeReminders?.registerWidgetPractice;
+  useEffect(() => {
+    return registerWidgetPractice?.((command, deadline) => {
+      if (editing || detailId || accountOpen || constellationOpen || pastDate || sampleCleanupOpen ||
+          app.busy || ratingOverrides.size || document.querySelector("dialog[open]")) return Promise.resolve("not-ready");
+      return app.applyWidgetPractice(command, deadline);
+    });
+  }, [registerWidgetPractice, app.applyWidgetPractice, editing, detailId, accountOpen, constellationOpen,
+    pastDate, sampleCleanupOpen, app.busy, ratingOverrides]);
   // Native taps are navigation-only. Resolve against the actual hydrated
   // account/day, never the notification payload or a stale guest placeholder.
   useEffect(() => {

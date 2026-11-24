@@ -10,6 +10,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
+import android.content.pm.ApplicationInfo;
+import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
+import android.widget.Toast;
+import java.util.UUID;
 import android.graphics.Color;
 import android.net.Uri;
 import android.util.AtomicFile;
@@ -29,6 +35,20 @@ import java.util.TimeZone;
 /** Read-only, opt-in projection. Never writes habit data. */
 public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
     static final String EXPIRE = "byeolharu.widget.REFRESH";
+    static final String PRACTICE = "byeolharu.widget.PRACTICE";
+    static final long REQUEST_TTL = 8000L;
+    static boolean experimental(Context c) { return (c.getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0; }
+    static boolean validKey(String value) { return value != null && value.matches("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"); }
+    private static final Handler MAIN = new Handler(Looper.getMainLooper());
+    private static PracticeRequest pending;
+    private static class PracticeRequest {
+        final String requestId = UUID.randomUUID().toString();
+        final String key; final int widget; final long deadline; final PendingResult broadcast;
+        boolean claimed;
+        PracticeRequest(String key,int widget,PendingResult broadcast) {
+            this.key=key; this.widget=widget; this.broadcast=broadcast; deadline=System.currentTimeMillis()+REQUEST_TTL;
+        }
+    }
     static final long MAX_TTL = 36L * 3600000L;
     public static class Mini extends ByeolharuWidgetProvider {}
     public static class Compact extends ByeolharuWidgetProvider {}
@@ -78,8 +98,11 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
                 String group = row.optString("group");
                 if (!group.equals("morning") && !group.equals("day") && !group.equals("night")) continue;
                 // Store only allowed display fields; titles may be visible on the home screen.
-                rows.put(new JSONObject().put("title",row.optString("title")).put("icon",row.optString("icon"))
-                    .put("group",group).put("completed",row.optBoolean("completed")));
+                JSONObject projectedRow = new JSONObject().put("title",row.optString("title")).put("icon",row.optString("icon"))
+                    .put("group",group).put("completed",row.optBoolean("completed"));
+                String key=row.optString("actionKey");
+                if(experimental(c)&&validKey(key)) projectedRow.put("actionKey",key);
+                rows.put(projectedRow);
             }
             JSONObject projected = new JSONObject().put("expiresAt",expiry).put("timezone",data.optString("timezone")).put("rows",rows);
             AtomicFile file = cache(c);
@@ -155,10 +178,57 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
         }
     }
     @Override public void onReceive(Context c,Intent intent){
+        if(PRACTICE.equals(intent.getAction())) { begin(c,intent,goAsync()); return; }
         super.onReceive(c,intent);
         String a=intent.getAction();
         if(Intent.ACTION_TIME_CHANGED.equals(a)||Intent.ACTION_TIMEZONE_CHANGED.equals(a)){clear(c);refreshAll(c);}
         else if(EXPIRE.equals(a)||Intent.ACTION_DATE_CHANGED.equals(a))refreshAll(c);
+    }
+    private static boolean currentKey(Context c,int id,String key) {
+        if(!experimental(c)||!configured(c,id)||!validKey(key))return false;
+        for(JSONObject row:rows(c,id,read(c),options(c).getBoolean(id+":hide",false)))
+            if(key.equals(row.optString("actionKey")))return true;
+        return false;
+    }
+    private static void message(Context c,String value) {
+        MAIN.post(()->Toast.makeText(c.getApplicationContext(),value,Toast.LENGTH_SHORT).show());
+    }
+    private static synchronized void begin(Context context,Intent intent,PendingResult broadcast) {
+        Context c=context.getApplicationContext();
+        int id=-1;
+        try {
+            Uri data=intent.getData();
+            if(data!=null && "byeolharu-widget".equals(data.getScheme()) && "practice".equals(data.getHost()))
+                id=Integer.parseInt(data.getLastPathSegment());
+        } catch(RuntimeException ignored){}
+        String key=intent.getStringExtra("actionKey");
+        if(pending!=null||!currentKey(c,id,key)) {
+            broadcast.finish(); message(c,"별하루 앱에서 오늘 기록을 확인해 주세요."); return;
+        }
+        PracticeRequest request=new PracticeRequest(key,id,broadcast);pending=request;
+        JSObject payload=new JSObject();
+        payload.put("requestId",request.requestId);payload.put("actionKey",key);payload.put("deadline",request.deadline);
+        MAIN.post(()->{
+            if(!ByeolharuDeviceSettingsPlugin.dispatchWidgetPractice(payload))
+                complete(c,request.requestId,"not-ready");
+        });
+        MAIN.postDelayed(()->complete(c,request.requestId,"timeout"),REQUEST_TTL);
+    }
+    static synchronized boolean claim(Context c,JSObject data) {
+        PracticeRequest request=pending;
+        if(request==null||request.claimed||System.currentTimeMillis()>=request.deadline||
+            !request.requestId.equals(data.optString("requestId"))||!request.key.equals(data.optString("actionKey"))||
+            !currentKey(c,request.widget,request.key))return false;
+        request.claimed=true;return true;
+    }
+    static synchronized void complete(Context c,String id,String result) {
+        PracticeRequest request=pending;
+        if(request==null||!request.requestId.equals(id))return;
+        pending=null;request.broadcast.finish();
+        // Never modify the displayed check state here. Only committed JS
+        // snapshot publication can update it, including after a timeout.
+        if(!"saved".equals(result)||!request.claimed)
+            message(c,"별하루 앱에서 오늘 기록을 확인해 주세요.");
     }
     static void render(Context c,int id,JSONObject data) {
         if(!owns(c,id))return;
@@ -183,6 +253,15 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
         Intent service=new Intent(c,ByeolharuWidgetListService.class).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,id)
             .setData(Uri.parse("byeolharu-widget://list/"+id+"/"+(dark?"dark":"light")+"/"+(ready?"visible":"hidden")));
         v.setRemoteAdapter(R.id.widget_list,service);
+        if(experimental(c)&&ready) {
+            Intent tap=new Intent(c,Mini.class).setAction(PRACTICE)
+                .setData(Uri.parse("byeolharu-widget://practice/"+id));
+            int flags=PendingIntent.FLAG_UPDATE_CURRENT;
+            if(Build.VERSION.SDK_INT>=31)flags|=PendingIntent.FLAG_MUTABLE;
+            // Collection fill-in extras carry only an opaque action handle;
+            // the explicit receiver, action and widget URI are fixed here.
+            v.setPendingIntentTemplate(R.id.widget_list,PendingIntent.getBroadcast(c,id,tap,flags));
+        }
         v.setEmptyView(R.id.widget_list,R.id.widget_empty);
         AppWidgetManager manager=AppWidgetManager.getInstance(c);
         manager.updateAppWidget(id,v);

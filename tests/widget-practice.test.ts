@@ -3,6 +3,7 @@ import { LocalRepository } from "../lib/habits/repository";
 import { entityKey, type Habit } from "../lib/habits/domain";
 import { createWidgetPracticeCommand } from "../lib/habits/widget-practice";
 import { calculateConstellationGrowth } from "../lib/constellation/growth";
+import { buildWidgetActionProjection } from "../lib/habits/widget-summary";
 
 const sample = (): Habit => ({
   id: crypto.randomUUID(), title: "독서", icon: "📚", timeGroup: "night",
@@ -25,6 +26,31 @@ async function command(r: LocalRepository, id: string) {
   return c;
 }
 describe("widget practice transaction", () => {
+  it("rejects runtime guard failure inside the transaction without modifying original state", async () => {
+    const {r,habit}=await setup();
+    try {
+      const c=await command(r,habit.id), before=await r.state();
+      expect(await r.applyWidgetPractice(c,()=>false)).toBe("not-ready");
+      expect(await r.state()).toEqual(before);
+    } finally {r.close();}
+  });
+  it("projects only opaque per-snapshot handles and does not expose rated cancellation", async () => {
+    const {r,habit}=await setup(true);
+    try {
+      const member=r.scope.slice("member:".length), snapshot=await r.load();
+      const a=buildWidgetActionProjection(snapshot,member), b=buildWidgetActionProjection(snapshot,member);
+      const key=a.summary?.rows[0].actionKey;
+      expect(key).toBeTruthy();
+      expect(a.commands.get(key!)).toMatchObject({habitId:habit.id,scope:r.scope,completed:true});
+      expect(b.commands.has(key!)).toBe(false);
+      expect(JSON.stringify(a.summary)).not.toContain(habit.id);
+      expect(JSON.stringify(a.summary)).not.toContain(member);
+      await r.update(habit.id,{completed:true,rating:5});
+      const rated=buildWidgetActionProjection(await r.load(),member);
+      expect(rated.commands.size).toBe(0);
+      expect(rated.summary?.rows[0].actionKey).toBeUndefined();
+    } finally {r.close();}
+  });
   it("commits guest completion, preserves memo and definition, derives growth, and safely cancels", async () => {
     const { r, habit } = await setup();
     try {

@@ -197,3 +197,14 @@ for(const theme of ["dark","light"]){
  assert.match(layout,/android:paddingStart="8dp" android:paddingEnd="8dp" android:paddingTop="4dp" android:paddingBottom="4dp"/);
 }
 console.log("Compact widget layout, configuration and privacy source contracts OK (not a launcher test)");
+
+// Warm practice is debug-only and never launches an Activity or rewrites cache on tap.
+assert.match(widget,/ApplicationInfo.FLAG_DEBUGGABLE/);
+assert.match(widget,/setPendingIntentTemplate\(R.id.widget_list/);
+assert.match(widget,/new Intent\(c,Mini.class\).setAction\(PRACTICE\)/);
+assert.match(widget,/currentKey\(c,request.widget,request.key\)/);
+assert.match(widget,/request.broadcast.finish\(\)/);
+assert.match(settingsJava,/hasListeners\("widgetPracticeRequest"\)/);
+assert.match(widgetService,/setOnClickFillInIntent\(R.id.widget_check/);
+const actionRow=readFileSync(resolve(root,"native/widgets/layout/byeolharu_widget_row_action.xml"),"utf8");
+assert.match(actionRow,/widget_check" android:layout_width="48dp" android:layout_height="48dp"/);

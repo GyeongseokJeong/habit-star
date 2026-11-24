@@ -8,7 +8,9 @@ import Byeolharu from "../../components/byeolharu";
 import { shareStarlightPngOnAndroid } from "./native-starlight-share";
 import { exportGuestBackupOnAndroid } from "./native-guest-backup";
 import type { Snapshot } from "../../lib/habits/repository";
-import { buildWidgetSummary, type WidgetSummary } from "../../lib/habits/widget-summary";
+import { buildWidgetSummary, buildWidgetActionProjection, type WidgetSummary } from "../../lib/habits/widget-summary";
+import type { WidgetPracticeCommand, WidgetPracticeResult } from "../../lib/habits/widget-practice";
+import type { PluginListenerHandle } from "@capacitor/core";
 import type { NativeReminderControls, WrapupSettings, WrapupGroup } from "../../lib/habits/native-reminder-controls";
 import type { TimeGroup } from "../../lib/habits/domain";
 import { parseHabitReminder, type HabitReminderNavigation } from "../../lib/habits/reminder-navigation";
@@ -45,7 +47,12 @@ type ReminderIdentity =
   | { kind: "member"; userId: string; verified: true };
 const reminderIdentityKey = (value: ReminderIdentity) =>
   value.kind === "guest" ? "guest" : "member:" + value.userId;
+const experimentalWidgetPractice = isAndroid && process.env.NEXT_PUBLIC_ANDROID_RELEASE !== "true";
+type WidgetPracticeRequest = { requestId: string; actionKey: string; deadline: number };
 type DeviceSettings = {
+  addListener: (event: "widgetPracticeRequest", listener: (request: WidgetPracticeRequest) => void) => Promise<PluginListenerHandle>;
+  claimWidgetPractice: (request: WidgetPracticeRequest) => Promise<{ accepted: boolean }>;
+  finishWidgetPractice: (result: { requestId: string; result: string }) => Promise<void>;
   publishWidgetSummary: (summary: WidgetSummary | { ready: false }) => Promise<void>;
   openNotificationSettings: () => Promise<void>;
   getActiveReminderPosts: () => Promise<{ posts: {id: number; postedAt: number}[] }>;
@@ -230,14 +237,53 @@ function GuestNativeApp() {
   }, [schedule, refreshPermission]);
 
   const widgetQueue = useRef(Promise.resolve());
+  const widgetCommands = useRef(new Map<string, WidgetPracticeCommand>());
+  const widgetHandler = useRef<((command: WidgetPracticeCommand, deadline: number) => Promise<WidgetPracticeResult>) | null>(null);
+  const registerWidgetPractice = useCallback<NonNullable<NativeReminderControls["registerWidgetPractice"]>>((handler) => {
+    widgetHandler.current = handler;
+    return () => { if (widgetHandler.current === handler) widgetHandler.current = null; };
+  }, []);
+  useEffect(() => {
+    if (!experimentalWidgetPractice || !deviceSettings) return;
+    const bridge = deviceSettings;
+    let disposed = false;
+    const listener = bridge.addListener("widgetPracticeRequest", async request => {
+      let result: WidgetPracticeResult | "error" = "not-ready";
+      try {
+        const command = widgetCommands.current.get(request.actionKey);
+        if (!disposed && command && widgetHandler.current && Date.now() < request.deadline) {
+          const claim = await bridge.claimWidgetPractice(request);
+          if (claim.accepted && !disposed && widgetCommands.current.get(request.actionKey) === command && Date.now() < request.deadline) {
+            const handler = widgetHandler.current;
+            if (handler) result = await handler(command, request.deadline);
+          }
+        }
+      } catch { result = "error"; }
+      await bridge.finishWidgetPractice({requestId: request.requestId, result}).catch(() => {});
+    }).catch(() => null);
+    return () => { disposed = true; widgetCommands.current.clear(); void listener.then(h => h?.remove()); };
+  }, []);
   const onSnapshot = useCallback((next: Snapshot | null, memberUserId: string | null) => {
     // Serialize projections, including a clear during auth transitions.
     // Widget failures must never interrupt the primary record/sync path.
     if (deviceSettings) {
       let summary: WidgetSummary | { ready: false } = { ready: false };
-      try { summary = buildWidgetSummary(next, memberUserId) ?? summary; } catch {}
-      widgetQueue.current = widgetQueue.current.catch(() => {}).then(() =>
-        deviceSettings.publishWidgetSummary(summary)).catch(() => {});
+      let commands = new Map<string, WidgetPracticeCommand>();
+      // Invalidate handles immediately on account/snapshot changes, not only
+      // when the asynchronous native publication finishes.
+      widgetCommands.current.clear();
+      try {
+        if (experimentalWidgetPractice && next) {
+          const projection = buildWidgetActionProjection(next, memberUserId);
+          summary = projection.summary ?? summary;
+          commands = projection.commands;
+        } else summary = buildWidgetSummary(next, memberUserId) ?? summary;
+      } catch {}
+      widgetCommands.current = commands;
+      widgetQueue.current = widgetQueue.current.catch(() => {}).then(() => {
+        if (widgetCommands.current !== commands) return;
+        return deviceSettings.publishWidgetSummary(summary);
+      }).catch(() => {});
     }
     // A null snapshot with no member identity is the initial/auth transition
     // loading state, not a verified sign-out. Keep prior alarms until a new
@@ -642,7 +688,7 @@ function GuestNativeApp() {
 
   const nativeReminders: NativeReminderControls | undefined = isAndroid
     ? { exactPermission, onRequestExactPermission, latencyStatus, onInspectLatency,
-        enabled: enabled === true || (enabled === null && hasHabitIntent), active: reminderSwitchChecked(enabled === true || (enabled === null && hasHabitIntent), permissionState), busy, status, permissionState, showPermissionOffer: shouldShowPermissionOffer({ permission: permissionState, seen: permissionOfferSeen, explicitlyDisabled: enabled === false }), onRequestPermission, onDismissPermissionOffer: dismissPermissionOffer, diagnostic, auditStatus, repairAvailable, repairStatus, wrapupSettings, onWrapupChange, onInspectPending, onAuditPending, onRepairPending, onEnabledChange, onSnapshot }
+        enabled: enabled === true || (enabled === null && hasHabitIntent), active: reminderSwitchChecked(enabled === true || (enabled === null && hasHabitIntent), permissionState), busy, status, permissionState, showPermissionOffer: shouldShowPermissionOffer({ permission: permissionState, seen: permissionOfferSeen, explicitlyDisabled: enabled === false }), onRequestPermission, onDismissPermissionOffer: dismissPermissionOffer, diagnostic, auditStatus, repairAvailable, repairStatus, wrapupSettings, onWrapupChange, onInspectPending, onAuditPending, onRepairPending, onEnabledChange, onSnapshot, registerWidgetPractice: experimentalWidgetPractice ? registerWidgetPractice : undefined }
     : undefined;
   return <Byeolharu nativeReminders={nativeReminders} nativeShare={isAndroid ? shareStarlightPngOnAndroid : undefined} nativeBackupExport={isAndroid ? exportGuestBackupOnAndroid : undefined} nativeAuthReturn={isAndroid ? nativeAuthReturn : undefined} nativeReminderNavigation={isAndroid ? wrapupNavigation : null} nativeHabitNavigation={isAndroid ? habitNavigation : null} />;
 }

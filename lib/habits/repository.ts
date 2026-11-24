@@ -341,7 +341,7 @@ export class LocalRepository implements HabitRepository {
    * intent may choose a repository. Validation and daily-entry write share
    * the same transaction; member changes use the standard durable Outbox.
    */
-  async applyWidgetPractice(command: WidgetPracticeCommand): Promise<WidgetPracticeResult> {
+  async applyWidgetPractice(command: WidgetPracticeCommand, stillAllowed: () => boolean = () => true): Promise<WidgetPracticeResult> {
     // Reject by aborting the transaction: no state write or notify on failure.
     class Rejected extends Error {
       constructor(readonly result: WidgetPracticeResult) { super(result); }
@@ -349,6 +349,7 @@ export class LocalRepository implements HabitRepository {
     try {
       await this.mutate((s) => {
         const day = dateKey(new Date(), this.member ? s.timezone : undefined);
+        if (!stillAllowed()) throw new Rejected("not-ready");
         const checked = validateWidgetPractice(command, this.scope, day, s, this.member);
         if (checked.kind !== "ready") throw new Rejected(checked.kind);
         const base = checked.base;

@@ -1,5 +1,6 @@
 "use client";
 import { syncStatus } from "./sync-status";
+import type { WidgetPracticeCommand, WidgetPracticeResult } from "./widget-practice";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { cloudEnabled, supabase } from "../supabase/client";
@@ -42,6 +43,8 @@ export function useHabitApp(samples: () => Habit[], nativeBackupExport?: (conten
     }
   }, []);
   const activeIdentity = useRef<string | null | undefined>(undefined);
+  const widgetIdentityReady = useRef(false);
+  const widgetLogoutPending = useRef(false);
   const failures = useRef(0),
     retryAt = useRef(0);
   const sync = useCallback(
@@ -183,6 +186,7 @@ export function useHabitApp(samples: () => Habit[], nativeBackupExport?: (conten
       };
       let verification = 0;
       const refreshIdentity = async () => {
+        widgetIdentityReady.current = false;
         const id = ++verification;
         const u = await verified().catch(() => null);
         if (!disposed && id === verification) {
@@ -192,6 +196,7 @@ export function useHabitApp(samples: () => Habit[], nativeBackupExport?: (conten
             } catch {}
           }
           await switchTo(u);
+          if (!disposed && id === verification && activeIdentity.current === (u?.id ?? null) && repo.current) widgetIdentityReady.current = true;
         }
       };
       void refreshIdentity();
@@ -203,12 +208,16 @@ export function useHabitApp(samples: () => Habit[], nativeBackupExport?: (conten
             "USER_UPDATED",
             "TOKEN_REFRESHED",
           ].includes(event)
-        )
+        ) {
+          widgetIdentityReady.current = false;
           setTimeout(() => {
             if (!disposed) void refreshIdentity();
           }, 0);
+        }
       }).data.subscription;
-    } else void switchTo(null);
+    } else void switchTo(null).then(() => {
+      if (!disposed && repo.current && activeIdentity.current === null) widgetIdentityReady.current = true;
+    });
 
     const tick = async () => {
       const r = repo.current;
@@ -245,6 +254,7 @@ export function useHabitApp(samples: () => Habit[], nativeBackupExport?: (conten
     document.addEventListener("visibilitychange", visibleOnce);
     return () => {
       disposed = true;
+      widgetIdentityReady.current = false;
       ++epoch.current;
       clearInterval(timer);
       window.removeEventListener("byeolharu:native-resume", nativeResume);
@@ -281,6 +291,31 @@ export function useHabitApp(samples: () => Habit[], nativeBackupExport?: (conten
     },
     [snapshot, refresh, sync, user],
   );
+  // Android experimental warm-runtime entry only. Never open a scope from
+  // the command; reuse the verified repository already owned by this hook.
+  const applyWidgetPractice = useCallback(async (command: WidgetPracticeCommand, deadline: number): Promise<WidgetPracticeResult> => {
+    const r = repo.current, token = epoch.current;
+    const allowed = () => Boolean(r && repo.current === r && epoch.current === token &&
+      widgetIdentityReady.current && !widgetLogoutPending.current &&
+      r.scope === command.scope && Date.now() < deadline);
+    if (!r || !allowed()) return "not-ready";
+    if (cloudEnabled()) {
+      try {
+        const {data:{session},error} = await supabase().auth.getSession();
+        if (error || (session?.user.id ?? null) !== activeIdentity.current ||
+            (r.member && localStorage.getItem("byeolharu_verified_user") !== session?.user.id))
+          return "not-ready";
+      } catch { return "not-ready"; }
+    }
+    if (!allowed()) return "not-ready";
+    const result = await r.applyWidgetPractice(command, allowed);
+    if (result === "saved" && repo.current === r && epoch.current === token) {
+      // A failed projection refresh is not proof the local commit failed.
+      await refresh(r).catch(() => {});
+      void sync(false);
+    }
+    return result;
+  }, [refresh, sync]);
   const ensureDay = useCallback(async () => {
     const r = repo.current;
     if (r) {
@@ -422,6 +457,8 @@ export function useHabitApp(samples: () => Habit[], nativeBackupExport?: (conten
   const logout = async () => {
     const r = repo.current;
     if (!r?.member) return;
+    widgetLogoutPending.current = true;
+    try {
     const token = epoch.current;
     await sync();
     if (repo.current !== r || epoch.current !== token) return;
@@ -464,6 +501,7 @@ export function useHabitApp(samples: () => Habit[], nativeBackupExport?: (conten
       throw logoutError;
     }
     await LocalRepository.purgeScope(r.scope);
+    } finally { widgetLogoutPending.current = false; }
   };
   return {
     snapshot,
@@ -472,6 +510,7 @@ export function useHabitApp(samples: () => Habit[], nativeBackupExport?: (conten
     status: snapshot ? syncStatus(!!user, snapshot.state) : statusMessage,
     busy,
     setHabits,
+    applyWidgetPractice,
     ensureDay,
     backup,
     sync,
