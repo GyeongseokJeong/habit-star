@@ -2,54 +2,234 @@ package __PACKAGE__;
 
 import android.app.Activity;
 import android.appwidget.AppWidgetManager;
+import android.appwidget.AppWidgetProviderInfo;
+import android.content.ComponentName;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.res.ColorStateList;
+import android.content.res.Configuration;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
+import android.os.Build;
 import android.os.Bundle;
-import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
+import android.text.TextUtils;
+import android.view.Gravity;
+import android.view.View;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.RadioButton;
 import android.widget.ScrollView;
-import android.widget.Spinner;
+import android.widget.Switch;
 import android.widget.TextView;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
-/** Launcher configuration: explicit consent before displaying titles. */
+/** V6 launcher configuration. Preview is synthetic, never a real account record. */
 public class ByeolharuWidgetConfigActivity extends Activity {
+    private static final String[] FILTERS={"auto","all","morning","day","night"};
+    private static final String[] THEMES={"system","light","dark"};
+    private String filter, theme;
+    private boolean screenDark, mini;
+    private int bg, surface, ink, muted, border, selected, accent, primary, onPrimary;
+    private LinearLayout preview;
+    private CheckBox consent;
+    private Switch hide;
+    private Button save;
+    private final Map<String,RadioButton> filters=new LinkedHashMap<>(), themes=new LinkedHashMap<>();
+
     private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
-    private void label(LinearLayout root,String value,int size){
-        TextView t=new TextView(this);t.setText(value);t.setTextSize(size);t.setPadding(0,dp(12),0,dp(6));root.addView(t);
+    private int color(String hex){return Color.parseColor(hex);}
+    private int palette(String light,String dark){return color(screenDark?dark:light);}
+    private boolean systemDark(){return (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)==Configuration.UI_MODE_NIGHT_YES;}
+    private GradientDrawable shape(int fill,int stroke,int radius){
+        GradientDrawable d=new GradientDrawable();d.setColor(fill);d.setCornerRadius(dp(radius));
+        if(stroke!=Color.TRANSPARENT)d.setStroke(dp(1),stroke);
+        return d;
     }
-    private Spinner choices(LinearLayout root,String[] values,int selected){
-        Spinner s=new Spinner(this);ArrayAdapter<String> a=new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,values);
-        s.setAdapter(a);s.setSelection(selected);s.setMinimumHeight(dp(48));root.addView(s);return s;
+    private LinearLayout column(){
+        LinearLayout v=new LinearLayout(this);v.setOrientation(LinearLayout.VERTICAL);return v;
     }
-    private int index(String[] list,String value){for(int i=0;i<list.length;i++)if(list[i].equals(value))return i;return 0;}
+    private LinearLayout line(){
+        LinearLayout v=new LinearLayout(this);v.setOrientation(LinearLayout.HORIZONTAL);v.setGravity(Gravity.CENTER_VERTICAL);return v;
+    }
+    private TextView text(String value,int size,int tint,boolean bold){
+        TextView t=new TextView(this);t.setText(value);t.setTextSize(size);t.setTextColor(tint);
+        if(bold)t.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+        return t;
+    }
+    private void gap(LinearLayout root,int height){View v=new View(this);root.addView(v,new LinearLayout.LayoutParams(1,dp(height)));}
+    private void section(LinearLayout root,String title){
+        gap(root,20);root.addView(text(title,14,ink,true));gap(root,10);
+    }
+    private void addFill(LinearLayout root,View child){root.addView(child,new LinearLayout.LayoutParams(-1,-2));}
+    private void pad(View view,int horizontal,int vertical){view.setPadding(dp(horizontal),dp(vertical),dp(horizontal),dp(vertical));}
+    private String valid(String value,String[] values,String fallback){
+        for(String option:values)if(option.equals(value))return option;
+        return fallback;
+    }
+    private ColorStateList controlTint(){
+        return new ColorStateList(new int[][]{new int[]{android.R.attr.state_checked},new int[]{}},new int[]{accent,muted});
+    }
+    private void setupSystemBars(LinearLayout shell){
+        getWindow().setStatusBarColor(bg);getWindow().setNavigationBarColor(bg);
+        if(Build.VERSION.SDK_INT>=29){
+            shell.setForceDarkAllowed(false);
+            getWindow().setStatusBarContrastEnforced(false);getWindow().setNavigationBarContrastEnforced(false);
+        }
+        if(Build.VERSION.SDK_INT>=30){
+            getWindow().setDecorFitsSystemWindows(false);
+            WindowInsetsController controller=getWindow().getInsetsController();
+            if(controller!=null){
+                int flags=WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS|WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+                controller.setSystemBarsAppearance(screenDark?0:flags,flags);
+            }
+            shell.setOnApplyWindowInsetsListener((v,insets)->{
+                android.graphics.Insets safe=insets.getInsets(WindowInsets.Type.systemBars()|WindowInsets.Type.displayCutout());
+                v.setPadding(safe.left,safe.top,safe.right,safe.bottom);return insets;
+            });
+            shell.requestApplyInsets();
+        }else{
+            int flags=View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+            if(Build.VERSION.SDK_INT>=26)flags|=View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            getWindow().getDecorView().setSystemUiVisibility(screenDark?0:flags);
+        }
+    }
+    private void choices(LinearLayout root,Map<String,RadioButton> buttons,String[] keys,String[] labels,boolean themeChoice){
+        LinearLayout row=line();addFill(root,row);
+        for(int i=0;i<keys.length;i++){
+            final String key=keys[i];RadioButton b=new RadioButton(this);
+            b.setText(labels[i]);b.setTextSize(13);b.setButtonDrawable((android.graphics.drawable.Drawable)null);
+            b.setGravity(Gravity.CENTER);b.setMinHeight(dp(48));b.setMinimumHeight(dp(48));pad(b,4,8);
+            b.setFocusable(true);
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1f);
+            if(i>0)lp.setMarginStart(dp(8));row.addView(b,lp);buttons.put(key,b);
+            b.setOnClickListener(v->{
+                if(themeChoice)theme=key;else filter=key;
+                renderChoices();renderPreview();
+            });
+        }
+    }
+    private void renderChoices(){
+        updateChoices(filters,filter);updateChoices(themes,theme);
+    }
+    private void updateChoices(Map<String,RadioButton> buttons,String value){
+        for(Map.Entry<String,RadioButton> entry:buttons.entrySet()){
+            RadioButton button=entry.getValue();boolean active=entry.getKey().equals(value);
+            button.setChecked(active);button.setTextColor(active?accent:ink);
+            button.setTypeface(Typeface.DEFAULT,active?Typeface.BOLD:Typeface.NORMAL);
+            button.setBackground(shape(active?selected:surface,active?accent:border,12));
+        }
+    }
+    private String previewGroup(){return "auto".equals(filter)?ByeolharuWidgetProvider.group(null):filter;}
+    private void renderPreview(){
+        preview.removeAllViews();
+        boolean dark=ByeolharuWidgetProvider.themeValue(theme,screenDark,false,true);
+        int panel=color(dark?"#1C2233":"#FFFCF7"), fg=color(dark?"#F0EDF5":"#302D38"),
+            secondary=color(dark?"#A4AABD":"#716B79"), gold=color(dark?"#E5C78D":"#92703B");
+        preview.setBackground(shape(panel,color(dark?"#394154":"#E7DED0"),18));
+        String group=previewGroup();
+        LinearLayout header=line();TextView star=text("✦",15,gold,true);header.addView(star);
+        TextView title=text(ByeolharuWidgetProvider.label(group),14,fg,true);title.setPadding(dp(5),0,0,0);
+        header.addView(title,new LinearLayout.LayoutParams(0,-2,1));
+        header.addView(text(consent.isChecked()?"1/3":"—",14,gold,true));
+        preview.addView(header,new LinearLayout.LayoutParams(-1,dp(32)));
+        if(!consent.isChecked()){
+            TextView hidden=text("습관 표시 꺼짐",12,secondary,false);hidden.setGravity(Gravity.CENTER);
+            preview.addView(hidden,new LinearLayout.LayoutParams(-1,dp(mini?74:110)));return;
+        }
+        String[] titles, icons;
+        if("morning".equals(group)){titles=new String[]{"물 마시기","아침 스트레칭","하루 계획"};icons=new String[]{"💧","🌱","📝"};}
+        else if("day".equals(group)){titles=new String[]{"산책하기","독서 20분","물 마시기"};icons=new String[]{"🚶","📚","💧"};}
+        else {titles=new String[]{"운동하기","독서 30분","일찍 잠들기"};icons=new String[]{"💪","📚","🌙"};}
+        for(int i=0;i<titles.length;i++){
+            boolean done=i==0;if(done&&hide.isChecked())continue;
+            LinearLayout item=line();item.addView(text(icons[i],15,fg,false),new LinearLayout.LayoutParams(dp(22),-2));
+            TextView name=text(titles[i],13,done?secondary:fg,false);name.setSingleLine(true);name.setEllipsize(TextUtils.TruncateAt.END);
+            item.addView(name,new LinearLayout.LayoutParams(0,-2,1));
+            ImageView mark=new ImageView(this);
+            mark.setImageResource(done?(dark?R.drawable.byeolharu_widget_check_dark:R.drawable.byeolharu_widget_check_light):
+                (dark?R.drawable.byeolharu_widget_circle_dark:R.drawable.byeolharu_widget_circle_light));
+            mark.setScaleType(ImageView.ScaleType.CENTER_INSIDE);mark.setContentDescription(done?"실천 완료":"실천 전");
+            item.addView(mark,new LinearLayout.LayoutParams(dp(24),dp(24)));
+            preview.addView(item,new LinearLayout.LayoutParams(-1,dp(36)));
+        }
+        if(!mini)gap(preview,20);
+    }
+    private void updateSave(boolean enabled){
+        save.setEnabled(enabled);save.setTextColor(enabled?onPrimary:muted);
+        save.setBackground(shape(enabled?primary:surface,enabled?Color.TRANSPARENT:border,14));
+    }
     @Override protected void onCreate(Bundle saved){
         super.onCreate(saved);
         int id=getIntent().getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,AppWidgetManager.INVALID_APPWIDGET_ID);
         Intent result=new Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,id);setResult(RESULT_CANCELED,result);
         if(!ByeolharuWidgetProvider.owns(this,id)){finish();return;}
-        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(24),dp(24),dp(24),dp(24));
-        ScrollView scroll=new ScrollView(this);scroll.addView(root);setContentView(scroll);
-        label(root,"별하루 위젯 설정",22);
-        label(root,"표시할 습관",16);
-        String[] filters={"auto","all","morning","day","night"}, themes={"system","light","dark"};
-        android.content.SharedPreferences prefs=ByeolharuWidgetProvider.options(this);
+        SharedPreferences prefs=ByeolharuWidgetProvider.options(this);
         final boolean existing=prefs.contains(id+":consent");
-        Spinner filter=choices(root,new String[]{"현재 시간대 자동 전환","전체 습관","아침","낮","저녁"},index(filters,prefs.getString(id+":filter","auto")));
-        CheckBox hide=new CheckBox(this);hide.setText("완료한 습관 숨기기");hide.setChecked(prefs.getBoolean(id+":hide",false));hide.setMinHeight(dp(48));root.addView(hide);
-        label(root,"화면 테마",16);
-        Spinner theme=choices(root,new String[]{"시스템","라이트","다크"},index(themes,prefs.getString(id+":theme","system")));
-        label(root,"습관 이름과 완료 상태가 홈 화면에 표시됩니다. 동의를 해제하고 적용하면 숨겨집니다. "+
-            (ByeolharuWidgetProvider.experimental(this)?"테스트 버전: 앱이 백그라운드에 살아 있을 때 체크할 수 있어요.":"앱에서 기록해 주세요."),14);
-        CheckBox consent=new CheckBox(this);consent.setText("홈 화면에 습관을 표시합니다");consent.setChecked(prefs.getBoolean(id+":consent",false));consent.setMinHeight(dp(48));root.addView(consent);
-        Button save=new Button(this);save.setText("적용하기");save.setEnabled(existing || consent.isChecked());save.setMinHeight(dp(48));root.addView(save);
-        consent.setOnCheckedChangeListener((b,checked)->save.setEnabled(existing || checked));
+        AppWidgetProviderInfo info=AppWidgetManager.getInstance(this).getAppWidgetInfo(id);
+        mini=info!=null&&new ComponentName(this,ByeolharuWidgetProvider.Mini.class).equals(info.provider);
+        filter=valid(saved==null?prefs.getString(id+":filter","auto"):saved.getString("filter"),FILTERS,"auto");
+        theme=valid(saved==null?prefs.getString(id+":theme","system"):saved.getString("theme"),THEMES,"system");
+        screenDark=systemDark();
+        bg=palette("#F6F2EC","#171D29");surface=palette("#FFFCF7","#252C3D");ink=palette("#302D38","#EDEAF1");
+        muted=palette("#716B79","#A4AABD");border=palette("#DFD7CC","#3B4250");selected=palette("#E9DFED","#484056");
+        accent=palette("#725383","#D0B9E5");primary=palette("#805F30","#E5C78D");onPrimary=palette("#FFFFFF","#302D38");
+        LinearLayout shell=column();shell.setBackgroundColor(bg);setContentView(shell);setupSystemBars(shell);
+        LinearLayout header=line();pad(header,16,4);
+        Button back=new Button(this);back.setText("‹");back.setTextColor(ink);back.setTextSize(27);back.setAllCaps(false);
+        back.setBackground(shape(Color.TRANSPARENT,Color.TRANSPARENT,12));back.setMinWidth(0);back.setMinimumWidth(0);pad(back,0,0);
+        back.setContentDescription("뒤로 가기");header.addView(back,new LinearLayout.LayoutParams(dp(48),dp(48)));back.setOnClickListener(v->finish());
+        TextView heading=text("위젯 설정",21,ink,true);header.addView(heading,new LinearLayout.LayoutParams(0,-2,1));addFill(shell,header);
+        ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.setClipToPadding(false);
+        shell.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+        LinearLayout root=column();pad(root,20,8);scroll.addView(root,new ScrollView.LayoutParams(-1,-2));
+        preview=column();pad(preview,10,6);
+        LinearLayout.LayoutParams previewParams=new LinearLayout.LayoutParams(dp(176),-2);previewParams.gravity=Gravity.CENTER_HORIZONTAL;
+        root.addView(preview,previewParams);gap(root,6);
+        TextView previewLabel=text("미리보기 · 예시 습관",12,muted,false);previewLabel.setGravity(Gravity.CENTER);addFill(root,previewLabel);
+
+        section(root,"표시할 습관");
+        choices(root,filters,new String[]{"auto","all"},new String[]{"시간대 자동","전체"},false);gap(root,8);
+        choices(root,filters,new String[]{"morning","day","night"},new String[]{"아침","낮","저녁"},false);
+        gap(root,12);
+        hide=new Switch(this);hide.setText("완료한 습관 숨기기");hide.setTextSize(14);hide.setTextColor(ink);
+        hide.setMinHeight(dp(52));pad(hide,12,6);hide.setBackground(shape(surface,border,12));
+        hide.setThumbTintList(controlTint());
+        hide.setTrackTintList(new ColorStateList(new int[][]{new int[]{android.R.attr.state_checked},new int[]{}},
+            new int[]{palette("#C7B4D5","#806A96"),palette("#D0CBC5","#495263")}));
+        hide.setChecked(saved==null?prefs.getBoolean(id+":hide",false):saved.getBoolean("hide"));addFill(root,hide);
+        section(root,"화면 테마");
+        choices(root,themes,THEMES,new String[]{"시스템","라이트","다크"},true);
+        gap(root,20);
+        LinearLayout privacy=column();pad(privacy,12,8);privacy.setBackground(shape(surface,border,12));
+        consent=new CheckBox(this);consent.setText("홈 화면에 습관 표시");consent.setTextColor(ink);consent.setTextSize(14);
+        consent.setMinHeight(dp(48));consent.setButtonTintList(controlTint());
+        consent.setChecked(saved==null?prefs.getBoolean(id+":consent",false):saved.getBoolean("consent"));addFill(privacy,consent);
+        TextView notice=text("습관 이름과 완료 상태가 홈 화면에 표시됩니다.",12,muted,false);addFill(privacy,notice);gap(privacy,4);addFill(root,privacy);
+        gap(root,10);
+        TextView mode=text(ByeolharuWidgetProvider.experimental(this)?
+            "테스트 버전 · 앱이 백그라운드에 살아 있을 때 직접 체크할 수 있어요.":"실천 기록은 앱에서 할 수 있어요.",12,muted,false);
+        addFill(root,mode);gap(root,12);
+
+        LinearLayout footer=column();pad(footer,20,10);save=new Button(this);save.setText("적용하기");save.setTextSize(15);
+        save.setAllCaps(false);save.setMinHeight(dp(48));save.setTypeface(Typeface.DEFAULT,Typeface.BOLD);addFill(footer,save);addFill(shell,footer);
+        renderChoices();renderPreview();updateSave(existing || consent.isChecked());
+        hide.setOnCheckedChangeListener((b,checked)->renderPreview());
+        consent.setOnCheckedChangeListener((b,checked)->{updateSave(existing || checked);renderPreview();});
         save.setOnClickListener(v->{
             if(!ByeolharuWidgetProvider.owns(this,id)||(!existing && !consent.isChecked()))return;
-            if(!ByeolharuWidgetProvider.saveOptions(this,id,consent.isChecked(),filters[filter.getSelectedItemPosition()],
-                hide.isChecked(),themes[theme.getSelectedItemPosition()]))return;
+            if(!ByeolharuWidgetProvider.saveOptions(this,id,consent.isChecked(),filter,hide.isChecked(),theme))return;
             setResult(RESULT_OK,result);finish();
         });
+    }
+    @Override protected void onSaveInstanceState(Bundle out){
+        super.onSaveInstanceState(out);
+        if(consent==null||hide==null)return;
+        out.putString("filter",filter);out.putString("theme",theme);out.putBoolean("hide",hide.isChecked());out.putBoolean("consent",consent.isChecked());
     }
 }

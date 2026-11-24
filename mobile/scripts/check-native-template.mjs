@@ -167,8 +167,8 @@ assert.match(widget, /getNoBackupFilesDir/);
 assert.match(widget, /anyConfigured\(c\)/);
 assert.match(configActivity, /consent.isChecked\(\)/);
 assert.match(configActivity, /existing=prefs.contains\(id\+":consent"\)/);
-assert.match(configActivity, /save.setEnabled\(existing \|\| consent.isChecked\(\)\)/);
-assert.match(configActivity, /save.setEnabled\(existing \|\| checked\)/);
+assert.match(configActivity, /updateSave\(existing \|\| consent.isChecked\(\)\)/);
+assert.match(configActivity, /updateSave\(existing \|\| checked\)/);
 assert.match(configActivity, /saveOptions\(this,id,consent.isChecked\(\)/);
 assert.match(widget, /putBoolean\(id\+":consent",consent\)/);
 assert.match(widget, /if \(!anyConfigured\(c\)\) \{ clear\(c\); return null; \}/);
@@ -249,3 +249,26 @@ assert.match(render,/\}\s*textColor\(v,R.id.widget_star,theme/);
 for(const id of ["star","label","count","empty","private"])
  assert.ok(render.includes("textColor(v,R.id.widget_"+id+",theme,"));
 assert.doesNotMatch(widget,/if \("system"\.equals\(theme\)&&Build.VERSION.SDK_INT>=31\)/);
+
+
+// V6-2 configuration: native accessible direct controls, synthetic preview,
+// draft-only changes, explicit apply/consent and system-bar handling.
+assert.doesNotMatch(configActivity,/\bSpinner\b|ByeolharuWidgetProvider\.read\(/);
+assert.match(configActivity,/new RadioButton\(this\)/);
+assert.match(configActivity,/button.setChecked\(active\)/);
+assert.match(configActivity,/new Switch\(this\)/);
+assert.match(configActivity,/screenDark=systemDark\(\)/);
+assert.match(configActivity,/themeValue\(theme,screenDark,false,true\)/);
+assert.match(configActivity,/renderChoices\(\);renderPreview\(\)/);
+assert.match(configActivity,/hide.setOnCheckedChangeListener\(\(b,checked\)->renderPreview\(\)\)/);
+assert.match(configActivity,/미리보기 · 예시 습관/);
+assert.match(configActivity,/WindowInsets.Type.systemBars\(\)\|WindowInsets.Type.displayCutout\(\)/);
+assert.match(configActivity,/APPEARANCE_LIGHT_STATUS_BARS/);
+assert.match(configActivity,/APPEARANCE_LIGHT_NAVIGATION_BARS/);
+assert.match(configActivity,/if\(!ByeolharuWidgetProvider.owns\(this,id\)\|\|\(!existing && !consent.isChecked\(\)\)\)return;/);
+assert.equal((configActivity.match(/ByeolharuWidgetProvider\.saveOptions\(/g)||[]).length,1);
+assert.match(configActivity,/onSaveInstanceState\(Bundle out\)/);
+assert.match(configActivity,/out.putString\("filter",filter\)/);
+assert.match(configActivity,/out.putString\("theme",theme\)/);
+assert.match(configActivity,/setResult\(RESULT_OK,result\);finish\(\)/);
+console.log("V6 configuration UI source contracts OK (not a device test)");
