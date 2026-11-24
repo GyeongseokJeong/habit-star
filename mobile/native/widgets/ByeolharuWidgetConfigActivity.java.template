@@ -40,7 +40,8 @@ public class ByeolharuWidgetConfigActivity extends Activity {
         CheckBox hide=new CheckBox(this);hide.setText("완료한 습관 숨기기");hide.setChecked(prefs.getBoolean(id+":hide",false));hide.setMinHeight(dp(48));root.addView(hide);
         label(root,"화면 테마",16);
         Spinner theme=choices(root,new String[]{"시스템","라이트","다크"},index(themes,prefs.getString(id+":theme","system")));
-        label(root,"습관 이름과 완료 상태가 홈 화면에 표시됩니다. 동의를 해제하고 적용하면 숨겨집니다. 초기 버전에서는 앱에서 기록해 주세요.",14);
+        label(root,"습관 이름과 완료 상태가 홈 화면에 표시됩니다. 동의를 해제하고 적용하면 숨겨집니다. "+
+            (ByeolharuWidgetProvider.experimental(this)?"테스트 버전: 앱이 백그라운드에 살아 있을 때 체크할 수 있어요.":"앱에서 기록해 주세요."),14);
         CheckBox consent=new CheckBox(this);consent.setText("홈 화면에 습관을 표시합니다");consent.setChecked(prefs.getBoolean(id+":consent",false));consent.setMinHeight(dp(48));root.addView(consent);
         Button save=new Button(this);save.setText("적용하기");save.setEnabled(existing || consent.isChecked());save.setMinHeight(dp(48));root.addView(save);
         consent.setOnCheckedChangeListener((b,checked)->save.setEnabled(existing || checked));

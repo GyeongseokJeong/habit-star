@@ -10,7 +10,7 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Read-only list; direct write actions deliberately not bound in STEP 2A/B. */
+/** Release remains read-only; debug-only opaque handles exercise the warm bridge. */
 public class ByeolharuWidgetListService extends RemoteViewsService {
     @Override public RemoteViewsFactory onGetViewFactory(Intent intent) {
         final int id=intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,AppWidgetManager.INVALID_APPWIDGET_ID);
@@ -27,17 +27,21 @@ public class ByeolharuWidgetListService extends RemoteViewsService {
             public RemoteViews getViewAt(int position){
                 if(!ByeolharuWidgetProvider.configured(c,id)||position<0||position>=rows.size())return null;
                 JSONObject row=rows.get(position);boolean completed=row.optBoolean("completed"),dark=ByeolharuWidgetProvider.dark(c,id);
-                RemoteViews v=new RemoteViews(c.getPackageName(),R.layout.byeolharu_widget_row);
+                boolean experimental=ByeolharuWidgetProvider.experimental(c);
+                RemoteViews v=new RemoteViews(c.getPackageName(),experimental?R.layout.byeolharu_widget_row_action:R.layout.byeolharu_widget_row);
                 v.setTextViewText(R.id.widget_icon,row.optString("icon"));
                 v.setTextViewText(R.id.widget_title,row.optString("title"));
                 v.setTextViewText(R.id.widget_check,completed?"✓":"○");
                 v.setTextColor(R.id.widget_title,Color.parseColor(completed?(dark?"#A4AABD":"#716B79"):(dark?"#F0EDF5":"#302D38")));
                 v.setTextColor(R.id.widget_check,Color.parseColor(completed?(dark?"#87AC92":"#426E52"):(dark?"#A4AABD":"#716B79")));
-                v.setContentDescription(R.id.widget_check,completed?"실천 완료":"실천 전");
+                String key=row.optString("actionKey");
+                boolean actionable=experimental&&ByeolharuWidgetProvider.validKey(key);
+                v.setContentDescription(R.id.widget_check,actionable?(completed?"실천 완료 취소":"실천 완료하기"):(completed?"실천 완료":"실천 전"));
+                if(actionable) v.setOnClickFillInIntent(R.id.widget_check,new Intent().putExtra("actionKey",key));
                 return v;
             }
             public RemoteViews getLoadingView(){return null;}
-            public int getViewTypeCount(){return 1;}
+            public int getViewTypeCount(){return 2;}
             public long getItemId(int position){return position;}
             public boolean hasStableIds(){return false;}
         };

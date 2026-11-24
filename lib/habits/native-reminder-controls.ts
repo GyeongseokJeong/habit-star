@@ -1,4 +1,5 @@
 import type { Snapshot } from "./repository";
+import type { WidgetPracticeCommand, WidgetPracticeResult } from "./widget-practice";
 
 /**
  * Passed only by the bundled Android guest entrypoint.
@@ -36,4 +37,5 @@ export type NativeReminderControls = {
   diagnostic: string;
   /** Verified account identity comes from the shared app repository, never raw storage. */
   onSnapshot: (snapshot: Snapshot | null, memberUserId: string | null) => void;
+  registerWidgetPractice?: (handler: (command: WidgetPracticeCommand, deadline: number) => Promise<WidgetPracticeResult>) => () => void;
 };
