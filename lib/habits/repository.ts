@@ -1,4 +1,5 @@
 import type { SyncMetadata } from "./sync-status";
+import { validateWidgetPractice, type WidgetPracticeCommand, type WidgetPracticeResult } from "./widget-practice";
 import { openDB, type IDBPDatabase } from "idb";
 import {
   type Change,
@@ -334,6 +335,36 @@ export class LocalRepository implements HabitRepository {
       }
       this.apply(s, changes);
     });
+  }
+  /**
+   * The caller must be the currently verified repository owner. No native
+   * intent may choose a repository. Validation and daily-entry write share
+   * the same transaction; member changes use the standard durable Outbox.
+   */
+  async applyWidgetPractice(command: WidgetPracticeCommand): Promise<WidgetPracticeResult> {
+    // Reject by aborting the transaction: no state write or notify on failure.
+    class Rejected extends Error {
+      constructor(readonly result: WidgetPracticeResult) { super(result); }
+    }
+    try {
+      await this.mutate((s) => {
+        const day = dateKey(new Date(), this.member ? s.timezone : undefined);
+        const checked = validateWidgetPractice(command, this.scope, day, s, this.member);
+        if (checked.kind !== "ready") throw new Rejected(checked.kind);
+        const base = checked.base;
+        this.apply(s, [{
+          key: base.key, kind: "habit_entries", id: base.id, day,
+          base: structuredClone(base),
+          // Never touch the definition, past entries, memo, or existing rating.
+          data: { ...base.data, completed: command.completed },
+          deleted: false,
+        }]);
+      });
+      return "saved";
+    } catch (error) {
+      if (error instanceof Rejected) return error.result;
+      throw error;
+    }
   }
   async changeHabits(update: (habits: Habit[]) => Habit[]) {
     await this.mutate((s) => {

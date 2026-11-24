@@ -20,3 +20,6 @@ Habit Configuration은 `title`, `icon`, `timeGroup`, `repeatDays`, `scheduledTim
 ## V3.2 별자리 성장 (구현됨)
 
 [시그니처 별자리 설계](CONSTELLATION_V3_2.md)의 확정 정책에 따라 `lib/constellation/growth.ts`가 현재 저장 범위의 날짜별 `history`와 오늘 `habits`를 중복 없이 계산한다. 신규 비회원 샘플의 자동 완료는 출처 메타데이터로 제외하고, 실제로 확인된 실천만 인정한다. `lib/constellation/art.ts`의 Stage 1~6 경계와 승인된 2:3 원화를 `components/constellation-growth-view.tsx`에서 표현하며, 원본 기록과 DB 스키마를 변경하지 않는다. 홈에서는 기록·임시 완료·범위 변경에 맞춰 점수를 다시 계산하고 시계만 바뀌면 전체 기록을 재계산하지 않는다.
+
+## 위젯 직접 실천 저장 경계 (STEP 2C-1)
+위젯의 표시 캐시는 원본이 아니다. `lib/habits/widget-practice.ts`의 내부 명령은 검증된 현재 계정의 저장소에만 전달하며 `LocalRepository.applyWidgetPractice`가 동일 IndexedDB 트랜잭션에서 날짜·revision/version·완료/별점·유효 습관·충돌·동의 이전 잠금 등을 확인하고 기존 daily entry 및 Outbox 경로로 저장한다. 명령이 저장소를 선택할 수 없으며 네이티브 전송이나 백그라운드 실행은 후속 단계다. 실패/미실행은 완료 표시로 취급하지 않는다. 별점 있는 완료를 취소할 때는 기존 상세 편집을 사용한다.
