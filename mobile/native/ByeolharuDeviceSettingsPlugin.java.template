@@ -20,7 +20,7 @@ import com.getcapacitor.annotation.CapacitorPlugin;
  */
 @CapacitorPlugin(name = "ByeolharuDeviceSettings")
 public class ByeolharuDeviceSettingsPlugin extends Plugin {
-    /** Widget bridge accepts only anonymous aggregate data. */
+    /** Widget bridge accepts only a minimal, opted-in display projection. */
     @PluginMethod
     public void publishWidgetSummary(PluginCall call) {
         try {

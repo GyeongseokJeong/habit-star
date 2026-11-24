@@ -80,25 +80,27 @@ if (!returnManifest.includes("android.permission.SCHEDULE_EXACT_ALARM")) {
   returnManifest = returnManifest.replace(header[0],
     header[0] + '\n    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />');
 }
-// Read-only widget resources, installed for both validated app IDs.
+// Compact V4 widgets (both validated packages).
 const widgetNative = resolve(mobileRoot, "native/widgets");
 const mainRoot = resolve(mobileRoot, "android/app/src/main");
-writeFileSync(join(dirname(path), "ByeolharuWidgetProvider.java"),
-  readFileSync(join(widgetNative, "ByeolharuWidgetProvider.java.template"), "utf8").replaceAll("__PACKAGE__", targetPackage));
+for (const name of ["ByeolharuWidgetProvider", "ByeolharuWidgetConfigActivity", "ByeolharuWidgetListService"]) {
+  writeFileSync(join(dirname(path), name + ".java"),
+    readFileSync(join(widgetNative, name + ".java.template"), "utf8").replaceAll("__PACKAGE__", targetPackage));
+}
 for (const folder of ["layout", "xml", "drawable"]) {
   const dest = join(mainRoot, "res", folder);
   mkdirSync(dest, { recursive: true });
-  for (const file of readdirSync(join(widgetNative, folder))) copyFileSync(join(widgetNative, folder, file), join(dest, file));
+  for (const file of readdirSync(join(widgetNative, folder))) {
+    const source = join(widgetNative, folder, file);
+    if (folder === "xml") writeFileSync(join(dest, file), readFileSync(source, "utf8").replaceAll("__PACKAGE__", targetPackage));
+    else copyFileSync(source, join(dest, file));
+  }
 }
-const artFolder = join(mainRoot, "res", "drawable-nodpi");
-mkdirSync(artFolder, { recursive: true });
-for (let stage = 1; stage <= 6; stage++) {
-  copyFileSync(resolve(mobileRoot, "../public/assets/constellation", `stage-0${stage}.webp`),
-    join(artFolder, `byeolharu_widget_stage_${stage}.webp`));
-}
+// Remove retired unmerged prototype registrations if an existing generated tree is reused.
+returnManifest = returnManifest.replace(/<receiver\b[^>]*android:name="\.ByeolharuWidgetProvider\$(?:Growth|Practice)"[^>]*>[\s\S]*?<\/receiver>\s*/g, "");
 for (const [name, resource, label] of [
-  ["Growth", "byeolharu_widget_growth_info", "별하루 · 별빛 성장"],
-  ["Practice", "byeolharu_widget_practice_info", "별하루 · 오늘의 실천"],
+  ["Mini", "byeolharu_widget_mini_info", "별하루 · 미니"],
+  ["Compact", "byeolharu_widget_compact_info", "별하루 · 간편"],
 ]) {
   const receiver = ".ByeolharuWidgetProvider$" + name;
   if (!returnManifest.includes(`android:name="${receiver}"`)) {
@@ -115,6 +117,15 @@ for (const [name, resource, label] of [
         </receiver>
     </application>`);
   }
+}
+if (!returnManifest.includes('android:name=".ByeolharuWidgetConfigActivity"')) {
+  returnManifest = returnManifest.replace("</application>", `
+    <activity android:name=".ByeolharuWidgetConfigActivity" android:exported="true">
+      <intent-filter><action android:name="android.appwidget.action.APPWIDGET_CONFIGURE"/></intent-filter>
+    </activity>
+    <service android:name=".ByeolharuWidgetListService" android:exported="false"
+      android:permission="android.permission.BIND_REMOTEVIEWS"/>
+    </application>`);
 }
 if (returnManifest !== initialManifest) writeFileSync(returnManifestPath, returnManifest);
 

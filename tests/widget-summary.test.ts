@@ -10,12 +10,13 @@ const habits: Habit[] = [base, { ...base, id: "2", completed: false, timeGroup: 
   { ...base, id: "3", repeatDays: [0], completed: false }];
 const snapshot: Snapshot = { day: date, habits, history: { [date]: habits }, state: {
   entities: {}, outbox: [], conflicts: [], cursor: 0, hydrated: true, timezone: "Asia/Seoul" } };
-describe("anonymous widget projection", () => {
-  it("uses scheduled records and shared growth without transmitting private values", () => {
+describe("compact widget display projection", () => {
+  it("uses scheduled records and excludes private non-display fields", () => {
     const result = buildWidgetSummary(snapshot, "private-user", now);
-    expect(result).toEqual({ ready: true, expiresAt: Date.parse("2026-11-25T00:00:00+09:00"),
-      completed: 1, total: 2, morning: 0, day: 0, night: 1, stage: 1, points: 1 });
-    expect(JSON.stringify(result)).not.toContain("private");
+    expect(result).toEqual({ ready: true, expiresAt: Date.parse("2026-11-25T00:00:00+09:00"), timezone: "Asia/Seoul",
+      rows: [{title:"private title",icon:"📚",group:"morning",completed:true},
+        {title:"private title",icon:"📚",group:"night",completed:false}] });
+    expect(JSON.stringify(result)).not.toMatch(/private-id|private memo|private-user/);
   });
   it("clears on missing, unhydrated or stale snapshots", () => {
     expect(buildWidgetSummary(null, null, now)).toBeNull();

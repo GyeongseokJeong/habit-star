@@ -4,102 +4,170 @@ import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
+import android.appwidget.AppWidgetProviderInfo;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
+import android.content.res.Configuration;
+import android.graphics.Color;
+import android.net.Uri;
+import android.util.AtomicFile;
+import android.view.View;
 import android.widget.RemoteViews;
 import com.getcapacitor.JSObject;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.List;
+import java.util.TimeZone;
 
-/** Anonymous read-only cache, never a second habit repository. */
+/** Read-only, opt-in projection. Never writes habit data. */
 public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
-    private static final String PREF = "byeolharu_widget_summary_v1";
-    private static final String EXPIRE = "byeolharu.widget.EXPIRE";
-    private static final long MAX_TTL = 36L * 60L * 60L * 1000L;
-    public static class Growth extends ByeolharuWidgetProvider {}
-    public static class Practice extends ByeolharuWidgetProvider {}
-
-    private static SharedPreferences prefs(Context context) {
-        return context.getSharedPreferences(PREF, Context.MODE_PRIVATE);
+    static final String EXPIRE = "byeolharu.widget.REFRESH";
+    static final long MAX_TTL = 36L * 3600000L;
+    public static class Mini extends ByeolharuWidgetProvider {}
+    public static class Compact extends ByeolharuWidgetProvider {}
+    static SharedPreferences options(Context c) { return c.getSharedPreferences("byeolharu_widget_options_v2", Context.MODE_PRIVATE); }
+    static AtomicFile cache(Context c) { return new AtomicFile(new File(c.getNoBackupFilesDir(), "byeolharu_widget_display_v2.json")); }
+    static boolean owns(Context c, int id) {
+        AppWidgetProviderInfo info = AppWidgetManager.getInstance(c).getAppWidgetInfo(id);
+        if (info == null || info.provider == null) return false;
+        return info.provider.equals(new ComponentName(c, Mini.class)) || info.provider.equals(new ComponentName(c, Compact.class));
     }
-    private static PendingIntent expiryIntent(Context context) {
-        return PendingIntent.getBroadcast(context, 8101, new Intent(context, Growth.class).setAction(EXPIRE),
-            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    static boolean configured(Context c, int id) { return owns(c,id) && options(c).getBoolean(id+":consent", false); }
+    static int[] ids(Context c, Class<?> type) { return AppWidgetManager.getInstance(c).getAppWidgetIds(new ComponentName(c,type)); }
+    static boolean anyConfigured(Context c) {
+        for (Class<?> type : new Class<?>[]{Mini.class, Compact.class})
+            for (int id : ids(c,type)) if (configured(c,id)) return true;
+        return false;
     }
-    static void publish(Context context, JSObject data) {
-        SharedPreferences.Editor editor = prefs(context).edit().clear();
-        long expiry = data.optLong("expiresAt", 0L), now = System.currentTimeMillis();
-        int total = data.optInt("total", -1), done = data.optInt("completed", -1);
-        int morning = data.optInt("morning", -1), day = data.optInt("day", -1), night = data.optInt("night", -1);
-        int stage = data.optInt("stage", -1), points = data.optInt("points", -1);
-        boolean valid = data.optBoolean("ready", false) && expiry > now && expiry - now <= MAX_TTL
-            && total >= 0 && done >= 0 && done <= total && morning >= 0 && day >= 0 && night >= 0
-            && (long) morning + day + night == total - done && stage >= 1 && stage <= 6 && points >= 0;
-        if (valid) editor.putLong("expiresAt", expiry).putInt("total", total).putInt("completed", done)
-            .putInt("morning", morning).putInt("day", day).putInt("night", night)
-            .putInt("stage", stage).putInt("points", points);
-        if (!editor.commit()) throw new IllegalStateException("Widget cache unavailable");
-        AlarmManager alarm = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-        if (alarm != null) {
-            try {
-                alarm.cancel(expiryIntent(context));
-                if (valid) alarm.set(AlarmManager.RTC, expiry, expiryIntent(context));
-            } catch (RuntimeException ignored) { /* periodic refresh checks expiry */ }
+    static synchronized void clear(Context c) { cache(c).delete(); }
+    static synchronized JSONObject read(Context c) {
+        try {
+            JSONObject data = new JSONObject(new String(cache(c).readFully(), StandardCharsets.UTF_8));
+            long expiry = data.optLong("expiresAt"), now = System.currentTimeMillis();
+            if (expiry > now && expiry - now <= MAX_TTL) return data;
+            clear(c);
+        } catch (Exception ignored) {}
+        return null;
+    }
+    static synchronized void publish(Context c, JSObject data) throws Exception {
+        long expiry = data.optLong("expiresAt"), now = System.currentTimeMillis();
+        clear(c);
+        JSONArray incoming = data.optJSONArray("rows");
+        if (anyConfigured(c) && data.optBoolean("ready") && incoming != null && expiry > now && expiry - now <= MAX_TTL) {
+            JSONArray rows = new JSONArray();
+            for (int i=0; i<incoming.length(); i++) {
+                JSONObject row = incoming.optJSONObject(i);
+                if (row == null) continue;
+                String group = row.optString("group");
+                if (!group.equals("morning") && !group.equals("day") && !group.equals("night")) continue;
+                // Store only allowed display fields; titles may be visible on the home screen.
+                rows.put(new JSONObject().put("title",row.optString("title")).put("icon",row.optString("icon"))
+                    .put("group",group).put("completed",row.optBoolean("completed")));
+            }
+            JSONObject projected = new JSONObject().put("expiresAt",expiry).put("timezone",data.optString("timezone")).put("rows",rows);
+            AtomicFile file = cache(c);
+            FileOutputStream out = file.startWrite();
+            try { out.write(projected.toString().getBytes(StandardCharsets.UTF_8)); file.finishWrite(out); }
+            catch (Exception e) { file.failWrite(out); throw e; }
         }
-        refreshAll(context);
+        refreshAll(c);
     }
-    private static void refreshAll(Context context) {
-        AppWidgetManager manager = AppWidgetManager.getInstance(context);
-        for (Class<?> type : new Class<?>[]{Growth.class, Practice.class}) {
-            for (int id : manager.getAppWidgetIds(new ComponentName(context, type)))
-                render(context, manager, id, type == Growth.class);
+    static String group(JSONObject data) {
+        Calendar time = Calendar.getInstance(zone(data));
+        int hour = time.get(Calendar.HOUR_OF_DAY);
+        return hour >= 5 && hour < 11 ? "morning" : hour >= 11 && hour < 17 ? "day" : "night";
+    }
+    static TimeZone zone(JSONObject data) { return data == null ? TimeZone.getDefault() : TimeZone.getTimeZone(data.optString("timezone",TimeZone.getDefault().getID())); }
+    static String filter(Context c,int id,JSONObject data) {
+        String value=options(c).getString(id+":filter","auto");
+        return "auto".equals(value) ? group(data) : value;
+    }
+    static boolean dark(Context c,int id) {
+        String theme=options(c).getString(id+":theme","system");
+        return "dark".equals(theme) || ("system".equals(theme) &&
+          (c.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES);
+    }
+    static List<JSONObject> rows(Context c,int id,JSONObject data,boolean hide) {
+        List<JSONObject> list=new ArrayList<>();
+        if (!configured(c,id) || data==null) return list;
+        String filter=filter(c,id,data);
+        JSONArray rows=data.optJSONArray("rows");
+        if (rows==null) return list;
+        for(int i=0;i<rows.length();i++){
+            JSONObject row=rows.optJSONObject(i);
+            if(row!=null && ("all".equals(filter)||filter.equals(row.optString("group"))) &&
+                (!hide || !row.optBoolean("completed"))) list.add(row);
         }
+        return list;
     }
-    @Override public void onUpdate(Context context, AppWidgetManager manager, int[] ids) {
-        for (int id : ids) render(context, manager, id, this instanceof Growth);
+    static String label(String group) {
+        switch(group){case "morning":return "아침";case "day":return "낮";case "night":return "저녁";default:return "오늘";}
     }
-    @Override public void onReceive(Context context, Intent intent) {
-        super.onReceive(context, intent);
-        String action = intent.getAction();
-        if (Intent.ACTION_TIME_CHANGED.equals(action) || Intent.ACTION_TIMEZONE_CHANGED.equals(action)) {
-            prefs(context).edit().clear().commit();
-            refreshAll(context);
-        } else if (EXPIRE.equals(action) || Intent.ACTION_DATE_CHANGED.equals(action)) {
-            refreshAll(context);
-        }
+    static void schedule(Context c, JSONObject data) {
+        AlarmManager alarm=(AlarmManager)c.getSystemService(Context.ALARM_SERVICE);
+        if(alarm==null)return;
+        PendingIntent pi=PendingIntent.getBroadcast(c,8101,new Intent(c,Mini.class).setAction(EXPIRE),
+            PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+        try {
+            alarm.cancel(pi);
+            if(data==null||!anyConfigured(c))return;
+            Calendar current=Calendar.getInstance(zone(data));
+            long next=data.optLong("expiresAt");
+            for(int hour:new int[]{5,11,17}){
+                Calendar boundary=(Calendar)current.clone();
+                boundary.set(Calendar.HOUR_OF_DAY,hour);boundary.set(Calendar.MINUTE,0);
+                boundary.set(Calendar.SECOND,0);boundary.set(Calendar.MILLISECOND,0);
+                if(boundary.after(current))next=Math.min(next,boundary.getTimeInMillis());
+            }
+            alarm.set(AlarmManager.RTC,next,pi);
+        }catch(RuntimeException ignored){}
     }
-    private static void render(Context context, AppWidgetManager manager, int id, boolean growth) {
-        SharedPreferences state = prefs(context);
-        long expiry = state.getLong("expiresAt", 0), now = System.currentTimeMillis();
-        boolean ready = expiry > now && expiry - now <= MAX_TTL;
-        RemoteViews views = new RemoteViews(context.getPackageName(),
-            growth ? R.layout.byeolharu_widget_growth : R.layout.byeolharu_widget_practice);
-        Intent open = new Intent(context, MainActivity.class).setAction(Intent.ACTION_MAIN)
-            .addCategory(Intent.CATEGORY_LAUNCHER).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        views.setOnClickPendingIntent(R.id.widget_root, PendingIntent.getActivity(context, growth ? 8102 : 8103,
-            open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
-        views.setTextViewText(R.id.widget_count, ready ? state.getInt("completed", 0) + " / " + state.getInt("total", 0) : "—");
-        views.setTextViewText(R.id.widget_hint, !ready ? "앱에서 기록을 불러와요"
-            : state.getInt("total", 0) == 0 ? "오늘의 작은 시작"
-            : state.getInt("completed", 0) == state.getInt("total", 0) ? "오늘의 실천을 마쳤어요" : "오늘의 작은 실천");
-        if (growth) {
-            int stage = ready ? state.getInt("stage", 1) : 1;
-            int[] arts = {R.drawable.byeolharu_widget_stage_1, R.drawable.byeolharu_widget_stage_2,
-                R.drawable.byeolharu_widget_stage_3, R.drawable.byeolharu_widget_stage_4,
-                R.drawable.byeolharu_widget_stage_5, R.drawable.byeolharu_widget_stage_6};
-            stage = Math.max(1, Math.min(6, stage));
-            views.setTextViewText(R.id.widget_stage, ready ? "STAGE " + stage + " · " + state.getInt("points", 0) + "점" : "별빛을 만나러 가요");
-            BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inSampleSize = 8;
-            Bitmap art = BitmapFactory.decodeResource(context.getResources(), arts[stage - 1], options);
-            if (art != null) views.setImageViewBitmap(R.id.widget_art, art);
-        } else {
-            views.setTextViewText(R.id.widget_morning, ready ? "아침 " + state.getInt("morning", 0) : "아침 —");
-            views.setTextViewText(R.id.widget_day, ready ? "낮 " + state.getInt("day", 0) : "낮 —");
-            views.setTextViewText(R.id.widget_night, ready ? "밤 " + state.getInt("night", 0) : "밤 —");
-        }
-        manager.updateAppWidget(id, views);
+    static void refreshAll(Context c) {
+        JSONObject data=read(c);
+        for(Class<?> type:new Class<?>[]{Mini.class,Compact.class})
+            for(int id:ids(c,type))render(c,id,data);
+        schedule(c,data);
+    }
+    @Override public void onUpdate(Context c,AppWidgetManager m,int[] ids) { refreshAll(c); }
+    @Override public void onDeleted(Context c,int[] ids) {
+        SharedPreferences.Editor e=options(c).edit();
+        for(int id:ids)for(String k:new String[]{":consent",":filter",":hide",":theme"})e.remove(id+k);
+        e.apply();
+        if(!anyConfigured(c))clear(c);
+        refreshAll(c);
+    }
+    @Override public void onReceive(Context c,Intent intent){
+        super.onReceive(c,intent);
+        String a=intent.getAction();
+        if(Intent.ACTION_TIME_CHANGED.equals(a)||Intent.ACTION_TIMEZONE_CHANGED.equals(a)){clear(c);refreshAll(c);}
+        else if(EXPIRE.equals(a)||Intent.ACTION_DATE_CHANGED.equals(a))refreshAll(c);
+    }
+    static void render(Context c,int id,JSONObject data) {
+        if(!owns(c,id))return;
+        boolean dark=dark(c,id), ready=configured(c,id)&&data!=null;
+        RemoteViews v=new RemoteViews(c.getPackageName(),dark?R.layout.byeolharu_widget_dark:R.layout.byeolharu_widget_light);
+        List<JSONObject> all=rows(c,id,data,false);
+        int done=0;for(JSONObject row:all)if(row.optBoolean("completed"))done++;
+        v.setTextViewText(R.id.widget_label,label(filter(c,id,data)));
+        v.setTextViewText(R.id.widget_count,ready?done+"/"+all.size():"—");
+        v.setTextViewText(R.id.widget_empty,!configured(c,id)?"위젯을 설정해 주세요":!ready?"앱에서 기록 불러오기":all.isEmpty()?"예정된 습관이 없어요":"모든 실천을 마쳤어요");
+        Intent open=new Intent(c,MainActivity.class).setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_SINGLE_TOP|Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        v.setOnClickPendingIntent(R.id.widget_header,PendingIntent.getActivity(c,8102,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
+        v.setOnClickPendingIntent(R.id.widget_empty,PendingIntent.getActivity(c,8102,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
+        Intent service=new Intent(c,ByeolharuWidgetListService.class).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,id)
+            .setData(Uri.parse("byeolharu-widget://list/"+id+"/"+(dark?"dark":"light")));
+        v.setRemoteAdapter(R.id.widget_list,service);
+        v.setEmptyView(R.id.widget_list,R.id.widget_empty);
+        AppWidgetManager manager=AppWidgetManager.getInstance(c);
+        manager.updateAppWidget(id,v);
+        manager.notifyAppWidgetViewDataChanged(id,R.id.widget_list);
     }
 }
