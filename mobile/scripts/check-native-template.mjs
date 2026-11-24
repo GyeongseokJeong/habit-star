@@ -165,6 +165,16 @@ assert.match(widget, /expiry > now/);
 assert.match(widget, /getNoBackupFilesDir/);
 assert.match(widget, /anyConfigured\(c\)/);
 assert.match(configActivity, /consent.isChecked\(\)/);
+assert.match(configActivity, /existing=prefs.contains\(id\+":consent"\)/);
+assert.match(configActivity, /save.setEnabled\(existing \|\| consent.isChecked\(\)\)/);
+assert.match(configActivity, /save.setEnabled\(existing \|\| checked\)/);
+assert.match(configActivity, /saveOptions\(this,id,consent.isChecked\(\)/);
+assert.match(widget, /putBoolean\(id\+":consent",consent\)/);
+assert.match(widget, /if \(!anyConfigured\(c\)\) \{ clear\(c\); return null; \}/);
+assert.match(widget, /setViewVisibility\(R.id.widget_content,ready\?View.VISIBLE:View.GONE\)/);
+assert.match(widget, /setViewVisibility\(R.id.widget_private,ready\?View.GONE:View.VISIBLE\)/);
+const widgetService = readFileSync(resolve(root,"native/widgets/ByeolharuWidgetListService.java.template"),"utf8");
+assert.match(widgetService, /if\(!ByeolharuWidgetProvider.configured\(c,id\)\|\|position/);
 assert.doesNotMatch(widget, /habitId|memberId|memo|userId|authToken/);
 for(const [kind,height] of [["mini",2],["compact",3]]){
  const info=readFileSync(resolve(root,`native/widgets/xml/byeolharu_widget_${kind}_info.xml`),"utf8");
@@ -176,5 +186,7 @@ for(const theme of ["dark","light"]){
  const layout=readFileSync(resolve(root,`native/widgets/layout/byeolharu_widget_${theme}.xml`),"utf8");
  assert.match(layout,/widget_list/);
  assert.match(layout,/widget_count/);
+ assert.match(layout,/widget_content" android:visibility="gone"/);
+ assert.match(layout,/widget_private/);
 }
 console.log("Compact widget layout, configuration and privacy source contracts OK (not a launcher test)");

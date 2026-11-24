@@ -46,8 +46,18 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
             for (int id : ids(c,type)) if (configured(c,id)) return true;
         return false;
     }
+    // Serialize consent changes with publication so a queued snapshot cannot
+    // recreate the display cache after the last opt-in is withdrawn.
+    static synchronized boolean saveOptions(Context c,int id,boolean consent,String filter,boolean hide,String theme) {
+        if (!owns(c,id)) return false;
+        if (!options(c).edit().putBoolean(id+":consent",consent).putString(id+":filter",filter)
+            .putBoolean(id+":hide",hide).putString(id+":theme",theme).commit()) return false;
+        refreshAll(c);
+        return true;
+    }
     static synchronized void clear(Context c) { cache(c).delete(); }
     static synchronized JSONObject read(Context c) {
+        if (!anyConfigured(c)) { clear(c); return null; }
         try {
             JSONObject data = new JSONObject(new String(cache(c).readFully(), StandardCharsets.UTF_8));
             long expiry = data.optLong("expiresAt"), now = System.currentTimeMillis();
@@ -129,7 +139,7 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
             alarm.set(AlarmManager.RTC,next,pi);
         }catch(RuntimeException ignored){}
     }
-    static void refreshAll(Context c) {
+    static synchronized void refreshAll(Context c) {
         JSONObject data=read(c);
         for(Class<?> type:new Class<?>[]{Mini.class,Compact.class})
             for(int id:ids(c,type))render(c,id,data);
@@ -137,11 +147,12 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
     }
     @Override public void onUpdate(Context c,AppWidgetManager m,int[] ids) { refreshAll(c); }
     @Override public void onDeleted(Context c,int[] ids) {
-        SharedPreferences.Editor e=options(c).edit();
-        for(int id:ids)for(String k:new String[]{":consent",":filter",":hide",":theme"})e.remove(id+k);
-        e.apply();
-        if(!anyConfigured(c))clear(c);
-        refreshAll(c);
+        synchronized (ByeolharuWidgetProvider.class) {
+            SharedPreferences.Editor e=options(c).edit();
+            for(int id:ids)for(String k:new String[]{":consent",":filter",":hide",":theme"})e.remove(id+k);
+            e.commit();
+            refreshAll(c);
+        }
     }
     @Override public void onReceive(Context c,Intent intent){
         super.onReceive(c,intent);
@@ -151,19 +162,26 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
     }
     static void render(Context c,int id,JSONObject data) {
         if(!owns(c,id))return;
-        boolean dark=dark(c,id), ready=configured(c,id)&&data!=null;
+        boolean dark=dark(c,id), consent=configured(c,id), ready=consent&&data!=null;
         RemoteViews v=new RemoteViews(c.getPackageName(),dark?R.layout.byeolharu_widget_dark:R.layout.byeolharu_widget_light);
         List<JSONObject> all=rows(c,id,data,false);
         int done=0;for(JSONObject row:all)if(row.optBoolean("completed"))done++;
         v.setTextViewText(R.id.widget_label,label(filter(c,id,data)));
         v.setTextViewText(R.id.widget_count,ready?done+"/"+all.size():"—");
-        v.setTextViewText(R.id.widget_empty,!configured(c,id)?"위젯을 설정해 주세요":!ready?"앱에서 기록 불러오기":all.isEmpty()?"예정된 습관이 없어요":"모든 실천을 마쳤어요");
+        v.setTextViewText(R.id.widget_empty,all.isEmpty()?"예정된 습관이 없어요":"모든 실천을 마쳤어요");
+        // Hide the entire collection container even if the launcher still has
+        // cached RemoteViews rows. The separate placeholder cannot be toggled
+        // by ListView's asynchronous empty-view handling.
+        v.setViewVisibility(R.id.widget_content,ready?View.VISIBLE:View.GONE);
+        v.setViewVisibility(R.id.widget_private,ready?View.GONE:View.VISIBLE);
+        v.setTextViewText(R.id.widget_private,consent?"앱에서 기록 불러오기":"습관 표시 꺼짐");
         Intent open=new Intent(c,MainActivity.class).setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_SINGLE_TOP|Intent.FLAG_ACTIVITY_CLEAR_TOP);
         v.setOnClickPendingIntent(R.id.widget_header,PendingIntent.getActivity(c,8102,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
         v.setOnClickPendingIntent(R.id.widget_empty,PendingIntent.getActivity(c,8102,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
+        v.setOnClickPendingIntent(R.id.widget_private,PendingIntent.getActivity(c,8102,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
         Intent service=new Intent(c,ByeolharuWidgetListService.class).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,id)
-            .setData(Uri.parse("byeolharu-widget://list/"+id+"/"+(dark?"dark":"light")));
+            .setData(Uri.parse("byeolharu-widget://list/"+id+"/"+(dark?"dark":"light")+"/"+(ready?"visible":"hidden")));
         v.setRemoteAdapter(R.id.widget_list,service);
         v.setEmptyView(R.id.widget_list,R.id.widget_empty);
         AppWidgetManager manager=AppWidgetManager.getInstance(c);

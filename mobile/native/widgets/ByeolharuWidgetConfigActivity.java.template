@@ -35,19 +35,20 @@ public class ByeolharuWidgetConfigActivity extends Activity {
         label(root,"표시할 습관",16);
         String[] filters={"auto","all","morning","day","night"}, themes={"system","light","dark"};
         android.content.SharedPreferences prefs=ByeolharuWidgetProvider.options(this);
+        final boolean existing=prefs.contains(id+":consent");
         Spinner filter=choices(root,new String[]{"현재 시간대 자동 전환","전체 습관","아침","낮","저녁"},index(filters,prefs.getString(id+":filter","auto")));
         CheckBox hide=new CheckBox(this);hide.setText("완료한 습관 숨기기");hide.setChecked(prefs.getBoolean(id+":hide",false));hide.setMinHeight(dp(48));root.addView(hide);
         label(root,"화면 테마",16);
         Spinner theme=choices(root,new String[]{"시스템","라이트","다크"},index(themes,prefs.getString(id+":theme","system")));
-        label(root,"습관 이름과 완료 상태가 홈 화면에 표시됩니다. 초기 버전에서는 앱에서 기록해 주세요.",14);
+        label(root,"습관 이름과 완료 상태가 홈 화면에 표시됩니다. 동의를 해제하고 적용하면 숨겨집니다. 초기 버전에서는 앱에서 기록해 주세요.",14);
         CheckBox consent=new CheckBox(this);consent.setText("홈 화면에 습관을 표시합니다");consent.setChecked(prefs.getBoolean(id+":consent",false));consent.setMinHeight(dp(48));root.addView(consent);
-        Button save=new Button(this);save.setText("적용하기");save.setEnabled(consent.isChecked());save.setMinHeight(dp(48));root.addView(save);
-        consent.setOnCheckedChangeListener((b,checked)->save.setEnabled(checked));
+        Button save=new Button(this);save.setText("적용하기");save.setEnabled(existing || consent.isChecked());save.setMinHeight(dp(48));root.addView(save);
+        consent.setOnCheckedChangeListener((b,checked)->save.setEnabled(existing || checked));
         save.setOnClickListener(v->{
-            if(!ByeolharuWidgetProvider.owns(this,id)||!consent.isChecked())return;
-            if(!prefs.edit().putBoolean(id+":consent",true).putString(id+":filter",filters[filter.getSelectedItemPosition()])
-                .putBoolean(id+":hide",hide.isChecked()).putString(id+":theme",themes[theme.getSelectedItemPosition()]).commit())return;
-            ByeolharuWidgetProvider.refreshAll(this);setResult(RESULT_OK,result);finish();
+            if(!ByeolharuWidgetProvider.owns(this,id)||(!existing && !consent.isChecked()))return;
+            if(!ByeolharuWidgetProvider.saveOptions(this,id,consent.isChecked(),filters[filter.getSelectedItemPosition()],
+                hide.isChecked(),themes[theme.getSelectedItemPosition()]))return;
+            setResult(RESULT_OK,result);finish();
         });
     }
 }

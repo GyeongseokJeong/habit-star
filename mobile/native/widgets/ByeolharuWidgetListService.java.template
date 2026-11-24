@@ -23,9 +23,9 @@ public class ByeolharuWidgetListService extends RemoteViewsService {
                     ByeolharuWidgetProvider.options(c).getBoolean(id+":hide",false));
             }
             public void onDestroy(){rows.clear();}
-            public int getCount(){return rows.size();}
+            public int getCount(){return ByeolharuWidgetProvider.configured(c,id)?rows.size():0;}
             public RemoteViews getViewAt(int position){
-                if(position<0||position>=rows.size())return null;
+                if(!ByeolharuWidgetProvider.configured(c,id)||position<0||position>=rows.size())return null;
                 JSONObject row=rows.get(position);boolean completed=row.optBoolean("completed"),dark=ByeolharuWidgetProvider.dark(c,id);
                 RemoteViews v=new RemoteViews(c.getPackageName(),R.layout.byeolharu_widget_row);
                 v.setTextViewText(R.id.widget_icon,row.optString("icon"));
