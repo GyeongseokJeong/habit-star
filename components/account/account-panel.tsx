@@ -490,6 +490,37 @@ export function AccountPanel({
             </div>
           )}
           {nativeReminders && (
+            <div className="account-ui-card account-setting-block" role="group" aria-label="정확한 알림과 지연 확인">
+              <div className="android-permission-compact">
+                <BellRing size={19} aria-hidden="true" className="android-permission-icon" />
+                <span className="android-permission-text">
+                  <strong>정확한 시간 알림</strong>
+                  <small>{nativeReminders.exactPermission === "granted"
+                    ? "정확 예약을 우선 사용해요. 절전 중에는 지연될 수 있어요."
+                    : nativeReminders.exactPermission === "unknown"
+                      ? "정확 알림 권한을 확인하고 있어요."
+                      : "현재 일반 예약으로 알림을 보내요."}</small>
+                </span>
+                {nativeReminders.exactPermission === "granted" ? (
+                  <span className="android-permission-granted" role="status"><CheckCircle2 size={16} aria-hidden="true" /> 허용됨</span>
+                ) : nativeReminders.exactPermission === "unknown" ? (
+                  <span className="android-permission-unknown" role="status">확인 중…</span>
+                ) : (
+                  <button type="button" className="secondary android-permission-action"
+                    disabled={nativeReminders.busy || workingAction !== null || app.busy}
+                    onClick={() => void runOnce("exact-permission", async () => {
+                      await nativeReminders.onRequestExactPermission();
+                    })}>정확 알림 허용</button>
+                )}
+              </div>
+              <button type="button" className="secondary" disabled={nativeReminders.busy || workingAction !== null || app.busy}
+                onClick={() => void runOnce("latency", async () => {
+                  await nativeReminders.onInspectLatency();
+                })}>최근 알림 지연 확인</button>
+              {nativeReminders.latencyStatus && <p className="account-note" role="status">{nativeReminders.latencyStatus}</p>}
+            </div>
+          )}
+          {nativeReminders && (
             <div className="account-ui-card account-setting-block android-wrapup-settings" aria-label="시간대 마무리 알림">
               <div className="account-setting-heading">
                 <span>마무리 알림</span>
