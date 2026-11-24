@@ -249,3 +249,14 @@ assert.match(render,/\}\s*textColor\(v,R.id.widget_star,theme/);
 for(const id of ["star","label","count","empty","private"])
  assert.ok(render.includes("textColor(v,R.id.widget_"+id+",theme,"));
 assert.doesNotMatch(widget,/if \("system"\.equals\(theme\)&&Build.VERSION.SDK_INT>=31\)/);
+
+// V6-2: native direct choice, draft-only synthetic preview, system chrome.
+assert.doesNotMatch(configActivity,/\bSpinner\b/);
+assert.match(configActivity,/RadioGroup/);
+assert.match(configActivity,/new Switch\(this\)/);
+assert.match(configActivity,/미리보기 · 예시 습관/);
+assert.match(configActivity,/onSaveInstanceState/);
+assert.match(configActivity,/setStatusBarColor/);
+assert.match(configActivity,/setNavigationBarColor/);
+assert.match(configActivity,/FILTERS\[filterIndex\],hide.isChecked\(\),THEMES\[themeIndex\]/);
+assert.equal((configActivity.match(/ByeolharuWidgetProvider.saveOptions\(/g)||[]).length,1);
