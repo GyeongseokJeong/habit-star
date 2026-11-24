@@ -18,6 +18,10 @@ const names = [
   "business-strategist",
   "growth-marketer",
   "user-perspective",
+  "software-architect",
+  "clean-code-specialist",
+  "senior-fullstack-developer",
+  "server-operations-specialist",
 ];
 const sections = [
   "호출 조건 및 제외 조건",
@@ -104,9 +108,9 @@ for (const scenario of [
 const routing = JSON.parse(file("docs/stakeholder-routing.json"));
 const roleIds = routing.roles.map(role => role.id);
 const guardIds = names.slice(0, 6);
-check(routing.version === 1, "Unexpected stakeholder routing version");
-check(roleIds.length === 6 && new Set(roleIds).size === 6, "Expected six unique role IDs");
-check(new Set(routing.roles.map(role=>role.skill)).size === 6, "Role skills must be unique");
+check(routing.version === 2, "Unexpected stakeholder routing version");
+check(roleIds.length === 10 && new Set(roleIds).size === 10, "Expected ten unique role IDs");
+check(new Set(routing.roles.map(role=>role.skill)).size === 10, "Role skills must be unique");
 for (const role of routing.roles) {
   check(names.includes(role.skill) && !guardIds.includes(role.skill) && role.skill !== "stakeholder-panel", "Invalid role skill: " + role.skill);
   const content = file(".agents/skills/" + role.skill + "/SKILL.md");
@@ -119,24 +123,33 @@ for (const [key,route] of [...Object.entries(routing.routes),...Object.entries(r
   check(route.guards.every(id=>guardIds.includes(id)), "Unknown guard: "+key);
   check(new Set(route.roles).size===route.roles.length && new Set(route.guards).size===route.guards.length,"Duplicate route entries: "+key);
 }
-for(const [key,route] of Object.entries(routing.routes)) check([1,2].includes(route.rounds),"Invalid rounds: "+key);
-for (const [route, modifiers, expectedRoles, expectedGuards, rounds] of [
-  ["ui-concept", ["ui"], ["product","ui","ux","user"], ["design-guardian","accessibility-auditor"],2],
-  ["new-feature", ["ui","data","implementation"], ["product","ui","ux","user"], ["feature-builder","quality-gate","design-guardian","accessibility-auditor","data-guardian"],2],
-  ["feature-discovery", [], ["product","ui","ux","business","marketing","user"], [],2],
-  ["monetization", ["ui","acquisition"], ["product","ui","ux","business","marketing","user"], ["feature-builder","quality-gate","design-guardian","accessibility-auditor"],2],
-  ["marketing", [], ["product","business","marketing","user"], [],2],
-  ["user-facing-bug", ["ui"], ["ui","ux","user"], ["feature-builder","quality-gate","design-guardian","accessibility-auditor"],1],
-  ["technical", [], [], ["quality-gate"],1],
-  ["technical", ["data","implementation"], [], ["quality-gate","data-guardian","feature-builder"],1],
-  ["release", ["ui","data"], ["product","ui","ux","business","marketing","user"], ["release-guardian","quality-gate","design-guardian","accessibility-auditor","data-guardian"],1],
-  ["harness", [], ["product"], ["quality-gate"],1],
+check(routing.reviewPolicy.maxRounds===3 && routing.reviewPolicy.standardMinRounds===2 && routing.reviewPolicy.lightweightMinRounds===1,"Invalid review policy bounds");
+check(JSON.stringify(routing.reviewPolicy.phases)===JSON.stringify(["independent-review","challenge","rebuttal","revise","reassess"]),"Critical review phases missing");
+check(JSON.stringify(routing.reviewPolicy.blockingSeverities)===JSON.stringify(["P0","P1"]),"Blocking severities changed");
+for(const [key,route] of Object.entries(routing.routes)) check(Number.isInteger(route.minRounds)&&Number.isInteger(route.rounds)&&route.minRounds>=1&&route.rounds>=route.minRounds&&route.rounds<=3,"Invalid rounds: "+key);
+for(const [key,modifier] of Object.entries(routing.modifiers)) check(modifier.minRounds===undefined||[1,2,3].includes(modifier.minRounds),"Invalid modifier rounds: "+key);
+for (const [route, modifiers, expectedRoles, expectedGuards, minRounds, rounds] of [
+ ["ui-concept",["ui"],["product","ui","ux","user"],["design-guardian","accessibility-auditor"],2,3],
+ ["new-feature",["ui","data","implementation"],["product","ui","ux","user","architect","clean-code","fullstack"],["feature-builder","quality-gate","design-guardian","accessibility-auditor","data-guardian"],2,3],
+ ["feature-discovery",[],["product","ui","ux","business","marketing","user"],[],2,3],
+ ["monetization",["ui","acquisition"],["product","ui","ux","business","marketing","user"],["feature-builder","quality-gate","design-guardian","accessibility-auditor"],2,3],
+ ["marketing",[],["product","business","marketing","user"],[],2,3],
+ ["user-facing-bug",["ui"],["ui","ux","user","fullstack"],["feature-builder","quality-gate","design-guardian","accessibility-auditor"],1,3],
+ ["technical",[],[],["quality-gate"],1,1],
+ ["technical",["data","implementation"],["architect","clean-code","fullstack"],["quality-gate","data-guardian","feature-builder"],2,3],
+ ["release",["ui","data"],["product","ui","ux","business","marketing","user","architect","fullstack","operations"],["release-guardian","quality-gate","design-guardian","accessibility-auditor","data-guardian"],2,3],
+ ["harness",[],["product","architect","clean-code"],["quality-gate"],2,3],
+ ["architecture",["data","implementation"],["architect","clean-code","fullstack"],["feature-builder","quality-gate","data-guardian"],2,3],
+ ["code-review",["architecture"],["architect","clean-code","fullstack"],["quality-gate"],2,3],
+ ["operations",["data"],["architect","fullstack","operations"],["quality-gate","data-guardian"],2,3],
+ ["technical",["operations","release"],["operations"],["quality-gate","release-guardian"],2,3],
 ]) {
-  const selected=selectStakeholders(route,modifiers);
-  const expectedSkills=[...(expectedRoles.length?["stakeholder-panel"]:[]), ...routing.roles.filter(role=>expectedRoles.includes(role.id)).map(role=>role.skill),...expectedGuards];
-  check(JSON.stringify(selected.roles)===JSON.stringify(expectedRoles), "Role scenario mismatch: "+route);
-  check(selected.rounds===rounds, "Round scenario mismatch: "+route);
-  check(selected.skills.length===expectedSkills.length&&expectedSkills.every(id=>selected.skills.includes(id)), "Skill scenario mismatch: "+route);
+ const selected=selectStakeholders(route,modifiers);
+ const expectedSkills=[...(expectedRoles.length?["stakeholder-panel"]:[]), ...routing.roles.filter(role=>expectedRoles.includes(role.id)).map(role=>role.skill),...expectedGuards];
+ check(JSON.stringify(selected.roles)===JSON.stringify(expectedRoles),"Role scenario mismatch: "+route);
+ check(selected.minRounds===minRounds&&selected.rounds===rounds,"Round scenario mismatch: "+route);
+ check(JSON.stringify(selected.reviewPhases)===JSON.stringify(routing.reviewPolicy.phases),"Review phase mismatch: "+route);
+ check(selected.skills.length===expectedSkills.length&&expectedSkills.every(id=>selected.skills.includes(id)),"Skill scenario mismatch: "+route);
 }
 for(const args of [["__unknown__",[]],["technical",["__unknown__"]],["constructor",[]]]){
   let rejected=false;try{selectStakeholders(...args)}catch{rejected=true;}

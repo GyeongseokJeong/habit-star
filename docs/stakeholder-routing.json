@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "roles": [
     {
       "id": "product",
@@ -156,6 +156,110 @@
           "weight": 15
         }
       ]
+    },
+    {
+      "id": "architect",
+      "skill": "software-architect",
+      "criteria": [
+        {
+          "id": "boundaries",
+          "weight": 25
+        },
+        {
+          "id": "integrity",
+          "weight": 25
+        },
+        {
+          "id": "resilience",
+          "weight": 20
+        },
+        {
+          "id": "simplicity",
+          "weight": 15
+        },
+        {
+          "id": "decision",
+          "weight": 15
+        }
+      ]
+    },
+    {
+      "id": "clean-code",
+      "skill": "clean-code-specialist",
+      "criteria": [
+        {
+          "id": "readability",
+          "weight": 25
+        },
+        {
+          "id": "cohesion",
+          "weight": 25
+        },
+        {
+          "id": "simplicity",
+          "weight": 20
+        },
+        {
+          "id": "testability",
+          "weight": 20
+        },
+        {
+          "id": "scope",
+          "weight": 10
+        }
+      ]
+    },
+    {
+      "id": "fullstack",
+      "skill": "senior-fullstack-developer",
+      "criteria": [
+        {
+          "id": "correctness",
+          "weight": 30
+        },
+        {
+          "id": "integration",
+          "weight": 25
+        },
+        {
+          "id": "security",
+          "weight": 20
+        },
+        {
+          "id": "tests",
+          "weight": 15
+        },
+        {
+          "id": "delivery",
+          "weight": 10
+        }
+      ]
+    },
+    {
+      "id": "operations",
+      "skill": "server-operations-specialist",
+      "criteria": [
+        {
+          "id": "availability",
+          "weight": 25
+        },
+        {
+          "id": "rollback",
+          "weight": 25
+        },
+        {
+          "id": "observability",
+          "weight": 20
+        },
+        {
+          "id": "cost",
+          "weight": 15
+        },
+        {
+          "id": "security",
+          "weight": 15
+        }
+      ]
     }
   ],
   "routes": {
@@ -170,19 +274,22 @@
         "design-guardian",
         "accessibility-auditor"
       ],
-      "rounds": 2
+      "rounds": 3,
+      "minRounds": 2
     },
     "new-feature": {
       "roles": [
         "product",
         "ux",
-        "user"
+        "user",
+        "fullstack"
       ],
       "guards": [
         "feature-builder",
         "quality-gate"
       ],
-      "rounds": 2
+      "rounds": 3,
+      "minRounds": 2
     },
     "feature-discovery": {
       "roles": [
@@ -194,7 +301,8 @@
         "user"
       ],
       "guards": [],
-      "rounds": 2
+      "rounds": 3,
+      "minRounds": 2
     },
     "monetization": {
       "roles": [
@@ -208,7 +316,8 @@
         "feature-builder",
         "quality-gate"
       ],
-      "rounds": 2
+      "rounds": 3,
+      "minRounds": 2
     },
     "marketing": {
       "roles": [
@@ -218,47 +327,90 @@
         "user"
       ],
       "guards": [],
-      "rounds": 2
+      "rounds": 3,
+      "minRounds": 2
     },
     "user-facing-bug": {
       "roles": [
         "ux",
-        "user"
+        "user",
+        "fullstack"
       ],
       "guards": [
         "feature-builder",
         "quality-gate"
       ],
-      "rounds": 1
+      "rounds": 3,
+      "minRounds": 1
     },
     "release": {
       "roles": [
         "product",
         "marketing",
         "business",
-        "user"
+        "user",
+        "operations"
       ],
       "guards": [
         "release-guardian",
         "quality-gate"
       ],
-      "rounds": 1
+      "rounds": 3,
+      "minRounds": 2
     },
     "technical": {
       "roles": [],
       "guards": [
         "quality-gate"
       ],
-      "rounds": 1
+      "rounds": 1,
+      "minRounds": 1
     },
     "harness": {
       "roles": [
-        "product"
+        "product",
+        "architect",
+        "clean-code"
       ],
       "guards": [
         "quality-gate"
       ],
-      "rounds": 1
+      "rounds": 3,
+      "minRounds": 2
+    },
+    "architecture": {
+      "roles": [
+        "architect",
+        "fullstack"
+      ],
+      "guards": [
+        "feature-builder",
+        "quality-gate"
+      ],
+      "minRounds": 2,
+      "rounds": 3
+    },
+    "code-review": {
+      "roles": [
+        "clean-code",
+        "fullstack"
+      ],
+      "guards": [
+        "quality-gate"
+      ],
+      "minRounds": 2,
+      "rounds": 3
+    },
+    "operations": {
+      "roles": [
+        "operations",
+        "architect"
+      ],
+      "guards": [
+        "quality-gate"
+      ],
+      "minRounds": 2,
+      "rounds": 3
     }
   },
   "modifiers": {
@@ -273,11 +425,15 @@
       ]
     },
     "data": {
-      "roles": [],
+      "roles": [
+        "architect",
+        "fullstack"
+      ],
       "guards": [
         "data-guardian",
         "quality-gate"
-      ]
+      ],
+      "minRounds": 2
     },
     "business": {
       "roles": [
@@ -292,18 +448,68 @@
       "guards": []
     },
     "implementation": {
-      "roles": [],
+      "roles": [
+        "fullstack",
+        "clean-code"
+      ],
       "guards": [
         "feature-builder",
         "quality-gate"
-      ]
+      ],
+      "minRounds": 2
     },
     "release": {
-      "roles": [],
+      "roles": [
+        "operations"
+      ],
       "guards": [
         "release-guardian",
         "quality-gate"
-      ]
+      ],
+      "minRounds": 2
+    },
+    "architecture": {
+      "roles": [
+        "architect"
+      ],
+      "guards": [
+        "quality-gate"
+      ],
+      "minRounds": 2
+    },
+    "code-quality": {
+      "roles": [
+        "clean-code"
+      ],
+      "guards": [
+        "quality-gate"
+      ],
+      "minRounds": 2
+    },
+    "operations": {
+      "roles": [
+        "operations"
+      ],
+      "guards": [
+        "quality-gate"
+      ],
+      "minRounds": 2
     }
+  },
+  "reviewPolicy": {
+    "maxRounds": 3,
+    "standardMinRounds": 2,
+    "lightweightMinRounds": 1,
+    "phases": [
+      "independent-review",
+      "challenge",
+      "rebuttal",
+      "revise",
+      "reassess"
+    ],
+    "blockingSeverities": [
+      "P0",
+      "P1"
+    ]
   }
 }
