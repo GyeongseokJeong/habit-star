@@ -94,3 +94,16 @@ test("shared confirmation protects unsaved drafts, habit deletion and Android re
   assert.match(native, /data-confirm-cancel/);
   assert.doesNotMatch(css, /\.android-unsaved-dialog\s*\{/);
 });
+
+
+test("individual reminder tap reuses guarded record detail without auto-completing", () => {
+  const native = read("mobile/packaged-guest/main.tsx");
+  const ui = read("components/byeolharu.tsx");
+  assert.match(native, /parseHabitReminder\(extra\)/);
+  assert.match(native, /nativeHabitNavigation=\{isAndroid \? habitNavigation : null\}/);
+  assert.match(ui, /resolveHabitReminder\(nativeHabitNavigation/);
+  assert.match(ui, /blocked: Boolean\(editing \|\| detailId \|\| accountOpen/);
+  assert.match(ui, /setDetailId\(result\.habit\.id\)/);
+  assert.match(ui, /nativeDetailOrigin\.day !== dateKey\(new Date\(\)/);
+  assert.match(native, /extra\?\.category === "wrapup"/);
+});

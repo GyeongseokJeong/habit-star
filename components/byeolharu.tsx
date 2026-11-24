@@ -48,6 +48,7 @@ import {
 import { useHabitApp } from "@/lib/habits/use-habit-app";
 import { hasUnsavedHabitSettings, hasUnsavedDailyRecord } from "@/lib/habits/unsaved-draft";
 import type { NativeReminderControls } from "@/lib/habits/native-reminder-controls";
+import { resolveHabitReminder, type HabitReminderNavigation } from "@/lib/habits/reminder-navigation";
 import { alarmForSelectedTime } from "@/lib/habits/alarm-default-policy";
 import { scheduledTimeGroup, templateGroupForTime, timeForSelectedGroup } from "@/lib/habits/habit-editor-time";
 import { AccountPanel } from "@/components/account/account-panel";
@@ -1215,12 +1216,13 @@ function MonthlyMatrix({
   );
 }
 
-export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupExport, nativeAuthReturn, nativeReminderNavigation }: {
+export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupExport, nativeAuthReturn, nativeReminderNavigation, nativeHabitNavigation }: {
   nativeReminders?: NativeReminderControls;
   nativeShare?: (png: Blob, filename: string) => Promise<void>;
   nativeBackupExport?: (content: string) => Promise<void>;
   nativeAuthReturn?: number;
   nativeReminderNavigation?: { tab: TimeGroup; serial: number } | null;
+  nativeHabitNavigation?: HabitReminderNavigation | null;
 } = {}) {
   const app = useHabitApp(initialHabits, nativeBackupExport);
   const habits = app.snapshot?.habits ?? [];
@@ -1291,6 +1293,8 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
   const [month, setMonth] = useState(new Date(2026, 10, 1));
   const [editing, setEditing] = useState<Habit | "new" | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [nativeDetailOrigin, setNativeDetailOrigin] = useState<{ scope: string; day: string } | null>(null);
+  const handledHabitNavigation = useRef(0);
   const [toast, setToast] = useState("");
   const [pastDate, setPastDate] = useState<string | null>(null);
   const [installEvent, setInstallEvent] = useState<InstallEvent | null>(null);
@@ -1683,7 +1687,39 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
       app.user ? app.snapshot.state.timezone : undefined,
     ));
   }, [now, app.snapshot, app.user, scheduledHabits]);
-  const detail = visibleHabits.find((h) => h.id === detailId);
+  // Native taps are navigation-only. Resolve against the actual hydrated
+  // account/day, never the notification payload or a stale guest placeholder.
+  useEffect(() => {
+    if (!nativeHabitNavigation || nativeHabitNavigation.serial <= handledHabitNavigation.current) return;
+    const result = resolveHabitReminder(nativeHabitNavigation, {
+      snapshot: app.snapshot,
+      memberId: app.user?.id ?? null,
+      habits: visibleHabits,
+      now: new Date(),
+      blocked: Boolean(editing || detailId || accountOpen || constellationOpen ||
+        pastDate || sampleCleanupOpen || app.busy || document.querySelector("dialog[open]")),
+    });
+    if (result.kind === "wait") return;
+    handledHabitNavigation.current = nativeHabitNavigation.serial;
+    if (result.kind !== "open") return;
+    tabChosenManually.current = true;
+    setReflectionOpen(false);
+    setActiveTab(result.habit.timeGroup);
+    setNativeDetailOrigin({ scope, day: today });
+    setDetailId(result.habit.id);
+  }, [nativeHabitNavigation, app.snapshot, app.user, visibleHabits, editing,
+    detailId, accountOpen, constellationOpen, pastDate, sampleCleanupOpen,
+    app.busy, scope, today]);
+
+  const nativeDetailValid = !nativeDetailOrigin ||
+    (nativeDetailOrigin.scope === scope && nativeDetailOrigin.day === today);
+  useEffect(() => {
+    if (!nativeDetailValid) {
+      setDetailId(null);
+      setNativeDetailOrigin(null);
+    }
+  }, [nativeDetailValid]);
+  const detail = nativeDetailValid ? visibleHabits.find((h) => h.id === detailId) : undefined;
   // Only visual order changes. Keep the held-completion period (700ms),
   // then sort each group by scheduled HH:mm; unscheduled routines come last.
   const filtered = sortHabitsForDisplay(
@@ -2363,8 +2399,16 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
           habit={detail}
           fallbackFocusId={reflectionOpen ? "weekly-reflection-back" : `tab-${activeTab}`}
           guardUnsaved={Boolean(nativeReminders)}
-          onClose={() => setDetailId(null)}
+          onClose={() => { setDetailId(null); setNativeDetailOrigin(null); }}
           onSave={(data) => {
+            // Do not write a reminder-opened draft into another day's record.
+            if (nativeDetailOrigin && (nativeDetailOrigin.scope !== activeScope.current ||
+                nativeDetailOrigin.day !== dateKey(new Date(), app.user ? app.snapshot?.state.timezone : undefined))) {
+              setDetailId(null);
+              setNativeDetailOrigin(null);
+              showToast("기록 날짜가 바뀌었어요. 오늘의 습관을 다시 열어주세요.");
+              return;
+            }
             const actionDay = today;
             const actionScope = scope;
             if (!data.completed) setCelebration(null);
@@ -2407,6 +2451,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
               if (earnedStage) showStageCelebration(earnedStage, actionScope, actionDay);
               if (firstCompletion) celebrateFirstPractice(detail.id, actionScope, actionDay);
               setDetailId(null);
+              setNativeDetailOrigin(null);
             })().catch(() => {});
           }}
         />

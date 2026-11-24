@@ -10,6 +10,7 @@ import { exportGuestBackupOnAndroid } from "./native-guest-backup";
 import type { Snapshot } from "../../lib/habits/repository";
 import type { NativeReminderControls, WrapupSettings, WrapupGroup } from "../../lib/habits/native-reminder-controls";
 import type { TimeGroup } from "../../lib/habits/domain";
+import { parseHabitReminder, type HabitReminderNavigation } from "../../lib/habits/reminder-navigation";
 import { REMINDER_KIND } from "../notifications/reminder-plan.js";
 import { buildScopedReminderPlan } from "../notifications/scoped-reminder-runtime.js";
 import { mergeReminderLedger, measureReminderLatency, formatReminderDelay } from "../notifications/reminder-latency.js";
@@ -63,6 +64,8 @@ function GuestNativeApp() {
   const [wrapupSettings, setWrapupSettings] = useState<WrapupSettings>(() =>
     normalizeWrapupSettings(WRAPUP_DEFAULTS) as WrapupSettings);
   const [wrapupNavigation, setWrapupNavigation] = useState<{ tab: TimeGroup; serial: number } | null>(null);
+  const [habitNavigation, setHabitNavigation] = useState<HabitReminderNavigation | null>(null);
+  const habitNavigationSerial = useRef(0);
   const [nativeAuthReturn, setNativeAuthReturn] = useState(0);
   useEffect(() => {
     if (!isAndroid) return;
@@ -487,6 +490,14 @@ function GuestNativeApp() {
     let disposed = false;
     const listener = LocalNotifications.addListener("localNotificationActionPerformed", ({ notification }) => {
       const extra = notification.extra;
+      if (disposed) return;
+      const habitTarget = parseHabitReminder(extra);
+      if (habitTarget) {
+        // Do not compare against the initial guest placeholder: a cold launch
+        // can receive a member tap before the verified repository hydrates.
+        setHabitNavigation({ ...habitTarget, serial: ++habitNavigationSerial.current });
+        return;
+      }
       const group = extra?.timeGroup;
       if (!disposed && extra?.kind === REMINDER_KIND && extra?.category === "wrapup" &&
           extra?.scope === reminderIdentityKey(identityRef.current) &&
@@ -622,7 +633,7 @@ function GuestNativeApp() {
     ? { exactPermission, onRequestExactPermission, latencyStatus, onInspectLatency,
         enabled: enabled === true || (enabled === null && hasHabitIntent), active: reminderSwitchChecked(enabled === true || (enabled === null && hasHabitIntent), permissionState), busy, status, permissionState, showPermissionOffer: shouldShowPermissionOffer({ permission: permissionState, seen: permissionOfferSeen, explicitlyDisabled: enabled === false }), onRequestPermission, onDismissPermissionOffer: dismissPermissionOffer, diagnostic, auditStatus, repairAvailable, repairStatus, wrapupSettings, onWrapupChange, onInspectPending, onAuditPending, onRepairPending, onEnabledChange, onSnapshot }
     : undefined;
-  return <Byeolharu nativeReminders={nativeReminders} nativeShare={isAndroid ? shareStarlightPngOnAndroid : undefined} nativeBackupExport={isAndroid ? exportGuestBackupOnAndroid : undefined} nativeAuthReturn={isAndroid ? nativeAuthReturn : undefined} nativeReminderNavigation={isAndroid ? wrapupNavigation : null} />;
+  return <Byeolharu nativeReminders={nativeReminders} nativeShare={isAndroid ? shareStarlightPngOnAndroid : undefined} nativeBackupExport={isAndroid ? exportGuestBackupOnAndroid : undefined} nativeAuthReturn={isAndroid ? nativeAuthReturn : undefined} nativeReminderNavigation={isAndroid ? wrapupNavigation : null} nativeHabitNavigation={isAndroid ? habitNavigation : null} />;
 }
 
 const root = document.getElementById("byeolharu-root");
