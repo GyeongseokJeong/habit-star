@@ -227,3 +227,25 @@ for(const theme of ["dark","light"])for(const state of ["check","circle"]){
  assert.match(icon,/<path /);
 }
 assert.match(actionRow,/<ImageView android:id="@\+id\/widget_check"/);
+
+
+// Host reapply: fixed modes must also emit all themed actions. Exercise the
+// exact pure Java selection expression (also valid JS after equals mapping).
+const themeExpression=widget.match(/static <T> T themeValue\([^)]*\) \{\s*return ([^;]+);/)?.[1];
+assert.ok(themeExpression);
+const expression=themeExpression.replace(/"([^"]+)"\.equals\(theme\)/g,'theme === "$1"');
+for(const [theme,night,expected] of [
+ ["system",false,"L"],["system",true,"D"],
+ ["light",false,"L"],["light",true,"L"],
+ ["dark",false,"D"],["dark",true,"D"],
+]){
+ assert.equal(runInNewContext(expression,{theme,night,light:"L",dark:"D"}),expected);
+}
+const render=widget.slice(widget.indexOf("static void render(Context"));
+assert.match(render,/if \(Build.VERSION.SDK_INT>=31\) \{\s*\/\/[^\n]*\n\s*\/\/[^\n]*\n\s*v.setColorStateList\(R.id.widget_root/);
+assert.match(render,/themeValue\(theme,false,"#FFFCF7","#1C2233"\)/);
+assert.match(render,/themeValue\(theme,true,"#FFFCF7","#1C2233"\)/);
+assert.match(render,/\}\s*textColor\(v,R.id.widget_star,theme/);
+for(const id of ["star","label","count","empty","private"])
+ assert.ok(render.includes("textColor(v,R.id.widget_"+id+",theme,"));
+assert.doesNotMatch(widget,/if \("system"\.equals\(theme\)&&Build.VERSION.SDK_INT>=31\)/);

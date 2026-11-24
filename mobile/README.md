@@ -151,3 +151,5 @@ GitHub 환경 `play-internal`에 업로드 키의 `ANDROID_UPLOAD_KEYSTORE_BASE6
 ## Widget V6-1 — Galaxy 실기기 테마/목록 개선 (#189)
 - 증거: Galaxy One UI에서 시스템 다크 OFF 직후 글자만 라이트 색상으로 변하고 패널은 네이비 유지, 앱 재진입 후 전체 라이트로 갱신됨. 기존 parent/row 별도 테마 판단 원인 제거: renderTheme을 adapter에 전달하고 Android 12+ RemoteViews day/night 색상·아이콘·배경 tint를 동일 구성에 적용. Application.onConfigurationChanged 전체 갱신을 보조 경로로 추가. 구버전은 실행 중 구성 변경과 기존 갱신 경로에 의존. 프로세스 종료 및 One UI host reapply 동작은 실기기 재검증 전 보장하지 않음.
 - 체크/미완료 표시를 22dp 전용 벡터로 교체. debug 직접 체크 48×48dp 유지, 오른쪽 정렬 및 좌우/아이콘 간격 축소. 스크롤 하단 2dp 여백 및 위젯 options 갱신. 고정 48dp 행을 유지하므로 임의 런처 높이에서 부분 행이 보일 수 있음; 실제 높이에서 전체 행을 보이게 하는 후속 검토 필요. 설정 V6-2 별도 PR. 데이터/동의/기록 정책 불변.
+
+- P2 리뷰 보완: Android 12+ 모든 테마에서 패널 tint와 텍스트/체크 아이콘의 day/night action을 명시적으로 갱신. 고정 라이트/다크는 양쪽 host 모드에 동일 값 사용. System↔Light↔Dark 전환 시 동일 layout reapply에서 이전 색이 남지 않도록 처리. 3가지 설정 × 2가지 host 모드 선택식 및 소스 계약 테스트 추가. 실제 Samsung 런처에서 테마 전환 행렬 재검증 필요.

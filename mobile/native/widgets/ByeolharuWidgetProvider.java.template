@@ -136,17 +136,24 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
         String theme=options(c).getString(id+":theme","system");
         return "system".equals(theme)&&Build.VERSION.SDK_INT>=31?"system":dark(c,id)?"dark":"light";
     }
+    // A fixed preference supplies identical values for both host configurations.
+    // Always emit the same property actions so reapply cannot retain an old tint.
+    static <T> T themeValue(String theme,boolean night,T light,T dark) {
+        return ("dark".equals(theme)||("system".equals(theme)&&night))?dark:light;
+    }
     static void textColor(RemoteViews v,int id,String theme,String light,String dark) {
-        if ("system".equals(theme)&&Build.VERSION.SDK_INT>=31)
-            v.setColorInt(id,"setTextColor",Color.parseColor(light),Color.parseColor(dark));
-        else v.setTextColor(id,Color.parseColor("dark".equals(theme)?dark:light));
+        if (Build.VERSION.SDK_INT>=31)
+            v.setColorInt(id,"setTextColor",Color.parseColor(themeValue(theme,false,light,dark)),
+                Color.parseColor(themeValue(theme,true,light,dark)));
+        else v.setTextColor(id,Color.parseColor(themeValue(theme,false,light,dark)));
     }
     static void checkIcon(Context c,RemoteViews v,int id,String theme,boolean completed) {
         int light=completed?R.drawable.byeolharu_widget_check_light:R.drawable.byeolharu_widget_circle_light;
         int dark=completed?R.drawable.byeolharu_widget_check_dark:R.drawable.byeolharu_widget_circle_dark;
-        if ("system".equals(theme)&&Build.VERSION.SDK_INT>=31)
-            v.setIcon(id,"setImageIcon",Icon.createWithResource(c,light),Icon.createWithResource(c,dark));
-        else v.setImageViewResource(id,"dark".equals(theme)?dark:light);
+        if (Build.VERSION.SDK_INT>=31)
+            v.setIcon(id,"setImageIcon",Icon.createWithResource(c,themeValue(theme,false,light,dark)),
+                Icon.createWithResource(c,themeValue(theme,true,light,dark)));
+        else v.setImageViewResource(id,themeValue(theme,false,light,dark));
     }
     static List<JSONObject> rows(Context c,int id,JSONObject data,boolean hide) {
         List<JSONObject> list=new ArrayList<>();
@@ -257,16 +264,18 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
         String theme=renderTheme(c,id);
         boolean consent=configured(c,id), ready=consent&&data!=null;
         RemoteViews v=new RemoteViews(c.getPackageName(),"dark".equals(theme)?R.layout.byeolharu_widget_dark:R.layout.byeolharu_widget_light);
-        if ("system".equals(theme)&&Build.VERSION.SDK_INT>=31) {
-            // Rounded shape is preserved; only its tint changes.
+        if (Build.VERSION.SDK_INT>=31) {
+            // Preserve the rounded shape and explicitly overwrite tint even for
+            // fixed Light/Dark: the host may reapply the same layout resource.
             v.setColorStateList(R.id.widget_root,"setBackgroundTintList",
-                ColorStateList.valueOf(Color.parseColor("#FFFCF7")),ColorStateList.valueOf(Color.parseColor("#1C2233")));
-            textColor(v,R.id.widget_star,theme,"#92703B","#E5C78D");
-            textColor(v,R.id.widget_label,theme,"#302D38","#F0EDF5");
-            textColor(v,R.id.widget_count,theme,"#92703B","#E5C78D");
-            textColor(v,R.id.widget_empty,theme,"#716B79","#A4AABD");
-            textColor(v,R.id.widget_private,theme,"#716B79","#A4AABD");
+                ColorStateList.valueOf(Color.parseColor(themeValue(theme,false,"#FFFCF7","#1C2233"))),
+                ColorStateList.valueOf(Color.parseColor(themeValue(theme,true,"#FFFCF7","#1C2233"))));
         }
+        textColor(v,R.id.widget_star,theme,"#92703B","#E5C78D");
+        textColor(v,R.id.widget_label,theme,"#302D38","#F0EDF5");
+        textColor(v,R.id.widget_count,theme,"#92703B","#E5C78D");
+        textColor(v,R.id.widget_empty,theme,"#716B79","#A4AABD");
+        textColor(v,R.id.widget_private,theme,"#716B79","#A4AABD");
         List<JSONObject> all=rows(c,id,data,false);
         int done=0;for(JSONObject row:all)if(row.optBoolean("completed"))done++;
         v.setTextViewText(R.id.widget_label,label(filter(c,id,data)));
