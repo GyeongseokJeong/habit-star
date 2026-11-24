@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/widget_root"
     android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical"
-    android:padding="8dp" android:background="@drawable/byeolharu_widget_light_bg">
-    <LinearLayout android:id="@+id/widget_header" android:layout_width="match_parent" android:layout_height="28dp" android:orientation="horizontal" android:gravity="center_vertical" android:contentDescription="별하루 앱 열기">
+    android:paddingStart="8dp" android:paddingEnd="8dp" android:paddingTop="4dp" android:paddingBottom="4dp" android:background="@drawable/byeolharu_widget_light_bg">
+    <LinearLayout android:id="@+id/widget_header" android:layout_width="match_parent" android:layout_height="44dp" android:orientation="horizontal" android:gravity="center_vertical" android:contentDescription="별하루 앱 열기">
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="✦" android:textColor="#92703B" android:textSize="15sp"/>
         <TextView android:id="@+id/widget_label" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="5dp" android:text="오늘" android:textColor="#302D38" android:textSize="14sp" android:maxLines="1"/>
         <TextView android:id="@+id/widget_count" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="—" android:textColor="#92703B" android:textSize="14sp" android:textStyle="bold"/>

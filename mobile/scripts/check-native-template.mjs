@@ -161,6 +161,7 @@ assert.match(settingsJava, /publishWidgetSummary/);
 assert.match(patcher, /ByeolharuWidgetProvider/);
 assert.match(patcher, /android:permission="android.permission.BIND_REMOTEVIEWS"/);
 assert.match(widget, /FLAG_IMMUTABLE/);
+assert.match(widget, /setOnClickPendingIntent\(R.id.widget_header,/);
 assert.match(widget, /expiry > now/);
 assert.match(widget, /getNoBackupFilesDir/);
 assert.match(widget, /anyConfigured\(c\)/);
@@ -188,5 +189,11 @@ for(const theme of ["dark","light"]){
  assert.match(layout,/widget_count/);
  assert.match(layout,/widget_content" android:visibility="gone"/);
  assert.match(layout,/widget_private/);
+ const header=layout.match(/<LinearLayout\b[^>]*android:id="@\+id\/widget_header"[^>]*>/)?.[0];
+ assert.ok(header, theme+" widget header missing");
+ const height=Number(header.match(/android:layout_height="(\d+)dp"/)?.[1]);
+ assert.ok(height>=44, theme+" app-opening header must be at least 44dp");
+ assert.match(header,/android:layout_width="match_parent"/);
+ assert.match(layout,/android:paddingStart="8dp" android:paddingEnd="8dp" android:paddingTop="4dp" android:paddingBottom="4dp"/);
 }
 console.log("Compact widget layout, configuration and privacy source contracts OK (not a launcher test)");
