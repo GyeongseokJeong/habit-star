@@ -70,10 +70,11 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
     }
     // Serialize consent changes with publication so a queued snapshot cannot
     // recreate the display cache after the last opt-in is withdrawn.
-    static synchronized boolean saveOptions(Context c,int id,boolean consent,String filter,boolean hide,String theme) {
+    static boolean showHabitIcons(Context c,int id) { return options(c).getBoolean(id+":showIcons",true); }
+    static synchronized boolean saveOptions(Context c,int id,boolean consent,String filter,boolean hide,String theme,boolean showIcons) {
         if (!owns(c,id)) return false;
         if (!options(c).edit().putBoolean(id+":consent",consent).putString(id+":filter",filter)
-            .putBoolean(id+":hide",hide).putString(id+":theme",theme).commit()) return false;
+            .putBoolean(id+":hide",hide).putString(id+":theme",theme).putBoolean(id+":showIcons",showIcons).commit()) return false;
         refreshAll(c);
         return true;
     }
@@ -209,7 +210,7 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
     @Override public void onDeleted(Context c,int[] ids) {
         synchronized (ByeolharuWidgetProvider.class) {
             SharedPreferences.Editor e=options(c).edit();
-            for(int id:ids)for(String k:new String[]{":consent",":filter",":hide",":theme"})e.remove(id+k);
+            for(int id:ids)for(String k:new String[]{":consent",":filter",":hide",":theme",":showIcons"})e.remove(id+k);
             e.commit();
             refreshAll(c);
         }
@@ -300,9 +301,12 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
         v.setOnClickPendingIntent(R.id.widget_header,PendingIntent.getActivity(c,8102,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
         v.setOnClickPendingIntent(R.id.widget_empty,PendingIntent.getActivity(c,8102,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
         v.setOnClickPendingIntent(R.id.widget_private,PendingIntent.getActivity(c,8102,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
+        boolean showIcons=showHabitIcons(c,id);
+        // Include the display preference in adapter identity: extras alone
+        // are not part of Intent.filterEquals in the launcher collection cache.
         Intent service=new Intent(c,ByeolharuWidgetListService.class).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,id)
-            .putExtra("renderTheme",theme)
-            .setData(Uri.parse("byeolharu-widget://list/"+id+"/"+theme+"/"+(ready?"visible":"hidden")));
+            .putExtra("renderTheme",theme).putExtra("showIcons",showIcons)
+            .setData(Uri.parse("byeolharu-widget://list/"+id+"/"+theme+"/"+(ready?"visible":"hidden")+"/"+(showIcons?"icons":"text")));
         v.setRemoteAdapter(R.id.widget_list,service);
         if(experimental(c)&&ready) {
             Intent tap=new Intent(c,Mini.class).setAction(PRACTICE)

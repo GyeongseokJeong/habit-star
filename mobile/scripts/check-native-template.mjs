@@ -284,7 +284,7 @@ assert.match(controlBg,/states.addState\(new int\[\]\{android.R.attr.state_enabl
 assert.match(controlBg,/states.addState\(new int\[\]\{android.R.attr.state_enabled,android.R.attr.state_pressed\},pressed\)/);
 assert.ok(controlBg.indexOf("state_focused")<controlBg.indexOf("state_pressed"));
 assert.ok(controlBg.indexOf("state_pressed")<controlBg.indexOf("new int[]{},shape"));
-for(const control of ["back","hide","save"]){
+for(const control of ["back","control","save"]){
  assert.ok(configActivity.includes(control+".setBackgroundTintList(null);"+control+".setBackground(controlBackground("),control+" missing explicit focus styling");
 }
 assert.match(configActivity,/save.setBackground\(controlBackground\(accent\(\),0,14,color\(night\?"#302D38":"#FFFFFF"\)\)\)/);
@@ -363,3 +363,35 @@ for(const theme of ["system","light","dark"]){
  assert.match(icon,/android:width="22dp" android:height="22dp"/);
 }
 console.log("V11 settings selection, synthetic preview and consent source contracts OK (not a device test)");
+
+
+// V11 icon preference: old instances default to visible; per-ID storage,
+// adapter identity, explicit recycled row visibility and draft-only preview.
+assert.match(widget,/static boolean showHabitIcons\(Context c,int id\) \{ return options\(c\).getBoolean\(id\+":showIcons",true\); \}/);
+assert.match(widget,/\.putBoolean\(id\+":showIcons",showIcons\)\.commit\(\)/);
+assert.match(widget,/new String\[\]\{":consent",":filter",":hide",":theme",":showIcons"\}/);
+assert.match(render,/boolean showIcons=showHabitIcons\(c,id\)/);
+assert.match(render,/putExtra\("showIcons",showIcons\)/);
+assert.match(render,/\(showIcons\?"icons":"text"\)/);
+assert.match(widgetService,/getBooleanExtra\("showIcons",ByeolharuWidgetProvider.showHabitIcons\(c,id\)\)/);
+assert.match(widgetService,/setViewVisibility\(R.id.widget_icon,showIcons\?View.VISIBLE:View.GONE\)/);
+assert.match(widgetService,/setTextViewText\(R.id.widget_icon,showIcons\?row.optString\("icon"\):""\)/);
+assert.match(configActivity,/section\(root,"습관 표시"\)/);
+assert.match(configActivity,/hide=displaySwitch\("완료한 습관 숨기기"/);
+assert.match(configActivity,/showIcons=displaySwitch\("습관 아이콘 표시",saved==null\?ByeolharuWidgetProvider.showHabitIcons\(this,id\):saved.getBoolean\("showIcons",true\)\)/);
+assert.match(configActivity,/displayOptions.addView\(hide\)/);
+assert.match(configActivity,/displayOptions.addView\(showIcons\)/);
+assert.match(configActivity,/out.putBoolean\("showIcons",showIcons.isChecked\(\)\)/);
+assert.match(configActivity,/showIcons.setOnCheckedChangeListener\(\(b,checked\)->refreshPreview\(\)\)/);
+assert.match(configActivity,/saveOptions\(this,id,consent.isChecked\(\),FILTERS\[filterIndex\],hide.isChecked\(\),THEMES\[themeIndex\],showIcons.isChecked\(\)\)/);
+assert.match(samplePreview,/if\(showIcons.isChecked\(\)\)\{\s*TextView habitIcon=previewText\(samples\[i\]\[0\]/);
+assert.match(samplePreview,/TextView name=previewText\(samples\[i\]\[1\]/);
+assert.match(samplePreview,/previewText\("✦ "\+title/);
+assert.match(samplePreview,/row.addView\(icon,new LinearLayout.LayoutParams\(scaled\(22\),scaled\(22\)\)\)/);
+assert.doesNotMatch(samplePreview,/prefs\.edit|\.commit\(/);
+for(const kind of ["row","row_action"]){
+ const xml=readFileSync(resolve(root,"native/widgets/layout/byeolharu_widget_"+kind+".xml"),"utf8");
+ assert.match(xml,/widget_icon" android:layout_width="20dp"/);
+ assert.match(xml,/widget_title" android:layout_width="0dp"[^>]*android:layout_weight="1" android:layout_marginStart="3dp"/);
+}
+console.log("V11 icon preference, adapter refresh, draft and preview source contracts OK (not a launcher test)");
