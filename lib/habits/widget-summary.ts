@@ -3,7 +3,7 @@ import { startupDataReady } from "./time-tab";
 import type { Snapshot } from "./repository";
 import { getFirstUseState } from "./onboarding";
 import { sortHabitsForDisplay } from "./display-order";
-import { createWidgetPracticeCommand, type WidgetPracticeCommand } from "./widget-practice";
+import { createWidgetPracticeCommand, widgetPracticeTargetRating, type WidgetPracticeCommand } from "./widget-practice";
 
 export type WidgetRow = { title: string; icon: string; group: TimeGroup; completed: boolean; actionKey?: string };
 export type WidgetSummary = { ready: true; expiresAt: number; timezone: string; rows: WidgetRow[] };
@@ -49,7 +49,7 @@ export function buildWidgetActionProjection(snapshot: Snapshot, memberId: string
   const habits = widgetHabits(snapshot, memberId);
   for (const [index, habit] of habits.entries()) {
     const command = createWidgetPracticeCommand(snapshot, scope, habit.id);
-    if (!command || command.expectedRating !== 0) continue;
+    if (!command || widgetPracticeTargetRating(command) === null) continue;
     const key = crypto.randomUUID();
     commands.set(key, command);
     summary.rows[index].actionKey = key;

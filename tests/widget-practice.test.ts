@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { LocalRepository } from "../lib/habits/repository";
-import { entityKey, type Habit } from "../lib/habits/domain";
-import { createWidgetPracticeCommand } from "../lib/habits/widget-practice";
+import { entityKey, stats, type Habit } from "../lib/habits/domain";
+import { createWidgetPracticeCommand, widgetPracticeTargetRating } from "../lib/habits/widget-practice";
 import { calculateConstellationGrowth } from "../lib/constellation/growth";
 import { buildWidgetActionProjection } from "../lib/habits/widget-summary";
 
@@ -34,7 +34,7 @@ describe("widget practice transaction", () => {
       expect(await r.state()).toEqual(before);
     } finally {r.close();}
   });
-  it("projects only opaque per-snapshot handles and does not expose rated cancellation", async () => {
+  it("projects opaque handles for permitted actions and protects one-to-four-star records", async () => {
     const {r,habit}=await setup(true);
     try {
       const member=r.scope.slice("member:".length), snapshot=await r.load();
@@ -45,10 +45,20 @@ describe("widget practice transaction", () => {
       expect(b.commands.has(key!)).toBe(false);
       expect(JSON.stringify(a.summary)).not.toContain(habit.id);
       expect(JSON.stringify(a.summary)).not.toContain(member);
-      await r.update(habit.id,{completed:true,rating:5});
-      const rated=buildWidgetActionProjection(await r.load(),member);
-      expect(rated.commands.size).toBe(0);
-      expect(rated.summary?.rows[0].actionKey).toBeUndefined();
+      for (const rating of [0, 5]) {
+        await r.update(habit.id,{completed:true,rating});
+        const rated=buildWidgetActionProjection(await r.load(),member);
+        const undoKey=rated.summary?.rows[0].actionKey;
+        expect(undoKey).toBeTruthy();
+        expect(rated.commands.get(undoKey!)).toMatchObject({expectedRating:rating,completed:false});
+        expect(rated.summary?.rows[0]).not.toHaveProperty("rating");
+      }
+      for (const rating of [1,2,3,4]) {
+        await r.update(habit.id,{completed:true,rating});
+        const rated=buildWidgetActionProjection(await r.load(),member);
+        expect(rated.commands.size).toBe(0);
+        expect(rated.summary?.rows[0].actionKey).toBeUndefined();
+      }
     } finally {r.close();}
   });
   it("commits guest completion, preserves memo and definition, derives growth, and safely cancels", async () => {
@@ -59,7 +69,8 @@ describe("widget practice transaction", () => {
       const first = await command(r, habit.id);
       expect(await r.applyWidgetPractice(first)).toBe("saved");
       const after = await r.load();
-      expect(after.habits[0]).toMatchObject({ completed: true, rating: 0, memo: "보존할 메모" });
+      expect(after.habits[0]).toMatchObject({ completed: true, rating: 5, memo: "보존할 메모" });
+      expect(stats(after.habits, after.day)).toMatchObject({ completed: 1, average: 5 });
       expect(after.state.entities[key]).toEqual(before.state.entities[key]);
       expect(after.state.outbox).toEqual([]);
       expect(calculateConstellationGrowth(after).totalPoints).toBe(1);
@@ -68,6 +79,7 @@ describe("widget practice transaction", () => {
       const cancelled = await r.load();
       expect(cancelled.habits[0]).toMatchObject({ completed: false, rating: 0, memo: "보존할 메모" });
       expect(calculateConstellationGrowth(cancelled).totalPoints).toBe(0);
+      expect(stats(cancelled.habits, cancelled.day)).toMatchObject({ completed: 0, average: 0 });
       expect(await r.applyWidgetPractice(first)).toBe("stale");
     } finally { r.close(); }
   });
@@ -81,7 +93,16 @@ describe("widget practice transaction", () => {
       expect(after.outbox).toHaveLength(before.outbox.length + 1);
       expect(after.outbox.at(-1)?.changes).toHaveLength(1);
       expect(after.outbox.at(-1)?.changes[0]).toMatchObject({
-        kind: "habit_entries", id: habit.id, day: c.day, data: { completed: true, rating: 0 },
+        kind: "habit_entries", id: habit.id, day: c.day, data: { completed: true, rating: 5 },
+      });
+      const undo = await command(r, habit.id);
+      const undoResults = await Promise.all([r.applyWidgetPractice(undo), r.applyWidgetPractice(undo)]);
+      expect(undoResults.sort()).toEqual(["saved", "stale"]);
+      const cancelled = await r.state();
+      expect(cancelled.outbox).toHaveLength(after.outbox.length + 1);
+      expect(cancelled.outbox.at(-1)?.changes).toHaveLength(1);
+      expect(cancelled.outbox.at(-1)?.changes[0]).toMatchObject({
+        kind: "habit_entries", id: habit.id, day: c.day, data: { completed: false, rating: 0 },
       });
     } finally { r.close(); }
   });
@@ -103,16 +124,51 @@ describe("widget practice transaction", () => {
       expect(await r.state()).toEqual(newer);
     } finally { r.close(); other.r.close(); }
   });
-  it("does not remove a rated completion or overwrite a newer memo", async () => {
+  it("does not remove protected ratings or overwrite a newer memo or rating", async () => {
     const { r, habit } = await setup();
     try {
       const c = await command(r, habit.id);
       await r.update(habit.id, { memo: "새 메모" });
       expect(await r.applyWidgetPractice(c)).toBe("stale");
       await r.update(habit.id, { completed: true, rating: 5 });
-      const rated = await command(r, habit.id);
+      const oldUndo = await command(r, habit.id);
+      await r.update(habit.id, { completed: true, rating: 4 });
+      const edited = await r.state();
+      expect(await r.applyWidgetPractice(oldUndo)).toBe("stale");
+      expect(await r.state()).toEqual(edited);
+      for (const rating of [1,2,3,4]) {
+        await r.update(habit.id, { completed: true, rating });
+        const rated = await command(r, habit.id);
+        const before = await r.state();
+        expect(await r.applyWidgetPractice(rated)).toBe("requires-detail");
+        expect(await r.state()).toEqual(before);
+      }
+    } finally { r.close(); }
+  });
+  it("undoes legacy unrated and app-rated five-star completions without touching memo", async () => {
+    const { r, habit } = await setup();
+    try {
+      for (const rating of [0,5]) {
+        await r.update(habit.id, { completed: true, rating, memo: "기존 메모" });
+        const undo = await command(r, habit.id);
+        expect(await r.applyWidgetPractice(undo)).toBe("saved");
+        expect((await r.load()).habits[0]).toMatchObject({ completed: false, rating: 0, memo: "기존 메모" });
+      }
+    } finally { r.close(); }
+  });
+  it("derives only the approved rating targets, including inconsistent legacy states", async () => {
+    const { r, habit } = await setup();
+    try {
+      const base = await command(r, habit.id);
+      for (const completed of [false,true]) for (const rating of [0,1,2,3,4,5]) {
+        const c = { ...base, expectedCompleted: completed, expectedRating: rating, completed: !completed };
+        const expected = completed ? (rating === 0 || rating === 5 ? 0 : null) : (rating === 0 ? 5 : null);
+        expect(widgetPracticeTargetRating(c)).toBe(expected);
+      }
+      await r.update(habit.id, { completed: false, rating: 5 });
+      const inconsistent = await command(r, habit.id);
       const before = await r.state();
-      expect(await r.applyWidgetPractice(rated)).toBe("requires-detail");
+      expect(await r.applyWidgetPractice(inconsistent)).toBe("requires-detail");
       expect(await r.state()).toEqual(before);
     } finally { r.close(); }
   });
