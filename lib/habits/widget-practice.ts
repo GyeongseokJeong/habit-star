@@ -16,7 +16,7 @@ export type WidgetPracticeCommand = {
 export type WidgetPracticeResult = "saved" | "invalid" | "wrong-scope" | "stale" |
   "not-ready" | "unavailable" | "conflict" | "requires-detail";
 
-type Validation = { kind: "ready"; base: Entity } | { kind: Exclude<WidgetPracticeResult, "saved"> };
+type Validation = { kind: "ready"; base: Entity; rating: 0 | 5 } | { kind: Exclude<WidgetPracticeResult, "saved"> };
 
 function validCommand(c: WidgetPracticeCommand): boolean {
   return !!c && typeof c.scope === "string" && !!c.scope &&
@@ -27,6 +27,18 @@ function validCommand(c: WidgetPracticeCommand): boolean {
     typeof c.expectedCompleted === "boolean" && typeof c.completed === "boolean" &&
     c.expectedCompleted !== c.completed &&
     Number.isInteger(c.expectedRating) && c.expectedRating >= 0 && c.expectedRating <= 5;
+}
+
+/** Quick practice defaults to five stars; an explicit undo resets to zero.
+ * Existing unrated or five-star completions can be undone. Other ratings
+ * (including inconsistent incomplete rated records) require the editor.
+ * The source of a five-star rating is intentionally not distinguished.
+ */
+export function widgetPracticeTargetRating(command: WidgetPracticeCommand): 0 | 5 | null {
+  if (command.completed && !command.expectedCompleted && command.expectedRating === 0) return 5;
+  if (!command.completed && command.expectedCompleted &&
+      (command.expectedRating === 0 || command.expectedRating === 5)) return 0;
+  return null;
 }
 
 /** Derive an explicit target from a verified, committed snapshot; not a toggle. */
@@ -40,7 +52,7 @@ export function createWidgetPracticeCommand(snapshot: Snapshot, scope: string, h
     completed: !habit.completed,
   };
   const result = validateWidgetPractice(command, scope, snapshot.day, snapshot.state, scope.startsWith("member:"));
-  // A rated completion can still be routed to detail by a future UI.
+  // Protected records can still be routed to detail by a future UI.
   return result.kind === "ready" || result.kind === "requires-detail" ? command : null;
 }
 
@@ -71,10 +83,9 @@ export function validateWidgetPractice(
     return { kind: "conflict" };
   if (base.version !== command.version || habit.completed !== command.expectedCompleted ||
       habit.rating !== command.expectedRating) return { kind: "stale" };
-  // A cancellation of a rated record changes both rating and completion in
-  // the app. Do not silently remove a user's star rating via a quick action.
-  if (!command.completed && habit.rating > 0) return { kind: "requires-detail" };
-  // Inconsistent legacy values must go through the normal record editor.
-  if (habit.rating !== 0) return { kind: "requires-detail" };
-  return { kind: "ready", base };
+  // Derive the rating only after matching the committed record. Never accept
+  // a caller-provided target rating or overwrite a protected rating.
+  const rating = widgetPracticeTargetRating(command);
+  if (rating === null) return { kind: "requires-detail" };
+  return { kind: "ready", base, rating };
 }

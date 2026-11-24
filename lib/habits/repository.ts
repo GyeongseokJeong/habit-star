@@ -356,8 +356,9 @@ export class LocalRepository implements HabitRepository {
         this.apply(s, [{
           key: base.key, kind: "habit_entries", id: base.id, day,
           base: structuredClone(base),
-          // Never touch the definition, past entries, memo, or existing rating.
-          data: { ...base.data, completed: command.completed },
+          // The validated target rating and completion are one daily entry
+          // change; preserve the definition, past entries and memo.
+          data: { ...base.data, completed: command.completed, rating: checked.rating },
           deleted: false,
         }]);
       });
