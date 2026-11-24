@@ -49,7 +49,7 @@ for (const width of [320, 375, 390, 430]) {
       expect(artBounds!.y + artBounds!.height).toBeLessThanOrEqual(skyBounds!.y + skyBounds!.height + 2);
       await expect(art.locator("img")).toHaveCSS("object-fit", "contain");
       await expect(card).toHaveCSS("aspect-ratio", "4 / 5");
-      await expect(card).toContainText("현재 단계");
+      await expect(card).toContainText("현재 기록");
       await expect(card).toContainText("Stage 1");
       await expect(card.getByText("Stage 1", { exact: true })).toHaveCount(1);
       await expect(card.getByText("별하루", { exact: true })).toHaveCount(1);
@@ -89,7 +89,7 @@ test("V5 returning from preview reveals the restored focus on a short viewport",
   await expect(entry).toBeInViewport();
 });
 
-test("V5 preview always uses the current earned stage, not a browsed earlier stage", async ({ page }) => {
+test("V5.4 preview uses each selected unlocked stage and preserves live metrics and gallery selection", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await expect(page.getByRole("button", { name: /나의 별자리 STAGE 1/ })).toBeVisible();
@@ -97,18 +97,23 @@ test("V5 preview always uses the current earned stage, not a browsed earlier sta
   const opener = page.getByRole("button", { name: /나의 별자리 STAGE 3/ });
   await opener.click();
   const detail = page.getByRole("dialog", { name: "나의 별자리" });
-  await detail.getByRole("button", { name: /Stage 1 첫 번째 별빛/ }).click();
-  await expect(detail.getByRole("heading", { name: "첫 번째 별빛" })).toBeVisible();
-  await detail.getByRole("button", { name: "별빛 카드 만들기" }).click();
-  const preview = page.getByRole("dialog", { name: "별빛 카드" });
-  const card = preview.locator(".starlight-share-card");
-  await expect(card.locator("[data-constellation-stage='3']")).toBeVisible();
-  await expect(card).toContainText("Stage 3");
-  await expect(card).toContainText("20회");
-  await expect(card).not.toContainText("Stage 1");
-  await preview.getByRole("button", { name: "별자리 성장으로 돌아가기" }).click();
-  await expect(detail.getByRole("heading", { name: "첫 번째 별빛" })).toBeVisible();
-  await expect(detail.getByRole("button", { name: "별빛 카드 만들기" })).toBeFocused();
+  for (const [stage, title] of [[1, "첫 번째 별빛"], [2, "별이 모이는 밤"], [3, "별빛의 연결"]] as const) {
+    await detail.getByRole("button", { name: new RegExp(`Stage ${stage} ${title}`) }).click();
+    await expect(detail.getByRole("heading", { name: title })).toBeVisible();
+    await detail.getByRole("button", { name: "별빛 카드 만들기" }).click();
+    const preview = page.getByRole("dialog", { name: "별빛 카드" });
+    const card = preview.locator(".starlight-share-card");
+    await expect(card.locator(`[data-constellation-stage='${stage}']`)).toBeVisible();
+    await expect(card.getByText(`Stage ${stage}`, { exact: true })).toHaveCount(1);
+    await expect(card.getByRole("heading", { name: title })).toBeVisible();
+    await expect(card).toContainText("현재 기록");
+    await expect(card).toContainText("20회");
+    await expect(card.locator("[data-constellation-stage]")).toHaveCount(1);
+    await preview.getByRole("button", { name: "별자리 성장으로 돌아가기" }).click();
+    await expect(detail.getByRole("heading", { name: title })).toBeVisible();
+    await expect(detail.getByRole("button", { name: "별빛 카드 만들기" })).toBeFocused();
+  }
+  await expect(detail.getByRole("button", { name: "다음 별자리" })).toBeDisabled();
   await detail.getByRole("button", { name: "닫기" }).click();
   await expect(opener).toBeFocused();
 });

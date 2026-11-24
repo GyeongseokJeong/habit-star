@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
+import { seedConstellationPoints } from "./fixtures/constellation-points";
 
 test.use({ timezoneId: "Asia/Seoul", acceptDownloads: true });
 
@@ -47,9 +48,17 @@ test("V5 STEP 3 offers a real PNG File through Web Share, without losing transie
       },
     });
   });
-  const preview = await openPreview(page);
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: /나의 별자리 STAGE 1/ })).toBeVisible();
+  await seedConstellationPoints(page, 20);
+  await page.getByRole("button", { name: /나의 별자리 STAGE 3/ }).click();
+  const detail = page.getByRole("dialog", { name: "나의 별자리" });
+  await detail.getByRole("button", { name: /Stage 2 별이 모이는 밤/ }).click();
+  await detail.getByRole("button", { name: "별빛 카드 만들기" }).click();
+  const preview = page.getByRole("dialog", { name: "별빛 카드" });
   const card = preview.locator(".starlight-share-card");
-  await expect(card).toContainText("Stage 1");
+  await expect(card).toContainText("Stage 2");
+  await expect(card.locator("[data-constellation-stage='2']")).toBeVisible();
   // Keep the share view focused: no Instagram exceptions, JPEG options,
   // or supplemental help sections on the default card.
   await expect(preview.locator(".starlight-instagram-help")).toHaveCount(0);
@@ -68,7 +77,7 @@ test("V5 STEP 3 offers a real PNG File through Web Share, without losing transie
   let shares = await page.evaluate(() => (window as Window & {
     __shareCalls?: Array<{ filename: string; type: string; size: number; active: boolean; title: string; sha256: string }>;
   }).__shareCalls ?? []);
-  expect(shares[0].filename).toBe("byeolharu-starlight-stage-1.png");
+  expect(shares[0].filename).toBe("byeolharu-starlight-stage-2.png");
   expect(shares[0].type).toBe("image/png");
   expect(shares[0].size).toBeGreaterThan(20_000);
   expect(shares[0].title).toBe("별하루 별빛 카드");
@@ -91,7 +100,7 @@ test("V5 STEP 3 offers a real PNG File through Web Share, without losing transie
   const download = page.waitForEvent("download", { timeout: 90_000 });
   await preview.getByRole("button", { name: "이미지 저장" }).click();
   const saved = await download;
-  expect(saved.suggestedFilename()).toBe("byeolharu-starlight-stage-1.png");
+  expect(saved.suggestedFilename()).toBe("byeolharu-starlight-stage-2.png");
   const savedBytes = await readFile((await saved.path())!);
   const savedSha256 = createHash("sha256").update(savedBytes).digest("hex");
   expect(savedSha256).toBe(shares[0].sha256);

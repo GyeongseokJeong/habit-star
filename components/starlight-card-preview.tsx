@@ -2,33 +2,36 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Download, Share2 } from "lucide-react";
-import { Flame, Layers3, Star } from "lucide-react";
+import { Flame, Star } from "lucide-react";
 import { downloadStarlightPng, renderStarlightPng, starlightPngFilename } from "@/lib/constellation/starlight-png";
 import { ConstellationArtwork } from "@/components/constellation-artwork";
-import { getConstellationStage } from "@/lib/constellation/art";
+import { getConstellationArtByStage, type ConstellationStageNumber } from "@/lib/constellation/art";
 
 /**
  * V5 share-card design contract:
  * - The shareable region is this article alone, always 4:5.
  * - Keep the approved 2:3 Stage artwork intact (object-contain).
  * - Its asset is repeated only as a blurred, decorative background glow.
- * - Stage number and brand each appear once; no account or habit names.
+ * - Selected unlocked gallery Stage and brand each appear once; metrics are live.
+ * - No account or habit names, and no historical metric snapshot is implied.
  * - The same DOM is rendered at 1080 × 1350 for PNG and file sharing.
  * - Browser share is feature detected; native Android WebView requires a separate bridge.
  * - No automatic posting or habit-record changes.
  */
 export function StarlightCardPreview({
+  selectedStage,
   points,
   completedHabits,
   streak,
   nativeShare,
 }: {
+  selectedStage: ConstellationStageNumber;
   points: number;
   completedHabits: number;
   streak: number;
   nativeShare?: (png: Blob, filename: string) => Promise<void>;
 }) {
-  const stage = getConstellationStage(points);
+  const stage = getConstellationArtByStage(selectedStage);
   const cardRef = useRef<HTMLElement>(null);
   const pngPromiseRef = useRef<Promise<Blob> | null>(null);
   const captureKeyRef = useRef("");
@@ -166,7 +169,7 @@ export function StarlightCardPreview({
       <article
         ref={cardRef}
         className="starlight-share-card"
-        aria-label={`별빛 카드, 현재 Stage ${stage.stage}`}
+        aria-label={`별빛 카드, Stage ${stage.stage}`}
         style={cardStyle}
       >
         <header className="starlight-share-head">
@@ -175,26 +178,28 @@ export function StarlightCardPreview({
             <strong>별하루</strong>
             <small>BYEOLHARU</small>
           </p>
-          <h3>작은 실천이 모여<br />빛나는 습관이 되었어요 <span aria-hidden="true">✦</span></h3>
+          <div className="starlight-share-title">
+            <span className="starlight-share-stage">Stage {stage.stage}</span>
+            <h3>{stage.title}</h3>
+          </div>
         </header>
         <div className="starlight-share-sky">
           <ConstellationArtwork points={points} stage={stage.stage} className="starlight-share-artwork" />
-          <p className="starlight-share-stage">{stage.title}</p>
+          <p className="starlight-share-message">작은 실천이 모여 빛나는 습관이 되었어요</p>
         </div>
-        <dl className="starlight-share-metrics">
-          <div>
-            <dt><Flame aria-hidden="true" /> 연속 실천</dt>
-            <dd>{streak}<span>일</span></dd>
-          </div>
-          <div>
-            <dt><Star aria-hidden="true" /> 누적 실천</dt>
-            <dd>{completedHabits}<span>회</span></dd>
-          </div>
-          <div>
-            <dt><Layers3 aria-hidden="true" /> 현재 단계</dt>
-            <dd>Stage {stage.stage}</dd>
-          </div>
-        </dl>
+        <footer className="starlight-share-footer">
+          <p className="starlight-share-record-label">현재 기록</p>
+          <dl className="starlight-share-metrics" aria-label="현재 실천 기록">
+            <div>
+              <dt><Flame aria-hidden="true" /> 연속 실천</dt>
+              <dd>{streak}<span>일</span></dd>
+            </div>
+            <div>
+              <dt><Star aria-hidden="true" /> 누적 실천</dt>
+              <dd>{completedHabits}<span>회</span></dd>
+            </div>
+          </dl>
+        </footer>
       </article>
       <div className="starlight-actions">
         <button

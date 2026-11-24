@@ -67,7 +67,10 @@ export async function renderStarlightPng(card: HTMLElement): Promise<Blob> {
   }
   // Force all variable Korean font subsets needed for the visible text to load.
   if (document.fonts) {
-    await document.fonts.load('700 18px "Noto Sans KR Variable"', "별하루 작은 실천이 모여 빛나는 습관이 되었어요");
+    const visibleText = card.textContent ?? "";
+    await Promise.all([500, 700].map((weight) =>
+      document.fonts.load(`${weight} 18px "Noto Sans KR Variable"`, visibleText),
+    ));
     await document.fonts.ready;
   }
   await waitForStageArtwork(card);
