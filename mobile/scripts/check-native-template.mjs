@@ -274,3 +274,17 @@ for(const sdk of [24,25,26,35]){
 assert.match(configActivity,/setNavigationBarColor\(lightNavigation\?bg:color\("#171D29"\)\)/);
 assert.match(configActivity,/if\(lightNavigation\)flags\|=View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR/);
 assert.match(configActivity,/setStatusBarColor\(bg\)/);
+
+
+// P2 accessibility: custom interactive controls must retain visible
+// enabled focus and press states; the ordinary drawable is the last fallback.
+const controlBg=configActivity.slice(configActivity.indexOf("private StateListDrawable controlBackground"),configActivity.indexOf("private TextView text"));
+assert.match(controlBg,/focused.setStroke\(dp\(3\),focusColor\)/);
+assert.match(controlBg,/states.addState\(new int\[\]\{android.R.attr.state_enabled,android.R.attr.state_focused\},focused\)/);
+assert.match(controlBg,/states.addState\(new int\[\]\{android.R.attr.state_enabled,android.R.attr.state_pressed\},pressed\)/);
+assert.ok(controlBg.indexOf("state_focused")<controlBg.indexOf("state_pressed"));
+assert.ok(controlBg.indexOf("state_pressed")<controlBg.indexOf("new int[]{},shape"));
+for(const control of ["b","back","hide","save"]){
+ assert.ok(configActivity.includes(control+".setBackgroundTintList(null);"+control+".setBackground(controlBackground("),control+" missing explicit focus styling");
+}
+assert.match(configActivity,/save.setBackground\(controlBackground\(accent\(\),0,14,color\(night\?"#302D38":"#FFFFFF"\)\)\)/);

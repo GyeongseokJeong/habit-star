@@ -8,6 +8,7 @@ import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.StateListDrawable;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
@@ -42,6 +43,19 @@ public class ByeolharuWidgetConfigActivity extends Activity {
         GradientDrawable d=new GradientDrawable();d.setColor(fill);d.setCornerRadius(dp(radius));
         if(stroke!=0)d.setStroke(dp(1),stroke);return d;
     }
+    // Keep normal V6 styling, but explicitly expose keyboard/D-pad focus
+    // when replacing the platform's stateful control backgrounds.
+    private StateListDrawable controlBackground(int fill,int stroke,int radius,int focusColor){
+        StateListDrawable states=new StateListDrawable();
+        GradientDrawable focused=shape(fill,focusColor,radius);
+        focused.setStroke(dp(3),focusColor);
+        states.addState(new int[]{android.R.attr.state_enabled,android.R.attr.state_focused},focused);
+        GradientDrawable pressed=shape(fill,focusColor,radius);
+        pressed.setStroke(dp(2),focusColor);
+        states.addState(new int[]{android.R.attr.state_enabled,android.R.attr.state_pressed},pressed);
+        states.addState(new int[]{},shape(fill,stroke,radius));
+        return states;
+    }
     private TextView text(String value,int size,int tint,boolean bold){
         TextView t=new TextView(this);t.setText(value);t.setTextSize(size);t.setTextColor(tint);
         if(bold)t.setTypeface(Typeface.DEFAULT,Typeface.BOLD);return t;
@@ -56,7 +70,7 @@ public class ByeolharuWidgetConfigActivity extends Activity {
         for(int i=0;i<labels.length;i++){
             RadioButton b=new RadioButton(this);b.setId(View.generateViewId());b.setText(labels[i]);b.setTextColor(ink());b.setTextSize(14);
             b.setButtonTintList(controlTint());b.setMinHeight(dp(48));b.setPadding(dp(8),dp(4),dp(4),dp(4));
-            b.setBackground(shape(surface(),color(night?"#41495B":"#E2D9CC"),12));
+            b.setBackgroundTintList(null);b.setBackground(controlBackground(surface(),color(night?"#41495B":"#E2D9CC"),12,accent()));
             RadioGroup.LayoutParams lp=new RadioGroup.LayoutParams(horizontal?0:-1,-2,horizontal?1:0);
             lp.setMargins(0,0,dp(horizontal&&i<labels.length-1?6:0),dp(horizontal?0:6));group.addView(b,lp);
         }
@@ -111,7 +125,7 @@ public class ByeolharuWidgetConfigActivity extends Activity {
         LinearLayout root=column();root.setPadding(dp(20),dp(16),dp(20),dp(24));root.setBackgroundColor(bg);
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.setBackgroundColor(bg);scroll.addView(root);setContentView(scroll);
         LinearLayout bar=new LinearLayout(this);bar.setGravity(Gravity.CENTER_VERTICAL);
-        Button back=new Button(this);back.setText("‹");back.setTextSize(24);back.setTextColor(ink());back.setContentDescription("뒤로가기");back.setBackgroundColor(Color.TRANSPARENT);back.setOnClickListener(v->finish());
+        Button back=new Button(this);back.setText("‹");back.setTextSize(24);back.setTextColor(ink());back.setContentDescription("뒤로가기");back.setBackgroundTintList(null);back.setBackground(controlBackground(Color.TRANSPARENT,0,12,accent()));back.setOnClickListener(v->finish());
         bar.addView(back,new LinearLayout.LayoutParams(dp(48),dp(48)));bar.addView(text("위젯 설정",22,ink(),true));root.addView(bar);
         space(root,12);preview=column();preview.setPadding(dp(10),dp(6),dp(10),dp(10));
         LinearLayout.LayoutParams pp=new LinearLayout.LayoutParams(dp(176),-2);pp.gravity=Gravity.CENTER_HORIZONTAL;root.addView(preview,pp);
@@ -123,13 +137,13 @@ public class ByeolharuWidgetConfigActivity extends Activity {
         if(filterIndex<2)second.clearCheck();else first.clearCheck();
         first.setOnCheckedChangeListener((g,selected)->{if(selected==-1)return;second.clearCheck();filterIndex=g.indexOfChild(g.findViewById(selected));refreshPreview();});
         second.setOnCheckedChangeListener((g,selected)->{if(selected==-1)return;first.clearCheck();filterIndex=2+g.indexOfChild(g.findViewById(selected));refreshPreview();});
-        space(root,12);hide=new Switch(this);hide.setText("완료한 습관 숨기기");hide.setTextColor(ink());hide.setTextSize(14);hide.setMinHeight(dp(48));hide.setPadding(dp(12),0,dp(12),0);hide.setBackground(shape(surface(),0,12));hide.setThumbTintList(controlTint());hide.setTrackTintList(ColorStateList.valueOf(color(night?"#596171":"#C8BFB3")));hide.setChecked(saved==null?prefs.getBoolean(id+":hide",false):saved.getBoolean("hide"));root.addView(hide);
+        space(root,12);hide=new Switch(this);hide.setText("완료한 습관 숨기기");hide.setTextColor(ink());hide.setTextSize(14);hide.setMinHeight(dp(48));hide.setPadding(dp(12),0,dp(12),0);hide.setBackgroundTintList(null);hide.setBackground(controlBackground(surface(),0,12,accent()));hide.setThumbTintList(controlTint());hide.setTrackTintList(ColorStateList.valueOf(color(night?"#596171":"#C8BFB3")));hide.setChecked(saved==null?prefs.getBoolean(id+":hide",false):saved.getBoolean("hide"));root.addView(hide);
         section(root,"화면 테마");choices(root,new String[]{"시스템","라이트","다크"},themeIndex,true,i->{themeIndex=i;refreshPreview();});
         space(root,20);LinearLayout privacy=column();privacy.setPadding(dp(12),dp(8),dp(12),dp(12));privacy.setBackground(shape(surface(),0,12));root.addView(privacy);
         consent=new CheckBox(this);consent.setText("홈 화면에 습관 표시");consent.setTextColor(ink());consent.setButtonTintList(controlTint());consent.setMinHeight(dp(48));consent.setChecked(saved==null?prefs.getBoolean(id+":consent",false):saved.getBoolean("consent"));privacy.addView(consent);
         privacy.addView(text("습관 이름과 완료 상태가 홈 화면에 표시됩니다.",13,muted(),false));
         space(privacy,6);privacy.addView(text(ByeolharuWidgetProvider.experimental(this)?"테스트 버전: 앱이 백그라운드에 있을 때 체크할 수 있어요.":"기록은 앱에서 할 수 있어요.",12,muted(),false));
-        space(root,20);save=new Button(this);save.setText("적용하기");save.setAllCaps(false);save.setTextSize(16);save.setMinHeight(dp(52));save.setTextColor(color(night?"#302D38":"#FFFFFF"));save.setBackground(shape(accent(),0,14));root.addView(save,new LinearLayout.LayoutParams(-1,-2));
+        space(root,20);save=new Button(this);save.setText("적용하기");save.setAllCaps(false);save.setTextSize(16);save.setMinHeight(dp(52));save.setTextColor(color(night?"#302D38":"#FFFFFF"));save.setBackgroundTintList(null);save.setBackground(controlBackground(accent(),0,14,color(night?"#302D38":"#FFFFFF")));root.addView(save,new LinearLayout.LayoutParams(-1,-2));
         save.setEnabled(existing || consent.isChecked());save.setAlpha(save.isEnabled()?1f:0.45f);
         consent.setOnCheckedChangeListener((b,checked)->{save.setEnabled(existing || checked);save.setAlpha(save.isEnabled()?1f:0.45f);refreshPreview();});
         hide.setOnCheckedChangeListener((b,checked)->refreshPreview());
