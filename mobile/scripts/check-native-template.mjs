@@ -284,7 +284,7 @@ assert.match(controlBg,/states.addState\(new int\[\]\{android.R.attr.state_enabl
 assert.match(controlBg,/states.addState\(new int\[\]\{android.R.attr.state_enabled,android.R.attr.state_pressed\},pressed\)/);
 assert.ok(controlBg.indexOf("state_focused")<controlBg.indexOf("state_pressed"));
 assert.ok(controlBg.indexOf("state_pressed")<controlBg.indexOf("new int[]{},shape"));
-for(const control of ["b","back","hide","save"]){
+for(const control of ["back","hide","save"]){
  assert.ok(configActivity.includes(control+".setBackgroundTintList(null);"+control+".setBackground(controlBackground("),control+" missing explicit focus styling");
 }
 assert.match(configActivity,/save.setBackground\(controlBackground\(accent\(\),0,14,color\(night\?"#302D38":"#FFFFFF"\)\)\)/);
@@ -319,3 +319,47 @@ for(const kind of ["row","row_action"]){
 }
 assert.match(widgetService,/public int getCount\(\)\{return ByeolharuWidgetProvider.configured\(c,id\)\?rows.size\(\):0;\}/);
 console.log("V11 adaptive resize and row source contracts OK (not a launcher test)");
+
+
+// V11-2: preview dimensions come from host options with metadata fallback.
+// Execute the pure sizing expressions rather than mocking a launcher.
+const previewScaleExpr=configActivity.match(/static float previewScaleFor\([^)]*\)\{\s*return ([^;]+);/)?.[1];
+assert.ok(previewScaleExpr);
+for(const [width,height,maxWidth,expected] of [[110,110,220,1],[220,110,220,1],[110,400,220,0.5],[440,220,220,0.5],[220,220,160,160/220]]){
+ assert.ok(Math.abs(runInNewContext(previewScaleExpr.replace(/(\d+)f/g,"$1").replaceAll("Math.min","Math.min"),{width,height,maxWidth})-expected)<0.00001);
+}
+const rowCapacityExpr=configActivity.match(/static int previewRowCapacity\([^)]*\)\{\s*return ([^;]+);/)?.[1];
+assert.ok(rowCapacityExpr);
+for(const [height,expected] of [[48,0],[110,1],[155,1],[156,2],[204,3],[300,5]]){
+ assert.equal(runInNewContext(rowCapacityExpr.replace(/\(int\)/,"Math.trunc").replace("Math.trunc(","Math.trunc(").replace(/(\d+)f/g,"$1"),{height}),expected);
+}
+assert.match(configActivity,/getAppWidgetOptions\(id\)/);
+assert.match(configActivity,/OPTION_APPWIDGET_SIZES/);
+assert.match(configActivity,/OPTION_APPWIDGET_MIN_WIDTH/);
+assert.match(configActivity,/info.minWidth\/density/);
+assert.match(configActivity,/if\(Build.VERSION.SDK_INT>=31\)/);
+assert.match(configActivity,/root.addView\(preview\);sizePreview\(id\)/);
+const samplePreview=configActivity.slice(configActivity.indexOf("private void refreshPreview"),configActivity.indexOf("private void updateApplyHint"));
+assert.doesNotMatch(samplePreview,/ByeolharuWidgetProvider.read|cache\(|consent.isChecked\(\)|saveOptions\(/);
+assert.match(samplePreview,/ByeolharuWidgetProvider.group\(null\)/);
+assert.match(samplePreview,/case "morning"/);
+assert.match(samplePreview,/case "day"/);
+assert.match(samplePreview,/case "night"/);
+assert.match(samplePreview,/shown<previewRows/);
+assert.match(samplePreview,/if\(i==0&&hide.isChecked\(\)\)continue/);
+assert.match(samplePreview,/기기 시간 기준/);
+assert.match(configActivity,/b.setButtonDrawable\(\(Drawable\)null\)/);
+assert.match(configActivity,/b.setBackground\(choiceBackground\(\)\)/);
+assert.match(configActivity,/b.setText\(\(b.isChecked\(\)\?"✓ ":""\)\+label\)/);
+assert.match(configActivity,/checked,android.R.attr.state_focused/);
+assert.match(configActivity,/checked,android.R.attr.state_pressed/);
+assert.match(configActivity,/states.addState\(new int\[\]\{checked\},shape\(fill,0,12\)\)/);
+assert.match(configActivity,/space\(root,8\);\s*RadioGroup second/);
+assert.match(configActivity,/표시 동의 후 위젯을 추가할 수 있어요/);
+assert.match(configActivity,/적용하면 홈 화면의 습관이 숨겨집니다/);
+assert.match(configActivity,/if\(!ByeolharuWidgetProvider.owns\(this,id\)\|\|\(!existing && !consent.isChecked\(\)\)\)return/);
+for(const theme of ["system","light","dark"]){
+ const icon=readFileSync(resolve(root,"native/widgets/drawable/byeolharu_widget_theme_"+theme+".xml"),"utf8");
+ assert.match(icon,/android:width="22dp" android:height="22dp"/);
+}
+console.log("V11 settings selection, synthetic preview and consent source contracts OK (not a device test)");
