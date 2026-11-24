@@ -64,8 +64,8 @@ test("denied OS permission cannot silently clear opt-in, native queue or habit d
   const denial=entry.slice(start,end);
   assert.doesNotMatch(denial,/localStorage\.setItem|schedule\(|lifecycle\.disable\(|setEnabled\(false\)/);
   assert.match(entry,/if \(!granted\) \{\s*try/);
-  assert.match(account,/권한이 차단되어 알림이 오지 않아요./);
-  assert.match(account,/aria-label="기기 알림 권한"/);
+  assert.match(account,/알림을 받으려면 휴대폰에서 별하루 알림을 허용해 주세요./);
+  assert.match(account,/aria-label="알림 설정 안내"/);
   assert.doesNotMatch(account,/aria-checked=\{nativeReminders\.active\}/);
 });
 

@@ -15,6 +15,7 @@ import { buildScopedReminderPlan } from "../notifications/scoped-reminder-runtim
 import { mergeReminderLedger, measureReminderLatency, formatReminderDelay } from "../notifications/reminder-latency.js";
 import { WRAPUP_GROUPS, WRAPUP_DEFAULTS, normalizeWrapupSettings, hasEnabledWrapup } from "../notifications/wrapup-reminders.js";
 import { createReminderLifecycle } from "../notifications/reminder-lifecycle.js";
+import { reconcileWithForegroundRetry } from "../notifications/foreground-reminder-retry.js";
 import { guestReminderAction } from "../notifications/guest-reminder-readiness.js";
 import { createResumeDispatcher } from "../notifications/native-resume-refresh.js";
 import { summarizeGuestPending } from "../notifications/guest-reminder-diagnostics.js";
@@ -127,7 +128,23 @@ function GuestNativeApp() {
         );
         return;
       }
-      const result = await lifecycle.sync(context);
+      // Android/OEM scheduling occasionally rejects despite valid permission.
+      // Reconcile once more while the same verified snapshot is still current,
+      // never after a logout, opt-out, stale day or background transition.
+      const currentScope = reminderIdentityKey(context.identity);
+      const canRetry = async () => {
+        if (!mounted.current || document.visibilityState !== "visible" ||
+            snapshot.current !== next ||
+            currentScope !== reminderIdentityKey(identityRef.current) ||
+            guestReminderAction(context.optIn || hasEnabledWrapup(context.wrapupSettings), context.snapshot) !== "sync") {
+          return false;
+        }
+        try { return (await LocalNotifications.checkPermissions()).display === "granted"; }
+        catch { return false; }
+      };
+      const result = await reconcileWithForegroundRetry({
+        sync: () => lifecycle.sync(context), canRetry,
+      });
       if (context.snapshot && (result.status === "updated" || result.status === "unchanged")) {
         try {
           const scope = reminderIdentityKey(context.identity);

@@ -77,6 +77,15 @@ export function AccountPanel({
   nativeBackup?: boolean;
 }) {
   const state = app.snapshot?.state;
+  // Android silently reconciles pending alarms on launch, saved changes and resume.
+  // Surface only OS permissions that cannot be repaired without the user's tap.
+  const wantsNativeReminders = Boolean(nativeReminders &&
+    (nativeReminders.enabled ||
+      Object.values(nativeReminders.wrapupSettings).some((period) => period.enabled)));
+  const displayPermissionNeeded = Boolean(wantsNativeReminders && nativeReminders &&
+    (nativeReminders.permissionState === "denied" || nativeReminders.permissionState === "prompt"));
+  const exactPermissionNeeded = Boolean(wantsNativeReminders && nativeReminders &&
+    nativeReminders.permissionState === "granted" && nativeReminders.exactPermission === "denied");
   const [message, setMessage] = useState("");
   const [feedbackVisible, setFeedbackVisible] = useState(true);
   const accountFeedback = app.error || message;
@@ -455,69 +464,27 @@ export function AccountPanel({
             <p className={"account-settings-message is-" + accountFeedbackTone(message)} role={accountFeedbackTone(message) === "error" ? "alert" : "status"}>{message}</p>
           )}
           {nativeReminders && <AccountSectionTitle className="account-settings-group-title">알림</AccountSectionTitle>}
-          {nativeReminders && (
-            <div className="account-ui-card account-ui-status-card account-setting-block android-permission-summary" role="group" aria-label="기기 알림 권한">
-              <div className="android-permission-compact">
-                <BellRing size={19} aria-hidden="true" className="android-permission-icon" />
-                <span className="android-permission-text">
-                  <strong>기기 알림</strong>
-                  <small>{nativeReminders.permissionState === "denied"
-                    ? "권한이 차단되어 알림이 오지 않아요."
-                    : nativeReminders.permissionState === "prompt"
-                      ? "허용하면 선택한 습관 알림을 받을 수 있어요."
-                      : "습관 알림을 받아요."}</small>
-                </span>
-                {nativeReminders.permissionState === "granted" ? (
-                  <span className="android-permission-granted" role="status">
-                    <CheckCircle2 size={16} aria-hidden="true" /> 허용됨
-                  </span>
-                ) : nativeReminders.permissionState === "unknown" ? (
-                  <span className="android-permission-unknown" role="status">확인 중…</span>
-                ) : (
-                  <button type="button" className="secondary android-permission-action"
-                    disabled={nativeReminders.busy || workingAction !== null || app.busy}
-                    aria-busy={workingAction === "device-permission"}
-                    onClick={() => void runOnce("device-permission", async () => {
-                      await nativeReminders.onRequestPermission();
-                    })}>
-                    {nativeReminders.permissionState === "denied" ? "기기 설정 열기" : "알림 허용하기"}
-                  </button>
-                )}
-              </div>
+          {nativeReminders && (displayPermissionNeeded || exactPermissionNeeded) && (
+            <div className="account-ui-card android-reminder-action-notice" role="group" aria-label="알림 설정 안내">
+              <AlertCircle size={19} aria-hidden="true" className="android-permission-icon" />
+              <span className="android-permission-text">
+                <strong>{displayPermissionNeeded ? "알림이 꺼져 있어요" : "정확한 시간 알림 설정"}</strong>
+                <small>{displayPermissionNeeded
+                  ? "알림을 받으려면 휴대폰에서 별하루 알림을 허용해 주세요."
+                  : "알림 시간을 더 정확히 맞추려면 기기에서 허용해 주세요."}</small>
+              </span>
+              <button type="button" className="secondary android-permission-action"
+                disabled={nativeReminders.busy || workingAction !== null || app.busy}
+                aria-busy={workingAction === (displayPermissionNeeded ? "device-permission" : "exact-permission")}
+                onClick={() => void runOnce(displayPermissionNeeded ? "device-permission" : "exact-permission", async () => {
+                  if (displayPermissionNeeded) await nativeReminders.onRequestPermission();
+                  else await nativeReminders.onRequestExactPermission();
+                })}>
+                {displayPermissionNeeded ? "알림 허용" : "설정"}
+              </button>
               {!!nativeReminders.status && /실패|못했|확인해 주세요|허용해 주세요|차단/.test(nativeReminders.status) && (
                 <p className="android-permission-help" role="status">{nativeReminders.status}</p>
               )}
-            </div>
-          )}
-          {nativeReminders && (
-            <div className="account-ui-card account-setting-block" role="group" aria-label="정확한 알림과 지연 확인">
-              <div className="android-permission-compact">
-                <BellRing size={19} aria-hidden="true" className="android-permission-icon" />
-                <span className="android-permission-text">
-                  <strong>정확한 시간 알림</strong>
-                  <small>{nativeReminders.exactPermission === "granted"
-                    ? "정확 예약을 우선 사용해요. 절전 중에는 지연될 수 있어요."
-                    : nativeReminders.exactPermission === "unknown"
-                      ? "정확 알림 권한을 확인하고 있어요."
-                      : "현재 일반 예약으로 알림을 보내요."}</small>
-                </span>
-                {nativeReminders.exactPermission === "granted" ? (
-                  <span className="android-permission-granted" role="status"><CheckCircle2 size={16} aria-hidden="true" /> 허용됨</span>
-                ) : nativeReminders.exactPermission === "unknown" ? (
-                  <span className="android-permission-unknown" role="status">확인 중…</span>
-                ) : (
-                  <button type="button" className="secondary android-permission-action"
-                    disabled={nativeReminders.busy || workingAction !== null || app.busy}
-                    onClick={() => void runOnce("exact-permission", async () => {
-                      await nativeReminders.onRequestExactPermission();
-                    })}>정확 알림 허용</button>
-                )}
-              </div>
-              <button type="button" className="secondary" disabled={nativeReminders.busy || workingAction !== null || app.busy}
-                onClick={() => void runOnce("latency", async () => {
-                  await nativeReminders.onInspectLatency();
-                })}>최근 알림 지연 확인</button>
-              {nativeReminders.latencyStatus && <p className="account-note" role="status">{nativeReminders.latencyStatus}</p>}
             </div>
           )}
           {nativeReminders && (

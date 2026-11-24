@@ -24,7 +24,7 @@ test("shared account settings render native reminder actions only when provided 
  assert.match(account,/\{nativeReminders && \(/);
  assert.doesNotMatch(account,/aria-checked=\{nativeReminders\.active\}/);
  assert.doesNotMatch(account,/알림 문제 해결|android-reminder-details/);
- assert.match(account,/aria-label="기기 알림 권한"/);
+ assert.match(account,/aria-label="알림 설정 안내"/);
  assert.match(account,/nativeReminders\.permissionState === "denied"/);
  assert.match(app,/nativeReminders\?: NativeReminderControls/);
  assert.match(app,/nativeAlarmEditor=\{Boolean\(nativeReminders\)\}/);

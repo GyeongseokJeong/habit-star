@@ -5108,3 +5108,52 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   color: var(--ink);
 }
 .confirm-description-line { display: block; }
+
+
+/* Production Android settings: action-needed-only notice.
+   Successful auto-reconciliation and latency diagnostics are never a setting. */
+.account-panel .account-settings-final .android-reminder-action-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 6px 0 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--soft);
+}
+.account-panel .android-reminder-action-notice .android-permission-text {
+  flex: 1 1 170px;
+  min-width: 0;
+}
+.account-panel .android-reminder-action-notice .android-permission-text strong {
+  font-size: 14px;
+}
+.account-panel .android-reminder-action-notice .android-permission-help {
+  width: 100%;
+  margin: 0;
+}
+.account-panel .account-settings-final .android-wrapup-settings {
+  margin: 6px 0 22px;
+  padding: 14px 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--soft);
+}
+.account-panel .account-settings-final .android-wrapup-settings .account-setting-heading {
+  margin-bottom: 12px;
+}
+@media (max-width: 350px) {
+  .account-panel .account-settings-final .android-reminder-action-notice {
+    gap: 9px;
+    padding: 12px;
+  }
+  .account-panel .android-reminder-action-notice .android-permission-action {
+    margin-left: 28px;
+  }
+  .account-panel .account-settings-final .android-wrapup-settings {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
