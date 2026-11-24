@@ -197,7 +197,15 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
         schedule(c,data);
     }
     @Override public void onUpdate(Context c,AppWidgetManager m,int[] ids) { refreshAll(c); }
-    @Override public void onAppWidgetOptionsChanged(Context c,AppWidgetManager m,int id,android.os.Bundle options) { refreshAll(c); }
+    @Override public void onAppWidgetOptionsChanged(Context c,AppWidgetManager m,int id,android.os.Bundle options) {
+        super.onAppWidgetOptionsChanged(c,m,id,options);
+        // The shared flexible layout uses host-measured width/height. Do not
+        // store cell sizes, change preferences, trim rows or rotate action keys.
+        // Refresh only the resized instance under the normal projection lock.
+        synchronized (ByeolharuWidgetProvider.class) {
+            if (owns(c,id)) render(c,id,read(c));
+        }
+    }
     @Override public void onDeleted(Context c,int[] ids) {
         synchronized (ByeolharuWidgetProvider.class) {
             SharedPreferences.Editor e=options(c).edit();
