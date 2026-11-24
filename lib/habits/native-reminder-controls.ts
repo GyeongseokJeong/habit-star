@@ -15,6 +15,10 @@ export type NativeReminderControls = {
   /** Android-first-run invitation, independent of the saved reminder switches. */
   showPermissionOffer: boolean;
   onRequestPermission: () => Promise<boolean>;
+  exactPermission: "unknown" | "granted" | "denied";
+  onRequestExactPermission: () => Promise<boolean>;
+  latencyStatus: string;
+  onInspectLatency: () => Promise<void>;
   onDismissPermissionOffer: () => void;
   busy: boolean;
   status: string;
