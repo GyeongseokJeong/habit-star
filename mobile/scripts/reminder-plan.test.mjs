@@ -53,6 +53,7 @@ test("bounded queue and stable IDs; payload carries owned metadata", () => {
   assert.equal(payload.extra.habitId,first.habitId);
   assert.equal(payload.schedule.allowWhileIdle,true);
   assert.equal(payload.isExactNotification,false);
+  assert.equal(toNativeNotification(first,DEMO_SCOPE,{exact:true}).isExactNotification,true);
   assert.equal(Object.hasOwn(payload.schedule,"isExactNotification"),false);
   assert.throws(()=>toNativeNotification(first,""));
 });
