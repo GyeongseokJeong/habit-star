@@ -150,12 +150,65 @@ for (const width of [320, 390, 430]) {
     expect(layout.titleEndsBeforeEdit).toBe(true);
     expect(layout.metaInCard).toBe(true);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    // Chromium only applies :focus-visible after keyboard modality. Programmatic
-    // focus immediately after a pointer click deliberately has no visible ring.
+    // focus-visible responds to keyboard modality, not an isolated script focus.
+    // Switch input modality before focusing each element, as a keyboard user would.
     await page.keyboard.press("Tab");
     await completed.locator(".card-content").focus();
+    await expect(completed.locator(".card-content")).toBeFocused();
     await expect(completed.locator(".card-content")).toHaveCSS("outline-style", "solid");
+    await page.keyboard.press("Tab");
     await completed.getByRole("button", { name: title + " 수정" }).focus();
+    await expect(completed.getByRole("button", { name: title + " 수정" })).toBeFocused();
     await expect(completed.getByRole("button", { name: title + " 수정" })).toHaveCSS("outline-style", "solid");
+  });
+}
+
+for (const width of [320, 360, 390, 430]) {
+  test(`normal habit cards keep separate 44px stars and aligned starts at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("/");
+    await page.getByRole("tab", { name: "전체", exact: true }).click();
+    const card = page.locator(".normal-pending-list .habit-card").first();
+    await expect(card).toBeVisible();
+    const layout = await card.evaluate((element) => {
+      const heading = element.querySelector(".card-content h3")!.getBoundingClientRect();
+      const emoji = element.querySelector(".habit-emoji")!.getBoundingClientRect();
+      const content = element.querySelector(".card-content")!.getBoundingClientRect();
+      const divider = element.querySelector(".card-rating")!.getBoundingClientRect();
+      const starButtons = Array.from(element.querySelectorAll(".card-rating .star-tray button"));
+      const firstStar = starButtons[0].querySelector("svg")!.getBoundingClientRect();
+      const starRects = starButtons.map(button => button.getBoundingClientRect());
+      const cardRect = element.getBoundingClientRect();
+      return {
+        titleStart: heading.left,
+        starStart: firstStar.left,
+        ratingWidth: divider.width,
+        starSizes: starRects.map(rect => [rect.width, rect.height]),
+        firstButtonLeft: starRects[0].left,
+        lastButtonRight: starRects[4].right,
+        ratingRight: divider.right,
+        ratingBelowInfo: divider.top >= content.bottom - 1,
+        hasDivider: getComputedStyle(element.querySelector(".card-rating")!).borderTopStyle === "solid",
+        emojiVerticallyCentered: Math.abs((emoji.top + emoji.height / 2) - (content.top + content.height / 2)) <= 1,
+        noHorizontalCardOverflow: element.scrollWidth <= element.clientWidth + 1,
+        maxHeadingLines: Math.round(heading.height / parseFloat(getComputedStyle(element.querySelector(".card-content h3")!).lineHeight)),
+      };
+    });
+    expect(layout.starSizes).toHaveLength(5);
+    expect(layout.starSizes.every(([w, h]) => w >= 43.99 && h >= 43.99)).toBe(true);
+    expect(layout.ratingBelowInfo).toBe(true);
+    expect(layout.hasDivider).toBe(true);
+    expect(layout.emojiVerticallyCentered).toBe(true);
+    expect(layout.noHorizontalCardOverflow).toBe(true);
+    expect(layout.lastButtonRight).toBeLessThanOrEqual(layout.ratingRight + 1);
+    expect(layout.maxHeadingLines).toBeLessThanOrEqual(2);
+    if (width >= 390) {
+      expect(Math.abs(layout.starStart - layout.titleStart)).toBeLessThanOrEqual(2);
+    } else {
+      // A narrow Android viewport may relax perfect alignment before reducing
+      // any 44px star target or adding horizontal scrolling.
+      expect(layout.starStart).toBeLessThanOrEqual(layout.titleStart + 2);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 }
