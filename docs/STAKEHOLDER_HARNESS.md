@@ -1,4 +1,4 @@
-# Stakeholder Harness 3.0 — 별하루
+# Stakeholder Harness 3.1 — 별하루
 
 ## 책임 및 적용 범위
 
@@ -12,34 +12,49 @@
 | 시니어 BM·사업 전략 매니저 | 지속 가능한 수익모델, 비용·운영 부담, 차별화 및 경제적 타당성을 책임진다. | 대안별 가치 / 비용·수익 가정 / 무료·유료 경계 / 실험·중단 기준 / 리스크 |
 | 시니어 그로스·브랜드 마케터 | 발견→설치→첫 실천→재방문→자발적 공유의 고객 여정과 정직한 브랜드 전달을 책임진다. | 대상·메시지 / 여정 / 실험·지표 / 개인정보·브랜드 위험 |
 | 일반 사용자 관점 검토자 | 전문가의 가정을 실제 일상 행동 시나리오로 반박한다. 실제 인터뷰·사용성 테스트를 대체하지 않는다. | 선택한 사용자 유형 / 시나리오 / 예상 마찰 / 개선 제안 / 실제 테스트 과제 |
+| 시니어 SW 아키텍트 | 시스템 경계, 데이터 소유권, 의존성, 확장성, 장애 격리와 기술 부채를 책임진다. | 근거·대안·리스크·검증 및 반박 |
+| 시니어 클린코드 전문가 | 가독성, 응집도, 변경 용이성, 테스트 가능성과 불필요한 복잡도 제거를 책임진다. | 근거·대안·리스크·검증 및 반박 |
+| 풀스택 시니어 개발자 | 실제 구현 가능성, 프런트·백엔드·Android 통합, 오류 처리와 실행 검증을 책임진다. | 근거·대안·리스크·검증 및 반박 |
+| 시니어 서버 운영 전문가 | 가용성, 배포·복구, 관측 가능성, 비용 및 운영 부담을 책임진다. | 근거·대안·리스크·검증 및 반박 |
 
-PM은 조율 담당이며 사용자 승인이나 data-guardian, quality-gate, release-guardian의 금지 사항을 무효화할 권한이 없다. UI/UX 전문가는 설계 판단을, 기존 design-guardian/accessibility-auditor는 구현 검증을 담당한다. 개발·데이터·보안·QA·출시 담당은 기존 6개 스킬을 통해 참여한다.
+PM은 조율 담당이며 사용자 승인이나 data-guardian, quality-gate, release-guardian의 금지 사항을 무효화할 권한이 없다. UI/UX 전문가는 설계 판단을, 기존 design-guardian/accessibility-auditor는 구현 검증을 담당한다. 기술 전문가 4종은 설계/구현 판단을 담당하고 기존 6개 보호 스킬은 별도의 필수 검증을 담당한다.
 
 ## 작업별 선정
 
 `node scripts/select-stakeholders.mjs <route> [modifier ...]` 로 권장 패널·스킬·검토 횟수를 출력한다. 코드는 자동 실행하지 않고 실제 작업자가 선택된 SKILL.md를 읽는다. 복수 작업은 관련 route의 합집합으로 다루되 불필요한 역할은 사유를 남겨 제외할 수 있다. 영향에 따른 보호 스킬은 제외할 수 없다.
 
-| route | 사용 상황 | 기본 역할 | 검토 |
-|---|---|---|---|
-| ui-concept | 시안/리디자인 | product, ui, ux, user | 2회 |
-| new-feature | 개별 신규 기능 | product, ux, user | 2회 |
-| feature-discovery | 신규 기능 발굴/로드맵 | product, ui, ux, business, marketing, user | 2회 |
-| monetization | BM/가격/광고 | product, business, marketing, ux, user | 2회 |
-| marketing | 스토어/유입/공유 | product, marketing, business, user | 2회 |
-| user-facing-bug | 사용자 영향 결함 | ux, user | 1회 |
-| release | 출시 판단 | product, marketing, business, user | 1회 |
-| technical | CI/리팩터링/내부 수정 | 없음; 기술 보호 스킬만 | 1회 |
-| harness | 하네스/스킬 갱신 | product | 1회 |
+| route | 기본 역할 | 최소~최대 라운드 |
+|---|---|---|
+| ui-concept | product, ui, ux, user | 2~3 |
+| new-feature | product, ux, user, fullstack | 2~3 |
+| feature-discovery | product, ui, ux, business, marketing, user | 2~3 |
+| monetization | product, business, marketing, ux, user | 2~3 |
+| marketing | product, marketing, business, user | 2~3 |
+| user-facing-bug | ux, user, fullstack | 1~3 |
+| release | product, marketing, business, user, operations | 2~3 |
+| technical | 없음 (보호 스킬만) | 1~1 |
+| harness | product, architect, clean-code | 2~3 |
+| architecture | architect, fullstack | 2~3 |
+| code-review | clean-code, fullstack | 2~3 |
+| operations | operations, architect | 2~3 |
 
-modifier: ui(화면/상호작용), data(저장·인증·동기화), business(가격·비용), acquisition(유입·브랜드 홍보), implementation(구현), release(실제 출시 판단). 기존 AGENTS.md 보호 스킬 표는 항상 함께 적용한다. 기획만 할 때 구현/테스트를 실행한 것처럼 쓰지 않는다. 여러 영향이 있으면 modifier를 모두 적용한다. 간단한 오타/CI 원인 분석에는 전문가 회의를 강제하지 않는다.
+modifier: ui, data, business, acquisition, implementation, release, architecture, code-quality, operations. 실제 영향 범위에 따라 합집합 선택. data는 아키텍트·풀스택 및 data-guardian, implementation은 풀스택·클린코드 및 feature-builder/quality-gate, release는 운영 및 release-guardian, architecture/code-quality/operations는 해당 기술 역할과 quality-gate를 추가한다. 단순 CI/오타만 technical로 처리하며 의미 있는 리팩터링은 code-review를 사용한다. 영향에 따른 보호 스킬은 제외할 수 없다.
 
-## 검토 루프 및 승인 게이트
+## 비판적 검토 루프 및 승인 게이트
 
-1. **근거·목표**: 작업 요청, 현재 SHA/화면/이슈, 사용자 확정 정책, 범위·비대상·미확인 근거를 공통 브리프로 만든다. 기존 정상 동작을 기준선으로 기록한다.
-2. **독립 1차 검토**: 각 관점은 다른 역할의 점수를 먼저 모방하지 않고 자체 기준으로 강점·반대 근거·P0~P3 이슈·개선안을 기록한다. 실제 서브에이전트 실행 도구가 있을 때만 별도 에이전트 실행이라고 말한다. 없으면 같은 모델의 구조화 관점 검토라고 명시한다.
-3. **교차 검토·수정**: UI↔UX(밀도/조작/접근성), PM↔BM(가치/비용/범위), 마케팅↔사용자(약속/실제 경험)처럼 관련 관점의 충돌과 대안을 비교한다. 해당하지 않는 역할은 불러오지 않는다. 결정·기각 이유와 담당, 수용 조건을 기록한다.
-4. **2차 검토**: 시안·기능 발굴·신규 기능·BM·마케팅의 수정본을 같은 기준으로 재검토한다. 변경되지 않은 항목을 근거 없이 상향하지 않는다. 미해결 P0/P1 또는 보호 스킬 위반이 있으면 수정/보류. 단순 결함/내부/출시는 1회 기본이며 중대한 의견 불일치가 있으면 추가 검토.
-5. **실행·검증**: 사용자 요청 범위 내에서 확정한 설계를 구현하고 관련 보호 스킬·CI를 실행한다. 큰 디자인/제품 정책 변경은 시안과 결정 근거를 먼저 제시한다. 단순 리뷰 수용/승인된 범위의 수정은 재승인을 강제하지 않는다. 실기기·사용자 연구 미검증을 별도 표시한다. PR에는 패널 요약, 수용/보류, 검증 항목, 남은 위험을 남긴다. 사용자 승인 없는 운영 DB/배포/결제/계측/기록 삭제 금지.
+중요한 시안·기획·설계·코드 리뷰는 최소 2회 최대 3회, 단순 결함은 1회부터 최대 3회, 단순 CI/오타는 1회로 제한한다. 각 라운드는 아래 5단계를 모두 포함한다. 초기 브리프는 라운드 밖에서 기준 SHA/화면/정책/목표/비대상/미확인 근거를 고정한다.
+
+1. 독립 검토: 역할마다 근거, 강점, 취약점, 대안, 심각도 및 수용 조건을 기록한다. 실제 독립 에이전트가 없으면 동일 모델의 관점 검토라고 명시한다.
+2. 비판적 반박: 관련 역할이 다른 역할의 제안 또는 핵심 가정에 대해 구체적인 실패 시나리오·반례·비용·증거 부족을 지적한다. 합의를 위한 억지 반박이나 인신 공격 금지. 반박할 실질 문제가 없다면 확인한 근거와 이유를 기록한다.
+3. 재반박: 제안자는 해당 지적을 근거로 수용·부분 수용·기각·보류하고, 반론의 근거와 대안 비교를 남긴다. 해결되지 않은 이견을 숨기지 않는다.
+4. 수정: 채택 사항을 실제 수정본/시안/설계/코드 계획에 반영한다. 변경 없는 경우 이유를 기록한다. 각 쟁점은 ID, 제안자, 반박자, 근거, 응답, 결정, 담당, 수용 조건으로 추적한다.
+5. 재평가: 동일 기준·가중치로 수정본을 확인하고 미해결 이견과 검증 한계를 기록한다. 시안 검토에는 평가한 시안과 변경된 시안을 함께 제시한다(사용자가 이미지 생성 요청하지 않은 경우 기존 화면 또는 텍스트/도식 사용). 구현·실기기·CI는 실제 실행과 구분한다.
+
+### 종료 판단
+
+최소 라운드 전에는 종료하지 않는다. 최소 충족 후 실질적인 새 문제 없음, 수용 조건 충족, 중요 이견 해소, 필수 게이트 통과(설계에서는 실행 전 검증 조건 명시)인 경우 조기 종료 가능. 중대한 변경·근거 부족·P0/P1·핵심 이견이 남으면 다음 라운드. 최대 3회 이후 추가 반복 없이 결론을 도출한다. 미해결 P0/P1, 필수 게이트 실패 또는 중대한 미검증 위험은 보류하고 사용자에게 다음 검증/결정 사항을 제시한다. 점수로 위험을 상쇄하지 않는다. 단순 CI의 1회 제한은 실제 코드·테스트 수정 반복을 금지하는 것이 아니라 패널 토론 횟수만 제한한다.
+
+사용자 승인 범위에서만 구현하며 정책 변경·운영 DB/배포/결제/계측/기록 삭제는 별도 승인. PR에 라운드별 핵심 반박·재반박·결정·잔여 위험과 실행 결과를 남긴다.
 
 ## 점수 기준
 
@@ -49,19 +64,21 @@ modifier: ui(화면/상호작용), data(저장·인증·동기화), business(가
 
 - 작업/기준 SHA/증거(현재 UI·시안·실기기·코드·CI)/승인 범위
 - 적용 route·modifier, 참여/제외 역할 및 보호 스킬, 실제 독립 에이전트 여부
-- 1차 역할별 기준 점수 또는 N/E, 근거, 위험, 개선안
-- 충돌과 대안, 채택/기각/보류 이유, 담당 및 수용 조건
-- 2차 수정 내용·동일 기준 재평가·남은 이견 (또는 1회 검토 사유)
+- 라운드별 역할 판단/근거/점수 또는 N/E, 쟁점 ID, 제안자→반박자→재반박, 수용/기각/보류 이유 및 담당·조건
+- 수정본 및 동일 기준 재평가, 다음 라운드 필요성/종료 사유, 최대 3회 이후 보류 사항
 - 실행/테스트/CI SHA 및 실기기/사용자 조사 미검증, 다음 행동
 - GitHub 이슈/PR 링크. 단순 기술 작업은 한두 문단으로 압축.
 
 ## 검증 시나리오
 
 - 위젯 V6 시안: ui-concept + ui → PM/UI/UX/사용자, 시스템 테마·48dp 직접 체크·저장 성공·좁은 화면을 검토. 실제 기록 수정이면 data + implementation 추가.
-- 신규 기능 발굴: feature-discovery → 6개 관점으로 문제/기능/비용/유입/사용자 검토, 중복 이슈 확인, 2차 우선순위 재검토.
+- 신규 기능 발굴: feature-discovery → 6개 관점으로 문제/기능/비용/유입/사용자 검토, 중복 이슈 확인, 최대 3회 비판적 우선순위 재검토.
 - 테마 컬렉션 유료화 검토: monetization + ui + acquisition → 6개 역할, 무료 기존 별자리/성장 정책 보존, 수익·전환은 가설.
 - 단순 CI 실패: technical → quality-gate, 화면/데이터 변경이 없다면 전문가 패널 생략.
-- Supabase 변경: technical + data + implementation → data-guardian/quality-gate/feature-builder, 기존 원본·RLS·Outbox 보존.
+- Supabase 변경: architecture + data + implementation → 아키텍트/풀스택/클린코드 및 data-guardian/quality-gate/feature-builder, 기존 원본·RLS·Outbox 보존.
 - 출시: release + ui + data → 관련 역할 및 기술 보호 스킬, 미검증/실패 시 보류.
 
 정적 검사는 routing과 스킬 파일의 정합성을 확인하며 실제 에이전트 호출/품질/실기기 검증을 증명하지 않는다.
+
+- 코드 리뷰: code-review + architecture (경계 변경 시) → 클린코드/풀스택/아키텍트, 반례와 최소 패치 검토.
+- 서버 장애: operations + data (저장 영향 시) → 운영/아키텍트/풀스택 및 데이터 보호. 승인 없는 운영 변경 금지.

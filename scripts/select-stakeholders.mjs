@@ -6,14 +6,17 @@ export function selectStakeholders(route, modifiers = []) {
   const base = Object.hasOwn(routing.routes, route) ? routing.routes[route] : undefined;
   if (!base) throw new Error("Unknown route: " + route);
   const roles = new Set(base.roles), guards = new Set(base.guards);
+  let minRounds=base.minRounds, rounds=base.rounds;
   for (const modifier of modifiers) {
     const extra = Object.hasOwn(routing.modifiers, modifier) ? routing.modifiers[modifier] : undefined;
     if (!extra) throw new Error("Unknown modifier: " + modifier);
     extra.roles.forEach(role => roles.add(role));
     extra.guards.forEach(guard => guards.add(guard));
+    minRounds=Math.max(minRounds,extra.minRounds??1);
+    rounds=Math.max(rounds,minRounds,extra.minRounds?routing.reviewPolicy.maxRounds:1);
   }
   const roleSkills = routing.roles.filter(role => roles.has(role.id)).map(role => role.skill);
-  return { route, modifiers: [...new Set(modifiers)], rounds: base.rounds,
+  return { route, modifiers: [...new Set(modifiers)], minRounds, rounds, reviewPhases: routing.reviewPolicy.phases,
     roles: routing.roles.filter(role => roles.has(role.id)).map(role => role.id),
     skills: [...(roleSkills.length ? ["stakeholder-panel"] : []), ...roleSkills, ...guards] };
 }
