@@ -31,7 +31,7 @@ describe("native individual reminder navigation", () => {
       { ...context, memberId: null, snapshot: { ...snapshot, day: localDay } })).toEqual({ kind: "open", habit });
   });
   it("ignores cross-account, stale, deleted and already completed targets", () => {
-    for (const [t, c] of [
+    const cases: Array<Parameters<typeof resolveHabitReminder>> = [
       [{ ...target, scope: "member:bob" }, context],
       [{ ...target, scope: "guest" }, context],
       [{ ...target, day: "2026-11-23" }, context],
@@ -40,7 +40,8 @@ describe("native individual reminder navigation", () => {
       [target, { ...context, habits: [{ ...habit, alarmEnabled: false }] }],
       [target, { ...context, habits: [{ ...habit, repeatDays: [0] }] }],
       [target, { ...context, blocked: true }],
-    ] as const) expect(resolveHabitReminder(t, c)).toEqual({ kind: "ignore" });
+    ];
+    for (const [t, c] of cases) expect(resolveHabitReminder(t, c)).toEqual({ kind: "ignore" });
   });
   it("waits for rollover instead of navigating into yesterday's snapshot", () => {
     const yesterday = "2026-11-23";
