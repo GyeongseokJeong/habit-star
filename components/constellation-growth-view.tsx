@@ -101,6 +101,8 @@ export function ConstellationGrowthView({
   if (previewOpen) {
     return (
       <StarlightCardPreview
+        key={galleryStage}
+        selectedStage={galleryStage}
         points={points}
         completedHabits={completedHabits}
         streak={streak}

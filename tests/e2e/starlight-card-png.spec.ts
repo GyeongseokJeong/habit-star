@@ -84,3 +84,30 @@ test("V5 STEP 2 exports earned Stage 6 art and works in dark mode", async ({ pag
   await assertPng((await download.path())!);
   await expect(preview.locator(".starlight-share-card")).toContainText("Stage 6");
 });
+
+test("V5.4 saves distinct PNGs for previously unlocked Stages without stale cache", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.clock.setFixedTime(new Date("2026-11-20T20:00:00+09:00"));
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: /나의 별자리 STAGE 1/ })).toBeVisible();
+  await seedConstellationPoints(page, 20);
+  await page.getByRole("button", { name: /나의 별자리 STAGE 3/ }).click();
+  const detail = page.getByRole("dialog", { name: "나의 별자리" });
+  const bytes: Buffer[] = [];
+  for (const stage of [1, 2]) {
+    await detail.getByRole("button", { name: new RegExp(`Stage ${stage} `) }).click();
+    await detail.getByRole("button", { name: "별빛 카드 만들기" }).click();
+    const preview = page.getByRole("dialog", { name: "별빛 카드" });
+    await expect(preview.locator(`[data-constellation-stage='${stage}']`)).toBeVisible();
+    const downloadPromise = page.waitForEvent("download", { timeout: 90_000 });
+    await preview.getByRole("button", { name: "이미지 저장" }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toBe(`byeolharu-starlight-stage-${stage}.png`);
+    const path = (await download.path())!;
+    await assertPng(path);
+    bytes.push(await readFile(path));
+    await preview.getByRole("button", { name: "별자리 성장으로 돌아가기" }).click();
+  }
+  expect(bytes[0].equals(bytes[1])).toBe(false);
+});
