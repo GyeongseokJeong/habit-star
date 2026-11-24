@@ -58,6 +58,7 @@ console.log(`Android native PoC activity patched for ${targetPackage}`);
 
 const returnManifestPath = resolve(mobileRoot, "android/app/src/main/AndroidManifest.xml");
 let returnManifest = readFileSync(returnManifestPath, "utf8");
+const initialManifest = returnManifest;
 const returnFilter = `            <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -71,8 +72,15 @@ assert.ok(activity, "Missing MainActivity in generated Android manifest");
 assert.ok(activity[1].includes('android:exported="true"'), "Return activity must be exported");
 if (!activity[2].includes('android:scheme="byeolharu-return"')) {
   returnManifest = returnManifest.replace(activityPattern, (_, start, body, end) => start + body + "\n" + returnFilter + end);
-  writeFileSync(returnManifestPath, returnManifest);
 }
+// User-controlled exact-alarm special access, never the restricted USE_EXACT_ALARM.
+if (!returnManifest.includes("android.permission.SCHEDULE_EXACT_ALARM")) {
+  const header = returnManifest.match(/<manifest\b[^>]*>/);
+  assert.ok(header, "Missing Android manifest root");
+  returnManifest = returnManifest.replace(header[0],
+    header[0] + '\n    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />');
+}
+if (returnManifest !== initialManifest) writeFileSync(returnManifestPath, returnManifest);
 
 if (process.env.BYEOLHARU_ANDROID_RELEASE === "1") {
   const { code, name } = JSON.parse(readFileSync(resolve(mobileRoot, "release-version.json"), "utf8"));

@@ -19,6 +19,7 @@ export function validateNotificationManifest(tree) {
     ["locked boot action", "android.intent.action.LOCKED_BOOT_COMPLETED"],
     ["boot completed permission", "android.permission.RECEIVE_BOOT_COMPLETED"],
     ["notification display permission", "android.permission.POST_NOTIFICATIONS"],
+    ["exact alarm special access", "android.permission.SCHEDULE_EXACT_ALARM"],
   ];
   for (const [label, token] of required) {
     assert.ok(tree.includes(token), "Packaged Android APK is missing " + label + ": " + token);

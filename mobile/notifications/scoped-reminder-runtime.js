@@ -72,12 +72,16 @@ export function buildScopedReminderPlan(
  * caller's entire Android notification queue (not a prefiltered subset).
  * A conflicting foreign ID aborts before ANY writes.
  */
-export function diffScopedNotifications(pending, scopedPlan) {
+export function diffScopedNotifications(pending, scopedPlan, { exact = false } = {}) {
   if (!Array.isArray(pending) || !scopedPlan || !Array.isArray(scopedPlan.notifications)) {
     throw new Error("알림 예약 비교를 위한 입력이 올바르지 않습니다.");
   }
   const scope = requireReminderScope(scopedPlan.scope);
-  const desired = scopedPlan.notifications.map((item) => toNativeNotification(item, scope));
+  const desired = scopedPlan.notifications.map(item => {
+    const notification = toNativeNotification(item, scope, { exact });
+    return exact ? { ...notification, extra: { ...notification.extra,
+      fingerprint: notification.extra.fingerprint + ":exact-v1" } } : notification;
+  });
   const desiredById = new Map();
   for (const item of desired) {
     if (desiredById.has(item.id)) throw new Error("중복 예약 ID가 존재합니다.");
@@ -133,11 +137,17 @@ export async function reconcileScopedReminders(
   if (permission.display !== "granted") {
     return { status: "permission-required", changed: false };
   }
+  // Never implicitly open Android special app access; a user must request it.
+  let exactPermission = "unknown";
+  try {
+    const setting = await localNotifications.checkExactNotificationSetting?.();
+    exactPermission = setting?.exact_alarm === "granted" ? "granted" : "denied";
+  } catch { /* Gracefully fall back for unsupported native versions. */ }
   const pending = (await localNotifications.getPending()).notifications;
-  const changes = diffScopedNotifications(pending, scopedPlan);
+  const changes = diffScopedNotifications(pending, scopedPlan, { exact: exactPermission === "granted" });
   // Finish validation before altering any native reservation.
   if (!changes.cancel.length && !changes.schedule.length) {
-    return { status: "unchanged", changed: false, ...changes };
+    return { status: "unchanged", changed: false, exactPermission, ...changes };
   }
   if (changes.schedule.length) {
     await localNotifications.createChannel({
@@ -153,7 +163,7 @@ export async function reconcileScopedReminders(
   if (changes.schedule.length) {
     await localNotifications.schedule({ notifications: changes.schedule });
   }
-  return { status: "updated", changed: true, ...changes };
+  return { status: "updated", changed: true, exactPermission, ...changes };
 }
 
 /**

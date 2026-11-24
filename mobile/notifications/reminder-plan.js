@@ -8,7 +8,7 @@ export const DEMO_SCOPE = "step5-isolated-demo";
 export const MAX_REMINDERS = 48;
 // Include the native scheduling policy in fingerprints so an app update
 // replaces pending alarms created by the old, non-idle-capable policy.
-export const REMINDER_DELIVERY_POLICY = "idle-inexact-v2";
+export const REMINDER_DELIVERY_POLICY = "prefer-exact-v3";
 
 const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
@@ -169,7 +169,7 @@ export function buildReminderPlan(
   };
 }
 
-export function toNativeNotification(planItem, scope) {
+export function toNativeNotification(planItem, scope, { exact = false } = {}) {
   if (typeof scope !== "string" || !scope.trim()) {
     throw new Error("알림 소유 범위를 지정해야 합니다.");
   }
@@ -187,7 +187,7 @@ export function toNativeNotification(planItem, scope) {
     },
     // Capacitor Local Notifications 8.3+ puts this on LocalNotificationSchema,
     // NOT schedule. Do not trigger an unexpected exact-alarm settings prompt.
-    isExactNotification: false,
+    isExactNotification: exact,
     channelId: "byeolharu-habit-reminders-step5",
     extra: {
       kind: REMINDER_KIND,

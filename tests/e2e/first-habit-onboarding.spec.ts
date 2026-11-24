@@ -94,7 +94,11 @@ test("compact example label is announced to assistive technology", async ({ page
 });
 
 test("first-use hint can be dismissed without changing habits, even after reload", async ({ page }) => {
+  // Avoid asserting counts while the initial automatic time-of-day tab resolves.
+  await page.clock.setFixedTime(new Date("2026-11-20T09:00:00+09:00"));
   await page.goto("/");
+  await expect(page.getByRole("button", { name: "새 습관 추가", exact: true })).toBeEnabled();
+  await page.getByRole("tab", { name: "전체", exact: true }).click();
   await expect(page.locator(".first-habit-hint")).toBeVisible();
   const cardsBefore = await page.locator(".habit-card").count();
   await page.getByRole("button", { name: "시작 안내 숨기기" }).click();

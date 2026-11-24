@@ -89,6 +89,18 @@ test("delivery policy update replaces old pending alarms without changing IDs or
   assert.ok(diff.schedule.every(n=>n.schedule.allowWhileIdle===true && n.isExactNotification===false));
   assert.equal(diffScopedNotifications([...diff.schedule,unrelated],desired).schedule.length,0);
 });
+test("exact alarm permission changes reservations without changing notification IDs", async () => {
+  const native=fakeNative();
+  native.checkExactNotificationSetting=async()=>({exact_alarm:"granted"});
+  const first=await reconcileScopedReminders(native,plan());
+  assert.equal(first.exactPermission,"granted");
+  assert.ok(first.schedule.every(item=>item.isExactNotification===true));
+  native.checkExactNotificationSetting=async()=>({exact_alarm:"denied"});
+  const second=await reconcileScopedReminders(native,plan());
+  assert.equal(second.exactPermission,"denied");
+  assert.equal(second.cancel.length,2);
+  assert.ok(second.schedule.every(item=>item.isExactNotification===false));
+});
 test("edited time changes fingerprint; disabling removes only owned jobs", () => {
   const oldPlan=plan();
   const old=oldPlan.notifications.map(item=>toNativeNotification(item,scope));

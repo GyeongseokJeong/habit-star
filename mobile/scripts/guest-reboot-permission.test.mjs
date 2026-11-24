@@ -38,6 +38,7 @@ test("final APK manifest requires Android boot restore and notification permissi
     "E: manifest",
     '  E: uses-permission A: android:name="android.permission.RECEIVE_BOOT_COMPLETED"',
     '  E: uses-permission A: android:name="android.permission.POST_NOTIFICATIONS"',
+    '  E: uses-permission A: android:name="android.permission.SCHEDULE_EXACT_ALARM"',
     "  E: application",
     "    E: receiver",
     '      A: android:name="com.capacitorjs.plugins.localnotifications.LocalNotificationRestoreReceiver"',
