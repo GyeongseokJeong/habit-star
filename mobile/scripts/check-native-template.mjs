@@ -288,3 +288,34 @@ for(const control of ["b","back","hide","save"]){
  assert.ok(configActivity.includes(control+".setBackgroundTintList(null);"+control+".setBackground(controlBackground("),control+" missing explicit focus styling");
 }
 assert.match(configActivity,/save.setBackground\(controlBackground\(accent\(\),0,14,color\(night\?"#302D38":"#FFFFFF"\)\)\)/);
+
+
+// V11 adaptive widgets: preserve both provider identities and initial cells;
+// the host measures one flexible layout, no assumed cell-to-dp conversion.
+for(const [kind,initialHeight] of [["mini",2],["compact",3]]){
+ const info=readFileSync(resolve(root,"native/widgets/xml/byeolharu_widget_"+kind+"_info.xml"),"utf8");
+ assert.match(info,/android:resizeMode="horizontal\|vertical"/);
+ assert.match(info,/android:minResizeWidth="110dp"/);
+ assert.match(info,/android:minResizeHeight="110dp"/);
+ assert.ok(info.includes('android:targetCellHeight="'+initialHeight+'"'));
+}
+const resizeHandler=widget.slice(widget.indexOf("public void onAppWidgetOptionsChanged"),widget.indexOf("@Override public void onDeleted"));
+assert.match(resizeHandler,/synchronized \(ByeolharuWidgetProvider.class\)/);
+assert.match(resizeHandler,/if \(owns\(c,id\)\) render\(c,id,read\(c\)\)/);
+assert.doesNotMatch(resizeHandler,/refreshAll|saveOptions|\.edit\(|publish\(|\.clear\(|schedule\(/);
+assert.match(widget,/new ComponentName\(c, Mini.class\)/);
+assert.match(widget,/new ComponentName\(c, Compact.class\)/);
+for(const theme of ["dark","light"]){
+ const layout=readFileSync(resolve(root,"native/widgets/layout/byeolharu_widget_"+theme+".xml"),"utf8");
+ assert.match(layout,/widget_content" android:visibility="gone" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"/);
+ assert.match(layout,/widget_list" android:layout_width="match_parent" android:layout_height="match_parent"/);
+ assert.match(layout,/android:requiresFadingEdge="vertical" android:fadingEdgeLength="6dp"/);
+}
+for(const kind of ["row","row_action"]){
+ const xml=readFileSync(resolve(root,"native/widgets/layout/byeolharu_widget_"+kind+".xml"),"utf8");
+ assert.match(xml,/<LinearLayout[^>]*android:layout_height="wrap_content" android:minHeight="48dp"/);
+ assert.match(xml,/widget_title"[^>]*android:layout_weight="1"[^>]*android:textSize="14sp" android:maxLines="2" android:ellipsize="end"/);
+ assert.match(xml,/widget_check" android:layout_width="(?:28|48)dp" android:layout_height="48dp"/);
+}
+assert.match(widgetService,/public int getCount\(\)\{return ByeolharuWidgetProvider.configured\(c,id\)\?rows.size\(\):0;\}/);
+console.log("V11 adaptive resize and row source contracts OK (not a launcher test)");

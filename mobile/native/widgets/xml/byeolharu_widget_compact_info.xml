@@ -3,4 +3,4 @@
  android:minWidth="110dp" android:minHeight="180dp" android:targetCellWidth="2" android:targetCellHeight="3"
  android:initialLayout="@layout/byeolharu_widget_dark" android:previewLayout="@layout/byeolharu_widget_dark"
  android:configure="__PACKAGE__.ByeolharuWidgetConfigActivity" android:widgetFeatures="reconfigurable"
- android:updatePeriodMillis="1800000" android:resizeMode="none" android:widgetCategory="home_screen"/>
+ android:updatePeriodMillis="1800000" android:resizeMode="horizontal|vertical" android:minResizeWidth="110dp" android:minResizeHeight="110dp" android:widgetCategory="home_screen"/>
