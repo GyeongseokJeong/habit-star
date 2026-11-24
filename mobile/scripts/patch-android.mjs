@@ -83,7 +83,7 @@ if (!returnManifest.includes("android.permission.SCHEDULE_EXACT_ALARM")) {
 // Compact V4 widgets (both validated packages).
 const widgetNative = resolve(mobileRoot, "native/widgets");
 const mainRoot = resolve(mobileRoot, "android/app/src/main");
-for (const name of ["ByeolharuWidgetProvider", "ByeolharuWidgetConfigActivity", "ByeolharuWidgetListService"]) {
+for (const name of ["ByeolharuWidgetProvider", "ByeolharuWidgetConfigActivity", "ByeolharuWidgetListService", "ByeolharuWidgetApplication"]) {
   writeFileSync(join(dirname(path), name + ".java"),
     readFileSync(join(widgetNative, name + ".java.template"), "utf8").replaceAll("__PACKAGE__", targetPackage));
 }
@@ -126,6 +126,13 @@ if (!returnManifest.includes('android:name=".ByeolharuWidgetConfigActivity"')) {
     <service android:name=".ByeolharuWidgetListService" android:exported="false"
       android:permission="android.permission.BIND_REMOTEVIEWS"/>
     </application>`);
+}
+// Generated Capacitor project has no custom Application. Never overwrite one.
+const applicationTag = returnManifest.match(/<application\b[^>]*>/);
+assert.ok(applicationTag, "Missing application tag");
+if (!applicationTag[0].includes('android:name=".ByeolharuWidgetApplication"')) {
+  assert.ok(!/android:name\s*=/.test(applicationTag[0]), "Refusing to replace an existing Application class");
+  returnManifest = returnManifest.replace(applicationTag[0], applicationTag[0].replace("<application", '<application android:name=".ByeolharuWidgetApplication"'));
 }
 if (returnManifest !== initialManifest) writeFileSync(returnManifestPath, returnManifest);
 

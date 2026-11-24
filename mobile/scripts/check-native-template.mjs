@@ -194,7 +194,7 @@ for(const theme of ["dark","light"]){
  const height=Number(header.match(/android:layout_height="(\d+)dp"/)?.[1]);
  assert.ok(height>=44, theme+" app-opening header must be at least 44dp");
  assert.match(header,/android:layout_width="match_parent"/);
- assert.match(layout,/android:paddingStart="8dp" android:paddingEnd="8dp" android:paddingTop="4dp" android:paddingBottom="4dp"/);
+ assert.match(layout,/android:paddingStart="6dp" android:paddingEnd="4dp" android:paddingTop="4dp" android:paddingBottom="4dp"/);
 }
 console.log("Compact widget layout, configuration and privacy source contracts OK (not a launcher test)");
 
@@ -208,3 +208,44 @@ assert.match(settingsJava,/hasListeners\("widgetPracticeRequest"\)/);
 assert.match(widgetService,/setOnClickFillInIntent\(R.id.widget_check/);
 const actionRow=readFileSync(resolve(root,"native/widgets/layout/byeolharu_widget_row_action.xml"),"utf8");
 assert.match(actionRow,/widget_check" android:layout_width="48dp" android:layout_height="48dp"/);
+
+// V6: one theme contract for parent and row adapter; no independent night lookup.
+assert.match(widget,/setColorStateList\(R.id.widget_root,"setBackgroundTintList"/);
+assert.match(widget,/v.setColorInt\(id,"setTextColor"/);
+assert.match(widget,/v.setIcon\(id,"setImageIcon"/);
+assert.match(widget,/putExtra\("renderTheme",theme\)/);
+assert.match(widgetService,/getStringExtra\("renderTheme"\)/);
+assert.doesNotMatch(widgetService,/ByeolharuWidgetProvider.dark\(c,id\)/);
+assert.doesNotMatch(widgetService,/setTextViewText\(R.id.widget_check/);
+assert.match(patcher,/android:name="\.ByeolharuWidgetApplication"/);
+const appTemplate=readFileSync(resolve(root,"native/widgets/ByeolharuWidgetApplication.java.template"),"utf8");
+assert.match(appTemplate,/onConfigurationChanged\(Configuration config\)/);
+assert.match(appTemplate,/ByeolharuWidgetProvider.refreshAll\(this\)/);
+for(const theme of ["dark","light"])for(const state of ["check","circle"]){
+ const icon=readFileSync(resolve(root,`native/widgets/drawable/byeolharu_widget_${state}_${theme}.xml`),"utf8");
+ assert.match(icon,/android:width="22dp" android:height="22dp"/);
+ assert.match(icon,/<path /);
+}
+assert.match(actionRow,/<ImageView android:id="@\+id\/widget_check"/);
+
+
+// Host reapply: fixed modes must also emit all themed actions. Exercise the
+// exact pure Java selection expression (also valid JS after equals mapping).
+const themeExpression=widget.match(/static <T> T themeValue\([^)]*\) \{\s*return ([^;]+);/)?.[1];
+assert.ok(themeExpression);
+const expression=themeExpression.replace(/"([^"]+)"\.equals\(theme\)/g,'theme === "$1"');
+for(const [theme,night,expected] of [
+ ["system",false,"L"],["system",true,"D"],
+ ["light",false,"L"],["light",true,"L"],
+ ["dark",false,"D"],["dark",true,"D"],
+]){
+ assert.equal(runInNewContext(expression,{theme,night,light:"L",dark:"D"}),expected);
+}
+const render=widget.slice(widget.indexOf("static void render(Context"));
+assert.match(render,/if \(Build.VERSION.SDK_INT>=31\) \{\s*\/\/[^\n]*\n\s*\/\/[^\n]*\n\s*v.setColorStateList\(R.id.widget_root/);
+assert.match(render,/themeValue\(theme,false,"#FFFCF7","#1C2233"\)/);
+assert.match(render,/themeValue\(theme,true,"#FFFCF7","#1C2233"\)/);
+assert.match(render,/\}\s*textColor\(v,R.id.widget_star,theme/);
+for(const id of ["star","label","count","empty","private"])
+ assert.ok(render.includes("textColor(v,R.id.widget_"+id+",theme,"));
+assert.doesNotMatch(widget,/if \("system"\.equals\(theme\)&&Build.VERSION.SDK_INT>=31\)/);

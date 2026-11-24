@@ -3,7 +3,6 @@ package __PACKAGE__;
 import android.appwidget.AppWidgetManager;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Color;
 import android.widget.RemoteViews;
 import android.widget.RemoteViewsService;
 import org.json.JSONObject;
@@ -15,6 +14,8 @@ public class ByeolharuWidgetListService extends RemoteViewsService {
     @Override public RemoteViewsFactory onGetViewFactory(Intent intent) {
         final int id=intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,AppWidgetManager.INVALID_APPWIDGET_ID);
         final Context c=getApplicationContext();
+        final String requested=intent.getStringExtra("renderTheme");
+        final String theme=("system".equals(requested)||"dark".equals(requested)||"light".equals(requested))?requested:ByeolharuWidgetProvider.renderTheme(c,id);
         return new RemoteViewsFactory() {
             List<JSONObject> rows=new ArrayList<>();
             public void onCreate(){}
@@ -26,14 +27,13 @@ public class ByeolharuWidgetListService extends RemoteViewsService {
             public int getCount(){return ByeolharuWidgetProvider.configured(c,id)?rows.size():0;}
             public RemoteViews getViewAt(int position){
                 if(!ByeolharuWidgetProvider.configured(c,id)||position<0||position>=rows.size())return null;
-                JSONObject row=rows.get(position);boolean completed=row.optBoolean("completed"),dark=ByeolharuWidgetProvider.dark(c,id);
+                JSONObject row=rows.get(position);boolean completed=row.optBoolean("completed");
                 boolean experimental=ByeolharuWidgetProvider.experimental(c);
                 RemoteViews v=new RemoteViews(c.getPackageName(),experimental?R.layout.byeolharu_widget_row_action:R.layout.byeolharu_widget_row);
                 v.setTextViewText(R.id.widget_icon,row.optString("icon"));
                 v.setTextViewText(R.id.widget_title,row.optString("title"));
-                v.setTextViewText(R.id.widget_check,completed?"✓":"○");
-                v.setTextColor(R.id.widget_title,Color.parseColor(completed?(dark?"#A4AABD":"#716B79"):(dark?"#F0EDF5":"#302D38")));
-                v.setTextColor(R.id.widget_check,Color.parseColor(completed?(dark?"#87AC92":"#426E52"):(dark?"#A4AABD":"#716B79")));
+                ByeolharuWidgetProvider.textColor(v,R.id.widget_title,theme,completed?"#716B79":"#302D38",completed?"#A4AABD":"#F0EDF5");
+                ByeolharuWidgetProvider.checkIcon(c,v,R.id.widget_check,theme,completed);
                 String key=row.optString("actionKey");
                 boolean actionable=experimental&&ByeolharuWidgetProvider.validKey(key);
                 v.setContentDescription(R.id.widget_check,actionable?(completed?"실천 완료 취소":"실천 완료하기"):(completed?"실천 완료":"실천 전"));

@@ -1,0 +1,24 @@
+package __PACKAGE__;
+
+import android.app.Application;
+import android.content.res.Configuration;
+
+/** Refresh the entire widget when a running process receives a night-mode change.
+ * On API 31+ RemoteViews also carries day/night alternatives for launcher reapply
+ * when our process is not running. No background polling/service is introduced.
+ */
+public class ByeolharuWidgetApplication extends Application {
+    private int night;
+    @Override public void onCreate() {
+        super.onCreate();
+        night=getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
+    }
+    @Override public void onConfigurationChanged(Configuration config) {
+        super.onConfigurationChanged(config);
+        int next=config.uiMode & Configuration.UI_MODE_NIGHT_MASK;
+        if(next!=night) {
+            night=next;
+            ByeolharuWidgetProvider.refreshAll(this);
+        }
+    }
+}
