@@ -1,0 +1,309 @@
+{
+  "version": 1,
+  "roles": [
+    {
+      "id": "product",
+      "skill": "product-planner",
+      "criteria": [
+        {
+          "id": "problem",
+          "weight": 25
+        },
+        {
+          "id": "fit",
+          "weight": 25
+        },
+        {
+          "id": "value",
+          "weight": 20
+        },
+        {
+          "id": "scope",
+          "weight": 15
+        },
+        {
+          "id": "acceptance",
+          "weight": 15
+        }
+      ]
+    },
+    {
+      "id": "ui",
+      "skill": "ui-specialist",
+      "criteria": [
+        {
+          "id": "hierarchy",
+          "weight": 25
+        },
+        {
+          "id": "layout",
+          "weight": 25
+        },
+        {
+          "id": "brand",
+          "weight": 20
+        },
+        {
+          "id": "states",
+          "weight": 20
+        },
+        {
+          "id": "reuse",
+          "weight": 10
+        }
+      ]
+    },
+    {
+      "id": "ux",
+      "skill": "ux-specialist",
+      "criteria": [
+        {
+          "id": "effort",
+          "weight": 25
+        },
+        {
+          "id": "clarity",
+          "weight": 25
+        },
+        {
+          "id": "recovery",
+          "weight": 20
+        },
+        {
+          "id": "access",
+          "weight": 20
+        },
+        {
+          "id": "context",
+          "weight": 10
+        }
+      ]
+    },
+    {
+      "id": "business",
+      "skill": "business-strategist",
+      "criteria": [
+        {
+          "id": "value",
+          "weight": 25
+        },
+        {
+          "id": "economics",
+          "weight": 25
+        },
+        {
+          "id": "trust",
+          "weight": 25
+        },
+        {
+          "id": "feasibility",
+          "weight": 15
+        },
+        {
+          "id": "experiment",
+          "weight": 10
+        }
+      ]
+    },
+    {
+      "id": "marketing",
+      "skill": "growth-marketer",
+      "criteria": [
+        {
+          "id": "position",
+          "weight": 25
+        },
+        {
+          "id": "activation",
+          "weight": 25
+        },
+        {
+          "id": "retention",
+          "weight": 20
+        },
+        {
+          "id": "message",
+          "weight": 15
+        },
+        {
+          "id": "measure",
+          "weight": 15
+        }
+      ]
+    },
+    {
+      "id": "user",
+      "skill": "user-perspective",
+      "criteria": [
+        {
+          "id": "understand",
+          "weight": 25
+        },
+        {
+          "id": "daily",
+          "weight": 25
+        },
+        {
+          "id": "confidence",
+          "weight": 20
+        },
+        {
+          "id": "motivation",
+          "weight": 15
+        },
+        {
+          "id": "inclusive",
+          "weight": 15
+        }
+      ]
+    }
+  ],
+  "routes": {
+    "ui-concept": {
+      "roles": [
+        "product",
+        "ui",
+        "ux",
+        "user"
+      ],
+      "guards": [
+        "design-guardian",
+        "accessibility-auditor"
+      ],
+      "rounds": 2
+    },
+    "new-feature": {
+      "roles": [
+        "product",
+        "ux",
+        "user"
+      ],
+      "guards": [
+        "feature-builder",
+        "quality-gate"
+      ],
+      "rounds": 2
+    },
+    "feature-discovery": {
+      "roles": [
+        "product",
+        "ui",
+        "ux",
+        "business",
+        "marketing",
+        "user"
+      ],
+      "guards": [],
+      "rounds": 2
+    },
+    "monetization": {
+      "roles": [
+        "product",
+        "business",
+        "marketing",
+        "ux",
+        "user"
+      ],
+      "guards": [
+        "feature-builder",
+        "quality-gate"
+      ],
+      "rounds": 2
+    },
+    "marketing": {
+      "roles": [
+        "product",
+        "marketing",
+        "business",
+        "user"
+      ],
+      "guards": [],
+      "rounds": 2
+    },
+    "user-facing-bug": {
+      "roles": [
+        "ux",
+        "user"
+      ],
+      "guards": [
+        "feature-builder",
+        "quality-gate"
+      ],
+      "rounds": 1
+    },
+    "release": {
+      "roles": [
+        "product",
+        "marketing",
+        "business",
+        "user"
+      ],
+      "guards": [
+        "release-guardian",
+        "quality-gate"
+      ],
+      "rounds": 1
+    },
+    "technical": {
+      "roles": [],
+      "guards": [
+        "quality-gate"
+      ],
+      "rounds": 1
+    },
+    "harness": {
+      "roles": [
+        "product"
+      ],
+      "guards": [
+        "quality-gate"
+      ],
+      "rounds": 1
+    }
+  },
+  "modifiers": {
+    "ui": {
+      "roles": [
+        "ui",
+        "ux"
+      ],
+      "guards": [
+        "design-guardian",
+        "accessibility-auditor"
+      ]
+    },
+    "data": {
+      "roles": [],
+      "guards": [
+        "data-guardian",
+        "quality-gate"
+      ]
+    },
+    "business": {
+      "roles": [
+        "business"
+      ],
+      "guards": []
+    },
+    "acquisition": {
+      "roles": [
+        "marketing"
+      ],
+      "guards": []
+    },
+    "implementation": {
+      "roles": [],
+      "guards": [
+        "feature-builder",
+        "quality-gate"
+      ]
+    },
+    "release": {
+      "roles": [],
+      "guards": [
+        "release-guardian",
+        "quality-gate"
+      ]
+    }
+  }
+}
