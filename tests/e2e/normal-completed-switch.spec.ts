@@ -150,6 +150,9 @@ for (const width of [320, 390, 430]) {
     expect(layout.titleEndsBeforeEdit).toBe(true);
     expect(layout.metaInCard).toBe(true);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    // Chromium only applies :focus-visible after keyboard modality. Programmatic
+    // focus immediately after a pointer click deliberately has no visible ring.
+    await page.keyboard.press("Tab");
     await completed.locator(".card-content").focus();
     await expect(completed.locator(".card-content")).toHaveCSS("outline-style", "solid");
     await completed.getByRole("button", { name: title + " 수정" }).focus();
