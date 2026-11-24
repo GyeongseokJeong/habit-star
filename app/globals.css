@@ -692,6 +692,9 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   gap: 12px;
 }
 .habit-card {
+  /* Align the visible first star with the title when the full-size touch targets fit. */
+  --habit-info-gap: 12px;
+  --habit-rating-reserved: 276px;
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr) auto;
   column-gap: 12px;
@@ -711,6 +714,7 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
 .habit-emoji {
   grid-column: 1;
   grid-row: 1;
+  align-self: center;
   width: 44px;
   height: 44px;
   border-radius: 12px;
@@ -756,6 +760,10 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   border-radius: 6px;
 }
 .card-content h3 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
   font-size: 15px;
   font-weight: 600;
   line-height: 1.4;
@@ -816,6 +824,16 @@ html[data-byeolharu-theme="dark"] .byeolharu.light {
   align-items: center;
   width: fit-content;
   flex-shrink: 0;
+}
+/* The divider remains full-width. Only the rating controls shift to the
+   visual start of the title/time; the first 23px star icon is inset 10.5px
+   inside its 44px touch target. Clamp the indent before controls overflow. */
+.habit-card .card-rating .star-tray {
+  margin-inline-start: clamp(
+    0px,
+    calc(44px + var(--habit-info-gap) - 10.5px),
+    calc(100% - var(--habit-rating-reserved))
+  );
 }
 .star {
   display: grid;
@@ -2412,6 +2430,7 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   }
 }
 @media (max-width: 850px) {
+  .habit-card { --habit-rating-reserved: 220px; }
   .header-inner,
   .main-container {
     padding-left: 24px;
@@ -2581,6 +2600,7 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
     gap: 12px;
   }
   .habit-card {
+    --habit-info-gap: 10px;
     padding: 12px 14px 0;
     column-gap: 10px;
   }
