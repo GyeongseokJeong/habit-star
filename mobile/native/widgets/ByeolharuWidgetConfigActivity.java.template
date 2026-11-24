@@ -96,9 +96,13 @@ public class ByeolharuWidgetConfigActivity extends Activity {
         if(!ByeolharuWidgetProvider.owns(this,id)){finish();return;}
         night=(getResources().getConfiguration().uiMode&Configuration.UI_MODE_NIGHT_MASK)==Configuration.UI_MODE_NIGHT_YES;
         int bg=color(night?"#171D29":"#F6F2EC");
-        getWindow().setStatusBarColor(bg);getWindow().setNavigationBarColor(bg);
+        // Dark navigation icons are supported only from API 26. Keep the
+        // light-mode status bar, but preserve white-icon contrast below 26.
+        boolean lightNavigation=!night&&android.os.Build.VERSION.SDK_INT>=26;
+        getWindow().setStatusBarColor(bg);
+        getWindow().setNavigationBarColor(lightNavigation?bg:color("#171D29"));
         int flags=night?0:View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-        if(!night&&android.os.Build.VERSION.SDK_INT>=26)flags|=View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+        if(lightNavigation)flags|=View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
         getWindow().getDecorView().setSystemUiVisibility(flags);
         android.content.SharedPreferences prefs=ByeolharuWidgetProvider.options(this);
         final boolean existing=prefs.contains(id+":consent");

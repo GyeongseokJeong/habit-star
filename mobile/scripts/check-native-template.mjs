@@ -260,3 +260,17 @@ assert.match(configActivity,/setStatusBarColor/);
 assert.match(configActivity,/setNavigationBarColor/);
 assert.match(configActivity,/FILTERS\[filterIndex\],hide.isChecked\(\),THEMES\[themeIndex\]/);
 assert.equal((configActivity.match(/ByeolharuWidgetProvider.saveOptions\(/g)||[]).length,1);
+
+
+// API 24/25 cannot use dark navigation icons. The palette and icon flag
+// must share the same condition; status bar remains independent.
+const navExpr=configActivity.match(/boolean lightNavigation=([^;]+);/)?.[1];
+assert.ok(navExpr);
+for(const sdk of [24,25,26,35]){
+ for(const night of [false,true]){
+  assert.equal(runInNewContext(navExpr.replace("android.os.Build.VERSION.SDK_INT","sdk"),{sdk,night}),!night&&sdk>=26);
+ }
+}
+assert.match(configActivity,/setNavigationBarColor\(lightNavigation\?bg:color\("#171D29"\)\)/);
+assert.match(configActivity,/if\(lightNavigation\)flags\|=View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR/);
+assert.match(configActivity,/setStatusBarColor\(bg\)/);
