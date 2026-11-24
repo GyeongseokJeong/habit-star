@@ -154,3 +154,20 @@ assert.equal(runTheme("dark"), "dark");
 assert.equal(runTheme("light"), "light");
 assert.equal(runTheme(null), "unknown");
 console.log("Native back: dialog > reflection > routine tab > history > 2-second root exit, theme OK (not a device test)");
+
+const widget = readFileSync(resolve(root, "native/widgets/ByeolharuWidgetProvider.java.template"), "utf8");
+assert.match(settingsJava, /publishWidgetSummary/);
+assert.match(patcher, /ByeolharuWidgetProvider\.java\.template/);
+assert.match(patcher, /android:exported="false" android:label/);
+assert.match(widget, /FLAG_IMMUTABLE/);
+assert.match(widget, /expiry > now/);
+assert.match(widget, /prefs\(context\)\.edit\(\)\.clear\(\)/);
+assert.doesNotMatch(widget, /habitId|memberId|memo|userId|authToken/);
+for (const kind of ["growth", "practice"]) {
+  const info = readFileSync(resolve(root, `native/widgets/xml/byeolharu_widget_${kind}_info.xml`), "utf8");
+  const layout = readFileSync(resolve(root, `native/widgets/layout/byeolharu_widget_${kind}.xml`), "utf8");
+  assert.match(info, /android:widgetCategory="home_screen"/);
+  assert.match(layout, /widget_root/);
+  assert.match(layout, /widget_count/);
+}
+console.log("Widget native resource and privacy contracts OK (not a launcher test)");

@@ -20,6 +20,17 @@ import com.getcapacitor.annotation.CapacitorPlugin;
  */
 @CapacitorPlugin(name = "ByeolharuDeviceSettings")
 public class ByeolharuDeviceSettingsPlugin extends Plugin {
+    /** Widget bridge accepts only anonymous aggregate data. */
+    @PluginMethod
+    public void publishWidgetSummary(PluginCall call) {
+        try {
+            ByeolharuWidgetProvider.publish(getContext(), call.getData());
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("Cannot refresh home widgets", e);
+        }
+    }
+
     /** Observe posted times only for our app's currently visible notifications. */
     @PluginMethod
     public void getActiveReminderPosts(PluginCall call) {

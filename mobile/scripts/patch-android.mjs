@@ -3,7 +3,7 @@
  * Keeping the native template separate avoids committing disposable Gradle
  * output during PoC; a future release must commit the native Android project.
  */
-import { readFileSync, writeFileSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, readdirSync, mkdirSync, copyFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
@@ -79,6 +79,42 @@ if (!returnManifest.includes("android.permission.SCHEDULE_EXACT_ALARM")) {
   assert.ok(header, "Missing Android manifest root");
   returnManifest = returnManifest.replace(header[0],
     header[0] + '\n    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />');
+}
+// Read-only widget resources, installed for both validated app IDs.
+const widgetNative = resolve(mobileRoot, "native/widgets");
+const mainRoot = resolve(mobileRoot, "android/app/src/main");
+writeFileSync(join(dirname(path), "ByeolharuWidgetProvider.java"),
+  readFileSync(join(widgetNative, "ByeolharuWidgetProvider.java.template"), "utf8").replaceAll("__PACKAGE__", targetPackage));
+for (const folder of ["layout", "xml", "drawable"]) {
+  const dest = join(mainRoot, "res", folder);
+  mkdirSync(dest, { recursive: true });
+  for (const file of readdirSync(join(widgetNative, folder))) copyFileSync(join(widgetNative, folder, file), join(dest, file));
+}
+const artFolder = join(mainRoot, "res", "drawable-nodpi");
+mkdirSync(artFolder, { recursive: true });
+for (let stage = 1; stage <= 6; stage++) {
+  copyFileSync(resolve(mobileRoot, "../public/assets/constellation", `stage-0${stage}.webp`),
+    join(artFolder, `byeolharu_widget_stage_${stage}.webp`));
+}
+for (const [name, resource, label] of [
+  ["Growth", "byeolharu_widget_growth_info", "별하루 · 별빛 성장"],
+  ["Practice", "byeolharu_widget_practice_info", "별하루 · 오늘의 실천"],
+]) {
+  const receiver = ".ByeolharuWidgetProvider$" + name;
+  if (!returnManifest.includes(`android:name="${receiver}"`)) {
+    assert.ok(returnManifest.includes("</application>"), "Missing Android application");
+    returnManifest = returnManifest.replace("</application>", `
+        <receiver android:name="${receiver}" android:exported="false" android:label="${label}">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/${resource}" />
+        </receiver>
+    </application>`);
+  }
 }
 if (returnManifest !== initialManifest) writeFileSync(returnManifestPath, returnManifest);
 

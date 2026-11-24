@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:padding="10dp" android:background="@drawable/byeolharu_widget_background">
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="✦ 별하루" android:textSize="13sp" android:textColor="#F3D393" android:maxLines="1" android:ellipsize="end" android:textStyle="bold"/>
+    <ImageView android:id="@+id/widget_art" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:scaleType="fitCenter" android:contentDescription="@null"/>
+    <TextView android:id="@+id/widget_count" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="—" android:textSize="20sp" android:textColor="#FFFFFF" android:maxLines="1" android:ellipsize="end" android:textStyle="bold"/>
+    <TextView android:id="@+id/widget_stage" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="별빛을 만나러 가요" android:textSize="11sp" android:textColor="#F3D393" android:maxLines="1" android:ellipsize="end" />
+    <TextView android:id="@+id/widget_hint" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="앱에서 기록을 불러와요" android:textSize="10sp" android:textColor="#D8D3E6" android:maxLines="1" android:ellipsize="end" />
+</LinearLayout>

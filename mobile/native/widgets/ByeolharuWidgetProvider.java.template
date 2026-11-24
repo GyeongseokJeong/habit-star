@@ -1,0 +1,105 @@
+package __PACKAGE__;
+
+import android.app.AlarmManager;
+import android.app.PendingIntent;
+import android.appwidget.AppWidgetManager;
+import android.appwidget.AppWidgetProvider;
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.widget.RemoteViews;
+import com.getcapacitor.JSObject;
+
+/** Anonymous read-only cache, never a second habit repository. */
+public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
+    private static final String PREF = "byeolharu_widget_summary_v1";
+    private static final String EXPIRE = "byeolharu.widget.EXPIRE";
+    private static final long MAX_TTL = 36L * 60L * 60L * 1000L;
+    public static class Growth extends ByeolharuWidgetProvider {}
+    public static class Practice extends ByeolharuWidgetProvider {}
+
+    private static SharedPreferences prefs(Context context) {
+        return context.getSharedPreferences(PREF, Context.MODE_PRIVATE);
+    }
+    private static PendingIntent expiryIntent(Context context) {
+        return PendingIntent.getBroadcast(context, 8101, new Intent(context, Growth.class).setAction(EXPIRE),
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    }
+    static void publish(Context context, JSObject data) {
+        SharedPreferences.Editor editor = prefs(context).edit().clear();
+        long expiry = data.optLong("expiresAt", 0L), now = System.currentTimeMillis();
+        int total = data.optInt("total", -1), done = data.optInt("completed", -1);
+        int morning = data.optInt("morning", -1), day = data.optInt("day", -1), night = data.optInt("night", -1);
+        int stage = data.optInt("stage", -1), points = data.optInt("points", -1);
+        boolean valid = data.optBoolean("ready", false) && expiry > now && expiry - now <= MAX_TTL
+            && total >= 0 && done >= 0 && done <= total && morning >= 0 && day >= 0 && night >= 0
+            && (long) morning + day + night == total - done && stage >= 1 && stage <= 6 && points >= 0;
+        if (valid) editor.putLong("expiresAt", expiry).putInt("total", total).putInt("completed", done)
+            .putInt("morning", morning).putInt("day", day).putInt("night", night)
+            .putInt("stage", stage).putInt("points", points);
+        if (!editor.commit()) throw new IllegalStateException("Widget cache unavailable");
+        AlarmManager alarm = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        if (alarm != null) {
+            try {
+                alarm.cancel(expiryIntent(context));
+                if (valid) alarm.set(AlarmManager.RTC, expiry, expiryIntent(context));
+            } catch (RuntimeException ignored) { /* periodic refresh checks expiry */ }
+        }
+        refreshAll(context);
+    }
+    private static void refreshAll(Context context) {
+        AppWidgetManager manager = AppWidgetManager.getInstance(context);
+        for (Class<?> type : new Class<?>[]{Growth.class, Practice.class}) {
+            for (int id : manager.getAppWidgetIds(new ComponentName(context, type)))
+                render(context, manager, id, type == Growth.class);
+        }
+    }
+    @Override public void onUpdate(Context context, AppWidgetManager manager, int[] ids) {
+        for (int id : ids) render(context, manager, id, this instanceof Growth);
+    }
+    @Override public void onReceive(Context context, Intent intent) {
+        super.onReceive(context, intent);
+        String action = intent.getAction();
+        if (Intent.ACTION_TIME_CHANGED.equals(action) || Intent.ACTION_TIMEZONE_CHANGED.equals(action)) {
+            prefs(context).edit().clear().commit();
+            refreshAll(context);
+        } else if (EXPIRE.equals(action) || Intent.ACTION_DATE_CHANGED.equals(action)) {
+            refreshAll(context);
+        }
+    }
+    private static void render(Context context, AppWidgetManager manager, int id, boolean growth) {
+        SharedPreferences state = prefs(context);
+        long expiry = state.getLong("expiresAt", 0), now = System.currentTimeMillis();
+        boolean ready = expiry > now && expiry - now <= MAX_TTL;
+        RemoteViews views = new RemoteViews(context.getPackageName(),
+            growth ? R.layout.byeolharu_widget_growth : R.layout.byeolharu_widget_practice);
+        Intent open = new Intent(context, MainActivity.class).setAction(Intent.ACTION_MAIN)
+            .addCategory(Intent.CATEGORY_LAUNCHER).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        views.setOnClickPendingIntent(R.id.widget_root, PendingIntent.getActivity(context, growth ? 8102 : 8103,
+            open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
+        views.setTextViewText(R.id.widget_count, ready ? state.getInt("completed", 0) + " / " + state.getInt("total", 0) : "—");
+        views.setTextViewText(R.id.widget_hint, !ready ? "앱에서 기록을 불러와요"
+            : state.getInt("total", 0) == 0 ? "오늘의 작은 시작"
+            : state.getInt("completed", 0) == state.getInt("total", 0) ? "오늘의 실천을 마쳤어요" : "오늘의 작은 실천");
+        if (growth) {
+            int stage = ready ? state.getInt("stage", 1) : 1;
+            int[] arts = {R.drawable.byeolharu_widget_stage_1, R.drawable.byeolharu_widget_stage_2,
+                R.drawable.byeolharu_widget_stage_3, R.drawable.byeolharu_widget_stage_4,
+                R.drawable.byeolharu_widget_stage_5, R.drawable.byeolharu_widget_stage_6};
+            stage = Math.max(1, Math.min(6, stage));
+            views.setTextViewText(R.id.widget_stage, ready ? "STAGE " + stage + " · " + state.getInt("points", 0) + "점" : "별빛을 만나러 가요");
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inSampleSize = 8;
+            Bitmap art = BitmapFactory.decodeResource(context.getResources(), arts[stage - 1], options);
+            if (art != null) views.setImageViewBitmap(R.id.widget_art, art);
+        } else {
+            views.setTextViewText(R.id.widget_morning, ready ? "아침 " + state.getInt("morning", 0) : "아침 —");
+            views.setTextViewText(R.id.widget_day, ready ? "낮 " + state.getInt("day", 0) : "낮 —");
+            views.setTextViewText(R.id.widget_night, ready ? "밤 " + state.getInt("night", 0) : "밤 —");
+        }
+        manager.updateAppWidget(id, views);
+    }
+}
