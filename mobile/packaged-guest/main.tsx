@@ -289,8 +289,8 @@ function GuestNativeApp() {
         if (widgetCommands.current !== commands) return;
         if (experimentalWidgetPractice) {
           // Serialize generation replacement before publishing corresponding
-          // handles. Until cold execution is separately approved, the
-          // existing warm in-memory command map is still authoritative.
+          // handles. Warm dispatch uses this in-memory map; the isolated
+          // debug cold runtime re-derives them from committed state.
           try {
             if (summary.ready && commands.size > 0) {
               const generation = newWidgetCommandGeneration(summary);

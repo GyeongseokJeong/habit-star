@@ -84,6 +84,7 @@ public class MainActivity extends BridgeActivity {
         // Capacitor requires registering custom plugins before super.onCreate.
         // The patcher inserts plugin registration only for the packaged guest
         // flavor. Other standalone demo variants must not refer to its class.
+        ByeolharuWidgetColdPractice.activityStarted();
         __GUEST_SETTINGS_PLUGIN_REGISTER__
         super.onCreate(state);
         if (getPackageName().endsWith(".packagedgueststep9") || getPackageName().equals("app.byeolharu.android")) {
@@ -117,7 +118,7 @@ public class MainActivity extends BridgeActivity {
     public void onDestroy() {
         lastRootBackAt = 0L;
         handler.removeCallbacks(themeSync);
-        super.onDestroy();
+        try { super.onDestroy(); } finally { ByeolharuWidgetColdPractice.activityStopped(); }
     }
 
     /**

@@ -408,7 +408,7 @@ assert.match(patcher,/copyFileSync\(join\(widgetNative, "widget-runtime-probe.ht
 assert.match(guestMain,/if \(experimentalWidgetPractice\) void seedWidgetRuntimeProbe\(window.location.origin\)/);
 assert.match(settingsJava,/static boolean hasWidgetActivity\(\)/);
 assert.match(widget,/if\(ByeolharuDeviceSettingsPlugin.dispatchWidgetPractice\(payload\)\) return/);
-assert.match(widget,/if\(!ByeolharuDeviceSettingsPlugin.hasWidgetActivity\(\)\)\s*ByeolharuWidgetRuntimeProbe.start/);
+assert.match(widget,/if\(!ByeolharuWidgetColdPractice.hasActivity\(\) && claim\(c,payload\)\)\s*ByeolharuWidgetColdPractice.start/);
 assert.match(probeJava,/!ByeolharuWidgetProvider.experimental\(context\)/);
 assert.match(probeJava,/setBlockNetworkLoads\(true\)/);
 assert.match(probeJava,/setAllowFileAccess\(false\)/);
@@ -424,3 +424,31 @@ assert.match(probeHtml,/request.transaction.abort\(\)/);
 assert.doesNotMatch(probeHtml,/localStorage|sessionStorage|byeolharu-v2|supabase|\.put\(|\.delete\(/);
 assert.doesNotMatch(probeSeed,/localStorage|sessionStorage|byeolharu-v2|supabase/);
 console.log("Cold runtime synthetic storage probe source contracts OK (not an Android runtime test)");
+
+
+// Cold direct practice remains debug-only; one request-scoped boolean bridge,
+// existing transaction, no network, no auth/record data passed to native.
+const coldJava=readFileSync(resolve(root,"native/widgets/ByeolharuWidgetColdPractice.java.template"),"utf8");
+const coldTs=readFileSync(resolve(root,"packaged-guest/widget-cold-practice.ts"),"utf8");
+const coldBuild=readFileSync(resolve(root,"scripts/build-packaged-guest.mjs"),"utf8");
+assert.match(patcher,/"ByeolharuWidgetColdPractice"/);
+assert.match(java,/ByeolharuWidgetColdPractice.activityStarted\(\)/);
+assert.match(java,/ByeolharuWidgetColdPractice.activityStopped\(\)/);
+assert.match(widget,/static synchronized boolean coldAllowed/);
+assert.match(widget,/request.claimed && request.requestId.equals\(requestId\)/);
+assert.match(widget,/!ByeolharuWidgetColdPractice.hasActivity\(\)/);
+assert.match(widget,/currentKey\(c,request.widget,request.key\)/);
+assert.match(widget,/if\("saved".equals\(status\)\)/);
+assert.match(coldJava,/!ByeolharuWidgetProvider.experimental\(c\)/);
+assert.match(coldJava,/setBlockNetworkLoads\(true\)/);
+assert.match(coldJava,/setAllowFileAccess\(false\)/);
+assert.match(coldJava,/setAllowContentAccess\(false\)/);
+assert.match(coldJava,/public\/widget-cold-runtime.js/);
+assert.equal((coldJava.match(/@JavascriptInterface/g)||[]).length,1);
+assert.match(coldJava,/@JavascriptInterface public boolean allowed\(\)/);
+assert.match(coldJava,/removeJavascriptInterface\("ByeolharuColdGate"\);old.destroy\(\)/);
+assert.doesNotMatch(coldJava,/startActivity\(|startService\(/);
+assert.match(coldBuild,/if \(process.env.BYEOLHARU_ANDROID_RELEASE !== "1"\) \{\s*await build/);
+assert.match(coldTs,/repo.applyWidgetPractice\(command, allowed\)/);
+assert.doesNotMatch(coldTs,/repo\.initialize\(|repo\.ensureDay\(|supabase\(|fetch\(/);
+console.log("Debug cold practice source contracts OK (not an Android runtime test)");

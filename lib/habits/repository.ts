@@ -79,9 +79,11 @@ export class LocalRepository implements HabitRepository {
     private samples: () => Habit[] = () => [],
     private storage?: Pick<Storage, "getItem">,
     readonly timezone = Intl.DateTimeFormat().resolvedOptions().timeZone,
+    existingOnly = false,
   ) {
     this.dbPromise = openDB("byeolharu-v2", 1, {
-      upgrade(db) {
+      upgrade(db, _old, _new, tx) {
+        if (existingOnly) { tx.abort(); return; }
         db.createObjectStore("scopes");
         db.createObjectStore("backups");
       },
