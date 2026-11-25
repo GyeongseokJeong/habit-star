@@ -201,3 +201,6 @@ GitHub 환경 `play-internal`에 업로드 키의 `ANDROID_UPLOAD_KEYSTORE_BASE6
 
 ### V12.1 설정 시인성 개선
 V12.0 실기기 10/10 정상. 두 토글의 native Switch 유지, 불투명 checked/unchecked track selector 적용. 오래된 Debug 안내 제거, release 읽기 전용 안내 및 개인정보 동의 유지. 위젯 본체와 기록 로직 변경 없음. [명세](../docs/WIDGET_V12_SPEC.md).
+
+### V12.2 토글 비율
+사용자 피드백 ON 왼쪽 빈 공간 축소. 40×24dp 트랙, 18dp centered 원형 thumb, 양 끝 2dp 목표, 색상·48dp 행·기존 checked/draft/apply 유지. OEM 기본 thumb 의존 제거. CI 및 기기 검증 필요.

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Switch gives the thumb the full track height. A fixed-size centered
+     layer keeps the visible circle round and removes OEM optical padding. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android" android:paddingMode="stack">
+    <item android:width="18dp" android:height="18dp" android:gravity="center">
+        <shape android:shape="oval">
+            <size android:width="18dp" android:height="18dp"/>
+            <solid android:color="#FFFFFF"/>
+        </shape>
+    </item>
+</layer-list>
