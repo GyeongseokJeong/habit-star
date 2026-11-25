@@ -3,7 +3,7 @@ import { IDBFactory } from "fake-indexeddb";
 import { LocalRepository } from "../lib/habits/repository";
 import { buildWidgetActionProjection } from "../lib/habits/widget-summary";
 import { newWidgetCommandGeneration, recoverableWidgetProjection } from "../lib/habits/widget-command-recovery";
-import { writeWidgetCommandGeneration } from "../mobile/packaged-guest/widget-command-generation";
+import { readWidgetCommandGeneration, writeWidgetCommandGeneration } from "../mobile/packaged-guest/widget-command-generation";
 import { coldWidgetIdentity, runColdWidgetPractice } from "../mobile/packaged-guest/widget-cold-practice";
 
 const origin = "https://localhost";
@@ -17,6 +17,10 @@ async function setup(member: boolean) {
   if (id) { await r.mutate(s=>{s.hydrated=true;});await r.ensureDay(); }
   const habit={id:crypto.randomUUID(),title:"독서",icon:"📚",timeGroup:"night" as const,alarmEnabled:false,completed:false,rating:0,memo:"보존"};
   await r.create(habit);
+  // Creating a habit intentionally starts a blank daily entry. Save the
+  // existing memo through the ordinary record editor before publishing.
+  await r.update(habit.id, { memo: "보존" });
+  expect((await r.load()).habits[0]).toMatchObject({ completed: false, rating: 0, memo: "보존" });
   const values:Record<string,string> = id ? {[verified]:id,[auth]:JSON.stringify({user:{id,email_confirmed_at:"2026-01-01"},expires_at:Math.floor(Date.now()/1000)+3600,access_token:"test"})} : {};
   const projection=buildWidgetActionProjection(await r.load(),id);
   const generation=newWidgetCommandGeneration(projection.summary!);
@@ -30,6 +34,11 @@ describe("debug cold widget practice",()=>{
   // would otherwise create a version-1 database with no object stores).
   beforeEach(() => { vi.stubGlobal("indexedDB", new IDBFactory()); });
   afterEach(() => { vi.unstubAllGlobals(); });
+
+  it("reads a missing generation without creating a database or leaking an abort rejection", async () => {
+    expect(await readWidgetCommandGeneration(origin)).toBeNull();
+    await vi.waitFor(async () => expect(await indexedDB.databases()).toEqual([]));
+  });
 
   it("rejects a cold request without creating the missing original database", async () => {
     await writeWidgetCommandGeneration(origin, {

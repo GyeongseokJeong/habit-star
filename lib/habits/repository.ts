@@ -83,7 +83,13 @@ export class LocalRepository implements HabitRepository {
   ) {
     this.dbPromise = openDB("byeolharu-v2", 1, {
       upgrade(db, _old, _new, tx) {
-        if (existingOnly) { tx.abort(); return; }
+        if (existingOnly) {
+          // idb exposes a separate transaction completion promise. An
+          // intentional abort rejects both it and the open request.
+          void tx.done.catch(() => {});
+          tx.abort();
+          return;
+        }
         db.createObjectStore("scopes");
         db.createObjectStore("backups");
       },

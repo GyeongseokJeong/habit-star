@@ -20,7 +20,14 @@ export async function readWidgetCommandGeneration(origin: string, now = Date.now
   if (origin !== "https://localhost") return null;
   // Abort creation if no generation DB exists; a reader never seeds data.
   try {
-    const db = await openDB(DB, 1, { upgrade(_db, _old, _new, tx) { tx.abort(); } });
+    const db = await openDB(DB, 1, {
+      upgrade(_db, _old, _new, tx) {
+        // Handle the expected rejection of the aborted upgrade as well as
+        // the open request; never create a database on the read path.
+        void tx.done.catch(() => {});
+        tx.abort();
+      },
+    });
     try {
       const value: unknown = await db.get(STORE, KEY);
       return validWidgetCommandGeneration(value, now) ? { nonce: value.nonce, expiresAt: value.expiresAt } : null;
