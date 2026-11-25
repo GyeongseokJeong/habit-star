@@ -33,9 +33,13 @@ test("Android uses existing website email-confirm redirect and never auto-import
  assert.match(android,/snapshot\.current = null/);
  const transition=android.slice(android.indexOf("const switched ="),android.indexOf("const dismissPermissionOffer"));
  assert.match(transition,/if \(switched\) \{\s*(?:\/\/[^\n]*\n\s*)*snapshot\.current = null;/);
- assert.match(transition,/const cleanup = operation\.current\.then\(\(\) => lifecycle\.disable\(\)\)/);
+ assert.match(transition,/const incomingScope = reminderIdentityKey\(nextIdentity\)/);
+ assert.match(transition,/const cleanup = operation\.current\.then\(async \(\) => \{/);
+ assert.match(transition,/if \(incomingScope !== reminderIdentityKey\(identityRef\.current\)\) return;/);
+ assert.match(transition,/await lifecycle\.retainScope\(nextIdentity\)/);
  assert.match(transition,/operation\.current = cleanup\.then\(/);
- assert.ok(transition.indexOf("lifecycle.disable()") < transition.indexOf("readWrapupSettings("));
+ assert.ok(transition.indexOf("lifecycle.retainScope(nextIdentity)") < transition.indexOf("readWrapupSettings("));
+ assert.doesNotMatch(transition,/lifecycle\.disable\(/);
  assert.match(transition,/if \(!next\) return;/);
  assert.match(transition,/void schedule\(enabledRef\.current, next, true\)/);
  const backup=read("mobile/packaged-guest/native-guest-backup.ts");

@@ -184,3 +184,43 @@ test("a wrap-up opt-in on one identity never leaves previous account's group rem
   assert.equal(native.pending.filter(x=>x.extra.scope==="member:user-123").length,0);
   assert.equal(native.pending.filter(x=>x.extra.scope==="guest").length,8);
 });
+
+
+test("cold member identity restoration preserves its valid alarms before fresh snapshot hydration",async()=>{
+  const demo={id:7301,extra:{kind:"legacy"}};
+  const native=fakeNative([demo]);
+  await createReminderLifecycle({localNotifications:native,now}).sync(context(member));
+  const own=native.pending.filter(n=>n.extra?.scope==="member:user-123");
+  assert.equal(own.length,8);
+  // Simulate a fresh JS process, with OS reservations surviving the restart.
+  const restarted=fakeNative([...native.pending,{id:9001,extra:{kind:REMINDER_KIND,scope:"guest"}},{id:9002,extra:{kind:REMINDER_KIND,scope:"member:other"}}]);
+  const lifecycle=createReminderLifecycle({localNotifications:restarted,now});
+  assert.deepEqual(await lifecycle.retainScope(member),{status:"scope-retained",scope:"member:user-123",cancelled:2});
+  assert.deepEqual(restarted.pending,[demo,...own]);
+  assert.deepEqual(restarted.calls,["get","cancel"]);
+  // No fresh snapshot yet, and the app may close here. Existing alarms
+  // remain scheduled. Once hydrated, normal completion reconciliation runs.
+  assert.equal((await lifecycle.sync(context(member,{completed:true}))).status,"updated");
+  assert.equal(restarted.pending.filter(n=>n.extra?.scope==="member:user-123").length,7);
+  assert.equal(restarted.pending.some(n=>n.extra?.day==="2026-11-20"),false);
+});
+
+test("scope cleanup preserves incoming guest jobs and explicit disable still clears owned alarms",async()=>{
+  const native=fakeNative([{id:7301,extra:{kind:"legacy"}},{id:9001,extra:{kind:REMINDER_KIND,scope:"guest"}},{id:9002,extra:{kind:REMINDER_KIND,scope:"member:other"}},{id:9003,extra:{kind:REMINDER_KIND,scope:DEMO_SCOPE}}]);
+  const lifecycle=createReminderLifecycle({localNotifications:native,now});
+  assert.equal((await lifecycle.retainScope(guest)).cancelled,1);
+  assert.deepEqual(native.pending.map(n=>n.id),[7301,9001,9003]);
+  await assert.rejects(lifecycle.retainScope({...member,verified:false}));
+  assert.deepEqual(native.pending.map(n=>n.id),[7301,9001,9003]);
+  assert.equal((await lifecycle.disable()).status,"disabled");
+  assert.deepEqual(native.pending.map(n=>n.id),[7301,9003]);
+});
+
+test("superseded queued identity cleanup cannot delete the latest incoming scope",async()=>{
+  const native=fakeNative([{id:9001,extra:{kind:REMINDER_KIND,scope:"guest"}},{id:9002,extra:{kind:REMINDER_KIND,scope:"member:user-123"}}]);
+  const lifecycle=createReminderLifecycle({localNotifications:native,now});
+  const older=lifecycle.retainScope(guest), latest=lifecycle.retainScope(member);
+  assert.equal((await older).status,"superseded");
+  assert.equal((await latest).status,"scope-retained");
+  assert.deepEqual(native.pending.map(n=>n.id),[9002]);
+});

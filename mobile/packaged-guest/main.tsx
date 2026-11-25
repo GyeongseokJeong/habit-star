@@ -333,11 +333,17 @@ function GuestNativeApp() {
     const switched = reminderIdentityKey(identityRef.current) !== reminderIdentityKey(nextIdentity);
     identityRef.current = nextIdentity;
     if (switched) {
-      // Account boundaries must clear previous reservations even when the
-      // new account has wrap-up alerts enabled or hydration is incomplete.
+      // Account boundaries remove other scopes even if hydration is incomplete.
+      // A cold restart also enters this branch: preserve valid reservations
+      // for the incoming verified account until its fresh snapshot is ready.
       snapshot.current = null;
       if (lifecycle) {
-        const cleanup = operation.current.then(() => lifecycle.disable());
+        const incomingScope = reminderIdentityKey(nextIdentity);
+        const cleanup = operation.current.then(async () => {
+          // A newer transition owns cleanup if the queued identity changed.
+          if (incomingScope !== reminderIdentityKey(identityRef.current)) return;
+          await lifecycle.retainScope(nextIdentity);
+        });
         operation.current = cleanup.then(() => {}, () => {});
         void cleanup.catch(() => {
           if (mounted.current) setStatus("계정 전환 중 이전 알림 예약을 정리하지 못했어요.");

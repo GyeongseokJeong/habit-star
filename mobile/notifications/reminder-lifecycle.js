@@ -137,8 +137,25 @@ export function createReminderLifecycle({ localNotifications, now = () => new Da
     return task;
   }
 
+  /** Identity restoration/transition without a ready snapshot. Preserve all
+   * existing reservations for the verified incoming scope until ordinary
+   * reconciliation can safely evaluate its current records/preferences. */
+  function retainScope(identity) {
+    const scope = identityScope(identity);
+    if (!scope) return Promise.reject(new Error("알림 사용자 범위를 확인할 수 없습니다."));
+    const current = ++revision;
+    const task = queue.then(async () => {
+      if (current !== revision) return { status: "superseded" };
+      const cancelled = await cancelManaged(localNotifications, scope);
+      return { status: "scope-retained", scope, cancelled };
+    });
+    queue = task.catch(() => undefined);
+    return task;
+  }
+
   return {
     sync,
+    retainScope,
     /** Call with a fresh snapshot; reusing a previous day's snapshot fails closed. */
     onForeground: sync,
     /** Logout/disconnect cleanup is independent of stale session state. */

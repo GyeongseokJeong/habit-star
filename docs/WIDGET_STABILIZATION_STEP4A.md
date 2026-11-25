@@ -22,3 +22,7 @@ architecture + data + implementation, 제품/사용자(B 바쁜 위젯 사용자
 
 ## 후속 게이트
 4B: 앱 종료 상태의 실제 예약 취소/복구는 알림 owner·scope·day 및 충돌 검증, 기존 native 알림 경로와 일관성 검증 후 구현. 4C: 회원 실제 계정에서 오프라인 cold 기록 후 앱 재진입·다른 기기 확인 및 인증 만료/계정 전환. 4D: 경계·회귀. release 직접 기록은 모든 필수 게이트 전 비활성.
+
+## Codex P2 리뷰 후속 (1f143e3)
+- 리뷰: 동일 회원 복귀도 초기 guest identity 때문에 전환 분기로 들어가고, 전체 disable은 날짜/클라우드 준비 지연 중 유효한 미래 알림까지 삭제할 수 있음. 수용.
+- verified incoming scope만 유지하고 다른 scope의 관리 대상 예약만 정리하는 lifecycle.retainScope 추가. 기존 queue 및 revision 재사용, 실행 직전 최신 identity 확인. 설정 조회 전에 정리하며 새 snapshot 없이는 신규 예약하지 않음. 명시적 disable은 기존 전체 관리 알림 해제 유지. 동일 회원 복귀, guest 전환, unverified, 연속 전환, 완료 후 재조정 테스트 추가. 진행 중 native 호출의 원자적 취소는 보장하지 않음. CI 및 실제 기기 검증 필요.
