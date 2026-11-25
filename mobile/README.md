@@ -204,3 +204,6 @@ V12.0 실기기 10/10 정상. 두 토글의 native Switch 유지, 불투명 chec
 
 ### V12.2 토글 비율
 사용자 피드백 ON 왼쪽 빈 공간 축소. 40×24dp 트랙, 18dp centered 원형 thumb, 양 끝 2dp 목표, 색상·48dp 행·기존 checked/draft/apply 유지. OEM 기본 thumb 의존 제거. CI 및 기기 검증 필요.
+
+### STEP 4A 앱 복귀 안정화
+[설계 및 검토](../docs/WIDGET_STABILIZATION_STEP4A.md). resume 권한 확인은 예약을 직접 실행하지 않으며 최신 repository snapshot에서 재조정. 자동 queued stale snapshot/scope 건너뜀. cold member 재실행/Outbox 동일 ID 재시도 및 알림 계획 자동 테스트 추가. 실제 OS 알림/회원 클라우드 및 release는 별도 검증.

@@ -123,7 +123,7 @@ function GuestNativeApp() {
     (window as Window & { __byeolharuStartupReady?: boolean }).__byeolharuStartupReady = true;
   }, []);
 
-  const schedule = useCallback((value: boolean, next: Snapshot | null) => {
+  const schedule = useCallback((value: boolean, next: Snapshot | null, currentOnly = false) => {
     if (!lifecycle) return Promise.resolve();
     const context = {
       identity: identityRef.current, optIn: effectiveHabitReminderOptIn(value, next), wrapupSettings: wrapupRef.current,
@@ -132,8 +132,13 @@ function GuestNativeApp() {
       timeZone: identityRef.current.kind === "member" ? next.state.timezone : undefined,
       habits: next.habits.map(h => ({ ...h, repeatDays: h.repeatDays ? [...h.repeatDays] : undefined })),
     }};
+    const currentScope = reminderIdentityKey(context.identity);
     const task = operation.current.then(async () => {
       if (!mounted.current) return;
+      // Snapshot-driven reconciliation can wait behind an earlier native
+      // operation. Do not replay obsolete account/record snapshots.
+      if (currentOnly && (snapshot.current !== next ||
+          currentScope !== reminderIdentityKey(identityRef.current))) return;
       const action = guestReminderAction(context.optIn || hasEnabledWrapup(context.wrapupSettings), context.snapshot);
       // The existing Android queue belongs to this package. Missing or stale
       // IndexedDB hydration must not silently revoke already planned alarms.
@@ -148,7 +153,6 @@ function GuestNativeApp() {
       // Android/OEM scheduling occasionally rejects despite valid permission.
       // Reconcile once more while the same verified snapshot is still current,
       // never after a logout, opt-out, stale day or background transition.
-      const currentScope = reminderIdentityKey(context.identity);
       const canRetry = async () => {
         if (!mounted.current || document.visibilityState !== "visible" ||
             snapshot.current !== next ||
@@ -188,7 +192,7 @@ function GuestNativeApp() {
     return task;
   }, []);
 
-  const refreshPermission = useCallback(async () => {
+  const refreshPermission = useCallback(async (reconcileSnapshot = true) => {
     if (!isAndroid) return;
     try {
       const [current, exact] = await Promise.all([
@@ -200,10 +204,11 @@ function GuestNativeApp() {
         const granted = current.display === "granted";
         setPermissionState(permissionStateFromAndroid(current.display));
         if (!granted) setRepairAvailable(false);
-        // The OS permission may be granted in Settings without any changes
-        // to the hydrated React snapshot. Reconcile on native app resume.
-        if (granted && snapshot.current) {
-          void schedule(enabledRef.current, snapshot.current).catch(() => {
+        // Resume refreshes the repository separately. Its freshly committed
+        // snapshot drives scheduling; a permission result alone must not
+        // replay a pre-resume snapshot.
+        if (reconcileSnapshot && granted && snapshot.current) {
+          void schedule(enabledRef.current, snapshot.current, true).catch(() => {
             if (mounted.current) setStatus("알림 예약을 확인하지 못했어요.");
           });
         }
@@ -346,13 +351,13 @@ function GuestNativeApp() {
     if (!next) {
       // A verified member switch without a ready snapshot must revoke the
       // previous account's alarms. Later hydration can schedule its own.
-      if (switched) void schedule(false, null).catch(() =>
+      if (switched) void schedule(false, null, true).catch(() =>
         setStatus("계정 전환 중 이전 알림 예약을 정리하지 못했어요."));
       return;
     }
     // Reconcile member/guest scopes even when this device toggle is OFF.
     // No previous account can leave an active scoped reminder behind.
-    void schedule(enabledRef.current, next).catch(() =>
+    void schedule(enabledRef.current, next, true).catch(() =>
       setStatus("알림 예약을 갱신하지 못했어요."));
   }, [schedule]);
 
@@ -493,8 +498,8 @@ function GuestNativeApp() {
     });
     const onVisible = () => {
       if (document.visibilityState === "visible") {
-        void refreshPermission();
         emit();
+        void refreshPermission(false);
       }
     };
     document.addEventListener("visibilitychange", onVisible);
@@ -502,8 +507,8 @@ function GuestNativeApp() {
     // transition; refresh the committed repository snapshot before scheduling.
     const listener = App.addListener("appStateChange", ({ isActive }) => {
       if (isActive) {
-        void refreshPermission();
         emit();
+        void refreshPermission(false);
       }
     }).catch(() => {
       if (!disposed) setStatus("Android 앱 복귀 감지를 사용할 수 없어요.");

@@ -5,6 +5,9 @@ import { buildWidgetActionProjection } from "../lib/habits/widget-summary";
 import { newWidgetCommandGeneration, recoverableWidgetProjection } from "../lib/habits/widget-command-recovery";
 import { readWidgetCommandGeneration, writeWidgetCommandGeneration } from "../mobile/packaged-guest/widget-command-generation";
 import { coldWidgetIdentity, runColdWidgetPractice } from "../mobile/packaged-guest/widget-cold-practice";
+import { SyncEngine, type CloudTransport, type SyncResult } from "../lib/habits/sync";
+import type { Entity } from "../lib/habits/domain";
+import { buildScopedReminderPlan } from "../mobile/notifications/scoped-reminder-runtime.js";
 
 const origin = "https://localhost";
 const auth = "byeolharu_android_auth_v1", verified = "byeolharu_verified_user";
@@ -91,6 +94,97 @@ describe("debug cold widget practice",()=>{
       expect((await runColdWidgetPractice(input)).status).toBe("stale");
       expect(await r.state()).toEqual(edited);
     }finally{r.close();await writeWidgetCommandGeneration(origin,null);}
+  });
+  it("reopens committed cold records, retries the same outbox operation after lost acknowledgement, and derives today's reminder plan",async()=>{
+    // Control wall clock only: fake IndexedDB still uses real async events.
+    vi.useFakeTimers({toFake:["Date"]});
+    vi.setSystemTime(new Date(2026,10,25,8,0,0));
+    const {r,id,values}=await setup(true);
+    let resumed: LocalRepository | undefined;
+    try {
+      const habit=(await r.load()).habits[0];
+      await r.update(habit.id,{alarmEnabled:true,scheduledTime:"20:00"});
+      const scope=r.scope;
+      // Simulated idempotent cloud transport, not a real Supabase/RLS test.
+      const remote=new Map<string,Entity>(), seen=new Map<string,SyncResult>();
+      let cursor=0, loseAck=false;
+      const attempts:string[]=[];
+      const cloud:CloudTransport={
+        pull:async()=>({entities:structuredClone([...remote.values()]),cursor,conflicts:[]}),
+        apply:async op=>{
+          attempts.push(op.id);
+          let result=seen.get(op.id);
+          if(!result){
+            const entities=op.changes.map(c=>({
+              key:c.key,kind:c.kind,id:c.id,day:c.day,data:structuredClone(c.data),
+              deleted:c.deleted,version:(remote.get(c.key)?.version??0)+1,
+            }));
+            for(const e of entities) remote.set(e.key,e);
+            result={status:"applied",entities,revision:++cursor};
+            seen.set(op.id,result);
+          }
+          if(loseAck){loseAck=false;throw Error("network_unavailable");}
+          return structuredClone(result);
+        },
+      };
+      await new SyncEngine(r,cloud).run();
+      const before=await r.load();
+      expect(before.state.outbox).toEqual([]);
+      const plan=(s:typeof before)=>buildScopedReminderPlan(
+        {day:s.day,timeZone:s.state.timezone,habits:s.habits},
+        {scope,now:new Date(),daysAhead:2,habitOptIn:true},
+      );
+      const hasToday=(s:typeof before)=>plan(s).notifications.some(n=>n.day===s.day&&n.habitId===habit.id);
+      expect(hasToday(before)).toBe(true);
+      const projected=buildWidgetActionProjection(before,id);
+      const generation=newWidgetCommandGeneration(projected.summary!);
+      const handles=await recoverableWidgetProjection(projected,generation);
+      await writeWidgetCommandGeneration(origin,generation);
+      const input={origin,actionKey:handles.summary!.rows[0].actionKey!,deadline:Date.now()+7500,storage:storage(values),nativeAllowed:()=>true};
+      r.close();
+      const completed=await runColdWidgetPractice(input);
+      expect(completed.status).toBe("saved");
+      // A new repository instance models the ordinary app reopening.
+      resumed=new LocalRepository(scope,()=>[],storage(values));
+      await resumed.initialize();
+      const after=await resumed.load();
+      expect(after.habits[0]).toMatchObject({completed:true,rating:5,memo:"보존"});
+      expect(after.state.outbox).toHaveLength(1);
+      expect(hasToday(after)).toBe(false);
+      expect(plan(after).notifications.some(n=>n.day!==after.day&&n.habitId===habit.id)).toBe(true);
+      const opId=after.state.outbox[0].id;
+      loseAck=true;
+      await expect(new SyncEngine(resumed,cloud).run()).rejects.toThrow("network_unavailable");
+      expect((await resumed.state()).outbox.map(op=>op.id)).toEqual([opId]);
+      await new SyncEngine(resumed,cloud).run();
+      expect(attempts.filter(x=>x===opId)).toHaveLength(2);
+      expect((await resumed.state()).outbox).toEqual([]);
+      expect((await resumed.state()).sync?.phase).toBe("succeeded");
+      const sent=seen.get(opId);
+      expect(sent?.status).toBe("applied");
+      expect([...remote.values()].find(e=>e.kind==="habit_entries"&&e.id===habit.id&&e.day===after.day)?.data).toMatchObject({completed:true,rating:5,memo:"보존"});
+
+      // Publish a fresh generation after sync (versions changed) and undo.
+      const latest=await resumed.load();
+      const undoProjection=buildWidgetActionProjection(latest,id);
+      const undoGeneration=newWidgetCommandGeneration(undoProjection.summary!);
+      const undoHandles=await recoverableWidgetProjection(undoProjection,undoGeneration);
+      await writeWidgetCommandGeneration(origin,undoGeneration);
+      resumed.close();resumed=undefined;
+      expect((await runColdWidgetPractice({...input,actionKey:undoHandles.summary!.rows[0].actionKey!,deadline:Date.now()+7500})).status).toBe("saved");
+      resumed=new LocalRepository(scope,()=>[],storage(values));
+      await resumed.initialize();
+      const undone=await resumed.load();
+      expect(undone.habits[0]).toMatchObject({completed:false,rating:0,memo:"보존"});
+      expect(hasToday(undone)).toBe(true);
+      await new SyncEngine(resumed,cloud).run();
+      expect((await resumed.state()).outbox).toEqual([]);
+      expect([...remote.values()].find(e=>e.kind==="habit_entries"&&e.id===habit.id&&e.day===undone.day)?.data).toMatchObject({completed:false,rating:0,memo:"보존"});
+    }finally{
+      resumed?.close();r.close();
+      await writeWidgetCommandGeneration(origin,null);
+      vi.useRealTimers();
+    }
   });
   it("never guesses guest from partial or corrupt session",()=>{
     const id=crypto.randomUUID();
