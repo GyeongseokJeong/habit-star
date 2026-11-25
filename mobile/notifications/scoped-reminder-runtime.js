@@ -23,6 +23,10 @@ export function requireReminderScope(scope) {
 /**
  * Current-day snapshot only. Do not schedule from calendar history, stale
  * account data, or unverified account identities.
+ * @param {{day: string, timeZone?: string, habits: Array<object>}} snapshot
+ * @param {{scope?: string, now?: Date, daysAhead?: number, habitOptIn?: boolean, wrapupSettings?: object | null}} [options]
+ * Scope is required at runtime by requireReminderScope; keep omitted options
+ * representable so malformed calls still reach that existing validation.
  */
 export function buildScopedReminderPlan(
   snapshot,

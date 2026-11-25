@@ -61,7 +61,13 @@ test("member switch removes previous account's jobs, switching every habit OFF c
 test("entrypoint reconnects after OS permission grant without requiring a habit edit",()=>{
  const path=resolve(import.meta.dirname,"../../mobile/packaged-guest/main.tsx");
  const entry=readFileSync(path,"utf8");
- assert.match(entry,/if \(granted && snapshot\.current\) \{/);
+ // The direct permission path still reconciles; resume instead refreshes
+ // the repository before publishing a fresh snapshot and scheduling.
+ assert.match(entry,/const refreshPermission = useCallback\(async \(reconcileSnapshot = true\)/);
+ assert.match(entry,/if \(reconcileSnapshot && granted && snapshot\.current\) \{/);
+ assert.match(entry,/schedule\(enabledRef\.current, snapshot\.current, true\)/);
+ assert.match(entry,/emit\(\);\s*void refreshPermission\(false\);/);
+ assert.match(entry,/void schedule\(enabledRef\.current, next, true\)/);
  assert.match(entry,/setHasHabitIntent\(hasConfiguredHabitReminders\(next\)\)/);
  assert.match(entry,/effectiveHabitReminderOptIn\(value, next\)/);
  assert.match(entry,/preference === "1" \? true : preference === "0" \? false : null/);
