@@ -247,8 +247,14 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
         JSObject payload=new JSObject();
         payload.put("requestId",request.requestId);payload.put("actionKey",key);payload.put("deadline",request.deadline);
         MAIN.post(()->{
-            if(!ByeolharuDeviceSettingsPlugin.dispatchWidgetPractice(payload))
-                complete(c,request.requestId,"not-ready");
+            if(ByeolharuDeviceSettingsPlugin.dispatchWidgetPractice(payload)) return;
+            // A cold receiver has no command map. Never reconstruct a habit
+            // command from the display cache. Probe only a synthetic marker,
+            // and only when no live Activity owns the normal runtime.
+            if(!ByeolharuDeviceSettingsPlugin.hasWidgetActivity())
+                ByeolharuWidgetRuntimeProbe.start(c,request.deadline,
+                    result->complete(c,request.requestId,result));
+            else complete(c,request.requestId,"not-ready");
         });
         MAIN.postDelayed(()->complete(c,request.requestId,"timeout"),REQUEST_TTL);
     }
@@ -265,7 +271,11 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
         pending=null;request.broadcast.finish();
         // Never modify the displayed check state here. Only committed JS
         // snapshot publication can update it, including after a timeout.
-        if(!"saved".equals(result)||!request.claimed)
+        if("probe-readable".equals(result)) {
+            message(c,"테스트: 저장소 읽기 성공 · 기록은 저장하지 않았어요.");
+        } else if(result.startsWith("probe-")) {
+            message(c,"테스트: 저장소 읽기 미확인 · 앱에서 기록해 주세요.");
+        } else if(!"saved".equals(result)||!request.claimed)
             message(c,"별하루 앱에서 오늘 기록을 확인해 주세요.");
     }
     static void render(Context c,int id,JSONObject data) {

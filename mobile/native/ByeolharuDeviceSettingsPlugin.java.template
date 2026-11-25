@@ -23,6 +23,11 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 public class ByeolharuDeviceSettingsPlugin extends Plugin {
     private static WeakReference<ByeolharuDeviceSettingsPlugin> active = new WeakReference<>(null);
     @Override public void load() { active = new WeakReference<>(this); }
+    static boolean hasWidgetActivity() {
+        ByeolharuDeviceSettingsPlugin plugin = active.get();
+        return plugin != null && plugin.getActivity() != null && !plugin.getActivity().isDestroyed()
+            && !plugin.getActivity().isFinishing();
+    }
     static boolean dispatchWidgetPractice(JSObject request) {
         ByeolharuDeviceSettingsPlugin plugin = active.get();
         if (plugin == null || plugin.getActivity() == null || plugin.getActivity().isDestroyed()

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Widget synthetic storage probe</title></head><body>
+<script>
+(function(){
+  const result = value => { window.__byeolharuWidgetProbeResult = value; };
+  result("pending");
+  if (window.location.origin !== "https://localhost") { result("origin"); return; }
+  try {
+    const request = indexedDB.open("byeolharu-widget-runtime-probe-v1");
+    request.onupgradeneeded = () => {
+      // Missing marker DB: abort creation. This probe must not seed it.
+      request.transaction.abort();
+      result("missing");
+    };
+    request.onblocked = () => result("blocked");
+    request.onerror = () => {
+      if (window.__byeolharuWidgetProbeResult === "pending") result("error");
+    };
+    request.onsuccess = () => {
+      const db = request.result;
+      if (window.__byeolharuWidgetProbeResult !== "pending") { db.close(); return; }
+      try {
+        const tx = db.transaction("markers", "readonly");
+        const get = tx.objectStore("markers").get("seed");
+        tx.oncomplete = () => { db.close(); result(get.result === "ready-v1" ? "readable" : "missing"); };
+        tx.onabort = () => { db.close(); result("error"); };
+      } catch { db.close(); result("missing"); }
+    };
+  } catch { result("error"); }
+})();
+</script></body></html>

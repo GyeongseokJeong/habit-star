@@ -395,3 +395,32 @@ for(const kind of ["row","row_action"]){
  assert.match(xml,/widget_title" android:layout_width="0dp"[^>]*android:layout_weight="1" android:layout_marginStart="3dp"/);
 }
 console.log("V11 icon preference, adapter refresh, draft and preview source contracts OK (not a launcher test)");
+
+
+// Cold runtime capability experiment: synthetic marker only. No production
+// activation, background record writes, auth copies or new permissions.
+const probeJava=readFileSync(resolve(root,"native/widgets/ByeolharuWidgetRuntimeProbe.java.template"),"utf8");
+const probeHtml=readFileSync(resolve(root,"native/widgets/widget-runtime-probe.html"),"utf8");
+const probeSeed=readFileSync(resolve(root,"packaged-guest/widget-runtime-probe.ts"),"utf8");
+const guestMain=readFileSync(resolve(root,"packaged-guest/main.tsx"),"utf8");
+assert.match(patcher,/"ByeolharuWidgetRuntimeProbe"/);
+assert.match(patcher,/copyFileSync\(join\(widgetNative, "widget-runtime-probe.html"\)/);
+assert.match(guestMain,/if \(experimentalWidgetPractice\) void seedWidgetRuntimeProbe\(window.location.origin\)/);
+assert.match(settingsJava,/static boolean hasWidgetActivity\(\)/);
+assert.match(widget,/if\(ByeolharuDeviceSettingsPlugin.dispatchWidgetPractice\(payload\)\) return/);
+assert.match(widget,/if\(!ByeolharuDeviceSettingsPlugin.hasWidgetActivity\(\)\)\s*ByeolharuWidgetRuntimeProbe.start/);
+assert.match(probeJava,/!ByeolharuWidgetProvider.experimental\(context\)/);
+assert.match(probeJava,/setBlockNetworkLoads\(true\)/);
+assert.match(probeJava,/setAllowFileAccess\(false\)/);
+assert.match(probeJava,/setAllowContentAccess\(false\)/);
+assert.match(probeJava,/loadDataWithBaseURL\(ORIGIN,html/);
+assert.match(probeJava,/Math.min\(6000L,deadline-System.currentTimeMillis\(\)-300L\)/);
+assert.match(probeJava,/handler.removeCallbacks\(timeout\);handler.removeCallbacks\(poll\)/);
+assert.match(probeJava,/old.destroy\(\)/);
+assert.doesNotMatch(probeJava,/addJavascriptInterface|startActivity\(|startService\(|publishWidgetSummary|applyWidgetPractice/);
+assert.match(probeHtml,/connect-src 'none'/);
+assert.match(probeHtml,/transaction\("markers", "readonly"\)/);
+assert.match(probeHtml,/request.transaction.abort\(\)/);
+assert.doesNotMatch(probeHtml,/localStorage|sessionStorage|byeolharu-v2|supabase|\.put\(|\.delete\(/);
+assert.doesNotMatch(probeSeed,/localStorage|sessionStorage|byeolharu-v2|supabase/);
+console.log("Cold runtime synthetic storage probe source contracts OK (not an Android runtime test)");

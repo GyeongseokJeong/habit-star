@@ -9,6 +9,7 @@ import { shareStarlightPngOnAndroid } from "./native-starlight-share";
 import { exportGuestBackupOnAndroid } from "./native-guest-backup";
 import type { Snapshot } from "../../lib/habits/repository";
 import { buildWidgetSummary, buildWidgetActionProjection, type WidgetSummary } from "../../lib/habits/widget-summary";
+import { seedWidgetRuntimeProbe } from "./widget-runtime-probe";
 import type { WidgetPracticeCommand, WidgetPracticeResult } from "../../lib/habits/widget-practice";
 import type { PluginListenerHandle } from "@capacitor/core";
 import type { NativeReminderControls, WrapupSettings, WrapupGroup } from "../../lib/habits/native-reminder-controls";
@@ -48,6 +49,8 @@ type ReminderIdentity =
 const reminderIdentityKey = (value: ReminderIdentity) =>
   value.kind === "guest" ? "guest" : "member:" + value.userId;
 const experimentalWidgetPractice = isAndroid && process.env.NEXT_PUBLIC_ANDROID_RELEASE !== "true";
+// Debug-only synthetic marker; no habit, identity, session, or cloud data.
+if (experimentalWidgetPractice) void seedWidgetRuntimeProbe(window.location.origin).catch(() => {});
 type WidgetPracticeRequest = { requestId: string; actionKey: string; deadline: number };
 type DeviceSettings = {
   addListener: (event: "widgetPracticeRequest", listener: (request: WidgetPracticeRequest) => void) => Promise<PluginListenerHandle>;

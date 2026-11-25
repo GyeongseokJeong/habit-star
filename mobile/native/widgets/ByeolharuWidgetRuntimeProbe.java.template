@@ -1,0 +1,93 @@
+package __PACKAGE__;
+
+import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
+import android.webkit.RenderProcessGoneDetail;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import java.io.InputStream;
+import java.util.Scanner;
+import java.util.function.Consumer;
+
+/** Debug-only, bounded, offline WebView capability probe. No app/record runtime. */
+final class ByeolharuWidgetRuntimeProbe {
+    private static final String TAG = "ByeolharuWidgetProbe";
+    private static final String ORIGIN = "https://localhost/";
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Consumer<String> callback;
+    private WebView view;
+    private boolean finished;
+    private final Runnable timeout = () -> finish("timeout");
+    private final Runnable poll = this::readResult;
+
+    private ByeolharuWidgetRuntimeProbe(Consumer<String> callback) { this.callback=callback; }
+
+    static void start(Context context,long deadline,Consumer<String> callback) {
+        if(!ByeolharuWidgetProvider.experimental(context) ||
+            ByeolharuDeviceSettingsPlugin.hasWidgetActivity() ||
+            deadline-System.currentTimeMillis()<=500L) {
+            callback.accept("not-ready");return;
+        }
+        new ByeolharuWidgetRuntimeProbe(callback).open(context.getApplicationContext(),deadline);
+    }
+
+    private void open(Context context,long deadline) {
+        long remaining=Math.min(6000L,deadline-System.currentTimeMillis()-300L);
+        if(remaining<=0){finish("timeout");return;}
+        handler.postDelayed(timeout,remaining);
+        try(InputStream input=context.getAssets().open("byeolharu-widget-runtime-probe.html");
+            Scanner scanner=new Scanner(input,"UTF-8")) {
+            String html=scanner.useDelimiter("\\A").next();
+            view=new WebView(context);
+            view.getSettings().setJavaScriptEnabled(true);
+            view.getSettings().setDomStorageEnabled(true);
+            view.getSettings().setAllowFileAccess(false);
+            view.getSettings().setAllowContentAccess(false);
+            view.getSettings().setBlockNetworkLoads(true);
+            view.setWebViewClient(new WebViewClient(){
+                @Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest request){return true;}
+                @Override public boolean onRenderProcessGone(WebView v,RenderProcessGoneDetail detail){
+                    finish("renderer");return true;
+                }
+            });
+            // No Capacitor bridge, no remote navigation, no app code, no auth.
+            // The test determines whether this document really shares IndexedDB.
+            view.loadDataWithBaseURL(ORIGIN,html,"text/html","UTF-8",null);
+            handler.postDelayed(poll,200L);
+        } catch(RuntimeException | java.io.IOException e){finish("error");}
+    }
+
+    private void readResult() {
+        if(finished||view==null)return;
+        if(ByeolharuDeviceSettingsPlugin.hasWidgetActivity()){finish("activity");return;}
+        try {
+            view.evaluateJavascript("window.__byeolharuWidgetProbeResult || 'pending'",value->{
+                if(finished)return;
+                switch(value==null?"":value){
+                    case "\"readable\"":finish("readable");break;
+                    case "\"missing\"":finish("missing");break;
+                    case "\"origin\"":finish("origin");break;
+                    case "\"blocked\"":finish("blocked");break;
+                    case "\"error\"":finish("error");break;
+                    default:handler.postDelayed(poll,200L);
+                }
+            });
+        } catch(RuntimeException e){finish("error");}
+    }
+
+    private void finish(String result) {
+        if(finished)return;
+        finished=true;
+        handler.removeCallbacks(timeout);handler.removeCallbacks(poll);
+        WebView old=view;view=null;
+        if(old!=null) {
+            try {old.destroy();} catch(RuntimeException ignored){}
+        }
+        // Fixed diagnostic codes only; no identity, habit data or action keys.
+        Log.i(TAG,"result="+result);
+        callback.accept("probe-"+result);
+    }
+}

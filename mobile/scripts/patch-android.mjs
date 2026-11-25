@@ -83,10 +83,12 @@ if (!returnManifest.includes("android.permission.SCHEDULE_EXACT_ALARM")) {
 // Compact V4 widgets (both validated packages).
 const widgetNative = resolve(mobileRoot, "native/widgets");
 const mainRoot = resolve(mobileRoot, "android/app/src/main");
-for (const name of ["ByeolharuWidgetProvider", "ByeolharuWidgetConfigActivity", "ByeolharuWidgetListService", "ByeolharuWidgetApplication"]) {
+for (const name of ["ByeolharuWidgetProvider", "ByeolharuWidgetConfigActivity", "ByeolharuWidgetListService", "ByeolharuWidgetApplication", "ByeolharuWidgetRuntimeProbe"]) {
   writeFileSync(join(dirname(path), name + ".java"),
     readFileSync(join(widgetNative, name + ".java.template"), "utf8").replaceAll("__PACKAGE__", targetPackage));
 }
+mkdirSync(join(mainRoot, "assets"), { recursive: true });
+copyFileSync(join(widgetNative, "widget-runtime-probe.html"), join(mainRoot, "assets", "byeolharu-widget-runtime-probe.html"));
 for (const folder of ["layout", "xml", "drawable"]) {
   const dest = join(mainRoot, "res", folder);
   mkdirSync(dest, { recursive: true });
