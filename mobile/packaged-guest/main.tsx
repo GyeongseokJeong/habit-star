@@ -10,6 +10,8 @@ import { exportGuestBackupOnAndroid } from "./native-guest-backup";
 import type { Snapshot } from "../../lib/habits/repository";
 import { buildWidgetSummary, buildWidgetActionProjection, type WidgetSummary } from "../../lib/habits/widget-summary";
 import { seedWidgetRuntimeProbe } from "./widget-runtime-probe";
+import { newWidgetCommandGeneration, recoverableWidgetProjection } from "../../lib/habits/widget-command-recovery";
+import { writeWidgetCommandGeneration } from "./widget-command-generation";
 import type { WidgetPracticeCommand, WidgetPracticeResult } from "../../lib/habits/widget-practice";
 import type { PluginListenerHandle } from "@capacitor/core";
 import type { NativeReminderControls, WrapupSettings, WrapupGroup } from "../../lib/habits/native-reminder-controls";
@@ -283,8 +285,32 @@ function GuestNativeApp() {
         } else summary = buildWidgetSummary(next, memberUserId) ?? summary;
       } catch {}
       widgetCommands.current = commands;
-      widgetQueue.current = widgetQueue.current.catch(() => {}).then(() => {
+      widgetQueue.current = widgetQueue.current.catch(() => {}).then(async () => {
         if (widgetCommands.current !== commands) return;
+        if (experimentalWidgetPractice) {
+          // Serialize generation replacement before publishing corresponding
+          // handles. Until cold execution is separately approved, the
+          // existing warm in-memory command map is still authoritative.
+          try {
+            if (summary.ready && commands.size > 0) {
+              const generation = newWidgetCommandGeneration(summary);
+              const recovered = await recoverableWidgetProjection({ summary, commands }, generation);
+              if (widgetCommands.current !== commands) return;
+              await writeWidgetCommandGeneration(window.location.origin, generation);
+              if (widgetCommands.current !== commands) return;
+              summary = recovered.summary ?? summary;
+              widgetCommands.current = recovered.commands;
+            } else {
+              await writeWidgetCommandGeneration(window.location.origin, null);
+              if (widgetCommands.current !== commands) return;
+            }
+          } catch {
+            // Storage/crypto failure must not break verified warm actions.
+            // Publish the original random handles, never a partial remapping.
+            await writeWidgetCommandGeneration(window.location.origin, null).catch(() => {});
+            if (widgetCommands.current !== commands) return;
+          }
+        }
         return deviceSettings.publishWidgetSummary(summary);
       }).catch(() => {});
     }
