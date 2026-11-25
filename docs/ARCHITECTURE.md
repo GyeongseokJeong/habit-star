@@ -27,3 +27,7 @@ Habit Configuration은 `title`, `icon`, `timeGroup`, `repeatDays`, `scheduledTim
 ### STEP 2C-2B-2 명령 복원 계약
 
 Debug 위젯 projection의 handle은 generation별 HMAC으로 재계산 가능하다. 별도 same-origin 저장소에 저장되는 것은 nonce와 유효기간뿐이며, 사용자/습관 식별자나 실제 기록, 토큰은 추가 저장하지 않는다. 복원은 독립적으로 검증된 현재 계정과 committed snapshot을 입력으로 받고 원래 명령 검증을 재사용한다. 명령 복원 자체는 기록 쓰기/계정 선택을 수행하지 않는다. native cache의 opaque handle과 원본 transaction 안전장치 유지. 아직 cold execution에 연결하지 않으며 release는 읽기 전용이다.
+
+### STEP 2C-2B-3 Debug cold 실행
+
+동일 origin의 별도 offline WebView에서 기존 generation과 검증된 local 계정 캐시로 명령을 복원하고 기존 `LocalRepository.applyWidgetPractice`를 호출한다. 기존 DB만 open, 별도 원본/토큰 복제/직접 RPC 없음. native request guard와 UI Activity 생명주기, 기한, 현재 표시 키/동의, local auth snapshot 불변, 원본 revision/version을 확인한다. 저장 완료된 snapshot만 widget publication에 사용. 회원 Outbox는 다음 정상 앱 동기화에서 처리하며 서버 인증·즉시 sync/알림 갱신은 별도 검증. release 읽기 전용 유지.

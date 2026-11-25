@@ -59,6 +59,16 @@ await build({
   },
   logLevel:"info",
 });
+// Isolated offline runtime: debug only, no React mount, network or Auth client.
+if (process.env.BYEOLHARU_ANDROID_RELEASE !== "1") {
+  await build({
+    absWorkingDir: root,
+    entryPoints: [resolve(mobile, "packaged-guest/widget-cold-entry.ts")],
+    outfile: resolve(out, "widget-cold-runtime.js"),
+    tsconfig: resolve(root, "tsconfig.json"),
+    platform: "browser", format: "iife", bundle: true, minify: true, target: "es2022",
+  });
+}
 // Reuse the actual design CSS, not an invented look-alike.
 const cssPath = resolve(root, "app/globals.css");
 const result = await postcss([tailwind({base:root})]).process(

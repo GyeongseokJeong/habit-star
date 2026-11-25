@@ -1,0 +1,105 @@
+package __PACKAGE__;
+
+import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
+import android.webkit.JavascriptInterface;
+import android.webkit.RenderProcessGoneDetail;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import com.getcapacitor.JSObject;
+import org.json.JSONObject;
+import org.json.JSONTokener;
+import java.io.InputStream;
+import java.util.Scanner;
+import java.util.concurrent.atomic.AtomicInteger;
+
+/** Debug-only detached, same-origin runtime. The bridge exposes only a
+ * request-bound permission check; no identifiers, data or token methods. */
+final class ByeolharuWidgetColdPractice {
+    private static final String ORIGIN="https://localhost/";
+    private static final AtomicInteger ACTIVITIES=new AtomicInteger();
+    static void activityStarted(){ACTIVITIES.incrementAndGet();}
+    static void activityStopped(){ACTIVITIES.updateAndGet(n->Math.max(0,n-1));}
+    static boolean hasActivity(){return ACTIVITIES.get()>0 || ByeolharuDeviceSettingsPlugin.hasWidgetActivity();}
+
+    private final Context context;
+    private final String requestId,key;
+    private final long deadline;
+    private final Handler handler=new Handler(Looper.getMainLooper());
+    private WebView view;
+    private boolean finished,started;
+    private final Runnable timeout=()->finish(null);
+    private final Runnable poll=this::readResult;
+
+    private ByeolharuWidgetColdPractice(Context c,String requestId,String key,long deadline){
+        context=c.getApplicationContext();this.requestId=requestId;this.key=key;this.deadline=deadline;
+    }
+    static void start(Context c,String requestId,String key,long deadline){
+        if(!ByeolharuWidgetProvider.experimental(c)||hasActivity()||
+            !ByeolharuWidgetProvider.coldAllowed(c,requestId)){
+            ByeolharuWidgetProvider.complete(c,requestId,"not-ready");return;
+        }
+        new ByeolharuWidgetColdPractice(c,requestId,key,deadline).open();
+    }
+    public final class Gate {
+        @JavascriptInterface public boolean allowed(){
+            return ByeolharuWidgetProvider.coldAllowed(context,requestId);
+        }
+    }
+    private void open(){
+        long remaining=Math.min(6500L,deadline-System.currentTimeMillis()-300L);
+        if(remaining<=0){finish(null);return;}
+        handler.postDelayed(timeout,remaining);
+        try(InputStream input=context.getAssets().open("public/widget-cold-runtime.js");
+            Scanner scanner=new Scanner(input,"UTF-8")){
+            String script=scanner.useDelimiter("\\A").next();
+            view=new WebView(context);
+            view.getSettings().setJavaScriptEnabled(true);
+            view.getSettings().setDomStorageEnabled(true);
+            view.getSettings().setAllowFileAccess(false);
+            view.getSettings().setAllowContentAccess(false);
+            view.getSettings().setBlockNetworkLoads(true);
+            view.addJavascriptInterface(new Gate(),"ByeolharuColdGate");
+            view.setWebViewClient(new WebViewClient(){
+                @Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest request){return true;}
+                @Override public boolean onRenderProcessGone(WebView v,RenderProcessGoneDetail detail){finish(null);return true;}
+                @Override public void onPageFinished(WebView v,String url){
+                    if(finished||started)return;
+                    if(!ORIGIN.equals(url)||!ByeolharuWidgetProvider.coldAllowed(context,requestId)){finish(null);return;}
+                    started=true;
+                    v.evaluateJavascript(script+"\n;window.__byeolharuColdStart("+JSONObject.quote(key)+","+deadline+");",ignored->{
+                        if(!finished)handler.postDelayed(poll,100L);
+                    });
+                }
+            });
+            // Only a trusted empty document and the packaged offline bundle.
+            // No remote navigation, network, normal app mount or auth client.
+            view.loadDataWithBaseURL(ORIGIN,"<!doctype html><html><head><meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; connect-src 'none'; base-uri 'none'; form-action 'none'\"></head><body></body></html>","text/html","UTF-8",null);
+        }catch(RuntimeException | java.io.IOException e){finish(null);}
+    }
+    private void readResult(){
+        if(finished||view==null)return;
+        if(!ByeolharuWidgetProvider.coldAllowed(context,requestId)){finish(null);return;}
+        try{
+            view.evaluateJavascript("window.__byeolharuColdResult || null",value->{
+                if(finished)return;
+                if(value==null||"null".equals(value)){handler.postDelayed(poll,150L);return;}
+                try{
+                    Object parsed=new JSONTokener(value).nextValue();
+                    if(parsed instanceof JSONObject) finish(new JSObject(parsed.toString()));
+                    else finish(null);
+                }catch(Exception e){finish(null);}
+            });
+        }catch(RuntimeException e){finish(null);}
+    }
+    private void finish(JSObject result){
+        if(finished)return;finished=true;
+        handler.removeCallbacks(timeout);handler.removeCallbacks(poll);
+        WebView old=view;view=null;
+        if(old!=null){try{old.removeJavascriptInterface("ByeolharuColdGate");old.destroy();}catch(RuntimeException ignored){}}
+        if(result!=null)ByeolharuWidgetProvider.completeCold(context,requestId,result);
+        else ByeolharuWidgetProvider.complete(context,requestId,"not-ready");
+    }
+}

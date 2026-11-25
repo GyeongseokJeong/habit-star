@@ -83,7 +83,7 @@ if (!returnManifest.includes("android.permission.SCHEDULE_EXACT_ALARM")) {
 // Compact V4 widgets (both validated packages).
 const widgetNative = resolve(mobileRoot, "native/widgets");
 const mainRoot = resolve(mobileRoot, "android/app/src/main");
-for (const name of ["ByeolharuWidgetProvider", "ByeolharuWidgetConfigActivity", "ByeolharuWidgetListService", "ByeolharuWidgetApplication", "ByeolharuWidgetRuntimeProbe"]) {
+for (const name of ["ByeolharuWidgetProvider", "ByeolharuWidgetConfigActivity", "ByeolharuWidgetListService", "ByeolharuWidgetApplication", "ByeolharuWidgetRuntimeProbe", "ByeolharuWidgetColdPractice"]) {
   writeFileSync(join(dirname(path), name + ".java"),
     readFileSync(join(widgetNative, name + ".java.template"), "utf8").replaceAll("__PACKAGE__", targetPackage));
 }
