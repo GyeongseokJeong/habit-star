@@ -38,3 +38,8 @@
 1차 UX/제품: 상세 진입으로 체크 의도와 실행 불일치 → 한 번의 터치, 명시적 홈 분리.
 2차 아키텍처/데이터/QA: 오래된 캐시/보호 별점/좁은 위젯 및 큰 글꼴 → 기존 쓰기 guard, stale detail 무시, 보수적 host min height 기준, 물리 크기 유지.
 동일 모델 역할별 검토이며 독립 에이전트 실행 없음.
+
+## V12.1 설정 마감 — 2026-11-25
+- #219 main 병합 46743e9, PR CI/Android 및 main CI 성공. 사용자 실기기 체크리스트 10/10 정상. 스크린샷상 좁은 라이트 위젯/세로 확장 다크 위젯/설정 표시 확인. 긴 위젯의 하단 공간은 호스트 크기 제약, 추가 레이아웃 변경하지 않음.
+- 스위치 ON 불투명 보라색(다크 #9180B8 / 라이트 #78639F), OFF 회색(다크 #50576A / 라이트 #C8BFB3). 기존 white thumb, native Switch checked/accessibility, 48dp 행, draft/preview/apply 동작 유지. 플랫폼 반투명 트랙 tint 대신 checked selector, splitTrack false.
+- 오래된 Debug 테스트 안내 제거. 개인정보 표시 동의 설명 유지. release 읽기 전용 제한 안내는 정식 직접 기록 활성화 시 제거. 데이터/기록/위젯 레이아웃 변경 없음. CI 및 실제 양 테마 ON/OFF 확인 필요.
