@@ -31,3 +31,7 @@ Debug 위젯 projection의 handle은 generation별 HMAC으로 재계산 가능�
 ### STEP 2C-2B-3 Debug cold 실행
 
 동일 origin의 별도 offline WebView에서 기존 generation과 검증된 local 계정 캐시로 명령을 복원하고 기존 `LocalRepository.applyWidgetPractice`를 호출한다. 기존 DB만 open, 별도 원본/토큰 복제/직접 RPC 없음. native request guard와 UI Activity 생명주기, 기한, 현재 표시 키/동의, local auth snapshot 불변, 원본 revision/version을 확인한다. 저장 완료된 snapshot만 widget publication에 사용. 회원 Outbox는 다음 정상 앱 동기화에서 처리하며 서버 인증·즉시 sync/알림 갱신은 별도 검증. release 읽기 전용 유지.
+
+### STEP 2C-3 위젯 상세 기록 진입
+
+Debug 위젯의 별도 HMAC navigation key는 현재 계정·날짜·습관에만 묶이며 직접 쓰기 명령과 독립적이다. Native 표시 동의와 현재 표시 행 검사 후 일회성 제한시간 요청을 기존 앱에 전달하고 정상 hydration snapshot에서 해석한다. 기존 상세 화면의 계정/날짜 및 편집 보호를 재사용, 알림 경로의 완료/알람 조건은 그대로 유지한다. 상세 진입 자체는 원본 기록을 변경하지 않는다.

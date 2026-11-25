@@ -1696,7 +1696,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
     });
   }, [registerWidgetPractice, app.applyWidgetPractice, editing, detailId, accountOpen, constellationOpen,
     pastDate, sampleCleanupOpen, app.busy, ratingOverrides]);
-  // Native taps are navigation-only. Resolve against the actual hydrated
+  // Native notification/widget taps are navigation-only. Resolve against the actual hydrated
   // account/day, never the notification payload or a stale guest placeholder.
   useEffect(() => {
     if (!nativeHabitNavigation || nativeHabitNavigation.serial <= handledHabitNavigation.current) return;
