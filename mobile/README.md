@@ -195,3 +195,6 @@ GitHub 환경 `play-internal`에 업로드 키의 `ANDROID_UPLOAD_KEYSTORE_BASE6
 - #216/#217 병합, #217 CI/Android 성공, 사용자 cold 통합 확인상 이상 없음(항목별/ADB PID/회원 클라우드·알림 재조정은 미확인). 상세 진입은 Debug만; 기존 체크 경로/레이아웃/별점/DB 및 release 읽기 전용 유지.
 - 습관 제목·이모지 탭은 상세 기록 열기. 1~4점 등 quick action이 없는 체크 영역도 상세 진입(기록 변경 없음). 체크 가능 항목은 기존 완료/취소만. 현재 표시된 widget/detailKey 및 동의·기한을 native receiver에서 검증 후 사용자 탭에 한해 앱 실행. 한 번 소비하는 30초 요청, 계정/습관 ID는 native에 전달하지 않음. Android launcher BAL 호환성은 실기기 검증 필요.
 - 동일 origin generation DB에 navigation 전용 무작위 secret만 추가 저장. HMAC(scope/day/habit)로 오늘 예정된 실제 습관의 detailKey 생성; revision-bound practice key와 domain 분리, 완료·별점/일상 갱신 후에도 같은 날 같은 습관은 안정적. 이전 키로 다른 계정/날짜/삭제 습관 접근 금지. 앱의 정상 인증·hydration 후 snapshot에서 해석, 기존 알림 상세 흐름을 재사용하되 위젯은 완료/알람 없는 항목도 허용. 기존 편집/팝업을 덮지 않음, 상세 화면 계정/날짜 경계 유지. cold 직접 저장 후에도 detailKey 재발행. 신규 권한/원본 저장 변경 없음. CI 및 실제 launcher warm/cold, 여러 위젯·아이콘 숨김·1~4점·저장/취소·알림 회귀 확인 필요.
+
+## V12.0 — 빠른 실천 + 홈 버튼 (#189)
+사용자 실기기 #218 상세 진입 UX 불편으로 철회. [V12 명세](../docs/WIDGET_V12_SPEC.md) 참조. 기존 알림 상세 및 warm/cold 기록 유지, 행 전체 동일 키, 보호 행 안내만, 홈만 앱 실행. stale detail 무시, adapter /v12/, 다음 generation 저장에서 obsolete secret 제거. 48dp 헤더, 44×48dp 홈, 22dp 골드, 우측 8dp, host min height 기준 1~2행 60dp/기타 48dp. synthetic preview 반영, 기존 위젯 크기/설정/스크롤/release 읽기 전용 유지. CI/실기기 검증 필요.

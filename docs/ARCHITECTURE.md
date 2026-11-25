@@ -35,3 +35,6 @@ Debug 위젯 projection의 handle은 generation별 HMAC으로 재계산 가능�
 ### STEP 2C-3 위젯 상세 기록 진입
 
 Debug 위젯의 별도 HMAC navigation key는 현재 계정·날짜·습관에만 묶이며 직접 쓰기 명령과 독립적이다. Native 표시 동의와 현재 표시 행 검사 후 일회성 제한시간 요청을 기존 앱에 전달하고 정상 hydration snapshot에서 해석한다. 기존 상세 화면의 계정/날짜 및 편집 보호를 재사용, 알림 경로의 완료/알람 조건은 그대로 유지한다. 상세 진입 자체는 원본 기록을 변경하지 않는다.
+
+### V12.0 — 위젯 상세 진입 철회
+사용자 실기기 피드백으로 STEP 2C-3 위젯 상세 경로 제거(알림 상세 유지). 행 전체 기존 쓰기 명령, 홈만 앱 실행. 다음 generation 저장에서 obsolete navigation secret 제거, stale detail tap 무시. 원본 데이터·인증·Outbox·Debug/release 경계 불변. [명세](WIDGET_V12_SPEC.md).
