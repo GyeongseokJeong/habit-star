@@ -11,8 +11,7 @@ import type { Snapshot } from "../../lib/habits/repository";
 import { buildWidgetSummary, buildWidgetActionProjection, type WidgetSummary } from "../../lib/habits/widget-summary";
 import { seedWidgetRuntimeProbe } from "./widget-runtime-probe";
 import { newWidgetCommandGeneration, recoverableWidgetProjection } from "../../lib/habits/widget-command-recovery";
-import { writeWidgetCommandGeneration, widgetDetailSecret } from "./widget-command-generation";
-import { attachWidgetDetailKeys, resolveWidgetDetailKey } from "../../lib/habits/widget-detail-navigation";
+import { writeWidgetCommandGeneration } from "./widget-command-generation";
 import type { WidgetPracticeCommand, WidgetPracticeResult } from "../../lib/habits/widget-practice";
 import type { PluginListenerHandle } from "@capacitor/core";
 import type { NativeReminderControls, WrapupSettings, WrapupGroup } from "../../lib/habits/native-reminder-controls";
@@ -57,7 +56,6 @@ if (experimentalWidgetPractice) void seedWidgetRuntimeProbe(window.location.orig
 type WidgetPracticeRequest = { requestId: string; actionKey: string; deadline: number };
 type DeviceSettings = {
   addListener: (event: "widgetPracticeRequest", listener: (request: WidgetPracticeRequest) => void) => Promise<PluginListenerHandle>;
-  takeWidgetDetail: () => Promise<{ detailKey?: string; deadline?: number }>;
   claimWidgetPractice: (request: WidgetPracticeRequest) => Promise<{ accepted: boolean }>;
   finishWidgetPractice: (result: { requestId: string; result: string }) => Promise<void>;
   publishWidgetSummary: (summary: WidgetSummary | { ready: false }) => Promise<void>;
@@ -245,7 +243,6 @@ function GuestNativeApp() {
 
   const widgetQueue = useRef(Promise.resolve());
   const widgetCommands = useRef(new Map<string, WidgetPracticeCommand>());
-  const pendingWidgetDetail = useRef<{ detailKey?: string; deadline?: number } | null>(null);
   const widgetHandler = useRef<((command: WidgetPracticeCommand, deadline: number) => Promise<WidgetPracticeResult>) | null>(null);
   const registerWidgetPractice = useCallback<NonNullable<NativeReminderControls["registerWidgetPractice"]>>((handler) => {
     widgetHandler.current = handler;
@@ -291,24 +288,6 @@ function GuestNativeApp() {
       widgetQueue.current = widgetQueue.current.catch(() => {}).then(async () => {
         if (widgetCommands.current !== commands) return;
         if (experimentalWidgetPractice) {
-          // Resolve a native-validated one-shot tap against the already
-          // selected app snapshot. Keep it through a superseded publication.
-          if (next && summary.ready) {
-            try {
-              const incoming = await deviceSettings.takeWidgetDetail();
-              if (incoming.detailKey) pendingWidgetDetail.current = incoming;
-              const pending = pendingWidgetDetail.current;
-              if (pending?.detailKey && pending.deadline && pending.deadline > Date.now()) {
-                const secret = await widgetDetailSecret(window.location.origin);
-                const target = secret ? await resolveWidgetDetailKey(next,memberUserId,secret,pending.detailKey) : null;
-                if (widgetCommands.current !== commands) return;
-                pendingWidgetDetail.current = null;
-                if (target && pending.deadline > Date.now())
-                  setHabitNavigation({...target,source:"widget",serial:++habitNavigationSerial.current});
-              } else pendingWidgetDetail.current = null;
-            } catch {}
-            if (widgetCommands.current !== commands) return;
-          }
           // Serialize generation replacement before publishing corresponding
           // handles. Warm dispatch uses this in-memory map; the isolated
           // debug cold runtime re-derives them from committed state.
@@ -331,14 +310,6 @@ function GuestNativeApp() {
             await writeWidgetCommandGeneration(window.location.origin, null).catch(() => {});
             if (widgetCommands.current !== commands) return;
           }
-        }
-        if (experimentalWidgetPractice && next && summary.ready) {
-          const expected = widgetCommands.current;
-          try {
-            const secret = await widgetDetailSecret(window.location.origin,true);
-            if (secret) summary = await attachWidgetDetailKeys(summary,next,memberUserId,secret);
-          } catch {}
-          if (widgetCommands.current !== expected) return;
         }
         return deviceSettings.publishWidgetSummary(summary);
       }).catch(() => {});

@@ -43,10 +43,6 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
     static boolean validKey(String value) { return value != null && value.matches("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"); }
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
     private static PracticeRequest pending;
-    private static String pendingDetailKey;
-    private static int pendingDetailWidget=-1;
-    private static long pendingDetailDeadline;
-    private static final long DETAIL_TTL=30000L;
     private static class PracticeRequest {
         final String requestId = UUID.randomUUID().toString();
         final String key; final int widget; final long deadline; final PendingResult broadcast;
@@ -109,8 +105,6 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
                     .put("group",group).put("completed",row.optBoolean("completed"));
                 String key=row.optString("actionKey");
                 if(experimental(c)&&validKey(key)) projectedRow.put("actionKey",key);
-                String detailKey=row.optString("detailKey");
-                if(experimental(c)&&validKey(detailKey)) projectedRow.put("detailKey",detailKey);
                 rows.put(projectedRow);
             }
             JSONObject projected = new JSONObject().put("expiresAt",expiry).put("timezone",data.optString("timezone")).put("rows",rows);
@@ -153,6 +147,16 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
             v.setColorInt(id,"setTextColor",Color.parseColor(themeValue(theme,false,light,dark)),
                 Color.parseColor(themeValue(theme,true,light,dark)));
         else v.setTextColor(id,Color.parseColor(themeValue(theme,false,light,dark)));
+    }
+    static void homeIcon(Context c,RemoteViews v,String theme) {
+        int light=R.drawable.byeolharu_widget_home_light,dark=R.drawable.byeolharu_widget_home_dark;
+        if(Build.VERSION.SDK_INT>=31)
+            v.setIcon(R.id.widget_home,"setImageIcon",Icon.createWithResource(c,themeValue(theme,false,light,dark)),
+                Icon.createWithResource(c,themeValue(theme,true,light,dark)));
+        else v.setImageViewResource(R.id.widget_home,themeValue(theme,false,light,dark));
+    }
+    static boolean sparseRows(int minHeight,int count) {
+        return count>=1 && count<=2 && minHeight>=60+count*60;
     }
     static void checkIcon(Context c,RemoteViews v,int id,String theme,boolean completed) {
         int light=completed?R.drawable.byeolharu_widget_check_light:R.drawable.byeolharu_widget_circle_light;
@@ -223,7 +227,8 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
     }
     @Override public void onReceive(Context c,Intent intent){
         if(PRACTICE.equals(intent.getAction())) {
-            if(intent.hasExtra("detailKey")) { openDetail(c,intent); return; }
+            // Ignore cached navigation taps from the previous version.
+            if(intent.hasExtra("detailKey"))return;
             begin(c,intent,goAsync()); return;
         }
         super.onReceive(c,intent);
@@ -240,36 +245,6 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
     private static void message(Context c,String value) {
         MAIN.post(()->Toast.makeText(c.getApplicationContext(),value,Toast.LENGTH_SHORT).show());
     }
-    // Same explicit non-exported receiver as the check, but a distinct
-    // opaque navigation capability. No record writes on this branch.
-    private static synchronized void openDetail(Context c,Intent intent) {
-        if(!experimental(c)||intent.hasExtra("actionKey"))return;
-        int id=-1;
-        try {
-            Uri data=intent.getData();
-            if(data!=null && "byeolharu-widget".equals(data.getScheme()) && "practice".equals(data.getHost()))
-                id=Integer.parseInt(data.getLastPathSegment());
-        } catch(RuntimeException ignored){}
-        String key=intent.getStringExtra("detailKey");
-        if(!configured(c,id)||!validKey(key))return;
-        boolean found=false;
-        for(JSONObject row:rows(c,id,read(c),options(c).getBoolean(id+":hide",false)))
-            if(key.equals(row.optString("detailKey"))){found=true;break;}
-        if(!found)return;
-        pendingDetailKey=key;pendingDetailWidget=id;pendingDetailDeadline=System.currentTimeMillis()+DETAIL_TTL;
-        Intent open=new Intent(c,MainActivity.class).setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_SINGLE_TOP|Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        try { c.startActivity(open); }
-        catch(RuntimeException e){pendingDetailKey=null;message(c,"별하루 앱에서 오늘 기록을 확인해 주세요.");}
-    }
-    static synchronized JSObject takeDetail(Context c) {
-        JSObject result=new JSObject();
-        if(experimental(c)&&pendingDetailKey!=null&&System.currentTimeMillis()<pendingDetailDeadline&&configured(c,pendingDetailWidget)) {
-            result.put("detailKey",pendingDetailKey);result.put("deadline",pendingDetailDeadline);
-        }
-        pendingDetailKey=null;pendingDetailWidget=-1;pendingDetailDeadline=0;
-        return result;
-    }
     private static synchronized void begin(Context context,Intent intent,PendingResult broadcast) {
         Context c=context.getApplicationContext();
         int id=-1;
@@ -279,6 +254,17 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
                 id=Integer.parseInt(data.getLastPathSegment());
         } catch(RuntimeException ignored){}
         String key=intent.getStringExtra("actionKey");
+        if(intent.getBooleanExtra("editInApp",false)) {
+            broadcast.finish();
+            if(experimental(c)&&configured(c,id)&&key==null) {
+                for(JSONObject row:rows(c,id,read(c),options(c).getBoolean(id+":hide",false))) {
+                    if(!validKey(row.optString("actionKey"))) {
+                        message(c,"세부 기록은 앱에서 수정할 수 있어요.");break;
+                    }
+                }
+            }
+            return;
+        }
         if(pending!=null||!currentKey(c,id,key)) {
             broadcast.finish(); message(c,"별하루 앱에서 오늘 기록을 확인해 주세요."); return;
         }
@@ -346,7 +332,7 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
                 ColorStateList.valueOf(Color.parseColor(themeValue(theme,false,"#FFFCF7","#1C2233"))),
                 ColorStateList.valueOf(Color.parseColor(themeValue(theme,true,"#FFFCF7","#1C2233"))));
         }
-        textColor(v,R.id.widget_star,theme,"#92703B","#E5C78D");
+        homeIcon(c,v,theme);
         textColor(v,R.id.widget_label,theme,"#302D38","#F0EDF5");
         textColor(v,R.id.widget_count,theme,"#92703B","#E5C78D");
         textColor(v,R.id.widget_empty,theme,"#716B79","#A4AABD");
@@ -361,18 +347,16 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
         // by ListView's asynchronous empty-view handling.
         v.setViewVisibility(R.id.widget_content,ready?View.VISIBLE:View.GONE);
         v.setViewVisibility(R.id.widget_private,ready?View.GONE:View.VISIBLE);
-        v.setTextViewText(R.id.widget_private,consent?"앱에서 기록 불러오기":"습관 표시 꺼짐");
+        v.setTextViewText(R.id.widget_private,consent?"앱에서 기록을 불러와 주세요":"습관 표시 꺼짐");
         Intent open=new Intent(c,MainActivity.class).setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_SINGLE_TOP|Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        v.setOnClickPendingIntent(R.id.widget_header,PendingIntent.getActivity(c,8102,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
-        v.setOnClickPendingIntent(R.id.widget_empty,PendingIntent.getActivity(c,8102,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
-        v.setOnClickPendingIntent(R.id.widget_private,PendingIntent.getActivity(c,8102,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
+        v.setOnClickPendingIntent(R.id.widget_home,PendingIntent.getActivity(c,8102,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
         boolean showIcons=showHabitIcons(c,id);
         // Include the display preference in adapter identity: extras alone
         // are not part of Intent.filterEquals in the launcher collection cache.
         Intent service=new Intent(c,ByeolharuWidgetListService.class).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,id)
             .putExtra("renderTheme",theme).putExtra("showIcons",showIcons)
-            .setData(Uri.parse("byeolharu-widget://list/"+id+"/"+theme+"/"+(ready?"visible":"hidden")+"/"+(showIcons?"icons":"text")));
+            .setData(Uri.parse("byeolharu-widget://list/"+id+"/v12/"+theme+"/"+(ready?"visible":"hidden")+"/"+(showIcons?"icons":"text")));
         v.setRemoteAdapter(R.id.widget_list,service);
         if(experimental(c)&&ready) {
             Intent tap=new Intent(c,Mini.class).setAction(PRACTICE)

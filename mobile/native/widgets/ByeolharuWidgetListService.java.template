@@ -10,7 +10,7 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Release remains read-only; debug-only opaque handles exercise the warm bridge. */
+/** Release remains read-only; debug rows share the guarded practice handle. */
 public class ByeolharuWidgetListService extends RemoteViewsService {
     @Override public RemoteViewsFactory onGetViewFactory(Intent intent) {
         final int id=intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,AppWidgetManager.INVALID_APPWIDGET_ID);
@@ -20,10 +20,14 @@ public class ByeolharuWidgetListService extends RemoteViewsService {
         final boolean showIcons=intent.getBooleanExtra("showIcons",ByeolharuWidgetProvider.showHabitIcons(c,id));
         return new RemoteViewsFactory() {
             List<JSONObject> rows=new ArrayList<>();
+            boolean sparse=false;
             public void onCreate(){}
             public void onDataSetChanged(){
                 rows=ByeolharuWidgetProvider.rows(c,id,ByeolharuWidgetProvider.read(c),
                     ByeolharuWidgetProvider.options(c).getBoolean(id+":hide",false));
+                int height=AppWidgetManager.getInstance(c).getAppWidgetOptions(id)
+                    .getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,0);
+                sparse=ByeolharuWidgetProvider.sparseRows(height,rows.size());
             }
             public void onDestroy(){rows.clear();}
             public int getCount(){return ByeolharuWidgetProvider.configured(c,id)?rows.size():0;}
@@ -31,7 +35,10 @@ public class ByeolharuWidgetListService extends RemoteViewsService {
                 if(!ByeolharuWidgetProvider.configured(c,id)||position<0||position>=rows.size())return null;
                 JSONObject row=rows.get(position);boolean completed=row.optBoolean("completed");
                 boolean experimental=ByeolharuWidgetProvider.experimental(c);
-                RemoteViews v=new RemoteViews(c.getPackageName(),experimental?R.layout.byeolharu_widget_row_action:R.layout.byeolharu_widget_row);
+                int layout=experimental
+                    ?(sparse?R.layout.byeolharu_widget_row_action_sparse:R.layout.byeolharu_widget_row_action)
+                    :(sparse?R.layout.byeolharu_widget_row_sparse:R.layout.byeolharu_widget_row);
+                RemoteViews v=new RemoteViews(c.getPackageName(),layout);
                 // Explicitly restore VISIBLE as rows can be recycled by the host.
                 v.setViewVisibility(R.id.widget_icon,showIcons?View.VISIBLE:View.GONE);
                 v.setTextViewText(R.id.widget_icon,showIcons?row.optString("icon"):"");
@@ -40,23 +47,20 @@ public class ByeolharuWidgetListService extends RemoteViewsService {
                 ByeolharuWidgetProvider.checkIcon(c,v,R.id.widget_check,theme,completed);
                 String key=row.optString("actionKey");
                 boolean actionable=experimental&&ByeolharuWidgetProvider.validKey(key);
-                v.setContentDescription(R.id.widget_check,actionable?(completed?"실천 완료 취소":"실천 완료하기"):(completed?"실천 완료":"실천 전"));
-                if(actionable) v.setOnClickFillInIntent(R.id.widget_check,new Intent().putExtra("actionKey",key));
-                String detailKey=row.optString("detailKey");
-                if(experimental&&ByeolharuWidgetProvider.validKey(detailKey)) {
-                    Intent detail=new Intent().putExtra("detailKey",detailKey);
-                    v.setOnClickFillInIntent(R.id.widget_title,detail);
-                    v.setOnClickFillInIntent(R.id.widget_icon,detail);
-                    // Protected ratings use the normal editor, never a quick undo.
-                    if(!actionable) {
-                        v.setOnClickFillInIntent(R.id.widget_check,detail);
-                        v.setContentDescription(R.id.widget_check,"상세 기록 열기");
-                    }
+                String description=actionable?(completed?"실천 완료 취소":"실천 완료하기"):
+                    (experimental?"세부 기록은 앱에서 수정":"실천 "+(completed?"완료":"전"));
+                v.setContentDescription(R.id.widget_check,description);
+                if(experimental) {
+                    Intent tap=actionable?new Intent().putExtra("actionKey",key):new Intent().putExtra("editInApp",true);
+                    v.setOnClickFillInIntent(R.id.widget_row,tap);
+                    v.setOnClickFillInIntent(R.id.widget_icon,tap);
+                    v.setOnClickFillInIntent(R.id.widget_title,tap);
+                    v.setOnClickFillInIntent(R.id.widget_check,tap);
                 }
                 return v;
             }
             public RemoteViews getLoadingView(){return null;}
-            public int getViewTypeCount(){return 2;}
+            public int getViewTypeCount(){return 4;}
             public long getItemId(int position){return position;}
             public boolean hasStableIds(){return false;}
         };
