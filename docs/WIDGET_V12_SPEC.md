@@ -43,3 +43,7 @@
 - #219 main 병합 46743e9, PR CI/Android 및 main CI 성공. 사용자 실기기 체크리스트 10/10 정상. 스크린샷상 좁은 라이트 위젯/세로 확장 다크 위젯/설정 표시 확인. 긴 위젯의 하단 공간은 호스트 크기 제약, 추가 레이아웃 변경하지 않음.
 - 스위치 ON 불투명 보라색(다크 #9180B8 / 라이트 #78639F), OFF 회색(다크 #50576A / 라이트 #C8BFB3). 기존 white thumb, native Switch checked/accessibility, 48dp 행, draft/preview/apply 동작 유지. 플랫폼 반투명 트랙 tint 대신 checked selector, splitTrack false.
 - 오래된 Debug 테스트 안내 제거. 개인정보 표시 동의 설명 유지. release 읽기 전용 제한 안내는 정식 직접 기록 활성화 시 제거. 데이터/기록/위젯 레이아웃 변경 없음. CI 및 실제 양 테마 ON/OFF 확인 필요.
+
+## V12.2 토글 비율 미세조정 — 2026-11-25
+- #220 병합 후 다크 실기기에서 ON/OFF 색상 구분 및 오래된 테스트 문구 제거 확인. 사용자 피드백 핵심은 ON 왼쪽 과도한 여백이며 색상 변경 요청 아님.
+- V12.1 OEM 기본 thumb 제거, 자체 18dp 흰색 원형 centered layer 적용. 트랙 48×26→40×24dp, 양 끝 2dp, 위아래 nominal 3dp. 처음 제안한 44dp보다 더 컴팩트한 40dp 선택; 기존 Android Switch의 intrinsic width 및 padding 계산을 고려한 설계. ON/OFF 기존 색상 및 48dp 이상 행 터치, native checked/drag/접근성, 설정 저장/미리보기, release 안내 유지. 실제 OEM 렌더링과 양 상태 좌우 여백은 실기기 검증 필요.

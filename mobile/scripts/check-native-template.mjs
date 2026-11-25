@@ -497,8 +497,11 @@ console.log("V12 quick practice, home and sparse row source contracts OK (not a 
 assert.match(configActivity,/control.setTrackDrawable\(getDrawable\(night\?R.drawable.byeolharu_widget_switch_track_dark:R.drawable.byeolharu_widget_switch_track_light\)\)/);
 assert.match(configActivity,/control.setTrackTintList\(null\)/);
 assert.match(configActivity,/control.setSplitTrack\(false\)/);
-assert.match(configActivity,/control.setSwitchMinWidth\(dp\(48\)\)/);
-assert.match(configActivity,/control.setThumbTintList\(ColorStateList.valueOf\(Color.WHITE\)\)/);
+assert.match(configActivity,/control.setSwitchMinWidth\(dp\(40\)\)/);
+assert.match(configActivity,/control.setThumbDrawable\(getDrawable\(R.drawable.byeolharu_widget_switch_thumb\)\)/);
+assert.match(configActivity,/control.setThumbTintList\(null\)/);
+assert.match(configActivity,/control.setShowText\(false\)/);
+assert.match(configActivity,/control.setMinHeight\(dp\(48\)\)/);
 assert.doesNotMatch(configActivity,/테스트 버전: 앱이 백그라운드/);
 assert.match(configActivity,/if\(!ByeolharuWidgetProvider.experimental\(this\)\)\{\s*space\(privacy,6\);privacy.addView\(text\("기록은 앱에서 할 수 있어요."/);
 assert.match(configActivity,/습관 이름과 완료 상태가 홈 화면에 표시됩니다\./);
@@ -507,6 +510,24 @@ for(const [theme,on,off] of [["dark","#9180B8","#50576A"],["light","#78639F","#C
   assert.match(xml,/android:state_checked="true"/);
   const colors=[...xml.matchAll(/<solid android:color="([^"]+)"/g)].map(x=>x[1]);
   assert.deepEqual(colors,[on,off]);
-  assert.equal((xml.match(/android:width="48dp" android:height="26dp"/g)||[]).length,2);
+  assert.equal((xml.match(/android:width="40dp" android:height="24dp"/g)||[]).length,2);
+  assert.equal((xml.match(/android:left="2dp" android:top="0dp" android:right="2dp" android:bottom="0dp"/g)||[]).length,2);
 }
 console.log("V12.1 switch contrast and capability notice source contracts OK (not a device test)");
+
+
+// V12.2: own both drawables; assert the nominal geometry and mirrored
+// endpoint margins. OEM runtime measurement still needs a device check.
+const compactThumb=readFileSync(resolve(root,"native/widgets/drawable/byeolharu_widget_switch_thumb.xml"),"utf8");
+assert.match(compactThumb,/<item android:width="18dp" android:height="18dp" android:gravity="center">/);
+assert.match(compactThumb,/android:shape="oval"/);
+assert.match(compactThumb,/android:color="#FFFFFF"/);
+assert.doesNotMatch(compactThumb,/<padding\b|<inset\b/);
+const trackWidth=40, trackHeight=24, thumbSize=18, side=2;
+const measuredWidth=Math.max(trackWidth,2*thumbSize+2*side);
+const travel=measuredWidth-thumbSize-2*side;
+assert.equal(measuredWidth,40);
+assert.equal(travel,18);
+assert.equal(measuredWidth-(side+travel+thumbSize),side);
+assert.equal((trackHeight-thumbSize)/2,3);
+console.log("V12.2 compact symmetric switch geometry source contracts OK (not a device test)");

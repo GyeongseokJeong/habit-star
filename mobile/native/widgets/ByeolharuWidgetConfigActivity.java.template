@@ -172,13 +172,17 @@ public class ByeolharuWidgetConfigActivity extends Activity {
         Switch control=new Switch(this);control.setText(label);control.setTextColor(ink());control.setTextSize(14);
         control.setMinHeight(dp(48));control.setPadding(dp(12),0,dp(12),0);
         control.setBackgroundTintList(null);control.setBackground(controlBackground(Color.TRANSPARENT,0,12,accent()));
-        control.setThumbTintList(ColorStateList.valueOf(Color.WHITE));
-        // The platform track may retain translucent pixels even when tinted.
-        // Use opaque, stateful tracks while keeping native Switch semantics.
+        // Own both visual components: the platform thumb has OEM-dependent
+        // intrinsic width/optical insets that can expand a custom track.
+        control.setShowText(false);
+        control.setThumbDrawable(getDrawable(R.drawable.byeolharu_widget_switch_thumb));
+        control.setThumbTintList(null);
+        // Keep opaque stateful tracks and native Switch semantics.
         control.setTrackDrawable(getDrawable(night?R.drawable.byeolharu_widget_switch_track_dark:R.drawable.byeolharu_widget_switch_track_light));
         control.setTrackTintList(null);
         control.setSplitTrack(false);
-        control.setSwitchMinWidth(dp(48));
+        control.setSwitchMinWidth(dp(40));
+        control.setSwitchPadding(dp(12));
         control.setChecked(checked);return control;
     }
     private void refreshPreview(){
