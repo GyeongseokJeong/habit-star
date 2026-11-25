@@ -173,7 +173,12 @@ public class ByeolharuWidgetConfigActivity extends Activity {
         control.setMinHeight(dp(48));control.setPadding(dp(12),0,dp(12),0);
         control.setBackgroundTintList(null);control.setBackground(controlBackground(Color.TRANSPARENT,0,12,accent()));
         control.setThumbTintList(ColorStateList.valueOf(Color.WHITE));
-        control.setTrackTintList(new ColorStateList(new int[][]{new int[]{android.R.attr.state_checked},new int[]{}},new int[]{plum(),color(night?"#596171":"#C8BFB3")}));
+        // The platform track may retain translucent pixels even when tinted.
+        // Use opaque, stateful tracks while keeping native Switch semantics.
+        control.setTrackDrawable(getDrawable(night?R.drawable.byeolharu_widget_switch_track_dark:R.drawable.byeolharu_widget_switch_track_light));
+        control.setTrackTintList(null);
+        control.setSplitTrack(false);
+        control.setSwitchMinWidth(dp(48));
         control.setChecked(checked);return control;
     }
     private void refreshPreview(){
@@ -276,7 +281,11 @@ public class ByeolharuWidgetConfigActivity extends Activity {
         space(root,20);View line=new View(this);line.setBackgroundColor(color(night?"#343D4D":"#E2D9CC"));root.addView(line,new LinearLayout.LayoutParams(-1,dp(1)));space(root,8);LinearLayout privacy=column();root.addView(privacy);
         consent=new CheckBox(this);consent.setText("홈 화면에 습관 표시");consent.setTextColor(ink());consent.setButtonTintList(controlTint());consent.setMinHeight(dp(48));consent.setChecked(saved==null?prefs.getBoolean(id+":consent",false):saved.getBoolean("consent"));privacy.addView(consent);
         privacy.addView(text("습관 이름과 완료 상태가 홈 화면에 표시됩니다.",13,muted(),false));
-        space(privacy,6);privacy.addView(text(ByeolharuWidgetProvider.experimental(this)?"테스트 버전: 앱이 백그라운드에 있을 때 체크할 수 있어요.":"기록은 앱에서 할 수 있어요.",12,muted(),false));
+        // Keep a truthful limitation only while release is display-only.
+        // Debug supports direct practice even after process termination.
+        if(!ByeolharuWidgetProvider.experimental(this)){
+            space(privacy,6);privacy.addView(text("기록은 앱에서 할 수 있어요.",12,muted(),false));
+        }
         space(root,20);save=new Button(this);save.setText("적용하기");save.setAllCaps(false);save.setTextSize(16);save.setMinHeight(dp(52));save.setTextColor(color(night?"#302D38":"#FFFFFF"));save.setBackgroundTintList(null);save.setBackground(controlBackground(accent(),0,14,color(night?"#302D38":"#FFFFFF")));root.addView(save,new LinearLayout.LayoutParams(-1,-2));
         space(root,8);applyHint=text("",12,muted(),false);applyHint.setGravity(Gravity.CENTER);root.addView(applyHint);
         save.setEnabled(existing || consent.isChecked());save.setAlpha(save.isEnabled()?1f:0.45f);updateApplyHint(existing,consent.isChecked());

@@ -198,3 +198,6 @@ GitHub 환경 `play-internal`에 업로드 키의 `ANDROID_UPLOAD_KEYSTORE_BASE6
 
 ## V12.0 — 빠른 실천 + 홈 버튼 (#189)
 사용자 실기기 #218 상세 진입 UX 불편으로 철회. [V12 명세](../docs/WIDGET_V12_SPEC.md) 참조. 기존 알림 상세 및 warm/cold 기록 유지, 행 전체 동일 키, 보호 행 안내만, 홈만 앱 실행. stale detail 무시, adapter /v12/, 다음 generation 저장에서 obsolete secret 제거. 48dp 헤더, 44×48dp 홈, 22dp 골드, 우측 8dp, host min height 기준 1~2행 60dp/기타 48dp. synthetic preview 반영, 기존 위젯 크기/설정/스크롤/release 읽기 전용 유지. CI/실기기 검증 필요.
+
+### V12.1 설정 시인성 개선
+V12.0 실기기 10/10 정상. 두 토글의 native Switch 유지, 불투명 checked/unchecked track selector 적용. 오래된 Debug 안내 제거, release 읽기 전용 안내 및 개인정보 동의 유지. 위젯 본체와 기록 로직 변경 없음. [명세](../docs/WIDGET_V12_SPEC.md).

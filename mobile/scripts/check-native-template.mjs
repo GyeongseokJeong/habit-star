@@ -490,3 +490,23 @@ for(const kind of ["row","row_action"]){
 }
 assert.match(samplePreview,/ByeolharuWidgetProvider.sparseRows\(previewMinHeight,visibleCount\)\?60:48/);
 console.log("V12 quick practice, home and sparse row source contracts OK (not a launcher test)");
+
+
+// V12.1: opaque native Switch tracks, not a position-only visual distinction.
+// Preserve the original checked semantics and draft/apply paths.
+assert.match(configActivity,/control.setTrackDrawable\(getDrawable\(night\?R.drawable.byeolharu_widget_switch_track_dark:R.drawable.byeolharu_widget_switch_track_light\)\)/);
+assert.match(configActivity,/control.setTrackTintList\(null\)/);
+assert.match(configActivity,/control.setSplitTrack\(false\)/);
+assert.match(configActivity,/control.setSwitchMinWidth\(dp\(48\)\)/);
+assert.match(configActivity,/control.setThumbTintList\(ColorStateList.valueOf\(Color.WHITE\)\)/);
+assert.doesNotMatch(configActivity,/테스트 버전: 앱이 백그라운드/);
+assert.match(configActivity,/if\(!ByeolharuWidgetProvider.experimental\(this\)\)\{\s*space\(privacy,6\);privacy.addView\(text\("기록은 앱에서 할 수 있어요."/);
+assert.match(configActivity,/습관 이름과 완료 상태가 홈 화면에 표시됩니다\./);
+for(const [theme,on,off] of [["dark","#9180B8","#50576A"],["light","#78639F","#C8BFB3"]]){
+  const xml=readFileSync(resolve(root,"native/widgets/drawable/byeolharu_widget_switch_track_"+theme+".xml"),"utf8");
+  assert.match(xml,/android:state_checked="true"/);
+  const colors=[...xml.matchAll(/<solid android:color="([^"]+)"/g)].map(x=>x[1]);
+  assert.deepEqual(colors,[on,off]);
+  assert.equal((xml.match(/android:width="48dp" android:height="26dp"/g)||[]).length,2);
+}
+console.log("V12.1 switch contrast and capability notice source contracts OK (not a device test)");
