@@ -34,3 +34,34 @@ export async function readWidgetCommandGeneration(origin: string, now = Date.now
     } finally { db.close(); }
   } catch { return null; }
 }
+
+
+// A separate navigation-only secret survives a projection refresh during app
+// startup. It never authorizes writes and contains no account or habit data.
+const DETAIL_KEY = "detail-secret";
+export async function widgetDetailSecret(origin: string, create = false): Promise<string | null> {
+  if (origin !== "https://localhost") return null;
+  try {
+    const db = await openDB(DB, 1, { upgrade(_db, _old, _new, tx) {
+      if (!create) { void tx.done.catch(() => {}); tx.abort(); return; }
+      _db.createObjectStore(STORE);
+    } });
+    try {
+      const validSecret = (value: unknown): value is string =>
+        typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(value);
+      if (!create) {
+        const existing: unknown = await db.get(STORE, DETAIL_KEY);
+        return validSecret(existing) ? existing : null;
+      }
+      // Keep get-or-create atomic, but explicitly use a writable transaction
+      // only in the creation branch. Read-only stores have no put method.
+      const tx = db.transaction(STORE, "readwrite");
+      const existing: unknown = await tx.store.get(DETAIL_KEY);
+      if (validSecret(existing)) { await tx.done; return existing; }
+      const secret = crypto.randomUUID();
+      await tx.store.put(secret, DETAIL_KEY);
+      await tx.done;
+      return secret;
+    } finally { db.close(); }
+  } catch { return null; }
+}

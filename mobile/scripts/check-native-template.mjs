@@ -452,3 +452,18 @@ assert.match(coldBuild,/if \(process.env.BYEOLHARU_ANDROID_RELEASE !== "1"\) \{\
 assert.match(coldTs,/repo.applyWidgetPractice\(command, allowed\)/);
 assert.doesNotMatch(coldTs,/repo\.initialize\(|repo\.ensureDay\(|supabase\(|fetch\(/);
 console.log("Debug cold practice source contracts OK (not an Android runtime test)");
+
+
+// STEP 2C-3: distinct native navigation capability, one-shot expiry and
+// consent, no row click routed to practice unless it has a practice handle.
+assert.match(widget,/if\(intent.hasExtra\("detailKey"\)\) \{ openDetail\(c,intent\); return; \}/);
+assert.match(widget,/if\(!experimental\(c\)\|\|intent.hasExtra\("actionKey"\)\)return/);
+assert.match(widget,/key.equals\(row.optString\("detailKey"\)\)/);
+assert.match(widget,/System.currentTimeMillis\(\)<pendingDetailDeadline&&configured\(c,pendingDetailWidget\)/);
+assert.match(widget,/pendingDetailKey=null;pendingDetailWidget=-1;pendingDetailDeadline=0/);
+assert.match(widgetService,/setOnClickFillInIntent\(R.id.widget_title,detail\)/);
+assert.match(widgetService,/setOnClickFillInIntent\(R.id.widget_icon,detail\)/);
+assert.match(settingsJava,/call.resolve\(ByeolharuWidgetProvider.takeDetail\(getContext\(\)\)\)/);
+assert.match(guestMain,/resolveWidgetDetailKey\(next,memberUserId,secret,pending.detailKey\)/);
+assert.match(guestMain,/source:"widget",serial:/);
+console.log("Widget detail navigation source contracts OK (not a launcher test)");

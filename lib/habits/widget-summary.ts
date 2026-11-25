@@ -5,7 +5,7 @@ import { getFirstUseState } from "./onboarding";
 import { sortHabitsForDisplay } from "./display-order";
 import { createWidgetPracticeCommand, widgetPracticeTargetRating, type WidgetPracticeCommand } from "./widget-practice";
 
-export type WidgetRow = { title: string; icon: string; group: TimeGroup; completed: boolean; actionKey?: string };
+export type WidgetRow = { title: string; icon: string; group: TimeGroup; completed: boolean; actionKey?: string; detailKey?: string };
 export type WidgetSummary = { ready: true; expiresAt: number; timezone: string; rows: WidgetRow[] };
 
 /** First millisecond of next local calendar day, including DST. */
@@ -32,7 +32,7 @@ export function buildWidgetSummary(snapshot: Snapshot | null, memberId: string |
     rows: scheduled.map(h => ({ title: h.title, icon: h.icon, group: h.timeGroup, completed: h.completed })) };
 }
 
-function widgetHabits(snapshot: Snapshot, memberId: string | null) {
+export function widgetHabits(snapshot: Snapshot, memberId: string | null) {
   const samples = getFirstUseState(snapshot, Boolean(memberId)).sampleIds;
   return sortHabitsForDisplay(snapshot.habits.filter(h => !samples.has(h.id) && isScheduled(h, snapshot.day)));
 }

@@ -42,6 +42,17 @@ public class ByeolharuWidgetListService extends RemoteViewsService {
                 boolean actionable=experimental&&ByeolharuWidgetProvider.validKey(key);
                 v.setContentDescription(R.id.widget_check,actionable?(completed?"실천 완료 취소":"실천 완료하기"):(completed?"실천 완료":"실천 전"));
                 if(actionable) v.setOnClickFillInIntent(R.id.widget_check,new Intent().putExtra("actionKey",key));
+                String detailKey=row.optString("detailKey");
+                if(experimental&&ByeolharuWidgetProvider.validKey(detailKey)) {
+                    Intent detail=new Intent().putExtra("detailKey",detailKey);
+                    v.setOnClickFillInIntent(R.id.widget_title,detail);
+                    v.setOnClickFillInIntent(R.id.widget_icon,detail);
+                    // Protected ratings use the normal editor, never a quick undo.
+                    if(!actionable) {
+                        v.setOnClickFillInIntent(R.id.widget_check,detail);
+                        v.setContentDescription(R.id.widget_check,"상세 기록 열기");
+                    }
+                }
                 return v;
             }
             public RemoteViews getLoadingView(){return null;}

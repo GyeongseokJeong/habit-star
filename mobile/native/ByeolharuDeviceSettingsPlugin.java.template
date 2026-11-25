@@ -35,6 +35,9 @@ public class ByeolharuDeviceSettingsPlugin extends Plugin {
         plugin.notifyListeners("widgetPracticeRequest", request);
         return true;
     }
+    @PluginMethod public void takeWidgetDetail(PluginCall call) {
+        call.resolve(ByeolharuWidgetProvider.takeDetail(getContext()));
+    }
     @PluginMethod public void claimWidgetPractice(PluginCall call) {
         JSObject result = new JSObject();
         result.put("accepted", ByeolharuWidgetProvider.claim(getContext(), call.getData()));
