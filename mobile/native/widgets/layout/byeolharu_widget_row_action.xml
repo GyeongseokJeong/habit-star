@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:orientation="horizontal" android:gravity="center_vertical">
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/widget_row" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:orientation="horizontal" android:gravity="center_vertical">
     <TextView android:id="@+id/widget_icon" android:layout_width="20dp" android:layout_height="wrap_content" android:gravity="center" android:textSize="16sp"/>
     <TextView android:id="@+id/widget_title" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="3dp" android:textSize="14sp" android:maxLines="2" android:ellipsize="end" android:paddingTop="3dp" android:paddingBottom="3dp"/>
     <ImageView android:id="@+id/widget_check" android:layout_width="48dp" android:layout_height="48dp" android:scaleType="center" android:paddingStart="22dp" android:paddingEnd="0dp" android:src="@drawable/byeolharu_widget_circle_light" android:contentDescription="실천 전"/>
