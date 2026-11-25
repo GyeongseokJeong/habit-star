@@ -6,6 +6,18 @@ import { resolveHabitReminder } from "../lib/habits/reminder-navigation";
 import { widgetDetailSecret, writeWidgetCommandGeneration } from "../mobile/packaged-guest/widget-command-generation";
 
 describe("widget detail navigation",()=>{
+  it("reads without creating and atomically reuses one navigation secret",async()=>{
+    expect(await widgetDetailSecret("https://localhost")).toBeNull();
+    expect((await indexedDB.databases()).map(db=>db.name)).not.toContain("byeolharu-widget-command-generation-v1");
+    expect(await widgetDetailSecret("https://example.com",true)).toBeNull();
+    const [first,second]=await Promise.all([
+      widgetDetailSecret("https://localhost",true),
+      widgetDetailSecret("https://localhost",true),
+    ]);
+    expect(first).toMatch(/^[0-9a-f-]{36}$/);
+    expect(second).toBe(first);
+    expect(await widgetDetailSecret("https://localhost")).toBe(first);
+  });
   it("opens protected/completed habits by opaque navigation key, independent of rating and publication",async()=>{
     const id=crypto.randomUUID(), r=new LocalRepository("member:"+id,()=>[],{getItem:()=>null});
     try {

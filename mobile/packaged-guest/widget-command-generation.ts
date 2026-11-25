@@ -47,10 +47,17 @@ export async function widgetDetailSecret(origin: string, create = false): Promis
       _db.createObjectStore(STORE);
     } });
     try {
-      const tx = db.transaction(STORE, create ? "readwrite" : "readonly");
+      const validSecret = (value: unknown): value is string =>
+        typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(value);
+      if (!create) {
+        const existing: unknown = await db.get(STORE, DETAIL_KEY);
+        return validSecret(existing) ? existing : null;
+      }
+      // Keep get-or-create atomic, but explicitly use a writable transaction
+      // only in the creation branch. Read-only stores have no put method.
+      const tx = db.transaction(STORE, "readwrite");
       const existing: unknown = await tx.store.get(DETAIL_KEY);
-      if (typeof existing === "string" && /^[0-9a-f-]{36}$/.test(existing)) { await tx.done; return existing; }
-      if (!create) { await tx.done; return null; }
+      if (validSecret(existing)) { await tx.done; return existing; }
       const secret = crypto.randomUUID();
       await tx.store.put(secret, DETAIL_KEY);
       await tx.done;
