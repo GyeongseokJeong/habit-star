@@ -161,7 +161,7 @@ assert.match(settingsJava, /publishWidgetSummary/);
 assert.match(patcher, /ByeolharuWidgetProvider/);
 assert.match(patcher, /android:permission="android.permission.BIND_REMOTEVIEWS"/);
 assert.match(widget, /FLAG_IMMUTABLE/);
-assert.match(widget, /setOnClickPendingIntent\(R.id.widget_header,/);
+assert.match(widget, /setOnClickPendingIntent\(R.id.widget_home,/);
 assert.match(widget, /expiry > now/);
 assert.match(widget, /getNoBackupFilesDir/);
 assert.match(widget, /anyConfigured\(c\)/);
@@ -192,9 +192,9 @@ for(const theme of ["dark","light"]){
  const header=layout.match(/<LinearLayout\b[^>]*android:id="@\+id\/widget_header"[^>]*>/)?.[0];
  assert.ok(header, theme+" widget header missing");
  const height=Number(header.match(/android:layout_height="(\d+)dp"/)?.[1]);
- assert.ok(height>=44, theme+" app-opening header must be at least 44dp");
+ assert.equal(height,48, theme+" V12 header must be 48dp");
  assert.match(header,/android:layout_width="match_parent"/);
- assert.match(layout,/android:paddingStart="6dp" android:paddingEnd="4dp" android:paddingTop="4dp" android:paddingBottom="4dp"/);
+ assert.match(layout,/android:paddingStart="6dp" android:paddingEnd="8dp" android:paddingTop="4dp" android:paddingBottom="4dp"/);
 }
 console.log("Compact widget layout, configuration and privacy source contracts OK (not a launcher test)");
 
@@ -245,8 +245,8 @@ const render=widget.slice(widget.indexOf("static void render(Context"));
 assert.match(render,/if \(Build.VERSION.SDK_INT>=31\) \{\s*\/\/[^\n]*\n\s*\/\/[^\n]*\n\s*v.setColorStateList\(R.id.widget_root/);
 assert.match(render,/themeValue\(theme,false,"#FFFCF7","#1C2233"\)/);
 assert.match(render,/themeValue\(theme,true,"#FFFCF7","#1C2233"\)/);
-assert.match(render,/\}\s*textColor\(v,R.id.widget_star,theme/);
-for(const id of ["star","label","count","empty","private"])
+assert.match(render,/\}\s*homeIcon\(c,v,theme\)/);
+for(const id of ["label","count","empty","private"])
  assert.ok(render.includes("textColor(v,R.id.widget_"+id+",theme,"));
 assert.doesNotMatch(widget,/if \("system"\.equals\(theme\)&&Build.VERSION.SDK_INT>=31\)/);
 
@@ -386,7 +386,7 @@ assert.match(configActivity,/showIcons.setOnCheckedChangeListener\(\(b,checked\)
 assert.match(configActivity,/saveOptions\(this,id,consent.isChecked\(\),FILTERS\[filterIndex\],hide.isChecked\(\),THEMES\[themeIndex\],showIcons.isChecked\(\)\)/);
 assert.match(samplePreview,/if\(showIcons.isChecked\(\)\)\{\s*TextView habitIcon=previewText\(samples\[i\]\[0\]/);
 assert.match(samplePreview,/TextView name=previewText\(samples\[i\]\[1\]/);
-assert.match(samplePreview,/previewText\("✦ "\+title/);
+assert.match(samplePreview,/header.addView\(home,new LinearLayout.LayoutParams\(scaled\(44\),scaled\(48\)\)\)/);
 assert.match(samplePreview,/row.addView\(icon,new LinearLayout.LayoutParams\(scaled\(22\),scaled\(22\)\)\)/);
 assert.doesNotMatch(samplePreview,/prefs\.edit|\.commit\(/);
 for(const kind of ["row","row_action"]){
@@ -454,16 +454,39 @@ assert.doesNotMatch(coldTs,/repo\.initialize\(|repo\.ensureDay\(|supabase\(|fetc
 console.log("Debug cold practice source contracts OK (not an Android runtime test)");
 
 
-// STEP 2C-3: distinct native navigation capability, one-shot expiry and
-// consent, no row click routed to practice unless it has a practice handle.
-assert.match(widget,/if\(intent.hasExtra\("detailKey"\)\) \{ openDetail\(c,intent\); return; \}/);
-assert.match(widget,/if\(!experimental\(c\)\|\|intent.hasExtra\("actionKey"\)\)return/);
-assert.match(widget,/key.equals\(row.optString\("detailKey"\)\)/);
-assert.match(widget,/System.currentTimeMillis\(\)<pendingDetailDeadline&&configured\(c,pendingDetailWidget\)/);
-assert.match(widget,/pendingDetailKey=null;pendingDetailWidget=-1;pendingDetailDeadline=0/);
-assert.match(widgetService,/setOnClickFillInIntent\(R.id.widget_title,detail\)/);
-assert.match(widgetService,/setOnClickFillInIntent\(R.id.widget_icon,detail\)/);
-assert.match(settingsJava,/call.resolve\(ByeolharuWidgetProvider.takeDetail\(getContext\(\)\)\)/);
-assert.match(guestMain,/resolveWidgetDetailKey\(next,memberUserId,secret,pending.detailKey\)/);
-assert.match(guestMain,/source:"widget",serial:/);
-console.log("Widget detail navigation source contracts OK (not a launcher test)");
+// V12 row-wide practice, explicit home, legacy navigation invalidation.
+assert.match(widget,/if\(intent.hasExtra\("detailKey"\)\)return/);
+assert.doesNotMatch(widget,/openDetail\(|takeDetail\(|startActivity\(/);
+assert.doesNotMatch(settingsJava,/takeWidgetDetail/);
+assert.doesNotMatch(guestMain,/pendingWidgetDetail|resolveWidgetDetailKey|source:"widget"/);
+assert.match(widget,/setOnClickPendingIntent\(R.id.widget_home,PendingIntent.getActivity/);
+assert.doesNotMatch(widget,/setOnClickPendingIntent\(R.id.widget_(header|label|count|empty|private),/);
+assert.match(widget,/getBooleanExtra\("editInApp",false\)/);
+assert.match(widget,/configured\(c,id\)&&key==null/);
+assert.match(widget,/세부 기록은 앱에서 수정할 수 있어요/);
+for(const id of ["row","icon","title","check"])
+  assert.ok(widgetService.includes("setOnClickFillInIntent(R.id.widget_"+id+",tap)"));
+assert.match(widgetService,/Intent tap=actionable\?new Intent\(\).putExtra\("actionKey",key\):new Intent\(\).putExtra\("editInApp",true\)/);
+assert.match(widgetService,/getViewTypeCount\(\)\{return 4;\}/);
+assert.match(widgetService,/OPTION_APPWIDGET_MIN_HEIGHT/);
+assert.match(widgetService,/sparseRows\(height,rows.size\(\)\)/);
+assert.match(widget,/\/v12\//);
+const sparseExpr=widget.match(/static boolean sparseRows\([^)]*\) \{\s*return ([^;]+);/)?.[1];
+assert.ok(sparseExpr);
+for(const [minHeight,count,expected] of [[0,1,false],[110,1,false],[119,1,false],[120,1,true],[179,2,false],[180,2,true],[500,2,true],[500,3,false],[500,0,false]])
+  assert.equal(runInNewContext(sparseExpr,{minHeight,count}),expected);
+for(const theme of ["light","dark"]){
+  const xml=readFileSync(resolve(root,"native/widgets/layout/byeolharu_widget_"+theme+".xml"),"utf8");
+  assert.match(xml,/widget_home" android:layout_width="44dp" android:layout_height="48dp"/);
+  assert.match(xml,/android:contentDescription="별하루 앱 열기"/);
+  const home=readFileSync(resolve(root,"native/widgets/drawable/byeolharu_widget_home_"+theme+".xml"),"utf8");
+  assert.match(home,/android:width="22dp" android:height="22dp"/);
+}
+for(const kind of ["row","row_action"]){
+  const normal=readFileSync(resolve(root,"native/widgets/layout/byeolharu_widget_"+kind+".xml"),"utf8");
+  const sparse=readFileSync(resolve(root,"native/widgets/layout/byeolharu_widget_"+kind+"_sparse.xml"),"utf8");
+  assert.equal(sparse,normal.replace('android:minHeight="48dp"','android:minHeight="60dp"'));
+  assert.match(normal,/android:id="@\+id\/widget_row"/);
+}
+assert.match(samplePreview,/ByeolharuWidgetProvider.sparseRows\(previewMinHeight,visibleCount\)\?60:48/);
+console.log("V12 quick practice, home and sparse row source contracts OK (not a launcher test)");

@@ -1,8 +1,7 @@
 import { LocalRepository } from "../../lib/habits/repository";
 import { buildWidgetActionProjection, buildWidgetSummary, type WidgetSummary } from "../../lib/habits/widget-summary";
 import { newWidgetCommandGeneration, recoverableWidgetProjection, recoverWidgetPracticeCommand } from "../../lib/habits/widget-command-recovery";
-import { attachWidgetDetailKeys } from "../../lib/habits/widget-detail-navigation";
-import { readWidgetCommandGeneration, writeWidgetCommandGeneration, widgetDetailSecret } from "./widget-command-generation";
+import { readWidgetCommandGeneration, writeWidgetCommandGeneration } from "./widget-command-generation";
 
 const ORIGIN = "https://localhost";
 const AUTH = "byeolharu_android_auth_v1";
@@ -62,11 +61,8 @@ export async function runColdWidgetPractice(input: { origin: string; actionKey: 
     const snapshot = await repo.load();
     if (!allowed()) return {status:"saved"};
     // Never synthesize a check state. Publish only the freshly committed snapshot.
-    let display = buildWidgetSummary(snapshot, identity.memberId);
+    const display = buildWidgetSummary(snapshot, identity.memberId);
     if (!display) return {status:"saved"};
-    const detailSecret = await widgetDetailSecret(origin);
-    if (detailSecret) display = await attachWidgetDetailKeys(display,snapshot,identity.memberId,detailSecret);
-    if (!allowed()) return {status:"saved"};
     try {
       const projection = buildWidgetActionProjection(snapshot, identity.memberId);
       if (!projection.summary || !projection.commands.size) return {status:"saved", summary:display};
@@ -75,8 +71,7 @@ export async function runColdWidgetPractice(input: { origin: string; actionKey: 
       if (!allowed()) return {status:"saved"};
       await writeWidgetCommandGeneration(origin,next);
       if (!allowed()) return {status:"saved"};
-      const summary = recovered.summary ?? display;
-      return {status:"saved",summary:detailSecret ? await attachWidgetDetailKeys(summary,snapshot,identity.memberId,detailSecret) : summary};
+      return {status:"saved",summary:recovered.summary ?? display};
     } catch { return {status:"saved",summary:display}; }
   } catch { return {status:saved?"saved":"error"}; }
   finally { repo?.close(); }
