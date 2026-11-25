@@ -47,3 +47,6 @@
 ## V12.2 토글 비율 미세조정 — 2026-11-25
 - #220 병합 후 다크 실기기에서 ON/OFF 색상 구분 및 오래된 테스트 문구 제거 확인. 사용자 피드백 핵심은 ON 왼쪽 과도한 여백이며 색상 변경 요청 아님.
 - V12.1 OEM 기본 thumb 제거, 자체 18dp 흰색 원형 centered layer 적용. 트랙 48×26→40×24dp, 양 끝 2dp, 위아래 nominal 3dp. 처음 제안한 44dp보다 더 컴팩트한 40dp 선택; 기존 Android Switch의 intrinsic width 및 padding 계산을 고려한 설계. ON/OFF 기존 색상 및 48dp 이상 행 터치, native checked/drag/접근성, 설정 저장/미리보기, release 안내 유지. 실제 OEM 렌더링과 양 상태 좌우 여백은 실기기 검증 필요.
+
+## STEP 4A 안정화
+V12.2 디자인 동결. [안정화 명세 및 검토](WIDGET_STABILIZATION_STEP4A.md). resume 권한 조회와 최신 snapshot 예약 분리, 자동 예약 queue stale guard, cold→reopen→Outbox→SyncEngine mock 및 알림 계획 통합 테스트. 실제 cold 알림 취소/클라우드 왕복/상용 활성화는 후속 게이트.
