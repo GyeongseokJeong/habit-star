@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { IDBFactory } from "fake-indexeddb";
 import { LocalRepository } from "../lib/habits/repository";
 import { buildWidgetActionProjection } from "../lib/habits/widget-summary";
 import { newWidgetCommandGeneration, recoverableWidgetProjection } from "../lib/habits/widget-command-recovery";
@@ -11,7 +12,6 @@ function storage(values: Record<string,string> = {}) { return { getItem: (k:stri
 async function setup(member: boolean) {
   const id = member ? crypto.randomUUID() : null;
   const scope = id ? "member:"+id : "guest";
-  if (!id) await LocalRepository.purgeScope(scope);
   const r = new LocalRepository(scope, () => [], {getItem:()=>null});
   await r.initialize();
   if (id) { await r.mutate(s=>{s.hydrated=true;});await r.ensureDay(); }
@@ -25,6 +25,31 @@ async function setup(member: boolean) {
   return {r,id,values,key:recovered.summary!.rows[0].actionKey!};
 }
 describe("debug cold widget practice",()=>{
+  // Each scenario starts with a genuinely empty fake database. Never purge
+  // before the repository has created its schema (openDB without upgrade
+  // would otherwise create a version-1 database with no object stores).
+  beforeEach(() => { vi.stubGlobal("indexedDB", new IDBFactory()); });
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it("rejects a cold request without creating the missing original database", async () => {
+    await writeWidgetCommandGeneration(origin, {
+      nonce: crypto.randomUUID(), expiresAt: Date.now() + 60000,
+    });
+    const result = await runColdWidgetPractice({
+      origin, actionKey: crypto.randomUUID(), deadline: Date.now() + 7500,
+      storage: storage(), nativeAllowed: () => true,
+    });
+    expect(result.status).not.toBe("saved");
+    await vi.waitFor(async () => {
+      expect((await indexedDB.databases()).map(db => db.name)).not.toContain("byeolharu-v2");
+    });
+    // A later ordinary startup can still initialize the correct schema.
+    const repo = new LocalRepository("guest", () => [], storage());
+    try {
+      await repo.initialize();
+      expect((await repo.state()).entities).toBeDefined();
+    } finally { repo.close(); }
+  });
   for (const member of [false,true]) it("commits and undoes through the existing store, member="+member,async()=>{
     const {r,values,key}=await setup(member);
     try{
