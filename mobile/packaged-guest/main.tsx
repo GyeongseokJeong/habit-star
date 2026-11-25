@@ -333,6 +333,16 @@ function GuestNativeApp() {
     const switched = reminderIdentityKey(identityRef.current) !== reminderIdentityKey(nextIdentity);
     identityRef.current = nextIdentity;
     if (switched) {
+      // Account boundaries must clear previous reservations even when the
+      // new account has wrap-up alerts enabled or hydration is incomplete.
+      snapshot.current = null;
+      if (lifecycle) {
+        const cleanup = operation.current.then(() => lifecycle.disable());
+        operation.current = cleanup.then(() => {}, () => {});
+        void cleanup.catch(() => {
+          if (mounted.current) setStatus("계정 전환 중 이전 알림 예약을 정리하지 못했어요.");
+        });
+      }
       try {
         const loaded = readWrapupSettings(reminderIdentityKey(nextIdentity));
         wrapupRef.current = loaded;
@@ -348,13 +358,7 @@ function GuestNativeApp() {
     auditRevision.current += 1;
     setRepairAvailable(false);
     if (!mounted.current) return;
-    if (!next) {
-      // A verified member switch without a ready snapshot must revoke the
-      // previous account's alarms. Later hydration can schedule its own.
-      if (switched) void schedule(false, null, true).catch(() =>
-        setStatus("계정 전환 중 이전 알림 예약을 정리하지 못했어요."));
-      return;
-    }
+    if (!next) return; // Verified account cleanup is already queued above.
     // Reconcile member/guest scopes even when this device toggle is OFF.
     // No previous account can leave an active scoped reminder behind.
     void schedule(enabledRef.current, next, true).catch(() =>
