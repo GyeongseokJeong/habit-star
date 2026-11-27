@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { permissionStateFromAndroid, shouldShowPermissionOffer } from "../notifications/notification-permission-onboarding.js";
+import { permissionStateFromAndroid, shouldShowPermissionOffer, requestHabitReminderPermission } from "../notifications/notification-permission-onboarding.js";
 
 test("Android permission states do not confuse a first-time prompt with a blocked permission", () => {
   assert.equal(permissionStateFromAndroid("granted"), "granted");
@@ -62,7 +62,8 @@ test("legacy devices do not repeat onboarding and explicit re-enabling remains a
   assert.match(main, /setPermissionOfferSeen\(localStorage.getItem\(PERMISSION_OFFER_SEEN_KEY\) === "1" \|\| saved !== null\)/);
   assert.match(main, /localStorage\.setItem\(PERMISSION_OFFER_SEEN_KEY, "1"\)/);
   assert.match(main, /if \(current\.display === "denied"\)/); // confirmed action may navigate to Android settings
-  assert.match(main, /deviceSettings\?\.openNotificationSettings\(\)/);
+  assert.match(main, /setPermissionState\(currentState\);/);
+  assert.match(main, /deviceSettings\.openNotificationSettings\(\)/);
   assert.match(main, /const onEnabledChange = useCallback\(async \(next: boolean\)/);
   assert.match(main, /LocalNotifications\.requestPermissions\(\)/);
   const first = { permission: "prompt", seen: false, explicitlyDisabled: false };
@@ -75,5 +76,68 @@ test("legacy devices do not repeat onboarding and explicit re-enabling remains a
     { ...first, permission: "unknown" },
   ]) {
     assert.equal(shouldShowPermissionOffer(state), false);
+  }
+});
+
+function permissionBridge(before, after) {
+  const calls = [];
+  const bridge = {
+    async checkPermissions() {
+      calls.push("check");
+      if (before instanceof Error) throw before;
+      return { display: before };
+    },
+    async requestPermissions() {
+      calls.push("request");
+      if (after instanceof Error) throw after;
+      return { display: after };
+    },
+  };
+  return { bridge, calls };
+}
+
+test("already granted (including immediately after first offer) skips a duplicate OS request", async () => {
+  const { bridge, calls } = permissionBridge("granted", new Error("must not request"));
+  assert.deepEqual(await requestHabitReminderPermission(bridge), { permission: "granted", route: "enable" });
+  assert.deepEqual(calls, ["check"]);
+});
+
+test("first or rationale prompt requests once and never opens settings on a fresh denial or dismissal", async () => {
+  for (const before of ["prompt", "prompt-with-rationale"]) {
+    for (const [after, permission, route] of [
+      ["granted", "granted", "enable"],
+      ["denied", "denied", "declined"],
+      ["prompt", "prompt", "declined"],
+      ["prompt-with-rationale", "prompt", "declined"],
+    ]) {
+      const { bridge, calls } = permissionBridge(before, after);
+      assert.deepEqual(await requestHabitReminderPermission(bridge), { permission, route });
+      assert.deepEqual(calls, ["check", "request"]);
+    }
+  }
+});
+
+test("a later deliberate ON after a known block can still recover permissions or open settings", async () => {
+  for (const [after, permission, route] of [
+    ["denied", "denied", "settings"], ["granted", "granted", "enable"],
+    ["prompt", "prompt", "declined"], [new Error("blocked"), "denied", "settings"],
+    ["unexpected", "unknown", "retry"],
+  ]) {
+    const { bridge, calls } = permissionBridge("denied", after);
+    assert.deepEqual(await requestHabitReminderPermission(bridge), { permission, route });
+    assert.deepEqual(calls, ["check", "request"]);
+  }
+});
+
+test("unknown permissions and bridge errors without a known block do not trigger settings", async () => {
+  for (const [before, after, expectedCalls] of [
+    [new Error("unavailable"), "granted", ["check"]],
+    ["unexpected", "granted", ["check"]],
+    ["prompt", new Error("unavailable"), ["check", "request"]],
+    ["prompt", "unexpected", ["check", "request"]],
+  ]) {
+    const { bridge, calls } = permissionBridge(before, after);
+    assert.deepEqual(await requestHabitReminderPermission(bridge), { permission: "unknown", route: "retry" });
+    assert.deepEqual(calls, expectedCalls);
   }
 });

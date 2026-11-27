@@ -20,6 +20,7 @@ describe("native individual reminder navigation", () => {
       { ...extra, habitId: "" }]) expect(parseHabitReminder(invalid)).toBeNull();
   });
   it("waits for verified member hydration and today's entries", () => {
+    expect(resolveHabitReminder(target, { ...context, snapshot: null, memberId: null, habits: [] })).toEqual({ kind: "wait" });
     expect(resolveHabitReminder(target, { ...context, snapshot: null })).toEqual({ kind: "wait" });
     expect(resolveHabitReminder(target, { ...context, snapshot: { ...snapshot, state: { ...snapshot.state, hydrated: false } } })).toEqual({ kind: "wait" });
     expect(resolveHabitReminder(target, { ...context, snapshot: { ...snapshot, history: {} } })).toEqual({ kind: "wait" });
@@ -33,15 +34,26 @@ describe("native individual reminder navigation", () => {
   it("ignores cross-account, stale, deleted and already completed targets", () => {
     const cases: Array<Parameters<typeof resolveHabitReminder>> = [
       [{ ...target, scope: "member:bob" }, context],
+      [target, { ...context, memberId: "bob" }],
+      [target, { ...context, memberId: null }],
       [{ ...target, scope: "guest" }, context],
       [{ ...target, day: "2026-11-23" }, context],
       [target, { ...context, habits: [] }],
       [target, { ...context, habits: [{ ...habit, completed: true }] }],
       [target, { ...context, habits: [{ ...habit, alarmEnabled: false }] }],
+      [target, { ...context, habits: [{ ...habit, scheduledTime: "" }] }],
       [target, { ...context, habits: [{ ...habit, repeatDays: [0] }] }],
       [target, { ...context, blocked: true }],
     ];
     for (const [t, c] of cases) expect(resolveHabitReminder(t, c)).toEqual({ kind: "ignore" });
+  });
+  it("uses the member timezone at midnight instead of the device day", () => {
+    const boundary = new Date("2026-11-24T15:01:00Z"); // Already Nov 25 in Seoul, still Nov 24 in LA.
+    const memberDay = "2026-11-24";
+    const memberSnapshot = { ...snapshot, day: memberDay, state: { ...snapshot.state, timezone: "America/Los_Angeles" } };
+    const memberContext = { ...context, now: boundary, snapshot: memberSnapshot };
+    expect(resolveHabitReminder({ ...target, day: memberDay }, memberContext)).toEqual({ kind: "open", habit });
+    expect(resolveHabitReminder({ ...target, day: "2026-11-25" }, memberContext)).toEqual({ kind: "ignore" });
   });
   it("waits for rollover instead of navigating into yesterday's snapshot", () => {
     const yesterday = "2026-11-23";
