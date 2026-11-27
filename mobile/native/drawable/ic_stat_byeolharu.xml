@@ -1,0 +1,10 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- The four-point stars from public/icon.svg, fitted to the status bar. -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M11,3 L13,9.5 L20,12 L13,14.5 L11,21 L9,14.5 L2,12 L9,9.5 Z M19,2 L19.9,4.6 L22.5,5.5 L19.9,6.4 L19,9 L18.1,6.4 L15.5,5.5 L18.1,4.6 Z" />
+</vector>
