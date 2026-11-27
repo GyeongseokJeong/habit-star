@@ -1,4 +1,13 @@
 import { readFile } from "node:fs/promises";
+import { createClient, type Session, type SupabaseClient } from "@supabase/supabase-js";
+import "fake-indexeddb/auto";
+import { IDBFactory } from "fake-indexeddb";
+import { MemberRepository } from "../../lib/habits/repository";
+import { SyncEngine, SupabaseTransport, type CloudTransport } from "../../lib/habits/sync";
+import { buildWidgetActionProjection } from "../../lib/habits/widget-summary";
+import { newWidgetCommandGeneration, recoverableWidgetProjection } from "../../lib/habits/widget-command-recovery";
+import { writeWidgetCommandGeneration } from "../../mobile/packaged-guest/widget-command-generation";
+import { runColdWidgetPractice } from "../../mobile/packaged-guest/widget-cold-practice";
 import {
   test,
   expect,
@@ -769,3 +778,336 @@ test("fresh member resolves startup tab only after cloud hydration, unless manua
   }
 });
 
+
+// STEP 4C: actual local Supabase/Auth/RLS and the production repository/sync
+// code, with a fake IndexedDB device and request-bound native guard stub.
+// Browser observer has independent storage/session. This is NOT an Android
+// WebView, process-death, OS network or physical-device test.
+const coldOrigin = "https://localhost";
+const androidAuth = "byeolharu_android_auth_v1";
+const verifiedUser = "byeolharu_verified_user";
+
+function localWidgetClient() {
+  const url = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "");
+  if (!["localhost", "127.0.0.1"].includes(url.hostname) ||
+      url.protocol !== "http:" || url.port !== "54321")
+    throw Error("widget cloud tests require CLI-managed local Supabase");
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!key) throw Error("local publishable key required");
+  return createClient(url.origin, key, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+}
+
+async function memberSession(client: SupabaseClient, credentials: { email: string; password: string }) {
+  const { data, error } = await client.auth.signInWithPassword(credentials);
+  if (error || !data.session) throw Error("test member login failed");
+  const verified = await client.auth.getUser(data.session.access_token);
+  if (verified.error || verified.data.user?.id !== data.session.user.id ||
+      !verified.data.user.email_confirmed_at) throw Error("test member not verified");
+  return data.session;
+}
+
+function memberStorage(session: Session) {
+  const values: Record<string, string> = {
+    [androidAuth]: JSON.stringify(session),
+    [verifiedUser]: session.user.id,
+  };
+  return { values, getItem: (key: string) => values[key] ?? null };
+}
+
+async function setupWidgetMember(client: SupabaseClient, session: Session) {
+  // idb needs the IndexedDB class globals as well as a per-test factory.
+  globalThis.indexedDB = new IDBFactory();
+  const repo = new MemberRepository(session.user.id);
+  const cloud = new SupabaseTransport(client, session.user.id);
+  const habit = { id: crypto.randomUUID(), title: "위젯 클라우드 독서", icon: "📚",
+    timeGroup: "night" as const, alarmEnabled: false, completed: false, rating: 0, memo: "" };
+  try {
+    await repo.initialize();
+    await new SyncEngine(repo, cloud).run();
+    await repo.ensureDay();
+    await repo.create(habit);
+    await repo.update(habit.id, { memo: "기존 메모 보존" });
+    await new SyncEngine(repo, cloud).run();
+    const snapshot = await repo.load();
+    expect(snapshot.state.hydrated).toBe(true);
+    expect(snapshot.state.outbox).toEqual([]);
+    expect(snapshot.habits.find(h => h.id === habit.id)).toMatchObject({
+      completed: false, rating: 0, memo: "기존 메모 보존",
+    });
+    return { repo, cloud, habit, day: snapshot.day };
+  } catch (error) {
+    repo.close();
+    throw error;
+  }
+}
+
+async function publishWidgetHandle(repo: MemberRepository, id: string, title: string) {
+  const projected = buildWidgetActionProjection(await repo.load(), id);
+  if (!projected.summary) throw Error("widget source not hydrated");
+  const generation = newWidgetCommandGeneration(projected.summary);
+  const recovered = await recoverableWidgetProjection(projected, generation);
+  const handle = recovered.summary?.rows.find(row => row.title === title)?.actionKey;
+  if (!handle) throw Error("widget action unavailable");
+  await writeWidgetCommandGeneration(coldOrigin, generation);
+  return handle;
+}
+
+async function offlineWidget(handle: string, storage: ReturnType<typeof memberStorage>) {
+  // Fail any attempt to use fetch in the cold command. Native network blocking
+  // itself is independently tested/verified on Android, not in this harness.
+  const fetchBefore = globalThis.fetch;
+  let attempts = 0;
+  globalThis.fetch = async () => { attempts++; throw Error("offline"); };
+  try {
+    const result = await runColdWidgetPractice({
+      origin: coldOrigin, actionKey: handle, deadline: Date.now() + 7500,
+      storage, nativeAllowed: () => true,
+    });
+    expect(attempts).toBe(0);
+    return result;
+  } finally { globalThis.fetch = fetchBefore; }
+}
+
+async function serverEntry(client: SupabaseClient, id: string, day: string) {
+  const { data, error } = await client.from("habit_entries")
+    .select("habit_id,local_date,data,version,deleted").eq("habit_id", id).eq("local_date", day);
+  expect(error).toBeNull();
+  if (data?.length !== 1) throw Error("expected exactly one owned daily entry");
+  return data[0];
+}
+
+async function serverRevision(client: SupabaseClient) {
+  const { data, error } = await client.from("sync_state").select("revision").single();
+  expect(error).toBeNull();
+  if (!data) throw Error("owner revision unavailable");
+  return data.revision;
+}
+
+async function operationReceipt(client: SupabaseClient, id: string) {
+  const { data, error } = await client.from("sync_operations")
+    .select("operation_id,request,result").eq("operation_id", id);
+  expect(error).toBeNull();
+  return data ?? [];
+}
+
+async function browserWidgetState(page: Page, title: string, completed: boolean) {
+  await page.reload();
+  await page.getByRole("tab", { name: /전체/ }).click();
+  await expect(page.locator(".saved-label")).toContainText("동기화 완료", { timeout: 30000 });
+  if (completed) await expandNormalCompleted(page);
+  await expect(page.getByRole("button", { name: title + " 5점", exact: true }))
+    .toHaveAttribute("aria-pressed", String(completed), { timeout: 30000 });
+  await expect(page.locator(".habit-card").filter({
+    has: page.getByRole("heading", { name: title, exact: true }),
+  })).toContainText("기존 메모 보존");
+}
+
+test("member cold widget completion and undo reach actual cloud and independent browser after durable retry", async ({ page, request }) => {
+  test.setTimeout(150000);
+  const credentials = await register(page, request);
+  const client = localWidgetClient();
+  const session = await memberSession(client, credentials);
+  const storage = memberStorage(session);
+  const { repo, cloud, habit, day } = await setupWidgetMember(client, session);
+  let resumed: MemberRepository | undefined;
+  let repoOpen = true;
+  try {
+    const baseline = await serverEntry(client, habit.id, day);
+    const handle = await publishWidgetHandle(repo, session.user.id, habit.title);
+    repo.close();
+    repoOpen = false;
+    const saved = await offlineWidget(handle, storage);
+    expect(saved.status).toBe("saved");
+    expect(saved.summary?.rows.find(r => r.title === habit.title)?.completed).toBe(true);
+    resumed = new MemberRepository(session.user.id);
+    await resumed.initialize();
+    const pending = await resumed.load();
+    expect(pending.habits.find(h => h.id === habit.id)).toMatchObject({
+      completed: true, rating: 5, memo: "기존 메모 보존",
+    });
+    expect(pending.state.outbox).toHaveLength(1);
+    const op = pending.state.outbox[0];
+    expect(op.changes).toHaveLength(1);
+    expect(op.changes[0]).toMatchObject({
+      kind: "habit_entries", id: habit.id, day, base: { version: baseline.version },
+    });
+    expect((await offlineWidget(handle, storage)).status).not.toBe("saved");
+    expect(await resumed.state()).toEqual(pending.state);
+    expect(await serverEntry(client, habit.id, day)).toEqual(baseline);
+    expect(await operationReceipt(client, op.id)).toEqual([]);
+    await browserWidgetState(page, habit.title, false);
+
+    // Lose only the acknowledgement AFTER the actual SQL operation commits.
+    const attempted: string[] = [];
+    const lostAck: CloudTransport = {
+      prepare: () => cloud.prepare(), pull: cursor => cloud.pull(cursor),
+      apply: async operation => {
+        attempted.push(operation.id);
+        await cloud.apply(operation);
+        throw Error("network_unavailable");
+      },
+    };
+    await expect(new SyncEngine(resumed, lostAck).run()).rejects.toThrow("network_unavailable");
+    expect(attempted).toEqual([op.id]);
+    expect((await resumed.state()).outbox).toEqual([op]);
+    const committed = await serverEntry(client, habit.id, day);
+    const receipts = await operationReceipt(client, op.id);
+    const committedRevision = await serverRevision(client);
+    expect(receipts).toHaveLength(1);
+    expect(receipts[0].result).toMatchObject({ status: "applied", revision: committedRevision });
+    expect(receipts[0].request).toEqual(JSON.parse(JSON.stringify(op)));
+    expect(committed.version).toBe(committedRevision);
+    expect(committed.version).toBeGreaterThan(baseline.version);
+    expect(committed.data).toMatchObject({ completed: true, rating: 5, memo: "기존 메모 보존" });
+    const retry: CloudTransport = {
+      prepare: () => cloud.prepare(), pull: cursor => cloud.pull(cursor),
+      apply: async operation => {
+        attempted.push(operation.id);
+        expect(operation).toEqual(op);
+        return cloud.apply(operation);
+      },
+    };
+    await new SyncEngine(resumed, retry).run();
+    expect(attempted).toEqual([op.id, op.id]);
+    expect((await resumed.state()).outbox).toEqual([]);
+    expect((await resumed.state()).sync?.phase).toBe("succeeded");
+    expect(await serverEntry(client, habit.id, day)).toEqual(committed);
+    expect(await operationReceipt(client, op.id)).toEqual(receipts);
+    expect(await serverRevision(client)).toBe(committedRevision);
+    await browserWidgetState(page, habit.title, true);
+
+    const undoHandle = await publishWidgetHandle(resumed, session.user.id, habit.title);
+    resumed.close();
+    resumed = undefined;
+    expect((await offlineWidget(undoHandle, storage)).status).toBe("saved");
+    resumed = new MemberRepository(session.user.id);
+    await resumed.initialize();
+    const undone = await resumed.load();
+    expect(undone.habits.find(h => h.id === habit.id)).toMatchObject({
+      completed: false, rating: 0, memo: "기존 메모 보존",
+    });
+    expect(undone.state.outbox).toHaveLength(1);
+    const undo = undone.state.outbox[0];
+    expect(undo.id).not.toBe(op.id);
+    expect(await serverEntry(client, habit.id, day)).toEqual(committed);
+    await browserWidgetState(page, habit.title, true);
+    await new SyncEngine(resumed, cloud).run();
+    expect((await resumed.state()).outbox).toEqual([]);
+    expect((await resumed.state()).sync?.phase).toBe("succeeded");
+    const remote = await serverEntry(client, habit.id, day);
+    expect(remote.version).toBe(await serverRevision(client));
+    expect(remote.version).toBeGreaterThan(committed.version);
+    expect(remote.data).toMatchObject({ completed: false, rating: 0, memo: "기존 메모 보존" });
+    expect(await operationReceipt(client, undo.id)).toHaveLength(1);
+    await browserWidgetState(page, habit.title, false);
+  } finally {
+    if (repoOpen) repo.close();
+    resumed?.close();
+    await writeWidgetCommandGeneration(coldOrigin, null);
+  }
+});
+
+test("member cold widget rejects expired cache and account changes; real auth protects queued operation", async ({ page, browser, request }) => {
+  test.setTimeout(150000);
+  const a = await register(page, request);
+  const bContext = await browser.newContext();
+  let b: Awaited<ReturnType<typeof register>>;
+  try { b = await register(await bContext.newPage(), request); }
+  finally { await bContext.close(); }
+  const client = localWidgetClient();
+  const session = await memberSession(client, a);
+  const storage = memberStorage(session);
+  const { repo, cloud, habit, day } = await setupWidgetMember(client, session);
+  try {
+    const handle = await publishWidgetHandle(repo, session.user.id, habit.title);
+    const before = await repo.state();
+    // Real session with simulated expired local metadata: NOT a server JWT expiry.
+    storage.values[androidAuth] = JSON.stringify({ ...session, expires_at: Math.floor(Date.now() / 1000) - 1 });
+    expect((await offlineWidget(handle, storage)).status).toBe("not-ready");
+    expect(await repo.state()).toEqual(before);
+    storage.values[androidAuth] = JSON.stringify({ ...session, expires_at: Math.floor(Date.now() / 1000) + 5 });
+    expect((await offlineWidget(handle, storage)).status).toBe("not-ready");
+    expect(await repo.state()).toEqual(before);
+    storage.values[androidAuth] = JSON.stringify(session);
+    delete storage.values[verifiedUser];
+    expect((await offlineWidget(handle, storage)).status).toBe("not-ready");
+    expect(await repo.state()).toEqual(before);
+    storage.values[verifiedUser] = session.user.id;
+    expect((await offlineWidget(handle, storage)).status).toBe("saved");
+    const pending = await repo.state();
+    expect(pending.outbox).toHaveLength(1);
+    const op = pending.outbox[0];
+    const freshAHandle = await publishWidgetHandle(repo, session.user.id, habit.title);
+    const baseline = await serverEntry(client, habit.id, day);
+    // Real SDK session absence, then an independently confirmed account.
+    const signedOut = await client.auth.signOut({ scope: "local" });
+    expect(signedOut.error).toBeNull();
+    await expect(new SyncEngine(repo, cloud).run()).rejects.toThrow("auth_required");
+    expect((await repo.state()).outbox).toEqual([op]);
+    expect((await repo.state()).sync?.phase).toBe("auth_required");
+    const sessionB = await memberSession(client, b);
+    const bStorage = memberStorage(sessionB);
+    const bRepo = new MemberRepository(sessionB.user.id);
+    try {
+      await bRepo.initialize();
+      const cloudB = new SupabaseTransport(client, sessionB.user.id);
+      await new SyncEngine(bRepo, cloudB).run();
+      await bRepo.ensureDay();
+      await bRepo.create({ ...habit, id: crypto.randomUUID(), title: "B 계정의 별도 습관" });
+      await new SyncEngine(bRepo, cloudB).run();
+      const beforeB = await bRepo.state();
+      const revisionB = await serverRevision(client);
+      const beforeA = await repo.state();
+      const changingStorage = memberStorage(session);
+      let guards = 0;
+      const switched = await runColdWidgetPractice({
+        origin: coldOrigin, actionKey: freshAHandle, deadline: Date.now() + 7500,
+        storage: changingStorage,
+        nativeAllowed: () => {
+          if (++guards === 2) Object.assign(changingStorage.values, bStorage.values);
+          return true;
+        },
+      });
+      expect(guards).toBeGreaterThanOrEqual(2);
+      expect(switched.status).not.toBe("saved");
+      expect(switched.summary).toBeUndefined();
+      expect(await repo.state()).toEqual(beforeA);
+      expect(await bRepo.state()).toEqual(beforeB);
+      const rejected = await offlineWidget(freshAHandle, bStorage);
+      expect(rejected.status).not.toBe("saved");
+      expect(rejected.summary).toBeUndefined();
+      expect(await repo.state()).toEqual(beforeA);
+      expect(await bRepo.state()).toEqual(beforeB);
+      await expect(new SyncEngine(repo, cloud).run()).rejects.toThrow("auth_required");
+      const protectedA = await repo.state();
+      expect(protectedA.outbox).toEqual([op]);
+      expect(protectedA.entities).toEqual(pending.entities);
+      expect(protectedA.cursor).toBe(pending.cursor);
+      expect(await bRepo.state()).toEqual(beforeB);
+      expect(await serverRevision(client)).toBe(revisionB);
+      const denied = await client.from("habit_entries").select("habit_id").eq("habit_id", habit.id);
+      expect(denied.error).toBeNull();
+      expect(denied.data).toEqual([]);
+      expect(await operationReceipt(client, op.id)).toEqual([]);
+      // Direct client writes stay forbidden even for a confirmed member.
+      const direct = await client.from("habit_entries").update({ deleted: true }).eq("habit_id", habit.id);
+      expect(direct.error !== null).toBe(true);
+      const anonymous = await localWidgetClient().rpc("apply_operation", { p_operation: op });
+      expect(anonymous.error !== null).toBe(true);
+    } finally { bRepo.close(); }
+    await memberSession(client, a);
+    expect(await serverEntry(client, habit.id, day)).toEqual(baseline);
+    await new SyncEngine(repo, cloud).run();
+    expect((await repo.state()).outbox).toEqual([]);
+    expect((await repo.state()).sync?.phase).toBe("succeeded");
+    expect((await serverEntry(client, habit.id, day)).data).toMatchObject({
+      completed: true, rating: 5, memo: "기존 메모 보존",
+    });
+    expect(await operationReceipt(client, op.id)).toHaveLength(1);
+  } finally {
+    repo.close();
+    await writeWidgetCommandGeneration(coldOrigin, null);
+  }
+});
