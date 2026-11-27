@@ -1,0 +1,65 @@
+package __PACKAGE__;
+
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Set;
+
+/** Process-local lease for each MainActivity/Capacitor plugin worker. No
+ * Activity, Bridge, user data or native alarm storage is retained here. A dead
+ * worker is evidence of drain only after that Activity's successful destroy.
+ * The caller captures the running worker through Bridge.execute, not by name
+ * or reflection. Never wait for that worker on the Android main thread. */
+final class ByeolharuWidgetBridgeLease {
+    static final String NEW_PROCESS="new-process", DRAINED_PROCESS="drained-process",
+        LIVE_ACTIVITY="live-activity", WORKER_UNKNOWN="worker-unknown", WORKER_DRAINING="worker-draining";
+
+    static final class Lease {
+        private Thread worker;
+        private boolean destroyed, ambiguous;
+    }
+
+    private final Set<Lease> outstanding=new HashSet<>();
+    private boolean activityEverCreated;
+
+    synchronized Lease started() {
+        reap();
+        activityEverCreated=true;
+        Lease lease=new Lease();
+        outstanding.add(lease);
+        return lease;
+    }
+
+    synchronized void workerCaptured(Lease lease,Thread worker) {
+        if(!outstanding.contains(lease))return;
+        if(worker!=Thread.currentThread()||!worker.isAlive()){lease.ambiguous=true;return;}
+        if(lease.worker!=null&&lease.worker!=worker)lease.ambiguous=true;
+        else lease.worker=worker;
+    }
+
+    synchronized void destroyed(Lease lease) {
+        if(outstanding.contains(lease))lease.destroyed=true;
+    }
+
+    synchronized boolean hasActivity() {
+        for(Lease lease:outstanding)if(!lease.destroyed)return true;
+        return false;
+    }
+
+    synchronized String state() {
+        reap();
+        if(hasActivity())return LIVE_ACTIVITY;
+        for(Lease lease:outstanding)
+            if(lease.worker==null||lease.ambiguous)return WORKER_UNKNOWN;
+        if(!outstanding.isEmpty())return WORKER_DRAINING;
+        return activityEverCreated?DRAINED_PROCESS:NEW_PROCESS;
+    }
+
+    private void reap() {
+        for(Iterator<Lease> it=outstanding.iterator();it.hasNext();) {
+            Lease lease=it.next();
+            // Only remove proof-complete leases. Unknown or ambiguous workers
+            // stay fail-closed for the lifetime of this process.
+            if(lease.destroyed&&!lease.ambiguous&&lease.worker!=null&&!lease.worker.isAlive())it.remove();
+        }
+    }
+}

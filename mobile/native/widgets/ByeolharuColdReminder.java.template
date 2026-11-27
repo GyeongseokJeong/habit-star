@@ -54,6 +54,11 @@ final class ByeolharuColdReminder {
     private Target target;
     private Inventory prepared;
     private boolean prepareUsed, applyUsed;
+    // Fixed, low-cardinality reason codes only. Never include raw notification
+    // JSON, identifiers, titles, exception messages or authentication data.
+    private String diagnostic="not-run";
+    String diagnosticReason(){return diagnostic;}
+    private boolean result(String reason,boolean appCheck){diagnostic=reason;return appCheck;}
 
     ByeolharuColdReminder(Context context, long deadline, long elapsedDeadline, BooleanSupplier allowed) {
         this.context=context;
@@ -75,6 +80,24 @@ final class ByeolharuColdReminder {
         SimpleDateFormat sdf=new SimpleDateFormat(pattern,Locale.US);
         sdf.setTimeZone(zone);
         return sdf.format(new Date(time));
+    }
+    // Mirror the planner's String.trim() boundary, without altering the
+    // stored title or accepting a fingerprint for a non-canonical title.
+    private static boolean trimSpace(char c) {
+        return (c>=9&&c<=13)||c==32||c==0x00a0||c==0x1680||(c>=0x2000&&c<=0x200a)||
+            c==0x2028||c==0x2029||c==0x202f||c==0x205f||c==0x3000||c==0xfeff;
+    }
+    // Canonical scheduling uses the earlier instant in a repeated wall
+    // minute. Independently reject a later-fold stored payload, even when
+    // its fingerprint was recomputed with that later instant.
+    private static boolean firstWallMinute(long time,TimeZone zone) {
+        long wall=time+zone.getOffset(time);
+        for(long hours:new long[]{-36,-12,0,12,36}) {
+            int offset=zone.getOffset(wall+hours*3600000L);
+            long previous=wall-offset;
+            if(previous<time&&zone.getOffset(previous)==offset)return false;
+        }
+        return true;
     }
     private static String text(JSONObject j,String key) {
         Object value=j.opt(key);
@@ -223,6 +246,8 @@ final class ByeolharuColdReminder {
                 !(j.opt("isExactNotification") instanceof Boolean))return null;
             String title=text(j,"title");
             if(!title.startsWith(TITLE)||title.length()<=TITLE.length()||title.length()>8192)return null;
+            String habitTitle=title.substring(TITLE.length());
+            if(trimSpace(habitTitle.charAt(0))||trimSpace(habitTitle.charAt(habitTitle.length()-1)))return null;
             JSONObject s=j.getJSONObject("schedule"),e=j.getJSONObject("extra");
             if(!only(s,"at","allowWhileIdle","repeats") || !Boolean.TRUE.equals(s.opt("allowWhileIdle")) ||
                 (s.has("repeats")&&!Boolean.FALSE.equals(s.opt("repeats"))) ||
@@ -235,8 +260,8 @@ final class ByeolharuColdReminder {
             long time=n.getSchedule().getAt().getTime();
             if(!at.equals(format(time,"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",TimeZone.getTimeZone("UTC"))) ||
                 !t.day.equals(format(time,"yyyy-MM-dd",t.zone)) ||
-                !"00.000".equals(format(time,"ss.SSS",t.zone)))return null;
-            String fingerprint=ByeolharuColdReminderKey.fingerprint(t.scope,t.habit,t.day,title.substring(TITLE.length()),
+                !"00.000".equals(format(time,"ss.SSS",t.zone)) || !firstWallMinute(time,t.zone))return null;
+            String fingerprint=ByeolharuColdReminderKey.fingerprint(t.scope,t.habit,t.day,habitTitle,
                 format(time,"HH:mm",t.zone),time,n.isExactNotification());
             if(!fingerprint.equals(e.opt("fingerprint")))return null;
             return n;
@@ -251,54 +276,91 @@ final class ByeolharuColdReminder {
     }
 
     JSObject prepare(JSONObject request) {
-        if(prepareUsed)return null;
+        if(prepareUsed){diagnostic="prepare-reused";return null;}
         prepareUsed=true;
+        if(!canAct()){diagnostic="prepare-guard-blocked";return null;}
+        try{target=new Target(request);}
+        catch(Exception failure){diagnostic="prepare-invalid-target";return null;}
         try{
-            if(!canAct())return null;
-            target=new Target(request);
             prepared=capture();
-            return prepared.forPlanner(target);
-        }catch(Exception failure){prepared=null;return null;}
+            JSObject inventory=prepared.forPlanner(target);
+            diagnostic="prepared";
+            return inventory;
+        }catch(Exception failure){prepared=null;diagnostic="prepare-inventory-invalid";return null;}
     }
 
     /** Return true only for a meaningful reconciliation failure (not an
      * expected policy skip). The persisted habit result is independent. */
     boolean needsAppCheck(JSONObject decision) {
-        if(applyUsed)return true;
+        if(applyUsed)return result("decision-reused",true);
         applyUsed=true;
-        if(decision==null)return true;
+        if(decision==null)return result("decision-missing",true);
         String kind=decision.optString("kind"),reason=decision.optString("reason");
-        if("noop".equals(kind)&&("opted-out-or-unconfigured".equals(reason)||"no-future-target".equals(reason)))return false;
+        if("noop".equals(kind)&&"opted-out-or-unconfigured".equals(reason))return result("policy-opt-out",false);
+        if("noop".equals(kind)&&"no-future-target".equals(reason))return result("no-future-target",false);
         if("defer".equals(kind)) {
-            if("outside-plan".equals(reason)||"too-close".equals(reason))return false;
-            return !("permission-unconfirmed".equals(reason)&&prepared!=null&&(!prepared.permission||!prepared.channelReady));
+            if("outside-plan".equals(reason))return result("outside-plan",false);
+            // Completion has an identified reservation, but cancellation was
+            // too close to its due time to attempt safely. The record is saved;
+            // the alarm is still uncertain. Undo simply skips a near-due rebook.
+            if("too-close".equals(reason))return result("too-close",target!=null&&target.completed);
+            if("permission-unconfirmed".equals(reason))return result("permission-unconfirmed",
+                prepared==null||(prepared.permission&&prepared.channelReady));
+            // Keep the native prepare failure, when available, rather than
+            // replacing it with the generic renderer transport result.
+            if("transport-unavailable".equals(reason)&&prepareUsed&&prepared==null)return true;
+            if("transport-unavailable".equals(reason))return result("transport-unavailable",true);
+            if("stale-commit".equals(reason))return result("stale-commit",true);
+            if("preferences-changed".equals(reason))return result("preferences-changed",true);
+            if("unknown-preferences".equals(reason))return result("unknown-preferences",true);
+            if("occupied-id".equals(reason))return result("occupied-id",true);
+            if("visible-id".equals(reason))return result("visible-id",true);
+            if("capacity".equals(reason))return result("capacity",true);
+            return result("decision-deferred",true);
         }
         try{
-            if(prepared==null||!canAct())return true;
+            if(prepared==null||!canAct())return result("apply-guard-blocked",true);
             Inventory current=capture();
-            if(!prepared.same(current)||!current.permission||!current.channelReady||current.visible.contains(target.id))return true;
+            if(!prepared.same(current))return result("inventory-changed",true);
+            if(!current.permission||!current.channelReady)return result("permission-unconfirmed",true);
+            if(current.visible.contains(target.id))return result("visible-id",true);
             String old=current.rows.get(target.id);
             if("noop".equals(kind)) {
-                if("already-absent".equals(reason))return old!=null||current.token;
-                if("already-scheduled".equals(reason))return old==null||!current.token;
-                return true;
+                if("already-absent".equals(reason)){
+                    boolean unproven=!target.completed||old!=null||current.token;
+                    return result(unproven?"absence-unproven":"absence-verified",unproven);
+                }
+                if("already-scheduled".equals(reason)){
+                    boolean unproven=target.completed||old==null||!current.token||
+                        !current.scheduled.contains(target.id)||canonical(target,new JSONObject(old))==null;
+                    return result(unproven?"schedule-unproven":"schedule-verified",unproven);
+                }
+                return result("invalid-decision",true);
             }
             boolean cancel="cancel".equals(kind),restore="restore".equals(kind);
-            if((!cancel&&!restore)||cancel!=target.completed)return true;
+            if((!cancel&&!restore)||cancel!=target.completed)return result("invalid-decision",true);
             JSONObject payload=decision.optJSONObject(cancel?"expected":"notification");
-            if(payload==null)return true;
+            if(payload==null)return result("invalid-decision",true);
             LocalNotification n=canonical(target,payload);
-            if(n==null||!withinTime(n))return true;
+            if(n==null)return result("canonical-invalid",true);
+            if(!withinTime(n))return result("time-guard",true);
             if(cancel) {
-                if(old==null||!current.scheduled.contains(target.id)||!sameCanonical(target,new JSONObject(old),payload))return true;
-                if(!readyToMutate(current,n))return true;
+                // The stored row may have the previous title/time. It must
+                // nevertheless be the same owned canonical one-shot supplied
+                // by this request and still have a matching native token.
+                if(old==null||!current.scheduled.contains(target.id)||!sameCanonical(target,new JSONObject(old),payload))
+                    return result("owner-mismatch",true);
+                if(!current.token)return result("token-missing",true);
+                if(!readyToMutate(current,n)||!tokenExists(target.id))return result("mutation-guard",true);
                 SingleCall call=cancelOne(target.id);
                 Inventory after=capture();
-                return !call.resolved||call.rejected||after.rows.containsKey(target.id)||
+                boolean unproven=!call.resolved||call.rejected||after.rows.containsKey(target.id)||
                     after.token||after.visible.contains(target.id)||!current.sameExceptTarget(after,target.id)||!canAct();
+                return result(unproven?"cancel-unverified":"cancel-verified",unproven);
             }
-            if(old!=null||current.token||current.scheduled.size()>=MAX_BOOKED||n.isExactNotification()!=current.exact)return true;
-            if(!readyToMutate(current,n)||tokenExists(target.id))return true;
+            if(old!=null||current.token||current.scheduled.size()>=MAX_BOOKED||n.isExactNotification()!=current.exact)
+                return result("restore-blocked",true);
+            if(!readyToMutate(current,n)||tokenExists(target.id))return result("mutation-guard",true);
             try{
                 SingleCall call=new SingleCall("schedule",new JSObject());
                 JSONArray ids=manager.schedule(call,Collections.singletonList(n));
@@ -309,16 +371,16 @@ final class ByeolharuColdReminder {
                 if(saved==null||!sameCanonical(target,saved,payload)||!after.token||after.visible.contains(target.id)||
                     !current.sameExceptTarget(after,target.id)||!after.scheduled.contains(target.id)||!withinTime(n))
                     throw new IllegalStateException();
-                return false;
+                return result("restore-verified",false);
             }catch(Exception failure){
                 // Only clean up a token created during this request, if still
                 // owned/not visible and the original claim remains valid.
                 // A hard process death between OS schedule and store append
                 // is not recoverable atomically; never replay the habit write.
                 compensate(payload,n);
-                return true;
+                return result("restore-unverified",true);
             }
-        }catch(Exception failure){return true;}
+        }catch(Exception failure){return result("native-error",true);}
     }
     private boolean readyToMutate(Inventory expected,LocalNotification n) {
         if(!canAct()||!withinTime(n)||visible(target.id)||!manager.areNotificationsEnabled())return false;

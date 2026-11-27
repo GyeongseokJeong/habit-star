@@ -59,6 +59,6 @@ test("Android diagnostics engine remains native-only without developer buttons i
   assert.match(entry,/const onInspectPending = useCallback/);
   assert.match(entry,/onInspectPending, onAuditPending, onRepairPending/);
   assert.doesNotMatch(account,/onInspectPending|inspect-reminders|알림 문제 해결/);
-  assert.match(account,/nativeReminders\.onRequestPermission\(\)/);
+  assert.match(account,/nativeReminders\.onRequestPermission\(/);
   assert.doesNotMatch(website,/LocalNotifications|onInspectPending|Capacitor/);
 });

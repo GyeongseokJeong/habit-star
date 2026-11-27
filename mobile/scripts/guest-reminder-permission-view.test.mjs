@@ -32,7 +32,7 @@ test("native settings warn on denied permission without mutating user opt-in or 
   // Device permissions remain directly actionable; diagnostic tools are not shown in public settings.
   assert.match(account,/aria-label="알림 설정 안내"/);
   assert.doesNotMatch(account,/android-reminder-details|onInspectPending|onInspectLatency/);
-  assert.match(account,/nativeReminders\.permissionState === "denied"/);
+  assert.match(account,/nativeReminders\.permissionState !== "granted"/);
   assert.match(account,/알림을 받으려면 휴대폰에서 별하루 알림을 허용해 주세요./);
   assert.match(account,/displayPermissionNeeded \|\| exactPermissionNeeded/);
   assert.doesNotMatch(account,/aria-checked=\{nativeReminders\.active\}/);

@@ -52,6 +52,52 @@ test("undo restores exactly the canonical future payload and respects exact/inex
   assert.equal(planColdWidgetReminder(input(false,{queue:queue(all)})).kind,"noop");
   assert.equal(planColdWidgetReminder(input(false,{queue:queue([ordinary,...untouched])})).kind,"defer");
 });
+function edited(completed,scheduledTime,extra={}) {
+  const b=input(completed,extra);
+  b.snapshot.habits[0]={...b.snapshot.habits[0],title:"새 독서 시간",scheduledTime};
+  b.snapshot.history[day]=b.snapshot.habits;
+  return b;
+}
+test("completion cancels the previous canonical title/time even when the latest time has passed",()=>{
+  for(const scheduledTime of ["19:00","07:00"]) for(const saved of [target,ordinary]) {
+    const raw=JSON.parse(JSON.stringify(saved));
+    const b=edited(true,scheduledTime,{queue:queue([raw,...untouched])});
+    const copy=structuredClone(b.queue);
+    assert.deepEqual(planColdWidgetReminder(b),{kind:"cancel",expected:saved});
+    assert.deepEqual(b.queue,copy);
+  }
+  assert.deepEqual(planColdWidgetReminder(edited(true,"07:00",{queue:queue(untouched)})),
+    {kind:"noop",reason:"already-absent"});
+});
+test("undo never restores an earlier setting, including a previous reservation later today",()=>{
+  const oldQueue=queue([target,...untouched]);
+  assert.deepEqual(planColdWidgetReminder(edited(false,"21:00",{queue:oldQueue})),{kind:"defer",reason:"occupied-id"});
+  const b=edited(false,"21:00",{queue:queue(untouched)});
+  const expected=diffScopedNotifications([],buildScopedReminderPlan({day,timeZone:"Asia/Seoul",habits:b.snapshot.habits},
+    {scope,now,daysAhead:1}),{exact:true}).schedule.find(n=>n.id===target.id);
+  assert.notEqual(expected.extra.fingerprint,target.extra.fingerprint);
+  assert.deepEqual(planColdWidgetReminder(b),{kind:"restore",notification:expected});
+  assert.deepEqual(planColdWidgetReminder(edited(false,"07:00",{queue:oldQueue})),{kind:"noop",reason:"no-future-target"});
+});
+test("a previous schedule never permits opaque, modified, visible, foreign or unproven payload cancellation",()=>{
+  for(const bad of [
+    {...target,extra:{...target.extra,scope:"member:bob"}},
+    {...target,extra:{...target.extra,habitId:"other"}},
+    {...target,extra:{...target.extra,fingerprint:"old"}},
+    {...target,extra:{...target.extra,arbitrary:true}},
+    {...target,schedule:{...target.schedule,at:"2026-11-27T11:00:01.000Z"}},
+    {...target,schedule:{...target.schedule,repeats:null}},
+    {...target,schedule:{...target.schedule,arbitrary:true}},
+    {...target,title:target.title+" "}, {...target,sound:"other"}, {...target,cancelled:null}, {id:target.id},
+  ]) assert.deepEqual(planColdWidgetReminder(edited(true,"07:00",{queue:queue([bad])})),
+    {kind:"defer",reason:"occupied-id"});
+  for(const inventory of [queue([target],[]),queue([target],[target.id],[target.id]),
+    {...queue([]),scheduledIds:[target.id]}]) assert.equal(planColdWidgetReminder(edited(true,"07:00",{queue:inventory})).kind,"defer");
+  assert.deepEqual(planColdWidgetReminder(edited(true,"07:00",{queue:queue([target]),permissionGranted:false})),
+    {kind:"defer",reason:"permission-unconfirmed"});
+  assert.deepEqual(planColdWidgetReminder(edited(true,"07:00",{queue:queue([target]),optInRaw:"0"})),
+    {kind:"noop",reason:"opted-out-or-unconfigured"});
+});
 test("no changes for other owners, same-id different category/day, unexpected fingerprint, visible or stored-only IDs",()=>{
   for(const bad of [
     {...target,extra:{...target.extra,scope:"member:bob"}},
@@ -134,4 +180,22 @@ test("member DST gap is not restored to a different clock minute",()=>{
   b.snapshot={...b.snapshot,day:d,habits:[h],history:{[d]:[h]},
     state:{...state(h),timezone:"America/New_York",entities:{entry:{...state(h).entities.entry,day:d}}}};
   assert.deepEqual(planColdWidgetReminder(b),{kind:"noop",reason:"no-future-target"});
+});
+
+test("completion accepts only the canonical earlier instant of a repeated member wall minute",()=>{
+  const d="2027-11-07", timeZone="America/New_York";
+  const n=new Date("2027-11-07T00:00:00-04:00");
+  const h={...habit,completed:true,rating:5,scheduledTime:"04:00",title:"변경된 독서"};
+  const b=input(true,{now:n});
+  b.command={...b.command,day:d};
+  b.snapshot={...b.snapshot,day:d,habits:[h],history:{[d]:[h]},
+    state:{...state(h),timezone:timeZone,entities:{entry:{...state(h).entities.entry,day:d}}}};
+  const first=diffScopedNotifications([],buildScopedReminderPlan({day:d,timeZone,habits:[{...habit,scheduledTime:"01:30"}]},
+    {scope,now:n,daysAhead:1}),{exact:true}).schedule[0];
+  assert.equal(first.schedule.at.toISOString(),"2027-11-07T05:30:00.000Z");
+  assert.deepEqual(planColdWidgetReminder({...b,queue:queue([first])}),{kind:"cancel",expected:first});
+  const at=new Date("2027-11-07T06:30:00.000Z");
+  const second={...first,schedule:{...first.schedule,at},extra:{...first.extra,
+    fingerprint:first.extra.fingerprint.replace(String(first.schedule.at.getTime()),String(at.getTime()))}};
+  assert.deepEqual(planColdWidgetReminder({...b,queue:queue([second])}),{kind:"defer",reason:"occupied-id"});
 });

@@ -5049,6 +5049,10 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   grid-template-columns: minmax(0,1fr);
   gap: 4px;
 }
+.byeolharu-confirm-dialog.is-permission-opt-in .byeolharu-confirm-dialog-actions { gap: 10px; }
+/* A programmatically focused heading is not an interactive control. Keep
+   the visible keyboard focus treatment on every button. */
+.byeolharu-confirm-dialog.is-permission-opt-in h2:focus { outline: none; }
 .byeolharu-confirm-dialog-actions > button {
   display: flex;
   align-items: center;
@@ -5073,6 +5077,9 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 .byeolharu-confirm-dialog-actions > button:focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: 2px;
+}
+.byeolharu-confirm-dialog.is-permission-opt-in .byeolharu-confirm-dialog-actions > button:focus-visible {
+  outline-color: var(--accent);
 }
 @media (max-width: 350px) {
   .byeolharu-confirm-dialog { width: calc(100% - 32px); }
@@ -5152,6 +5159,9 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 .account-panel .android-reminder-action-notice .android-permission-text strong {
   font-size: 14px;
 }
+.account-panel .android-reminder-action-notice .android-permission-text small {
+  color: var(--body);
+}
 .account-panel .android-reminder-action-notice .android-permission-help {
   width: 100%;
   margin: 0;
@@ -5173,6 +5183,8 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   }
   .account-panel .android-reminder-action-notice .android-permission-action {
     margin-left: 28px;
+    max-width: calc(100% - 28px);
+    white-space: normal;
   }
   .account-panel .account-settings-final .android-wrapup-settings {
     padding-left: 10px;

@@ -45,12 +45,14 @@ test("resume permission reads never schedule a cached pre-resume snapshot", () =
   const entry=readFileSync(resolve(root,"mobile/packaged-guest/main.tsx"),"utf8");
   const permission=entry.slice(entry.indexOf("const refreshPermission ="),entry.indexOf("useEffect(() =>",entry.indexOf("const refreshPermission =")));
   assert.match(permission,/async \(reconcileSnapshot = true\)/);
-  assert.match(permission,/if \(reconcileSnapshot && granted && snapshot.current\)/);
+  assert.match(permission,/const result = await onCheckPermissions\(\)/);
+  assert.match(permission,/if \(reconcileSnapshot && mounted\.current && result\.permissionState === "granted" && snapshot\.current\)/);
   const resume=entry.slice(entry.indexOf("const emit = createResumeDispatcher"),entry.indexOf("const onWrapupChange"));
   assert.equal((resume.match(/emit\(\);\s*void refreshPermission\(false\);/g)||[]).length,2);
   assert.doesNotMatch(resume,/refreshPermission\(\)|schedule\(/);
   assert.match(entry,/if \(currentOnly && \(snapshot.current !== next \|\|\s*currentScope !== reminderIdentityKey\(identityRef.current\)\)\) return/);
   assert.match(entry,/void schedule\(enabledRef.current, next, true\)/);
   // Explicit setting edits retain their original awaited scheduling path.
-  assert.match(entry,/await schedule\(next, snapshot.current\)/);
+  assert.match(entry,/const committed = snapshot\.current;\s*await schedule\(next, committed, true\)/);
+  assert.match(entry,/if \(snapshot\.current !== committed\) void schedule\(next, snapshot\.current, true\)/);
 });
