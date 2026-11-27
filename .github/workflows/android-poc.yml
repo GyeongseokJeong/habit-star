@@ -9,6 +9,11 @@ on:
         description: Sign the main release bundle for Play internal testing
         type: boolean
         default: false
+      highest_play_version_code:
+        description: Highest versionCode ever used in Play Console (0 only for confirmed first upload)
+        required: false
+        type: string
+        default: ""
   pull_request:
     branches:
       - main
@@ -16,7 +21,10 @@ on:
       - "mobile/**"
       - ".github/workflows/android-poc.yml"
       - "components/**"
-      - "lib/habits/**"
+      - "lib/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "tsconfig.json"
       - "app/globals.css"
       - "public/**"
 
@@ -51,9 +59,16 @@ jobs:
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0" "platform-tools"
       - name: Install first-party web dependencies
         run: pnpm install --frozen-lockfile
-      - name: Install Android dependencies
-        run: npm install --no-package-lock --no-audit --no-fund
+      - name: Bootstrap Android dependency lock (draft PR only)
+        run: npm install --package-lock --no-audit --no-fund
         working-directory: mobile
+      - name: Upload generated dependency lock for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-dependency-lock-bootstrap
+          path: mobile/package-lock.json
+          if-no-files-found: error
+          retention-days: 3
       - name: Verify Android checks and package actual guest UI
         run: |
           npm run check
@@ -85,6 +100,8 @@ jobs:
         working-directory: mobile/android
       - name: Assert compiled APK includes Android reboot receiver and notification permissions
         run: node mobile/scripts/check-guest-boot-manifest.mjs
+      - name: Verify compiled debug APK identity, version, SDK and embedded source
+        run: node mobile/scripts/check-android-artifact.mjs apk mobile/android/app/build/outputs/apk/debug/app-debug.apk "$ANDROID_HOME/build-tools/36.0.0/aapt"
       - name: Upload packaged guest APK and build provenance
         uses: actions/upload-artifact@v4
         with:
@@ -121,6 +138,7 @@ jobs:
         working-directory: mobile
         run: |
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0"
+          npm run release:readiness -- --assert-source-ready
           npm install --no-package-lock --no-audit --no-fund
           npm run packaged-guest:build
           npm run packaged-guest:verify
@@ -128,17 +146,10 @@ jobs:
           npm run android:sync
           cd android
           ./gradlew bundleRelease --no-daemon
-      - name: Validate bundle and verify final application ID
+      - name: Validate final release bundle identity, version, SDK and embedded source
         run: |
           curl --fail --location --retry 3 --output "$RUNNER_TEMP/bundletool.jar" https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar
-          bundle=mobile/android/app/build/outputs/bundle/release/app-release.aab
-          java -jar "$RUNNER_TEMP/bundletool.jar" validate --bundle="$bundle"
-          test "$(java -jar "$RUNNER_TEMP/bundletool.jar" dump manifest --bundle="$bundle" --xpath=/manifest/@package)" = "app.byeolharu.android"
-          version_code=$(node -p "require('./mobile/release-version.json').code")
-          version_name=$(node -p "require('./mobile/release-version.json').name")
-          test "$(java -jar "$RUNNER_TEMP/bundletool.jar" dump manifest --bundle="$bundle" --xpath=/manifest/@android:versionCode)" = "$version_code"
-          test "$(java -jar "$RUNNER_TEMP/bundletool.jar" dump manifest --bundle="$bundle" --xpath=/manifest/@android:versionName)" = "$version_name"
-          unzip -p "$bundle" base/assets/public/app.js | wc -c | awk '$1 == 0 { exit 1 }'
+          node mobile/scripts/check-android-artifact.mjs aab mobile/android/app/build/outputs/bundle/release/app-release.aab "$RUNNER_TEMP/bundletool.jar"
       - name: Exercise bundle signing with a disposable certificate
         env:
           STORE_PASS: ci-fixture-only
@@ -171,20 +182,33 @@ jobs:
             --ks-pass env:TEST_STORE_PASSWORD --key-pass env:TEST_STORE_PASSWORD \
             --out "$signed" "$aligned"
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$signed"
-          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$signed" \
-            | grep -F "package: name='app.byeolharu.android'"
+          node mobile/scripts/check-android-artifact.mjs apk "$signed" "$ANDROID_HOME/build-tools/36.0.0/aapt"
           sha256sum "$signed"
+      - name: Record verified release artifact provenance and checksums
+        run: |
+          bundle_dir=mobile/android/app/build/outputs/bundle/release
+          apk_dir=mobile/android/app/build/outputs/apk/release
+          cp mobile/www-packaged-guest/build-info.json "$bundle_dir/"
+          cp mobile/www-packaged-guest/build-info.json "$apk_dir/"
+          (cd "$bundle_dir" && sha256sum app-release.aab build-info.json > SHA256SUMS)
+          (cd "$apk_dir" && sha256sum byeolharu-release-test-signed.apk build-info.json > SHA256SUMS)
       - name: Upload installable release APK (test-signed, not Play)
         uses: actions/upload-artifact@v4
         with:
           name: byeolharu-android-release-apk-test-signed
-          path: mobile/android/app/build/outputs/apk/release/byeolharu-release-test-signed.apk
+          path: |
+            mobile/android/app/build/outputs/apk/release/byeolharu-release-test-signed.apk
+            mobile/android/app/build/outputs/apk/release/build-info.json
+            mobile/android/app/build/outputs/apk/release/SHA256SUMS
           if-no-files-found: error
           retention-days: 7
       - uses: actions/upload-artifact@v4
         with:
           name: byeolharu-android-release-unsigned
-          path: mobile/android/app/build/outputs/bundle/release/app-release.aab
+          path: |
+            mobile/android/app/build/outputs/bundle/release/app-release.aab
+            mobile/android/app/build/outputs/bundle/release/build-info.json
+            mobile/android/app/build/outputs/bundle/release/SHA256SUMS
           if-no-files-found: error
           retention-days: 7
 
@@ -203,10 +227,20 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.22.1"
       - uses: actions/download-artifact@v4
         with:
           name: byeolharu-android-release-unsigned
           path: unsigned
+      - name: Verify downloaded unsigned artifact, source and Play version acknowledgement
+        env:
+          PLAY_MAX_VERSION_CODE: ${{ inputs.highest_play_version_code }}
+        run: |
+          node --input-type=module -e 'import {assertNewPlayVersion, readAndroidVersion} from "./mobile/scripts/android-release-version.mjs"; assertNewPlayVersion(readAndroidVersion("mobile"), process.env.PLAY_MAX_VERSION_CODE);'
+          (cd unsigned && sha256sum --check SHA256SUMS)
+          node --input-type=module -e 'import assert from "node:assert/strict"; import {readFileSync} from "node:fs"; import {sourceBuildInfo} from "./mobile/scripts/build-info.mjs"; assert.deepEqual(JSON.parse(readFileSync("unsigned/build-info.json","utf8")), sourceBuildInfo(process.cwd(),true,"release"));'
       - name: Sign verified AAB with Play upload key
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
@@ -221,9 +255,16 @@ jobs:
           trap 'rm -f "$keyfile"' EXIT
           printf '%s' "$KEYSTORE_B64" | base64 --decode > "$keyfile"
           bash mobile/scripts/sign-aab.sh unsigned/app-release.aab byeolharu-internal.aab "$keyfile" "$UPLOAD_ALIAS"
+      - name: Record signed bundle provenance
+        run: |
+          cp unsigned/build-info.json .
+          sha256sum byeolharu-internal.aab build-info.json > SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
           name: byeolharu-play-internal-signed
-          path: byeolharu-internal.aab
+          path: |
+            byeolharu-internal.aab
+            build-info.json
+            SHA256SUMS
           if-no-files-found: error
           retention-days: 7

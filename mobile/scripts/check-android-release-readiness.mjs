@@ -1,53 +1,67 @@
 /**
- * STEP 19: source-only Android release readiness audit.
- *
- * The current app intentionally builds isolated, unsigned-for-Play debug APKs.
- * This script makes the release blockers explicit. Default mode reports them
- * without failing ordinary development CI. --assert-ready fails closed.
- * It NEVER signs, uploads, publishes, accesses secrets, or mutates files.
+ * Source configuration audit only. A generated Android project is intentional:
+ * the versioned config, native templates and patcher are the build inputs.
+ * Never sign, upload, publish, access secrets or infer manual release approval.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { validateAndroidVersion } from "./android-release-version.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-export function inspectReleaseSources({config, workflow, patcher, packageJson}) {
-  assert.equal(typeof config, "string");
-  assert.equal(typeof workflow, "string");
-  assert.equal(typeof patcher, "string");
+
+export function inspectReleaseSources({ config, workflow, patcher, packageJson, versionJson, artifactVerifier }) {
+  for (const source of [config, workflow, patcher, artifactVerifier]) assert.equal(typeof source, "string");
   const pkg = typeof packageJson === "string" ? JSON.parse(packageJson) : packageJson;
+  const stripComments = source => source.replace(/^\s*(?:\/\/|\/\*|\*|#).*$/gm, "");
+  const cfg = stripComments(config);
+  const ci = stripComments(workflow);
+  const patch = stripComments(patcher);
   const blockers = [];
   const block = (id, description) => blockers.push({ id, description });
-  // These are intentional blockers. Do not mistake the current PoC's
-  // successful debug build for a shippable Android App Bundle.
-  if (!config.includes('appId: "app.byeolharu.android"') && config.includes("packagedgueststep9"))
-    block("DEBUG_APP_ID", "Current packaged guest uses a PoC application ID; configure the release build with app.byeolharu.android.");
-  if (!config.includes('appName: "별하루"') && /별하루 비회원 STEP 9/.test(config))
-    block("DEBUG_APP_LABEL", "Current launcher label includes STEP 9; configure the release launcher label as 별하루.");
-  if (patcher.includes("cap add android") || /generated debug MainActivity|generated Android package/i.test(patcher) || /generated Android project/i.test(patcher))
-    block("GENERATED_ANDROID_PROJECT", "Native project is generated and patched for debug; establish a versioned release configuration.");
-  if (/assembleDebug/.test(workflow) && !/bundleRelease/.test(workflow))
-    block("NO_RELEASE_BUNDLE_PIPELINE", "CI generates debug APKs only, not a release Android App Bundle.");
-  if (!/signingConfig|upload[-_ ]?key|keystore|keyAlias/.test(workflow))
-    block("NO_UPLOAD_SIGNING_PIPELINE", "No Play upload signing pipeline is configured (do not commit private keys).");
-  if (pkg.private !== true || !/PoC|experiment|debug/i.test(pkg.description ?? ""))
-    block("UNEXPECTED_POC_BOUNDARY", "PoC safeguards were changed; re-review the APK build boundary.");
+  let version = null;
+  try {
+    version = validateAndroidVersion(typeof versionJson === "string" ? JSON.parse(versionJson) : versionJson);
+  } catch {
+    block("INVALID_ANDROID_VERSION", "Expected valid code/name in mobile/release-version.json.");
+  }
+  if (!/process\.env\.BYEOLHARU_ANDROID_RELEASE === "1"\s*&&\s*\{\s*appId: "app\.byeolharu\.android",\s*appName: "별하루"/.test(cfg))
+    block("RELEASE_APP_ID_OR_LABEL", "The release flag must select the release ID and label.");
+  if (!cfg.includes('appId: "io.github.gyeongseokjeong.byeolharu.packagedgueststep9"'))
+    block("DEBUG_APP_ID", "Preserve the existing installed test package.");
+  if (!/patchGradleVersion\(gradle, readAndroidVersion\(mobileRoot\)\)/.test(patch) || !patch.includes("native/MainActivity.java.template"))
+    block("UNVERSIONED_NATIVE_CONFIGURATION", "Generated native project must use versioned templates and shared Android version.");
+  if (!/^\s*release-bundle:\s*$/m.test(ci) || !/^\s*BYEOLHARU_ANDROID_RELEASE: "1"\s*$/m.test(ci) || !/^\s*\.\/gradlew bundleRelease --no-daemon\s*$/m.test(ci))
+    block("NO_RELEASE_BUNDLE_PIPELINE", "Expected a dedicated generated release AAB pipeline.");
+  if (!/^\s*node mobile\/scripts\/check-android-artifact\.mjs aab /m.test(ci) ||
+      !/node mobile\/scripts\/check-android-artifact\.mjs apk /m.test(ci) ||
+      !/export function verifyArtifactMetadata\(/.test(stripComments(artifactVerifier)))
+    block("NO_FINAL_ARTIFACT_VERIFICATION", "Verify final AAB/APK metadata and embedded build-info.");
+  if (!/^\s*sign-internal:\s*$/m.test(ci) || !/^\s*environment: play-internal\s*$/m.test(ci) ||
+      !/github\.event_name == 'workflow_dispatch' && github\.ref == 'refs\/heads\/main' && inputs\.sign_internal/.test(ci) ||
+      !/^\s*bash mobile\/scripts\/sign-aab\.sh unsigned\/app-release\.aab /m.test(ci) || !/assertNewPlayVersion\(readAndroidVersion\("mobile"\), process\.env\.PLAY_MAX_VERSION_CODE\)/.test(ci))
+    block("NO_PROTECTED_SIGNING_PIPELINE", "Expected opt-in main-only signing in the play-internal environment.");
+  if (pkg.private !== true) block("UNEXPECTED_PACKAGE_BOUNDARY", "Android build tooling must remain private.");
 
   return {
-    ready: blockers.length === 0,
+    // Preserve the old ready field as fail-closed; static configuration can never
+    // prove permission, installed-app signature, Play Console or device readiness.
+    ready: false,
+    sourceReady: blockers.length === 0,
+    version,
     blockers,
     manualGates: [
-      "Verify the release bundle applicationId app.byeolharu.android and launcher label 별하루 alongside the installed test app",
-      "Release-target SDK verified from final generated Android build (Google Play new app: API 36+ as of Nov 2026)",
-      "VersionCode/versionName and immutable upgrade strategy",
-      "Versioned native Android release project and reproducible release AAB build",
-      "Play App Signing/upload key secured outside git; signed AAB tested in internal testing",
-      "Launcher icon, splash, accessibility, light/dark, permissions and notification end-to-end review",
-      "Play Store listing, privacy policy, Data Safety and required declaration review",
-      "Verify guest JSON restore and same-account member sync from the installed test app; preserve the original until records match",
-      "Verify the release uses the shared main source and email callbacks reopen the requesting app with both packages installed",
-      "Galaxy device regression of the latest permission-toggle change and release AAB verified",
+      "Verify final AAB/APK package, launcher label, version code/name, target/min SDK, embedded source SHA and release widget read-only boundary in CI",
+      "Confirm highest versionCode ever used in Play Console; choose a higher unused code before the next upload",
+      "Lock mobile transitive npm dependencies and verify reproducible builds; current clean generated pipeline is not a byte-identical reproducibility guarantee",
+      "Verify Play App Signing/upload-key custody and the actual signed AAB in internal testing",
+      "Verify same-package Play update with prior app signing certificate; never assume disposable test APK compatibility",
+      "Verify guest/member records, backups, Outbox, account isolation and auth callback preservation without deleting original data",
+      "Verify launcher, splash, accessibility, light/dark, permissions and notification end-to-end behavior on devices",
+      "Verify Play Store listing, privacy policy, Data Safety and required declarations",
+      "Verify external backup and isolated restoration before public beta (#147)",
+      "Obtain explicit release approval after required evidence; source audit cannot approve publication",
     ],
   };
 }
@@ -58,11 +72,17 @@ export function loadReleaseSources() {
     workflow: readFileSync(resolve(root, "../.github/workflows/android-poc.yml"), "utf8"),
     patcher: readFileSync(resolve(root, "scripts/patch-android.mjs"), "utf8"),
     packageJson: readFileSync(resolve(root, "package.json"), "utf8"),
+    versionJson: readFileSync(resolve(root, "release-version.json"), "utf8"),
+    artifactVerifier: readFileSync(resolve(root, "scripts/check-android-artifact.mjs"), "utf8"),
   };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const audit = inspectReleaseSources(loadReleaseSources());
   console.log(JSON.stringify(audit, null, 2));
-  if (process.argv.includes("--assert-ready") && !audit.ready) process.exitCode = 1;
+  if (process.argv.includes("--assert-source-ready") && !audit.sourceReady) process.exitCode = 1;
+  if (process.argv.includes("--assert-ready")) {
+    console.error("--assert-ready cannot prove publication readiness; use --assert-source-ready for source checks only.");
+    process.exitCode = 1;
+  }
 }
