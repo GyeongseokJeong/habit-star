@@ -147,3 +147,8 @@ B01~B08은 4B-2 이후 실기기 인수 기준이다. 4B-1에서는 자동화와
 | D04-R2-2 | 아키텍트/보안/풀스택: 다른 계정/알림/record와 경쟁 상태까지 함께 우회하면 P0 위험. prepare 응답·commit·single mutation·guard 기존 그대로; native에서 발신 package/고정 reason을 확보하기 전 delivery receiver나 알림 저장소·DB를 별도 변경하지 않음. |
 
 코드 이견 해소; 실기기 P1은 미해결. #233의 기존 D04 시험과 추가 H1/H2 인수 조건 유지. 수정본에서 `cancel-verified` 및 `restore-verified` native 로그와 실제 예정 시각 미수신/정상 1회 수신을 함께 확인한다. 여전히 실패하면 고정 reason 및 발신 package를 확인하여 다음 분기를 결정한다. Release 직접 기록 활성화 및 정식 배포 승인 범위 아님.
+
+
+## 2026-11-28 #234 후속 결과
+
+사용자 보고: 최근 앱 목록에서 제거한 후 위젯에서 습관 완료 및 예약 알림 취소 정상 — D04-a의 사용자 보고 PASS. 완료 취소 시 재예약도 동작하는 것으로 관찰. 실제 예약 시각/발신 package/PID 및 별도 예약 수신 등 나머지 하위 조건은 미확인이다. 동일 tree인 main `4aa7fb9` 기준 `pnpm test` 227, Android 검사 175, native helper 및 실제 planner/native poll 식을 이용한 회원·비회원/정확·일반 × 완료·취소 3회(12 cycles, 가상 예약 목록) 통과. 중복 방지, 과거 시간 복구 안 함, 다른 예약과 앱 재진입 diff 불변 확인. 전체 D04·STEP 4D의 별도 실기기 인수나 Release 활성화와 혼동하지 않는다. [#234 후속 검증 기록](https://github.com/GyeongseokJeong/habit-star/pull/234).
