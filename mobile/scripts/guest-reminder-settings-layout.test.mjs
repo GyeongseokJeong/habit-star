@@ -52,6 +52,20 @@ test("three independent wrap-up settings keep user intent and reveal time only w
  assert.doesNotMatch(web,/onWrapupChange|localNotificationActionPerformed/);
 });
 
+test("wrap-up pending work never shifts settings or dims a committed ON period", () => {
+ const card = ui.slice(ui.indexOf('aria-label="시간대 마무리 알림"'), ui.indexOf('>화면</AccountSectionTitle>'));
+ assert.match(card, /data-enabled=\{choice.enabled\}/);
+ assert.match(card, /disabled=\{!choice.enabled \|\| working\}/);
+ assert.match(card, /disabled=\{working\} aria-busy=\{workingAction === "wrapup-" \+ group\}/);
+ assert.match(card, /aria-busy=\{workingAction === "wrapup-time-" \+ group\}/);
+ assert.match(card, /<p className="sr-only" role="status">\{workingAction\?\.startsWith\("wrapup-"\) \? "알림 설정을 확인하고 있어요…" : ""\}<\/p>/);
+ assert.doesNotMatch(card, /className="account-note"/);
+ assert.match(css, /\.android-wrapup-time select:disabled \{ opacity: \.55; \}/);
+ assert.match(css, /\.android-wrapup-period\[data-enabled="true"\] \.android-wrapup-time select:disabled \{ opacity: 1; \}/);
+ assert.match(css, /\.android-wrapup-toggle:disabled \{ opacity: 1; cursor: default; \}/);
+ assert.match(ui, /if \(activeAction.current \|\| app.busy\) return/);
+});
+
 test("release settings distinguish missing display, exact, and unknown OS permission",()=>{
  const settings=ui.slice(ui.indexOf('{page === "settings" && ('),ui.indexOf('{page === "help" && ('));
  const notice=settings.slice(settings.indexOf('android-reminder-action-notice'),settings.indexOf('android-wrapup-settings'));

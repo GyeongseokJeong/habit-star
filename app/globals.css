@@ -4883,10 +4883,15 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   background: var(--control-bg); color: var(--ink); font-size: 13px; font-weight: 600;
 }
 .account-panel .account-settings-final .android-wrapup-time select:disabled { opacity: .55; }
+/* The transaction lock still disables other controls. Only a genuinely
+   OFF period should look inactive; pending work must not flash the card. */
+.account-panel .account-settings-final .android-wrapup-period[data-enabled="true"] .android-wrapup-time select:disabled { opacity: 1; }
 .account-panel .account-settings-final .android-wrapup-toggle {
   min-height: 44px; width: 56px; height: 44px; padding: 0;
 }
-.account-panel .account-settings-final .android-wrapup-toggle:disabled { opacity: .6; cursor: progress; }
+.account-panel .account-settings-final .android-wrapup-toggle:disabled { opacity: 1; cursor: default; }
+.account-panel .account-settings-final .android-wrapup-toggle[aria-busy="true"],
+.account-panel .account-settings-final .android-wrapup-time select[aria-busy="true"] { cursor: progress; }
 .account-panel .account-theme-options { gap: 6px; }
 .account-panel .account-theme-options > button { min-width: 0; padding: 8px 4px; gap: 5px; }
 .account-panel .account-settings-final .account-timezone-trigger,
