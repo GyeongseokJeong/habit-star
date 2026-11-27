@@ -464,6 +464,10 @@ assert.match(bridgeLease,/lease\.destroyed&&!lease\.ambiguous&&lease\.worker!=nu
 assert.match(bridgeLease,/lease\.worker==null\|\|lease\.ambiguous\)return WORKER_UNKNOWN/);
 assert.match(bridgeLease,/if\(!outstanding\.isEmpty\(\)\)return WORKER_DRAINING/);
 assert.match(coldJava,/ByeolharuWidgetBridgeLease\.NEW_PROCESS\.equals\(state\)\|\|ByeolharuWidgetBridgeLease\.DRAINED_PROCESS\.equals\(state\)/);
+// The renderer serializes Dates before WebView's V8 bridge converts them;
+// Android unwraps the JSON string without weakening canonical time checks.
+assert.match(coldJava,/evaluateJavascript\("JSON\.stringify\(\{result:window\.__byeolharuColdResult\|\|null,prepare:window\.__byeolharuColdPrepare\|\|null\}\)"/);
+assert.match(coldJava,/Object parsed=new JSONTokener\(value\)\.nextValue\(\);\s*if\(!\(parsed instanceof String\)\)\{finish\(null\);return;\}\s*JSONObject message=new JSONObject\(\(String\)parsed\);/);
 assert.match(coldJava,/boolean alarmCheck=saved/);
 assert.match(coldJava,/else if\(saved\) \{alarmDiagnostic="missing-decision";Log\.i\(TAG,"cold-alarm apply=missing-decision"\)/);
 assert.doesNotMatch(bridgeLease+coldJava,/\.join\(|Thread\.sleep\(|getAllStackTraces\(|getDeclaredField\(/);

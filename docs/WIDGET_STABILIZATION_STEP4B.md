@@ -126,3 +126,24 @@ B01~B08은 4B-2 이후 실기기 인수 기준이다. 4B-1에서는 자동화와
 - 오늘 5~10분 후 예약된 H1과 별도 시각의 H2로, 최근 앱 제거 직후 및 수 초 후 위젯 완료. 기록 5점·메모 유지, H1 예정 시각 실제 미수신, H2 예정 시각 실제 수신(앱 재실행 전). PID 유지 및 실제 PID 종료는 구분.
 - H1을 다시 미래 시각으로 준비해 완료 취소는 0점/미완료, 해당 예정 시각 1회 수신. 다른 날/마무리/계정 알림 불변.
 - 실패 Toast가 재발하면 고정 reason code를 캡처. 실제 기기에서 발생한 분기를 확인하기 전 억지로 guard 완화하지 않는다.
+
+## D04 재발 — #233 후에도 예약 시간에 실제 알림 수신
+
+기준 main `5c9c3f5`. 사용자 보고: 최근 앱 목록에서 별하루 제거 후 오늘 습관을 위젯에서 완료해도 앱에 재진입하지 않은 상태에서 실제 알림 수신. D04-a/P1 **FAIL (사용자 보고)** 유지. 시험 variant/발신 package 및 #233에서 추가한 고정 진단 코드는 아직 미확인.
+
+### 확인한 경계 결함 및 최소 수정
+
+- `planColdWidgetReminder`는 cancel의 `expected`와 restore의 `notification`에 실제 JS `Date`인 `schedule.at`을 생성한다. 기존 native poll은 `evaluateJavascript`에서 객체를 그대로 반환했다. Chromium의 [JavaScriptExecuteRequest](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/third_party/blink/renderer/core/frame/local_frame_mojo_handler.cc)는 V8 converter에서 날짜 변환을 허용하고, [V8ValueConverterImpl::FromV8ValueImpl](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/content/renderer/v8_value_converter_impl.cc)은 해당 Date를 epoch seconds 숫자로 변환한다(날짜 변환 비허용 경로에서도 ISO 문자열은 보장되지 않음). 따라서 JS planner가 성공하더라도 native `canonical`의 strict ISO UTC 문자열 필터에서 `canonical-invalid`로 중단되어 기존 예약이 남을 수 있다. 이는 코드와 upstream 구현으로 확인한 전송 계약 결함이며 해당 삼성 기기의 실제 분기/PID를 확보한 것은 아니다.
+- poll JS 안에서 result/prepare를 **JSON.stringify**하여 Date를 ISO 문자열로 변환한 뒤 Android callback에는 문자열만 전달한다. Java는 callback의 JSON-encoded 문자열을 한 번 풀고 내부 JSON 객체만 역직렬화한다. 예외/잘못된 타입은 기존 not-ready 경로; 날짜 검증이나 소유권·permission·token·worker·deadline·revision·claim 등 guard는 완화하지 않는다. 원본 데이터·Outbox·인증·Release 게이트·예약 용량/권한 정책 변경 없음.
+- 실제 Java template의 poll 표현식을 실행하는 두 회귀 테스트를 먼저 작성했으며 기존 코드에서 모두 실패(객체 반환), 수정 후 모두 통과. guest/유효한 UUID member의 exact/inexact cancel/restore payload와 ISO 시각, ID/fingerprint/title/body, Unicode/이스케이프 포함 위젯 summary 및 prepare-only/empty/defer/error poll을 확인한다. native decoder는 source contract 검사로 고정한다. Node 테스트는 실제 Android WebView callback·AlarmManager를 실행한 것이 아니다.
+
+### 두 차례 역할 관점 검토 (동일 모델, 독립 전문가/실기기 아님)
+
+| 쟁점 | 제안 → 반박 → 수정 및 재평가 |
+|---|---|
+| D04-R1-1 | Android/풀스택: planner와 Java 검증 사이 Date 형식 변환이 불일치함. 아키텍트/보안: native에서 임의 숫자/객체를 받아 날짜 허용 시 손상/위조 payload나 단위 혼동 위험. JSON 전송 형식만 명시하고 기존 strict ISO/정확한 예약 소유권 검증 그대로 유지. 채택. |
+| D04-R1-2 | UX/사용자: 알림 예정 시각까지 앱을 열 이유가 없어야 함. QA: JS 로직 성공만으로 실제 OS 취소/전달을 증명할 수 없음. 실기기 없이 완료 선언하지 않고 기존 Debug 진단과 D04-a/b/h 유지. 채택. |
+| D04-R2-1 | QA/이용자: 단순 JSON.stringify 단위 테스트는 실제 native poll이 원래 객체 반환이면 놓칠 수 있음. 실제 template 표현 문장을 추출·실행해 기존 코드에서 실패를 관찰하고 실제 planner의 Date 및 guest/member exact/inexact 두 방향을 비교. Java decode source contract/전체 suite 재평가. |
+| D04-R2-2 | 아키텍트/보안/풀스택: 다른 계정/알림/record와 경쟁 상태까지 함께 우회하면 P0 위험. prepare 응답·commit·single mutation·guard 기존 그대로; native에서 발신 package/고정 reason을 확보하기 전 delivery receiver나 알림 저장소·DB를 별도 변경하지 않음. |
+
+코드 이견 해소; 실기기 P1은 미해결. #233의 기존 D04 시험과 추가 H1/H2 인수 조건 유지. 수정본에서 `cancel-verified` 및 `restore-verified` native 로그와 실제 예정 시각 미수신/정상 1회 수신을 함께 확인한다. 여전히 실패하면 고정 reason 및 발신 package를 확인하여 다음 분기를 결정한다. Release 직접 기록 활성화 및 정식 배포 승인 범위 아님.

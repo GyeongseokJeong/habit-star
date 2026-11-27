@@ -107,13 +107,17 @@ final class ByeolharuWidgetColdPractice {
         if(finished||view==null)return;
         if(!ByeolharuWidgetProvider.coldAllowed(context,requestId)){finish(null);return;}
         try{
-            view.evaluateJavascript("({result:window.__byeolharuColdResult||null,prepare:window.__byeolharuColdPrepare||null})",value->{
+            // WebView's V8 conversion of a returned object is not JSON.stringify:
+            // a reminder's Date can become epoch seconds instead of the ISO
+            // string required by native canonical validation. Serialize inside
+            // the renderer and decode the callback's JSON-encoded string once.
+            view.evaluateJavascript("JSON.stringify({result:window.__byeolharuColdResult||null,prepare:window.__byeolharuColdPrepare||null})",value->{
                 if(finished)return;
                 if(!ByeolharuWidgetProvider.coldAllowed(context,requestId)){finish(null);return;}
                 try{
                     Object parsed=new JSONTokener(value).nextValue();
-                    if(!(parsed instanceof JSONObject)){finish(null);return;}
-                    JSONObject message=(JSONObject)parsed;
+                    if(!(parsed instanceof String)){finish(null);return;}
+                    JSONObject message=new JSONObject((String)parsed);
                     JSONObject result=message.optJSONObject("result");
                     if(result!=null){
                         boolean saved="saved".equals(result.optString("status"));

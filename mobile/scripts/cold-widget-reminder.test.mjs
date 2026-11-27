@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { runInNewContext } from "node:vm";
 import { planColdWidgetReminder } from "../notifications/cold-widget-reminder.js";
 import { buildScopedReminderPlan, diffScopedNotifications } from "../notifications/scoped-reminder-runtime.js";
 import { localDayKey } from "../notifications/reminder-plan.js";
@@ -31,6 +33,59 @@ const target=all.find(n=>n.extra.day===day&&n.extra.habitId===habit.id);
 const ordinary=planned(false).find(n=>n.id===target.id);
 const untouched=all.filter(n=>n.id!==target.id);
 
+// Execute the actual native poll expression, not a separate test-only codec.
+const nativePollSource = readFileSync(new URL("../native/widgets/ByeolharuWidgetColdPractice.java.template", import.meta.url), "utf8");
+function pollColdWebView(window) {
+  const match = nativePollSource.match(/view\.evaluateJavascript\(("(?:[^"\\]|\\.)*__byeolharuColdResult(?:[^"\\]|\\.)*"),value->/);
+  assert.ok(match, "native poll expression not found");
+  const value = runInNewContext(JSON.parse(match[1]), { window });
+  // Chromium converts the evaluation result via V8ValueConverter, not
+  // Date.toJSON(). Returning a string prevents it from converting dates
+  // in the decision to epoch seconds (or a dictionary on other paths).
+  assert.equal(typeof value, "string", "native poll must return explicitly serialized JSON");
+  const callback = JSON.stringify(value);
+  return JSON.parse(JSON.parse(callback));
+}
+test("actual native result poll transports canonical ISO dates for cancel and restore",()=>{
+  for (const verifiedMember of [null,"12ab34cd-5678-49ab-9cde-0123456789ab"]) {
+    const verifiedScope=verifiedMember?"member:"+verifiedMember:"guest";
+    const timeZone=verifiedMember?"Asia/Seoul":undefined;
+    const clock=verifiedMember?now:new Date(2026,10,27,8,0);
+    const plan=buildScopedReminderPlan({day,timeZone,habits:[habit,other]},
+      {scope:verifiedScope,now:clock,daysAhead:2});
+    for (const exact of [true,false]) {
+      const scheduled=diffScopedNotifications([],plan,{exact}).schedule;
+      const own=scheduled.find(n=>n.extra.day===day&&n.extra.habitId===habit.id);
+      const stored=JSON.parse(JSON.stringify(own));
+      for (const completed of [true,false]) {
+        const fixture=input(completed,{memberId:verifiedMember,now:clock,exact,
+          queue:queue(completed?[stored]:scheduled.filter(n=>n.id!==own.id))});
+        fixture.command.scope=verifiedScope;
+        const alarm=planColdWidgetReminder(fixture);
+        assert.equal(alarm.kind,completed?"cancel":"restore");
+        const payload=completed?alarm.expected:alarm.notification;
+        assert.ok(payload.schedule.at instanceof Date);
+        const result={status:"saved",alarm,summary:{ready:true,expiresAt:clock.getTime()+3600000,
+          timezone:timeZone??Intl.DateTimeFormat().resolvedOptions().timeZone,
+          rows:[{title:"별하루 ✦ \"\\\n🌟",icon:"📚",group:"night",completed}]}};
+        const decoded=pollColdWebView({__byeolharuColdResult:result});
+        assert.deepEqual(decoded,{result:JSON.parse(JSON.stringify(result)),prepare:null});
+        const nativePayload=completed?decoded.result.alarm.expected:decoded.result.alarm.notification;
+        assert.equal(nativePayload.schedule.at,stored.schedule.at);
+        assert.match(nativePayload.schedule.at,/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+        assert.deepEqual(nativePayload,stored);
+      }
+    }
+  }
+});
+test("actual native result poll preserves pending prepare, empty poll and failure result",()=>{
+  assert.deepEqual(pollColdWebView({}),{result:null,prepare:null});
+  const prepare={scope,habitId:habit.id,day,timeZone:"Asia/Seoul",completed:true};
+  assert.deepEqual(pollColdWebView({__byeolharuColdPrepare:prepare}),{result:null,prepare});
+  for (const result of [{status:"error"},{status:"saved",alarm:{kind:"defer",reason:"stale-commit"}}]) {
+    assert.deepEqual(pollColdWebView({__byeolharuColdResult:result}),{result,prepare:null});
+  }
+});
 test("completion selects only its current-day owned reservation; other days/scopes/wrapups excluded",()=>{
   const wrapup={id:73,extra:{kind:target.extra.kind,scope,day,category:"wrapup"}};
   const foreign={id:74,extra:{...target.extra,scope:"member:bob"}};
