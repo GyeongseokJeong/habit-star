@@ -21,7 +21,7 @@ GitHub Actions의 [Android Shell PoC](https://github.com/GyeongseokJeong/habit-s
 ```sh
 pnpm install --frozen-lockfile
 cd mobile
-npm install --no-package-lock --no-audit --no-fund
+npm ci --no-audit --no-fund
 npm run check
 BYEOLHARU_POC_PACKAGED_GUEST=1 npm run packaged-guest:build
 npm run packaged-guest:verify
@@ -48,7 +48,7 @@ CI의 `release-bundle` 작업은 별도 작업 디렉터리에서 정식 ID와 �
 - `npm run release:readiness -- --assert-source-ready`는 버전 관리 설정·생성 프로젝트·빌드/검증/보호 서명 경로만 검사합니다. 결과의 `sourceReady`와 별개로 기존 `ready`는 false(출시 증거 미확인)입니다. `--assert-ready`는 수동 출시 게이트를 증명하지 못하므로 실패합니다.
 - CI는 실제 APK/AAB의 ID, code/name, SDK(현재 min 24, target 36), APK 런처 이름, 포함된 build-info.json(버전/SHA/variant/ID)과 필수 자산을 대조합니다. Release에서 Debug 위젯 cold 실행 JS가 없어야 합니다.
 - Release 산출물과 함께 `build-info.json`, `SHA256SUMS`를 다운로드하여 대상 소스와 파일을 확인할 수 있습니다. 테스트 서명 APK는 매 CI 일회성 인증서를 사용하므로 Play 설치본이나 다른 실행의 APK 업데이트에 사용할 수 있다고 가정하지 않습니다. 체크섬은 파일 무결성 확인이지 Play 서명 인증을 대체하지 않습니다.
-- 네이티브 템플릿·Capacitor config·patcher로 깨끗한 네이티브 프로젝트를 재생성합니다. 현재 이동 가능한 빌드 절차이지 아직 바이트 단위 동일성의 보장은 아닙니다. npm 하위 의존성 고정, 실제 서명, 기존 Play 설치 업데이트, 실기기 데이터 보존은 별도 검증이 필요합니다.
+- 네이티브 템플릿·Capacitor config·patcher로 깨끗한 네이티브 프로젝트를 재생성합니다. `pnpm-lock.yaml`과 `mobile/package-lock.json`으로 npm 직접·하위 의존성을 고정합니다. Release 빌드는 추적 파일이 수정된 작업 트리를 거부하며 CI는 checkout SHA를 GitHub Actions SHA와 비교합니다. 정식 후보는 깨끗한 main CI 산출물을 사용합니다(로컬 untracked 소스·Gradle 환경·일회성 인증서 등의 차이로 바이트 단위 동일성을 보장하지 않습니다). 실제 서명, 기존 Play 설치 업데이트, 실기기 데이터 보존은 별도 검증이 필요합니다.
 
 GitHub 환경 `play-internal`에 업로드 키의 `ANDROID_UPLOAD_KEYSTORE_BASE64`, `ANDROID_UPLOAD_STORE_PASSWORD`, `ANDROID_UPLOAD_KEY_PASSWORD`, `ANDROID_UPLOAD_KEY_ALIAS`를 등록합니다. PKCS12에서 두 비밀번호가 같으면 같은 값을 각각 등록합니다. Android Shell PoC를 main에서 수동 실행할 때 `sign_internal`을 선택하고 Play Console에서 실제 확인한 최고 사용 코드 `highest_play_version_code`(최초 업로드가 확실한 경우만 0)를 입력하면, 새 code가 더 큰지 확인한 뒤 검증된 AAB를 서명하고 인증서를 검사하여 `byeolharu-play-internal-signed`를 제공합니다. 이 파일을 Play Console 내부 테스트 트랙에 업로드합니다. 이메일 복귀에는 정식 앱 전용 `from=android-release`를 사용하므로 같은 버전의 웹 인증 경로를 먼저 배포합니다.
 

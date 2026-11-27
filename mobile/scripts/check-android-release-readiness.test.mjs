@@ -10,11 +10,13 @@ test("generated Android release pipeline is configured but never statically appr
   assert.equal(report.ready, false);
   assert.deepEqual(report.version, JSON.parse(sources.versionJson));
   assert.ok(report.manualGates.some(x => x.includes("Play Console")));
-  assert.ok(report.manualGates.some(x => x.includes("transitive npm")));
+  assert.ok(report.manualGates.some(x => x.includes("locked dependency graph")));
 });
 
 test("missing configuration, final validation or protected signing fail closed", () => {
   for (const [field, value, id] of [
+    ["lockJson", "{}", "UNLOCKED_ANDROID_DEPENDENCIES"],
+    ["workflow", sources.workflow.replace("npm ci --no-audit --no-fund", "npm install --no-package-lock"), "UNLOCKED_ANDROID_DEPENDENCIES"],
     ["versionJson", '{"code":0,"name":"latest"}', "INVALID_ANDROID_VERSION"],
     ["config", sources.config.replace('appId: "app.byeolharu.android"', 'appId: "invalid"'), "RELEASE_APP_ID_OR_LABEL"],
     ["patcher", '/* patchGradleVersion(gradle, readAndroidVersion(mobileRoot)) */', "UNVERSIONED_NATIVE_CONFIGURATION"],

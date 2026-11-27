@@ -11,7 +11,7 @@ import { validateAndroidVersion } from "./android-release-version.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-export function inspectReleaseSources({ config, workflow, patcher, packageJson, versionJson, artifactVerifier }) {
+export function inspectReleaseSources({ config, workflow, patcher, packageJson, versionJson, artifactVerifier, lockJson }) {
   for (const source of [config, workflow, patcher, artifactVerifier]) assert.equal(typeof source, "string");
   const pkg = typeof packageJson === "string" ? JSON.parse(packageJson) : packageJson;
   const stripComments = source => source.replace(/^\s*(?:\/\/|\/\*|\*|#).*$/gm, "");
@@ -42,6 +42,26 @@ export function inspectReleaseSources({ config, workflow, patcher, packageJson, 
       !/github\.event_name == 'workflow_dispatch' && github\.ref == 'refs\/heads\/main' && inputs\.sign_internal/.test(ci) ||
       !/^\s*bash mobile\/scripts\/sign-aab\.sh unsigned\/app-release\.aab /m.test(ci) || !/assertNewPlayVersion\(readAndroidVersion\("mobile"\), process\.env\.PLAY_MAX_VERSION_CODE\)/.test(ci))
     block("NO_PROTECTED_SIGNING_PIPELINE", "Expected opt-in main-only signing in the play-internal environment.");
+  let lockValid = false;
+  try {
+    const lock = typeof lockJson === "string" ? JSON.parse(lockJson) : lockJson;
+    const rootPackage = lock.packages[""];
+    assert.equal(lock.lockfileVersion, 3);
+    for (const field of ["name", "version", "dependencies", "devDependencies", "engines"]) {
+      assert.deepEqual(rootPackage[field], pkg[field]);
+    }
+    for (const [path, info] of Object.entries(lock.packages)) {
+      if (path === "") continue;
+      assert.match(info.resolved, /^https:\/\/registry\.npmjs\.org\//);
+      assert.match(info.integrity, /^sha(?:512|1)-/);
+    }
+    lockValid = true;
+  } catch {
+    // npm ci verifies the full exact lock graph during CI.
+  }
+  if (!lockValid || (ci.match(/npm ci --no-audit --no-fund/g) ?? []).length !== 2 ||
+      /npm install --no-package-lock/.test(ci))
+    block("UNLOCKED_ANDROID_DEPENDENCIES", "Both Android jobs must use a valid committed npm lock via npm ci.");
   if (pkg.private !== true) block("UNEXPECTED_PACKAGE_BOUNDARY", "Android build tooling must remain private.");
 
   return {
@@ -54,7 +74,7 @@ export function inspectReleaseSources({ config, workflow, patcher, packageJson, 
     manualGates: [
       "Verify final AAB/APK package, launcher label, version code/name, target/min SDK, embedded source SHA and release widget read-only boundary in CI",
       "Confirm highest versionCode ever used in Play Console; choose a higher unused code before the next upload",
-      "Lock mobile transitive npm dependencies and verify reproducible builds; current clean generated pipeline is not a byte-identical reproducibility guarantee",
+      "Verify repeatable clean builds from the locked dependency graph; byte-identical artifacts are not guaranteed across toolchain versions or disposable certificates",
       "Verify Play App Signing/upload-key custody and the actual signed AAB in internal testing",
       "Verify same-package Play update with prior app signing certificate; never assume disposable test APK compatibility",
       "Verify guest/member records, backups, Outbox, account isolation and auth callback preservation without deleting original data",
@@ -73,6 +93,7 @@ export function loadReleaseSources() {
     patcher: readFileSync(resolve(root, "scripts/patch-android.mjs"), "utf8"),
     packageJson: readFileSync(resolve(root, "package.json"), "utf8"),
     versionJson: readFileSync(resolve(root, "release-version.json"), "utf8"),
+    lockJson: readFileSync(resolve(root, "package-lock.json"), "utf8"),
     artifactVerifier: readFileSync(resolve(root, "scripts/check-android-artifact.mjs"), "utf8"),
   };
 }

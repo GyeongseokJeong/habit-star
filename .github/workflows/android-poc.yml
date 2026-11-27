@@ -59,16 +59,9 @@ jobs:
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0" "platform-tools"
       - name: Install first-party web dependencies
         run: pnpm install --frozen-lockfile
-      - name: Bootstrap Android dependency lock (draft PR only)
-        run: npm install --package-lock --no-audit --no-fund
+      - name: Install locked Android dependencies
+        run: npm ci --no-audit --no-fund
         working-directory: mobile
-      - name: Upload generated dependency lock for review
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-dependency-lock-bootstrap
-          path: mobile/package-lock.json
-          if-no-files-found: error
-          retention-days: 3
       - name: Verify Android checks and package actual guest UI
         run: |
           npm run check
@@ -139,7 +132,7 @@ jobs:
         run: |
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0"
           npm run release:readiness -- --assert-source-ready
-          npm install --no-package-lock --no-audit --no-fund
+          npm ci --no-audit --no-fund
           npm run packaged-guest:build
           npm run packaged-guest:verify
           npm run android:init

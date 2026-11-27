@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -77,5 +78,34 @@ test("Play signing requires a confirmed highest used code and a strictly newer r
   assert.doesNotThrow(() => assertNewPlayVersion(version, "6"));
   for (const highest of ["", "7", "8", "-1", "1.5", "unknown", "2100000001", undefined]) {
     assert.throws(() => assertNewPlayVersion(version, highest));
+  }
+});
+
+test("release stamps a clean committed source and rejects dirty or mismatched CI revisions", () => {
+  const root = mkdtempSync(join(tmpdir(), "byeolharu-git-version-"));
+  const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+  const saved = { CI: process.env.CI, GITHUB_ACTIONS: process.env.GITHUB_ACTIONS, GITHUB_SHA: process.env.GITHUB_SHA };
+  try {
+    mkdirSync(join(root, "mobile"));
+    writeFileSync(join(root, "mobile/release-version.json"), JSON.stringify(version));
+    git("init", "-q");
+    git("add", ".");
+    git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "fixture");
+    const revision = git("rev-parse", "HEAD");
+    process.env.CI = "true";
+    process.env.GITHUB_ACTIONS = "true";
+    process.env.GITHUB_SHA = revision;
+    assert.equal(sourceBuildInfo(root, true, "release").sourceSha, revision);
+    process.env.GITHUB_SHA = "b".repeat(40);
+    assert.throws(() => sourceBuildInfo(root, true, "release"), /GitHub Actions checkout/);
+    process.env.GITHUB_SHA = revision;
+    writeFileSync(join(root, "mobile/release-version.json"), JSON.stringify({ code: 8, name: "0.2.1" }));
+    assert.throws(() => sourceBuildInfo(root, true, "release"), /clean tracked Git checkout/);
+  } finally {
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+    rmSync(root, { recursive: true, force: true });
   }
 });

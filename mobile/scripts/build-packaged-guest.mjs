@@ -46,7 +46,7 @@ await build({
     "process.env.NODE_ENV": '"production"',
     "process.env.NEXT_PUBLIC_APP_VERSION": JSON.stringify(provenance.version),
     "process.env.NEXT_PUBLIC_BUILD_SHA": JSON.stringify(provenance.sourceSha),
-    "process.env.NEXT_PUBLIC_ANDROID_RELEASE": JSON.stringify(provenance.variant === "release" ? "true" : "false"),
+    "process.env.NEXT_PUBLIC_ANDROID_RELEASE": JSON.stringify(process.env.BYEOLHARU_ANDROID_RELEASE === "1" ? "true" : "false"),
     "process.env.NEXT_PUBLIC_ANDROID_PACKAGED_GUEST": '"true"',
     "process.env.NEXT_PUBLIC_CLOUD_ENABLED": '"true"',
     "process.env.NEXT_PUBLIC_SUPABASE_URL": JSON.stringify(publicAuth.supabaseUrl),
@@ -60,7 +60,7 @@ await build({
   logLevel:"info",
 });
 // Isolated offline runtime: debug only, no React mount, network or Auth client.
-if (provenance.variant !== "release") {
+if (process.env.BYEOLHARU_ANDROID_RELEASE !== "1") {
   await build({
     absWorkingDir: root,
     entryPoints: [resolve(mobile, "packaged-guest/widget-cold-entry.ts")],

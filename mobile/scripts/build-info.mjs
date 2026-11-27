@@ -36,6 +36,12 @@ export function sourceBuildInfo(root, cloudEnabled = false, variant = androidVar
   if (variant === "release" || process.env.CI === "true") {
     assert.match(sha, /^[a-f0-9]{40}$/i, "Release/CI requires a checked-out Git SHA");
   }
+  if (variant === "release") {
+    const changes = execFileSync("git", ["status", "--porcelain", "--untracked-files=no"], {
+      cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"],
+    });
+    assert.equal(changes, "", "Release requires a clean tracked Git checkout");
+  }
   if (process.env.GITHUB_ACTIONS === "true") {
     assert.equal(sha, process.env.GITHUB_SHA, "Git SHA must match the GitHub Actions checkout");
   }
