@@ -1,13 +1,13 @@
 /**
- * Patch Capacitor's generated debug MainActivity after `cap add android`.
- * Keeping the native template separate avoids committing disposable Gradle
- * output during PoC; a future release must commit the native Android project.
+ * Patch the generated Capacitor Android project from versioned native templates.
+ * Debug and release are generated in separate clean build directories.
  */
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, copyFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
 import { applyLauncherIcons } from "./generate-launcher-icons.mjs";
+import { patchGradleVersion, readAndroidVersion } from "./android-release-version.mjs";
 
 const mobileRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const sourceRoot = resolve(mobileRoot, "android/app/src/main/java");
@@ -142,16 +142,10 @@ if (!applicationTag[0].includes('android:name=".ByeolharuWidgetApplication"')) {
 }
 if (returnManifest !== initialManifest) writeFileSync(returnManifestPath, returnManifest);
 
-if (process.env.BYEOLHARU_ANDROID_RELEASE === "1") {
-  const { code, name } = JSON.parse(readFileSync(resolve(mobileRoot, "release-version.json"), "utf8"));
-  assert.ok(Number.isSafeInteger(code) && code > 0 && code <= 2100000000, "Invalid Android versionCode");
-  assert.match(name, /^\d+\.\d+\.\d+$/, "Expected a numeric release version");
-  const gradlePath = resolve(mobileRoot, "android/app/build.gradle");
-  const gradle = readFileSync(gradlePath, "utf8");
-  assert.equal((gradle.match(/^\s*versionCode \d+\s*$/gm) || []).length, 1, "Expected one default versionCode");
-  assert.equal((gradle.match(/^\s*versionName "[^"]+"\s*$/gm) || []).length, 1, "Expected one default versionName");
-  writeFileSync(gradlePath, gradle.replace(/(\bversionCode )\d+/, (_, prefix) => prefix + code).replace(/(\bversionName )"[^"]+"/, '$1"' + name + '"'));
-}
+// Both variants use the same Android version contract; their package IDs remain distinct.
+const gradlePath = resolve(mobileRoot, "android/app/build.gradle");
+const gradle = readFileSync(gradlePath, "utf8");
+writeFileSync(gradlePath, patchGradleVersion(gradle, readAndroidVersion(mobileRoot)));
 
 // Replace Capacitor's default launcher icon in both debug and release variants.
 applyLauncherIcons(resolve(mobileRoot, "android/app/src/main"));

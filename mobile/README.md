@@ -1,6 +1,6 @@
 # 별하루 Android — 통합 앱 개발 안내
 
-웹과 Android는 동일한 `main` React/습관 로직을 사용합니다. Android는 **로컬 번들 기반 Android 테스트 APK**이며 아직 Play Store 출시용 앱은 아닙니다.
+웹과 Android는 동일한 `main` React/습관 로직을 사용합니다. Android는 로컬 번들 기반 Debug APK, 테스트 서명 Release APK, Play 내부 테스트용 AAB를 구분합니다. 빌드 성공은 실제 Play 출시 승인이 아닙니다.
 
 ## 현재 지원하는 구성
 - 앱 ID: `io.github.gyeongseokjeong.byeolharu.packagedgueststep9` (**기존 설치 앱의 저장소를 보존하기 위해 유지**)
@@ -13,15 +13,15 @@
 ## GitHub CI / APK 다운로드
 GitHub Actions의 [Android Shell PoC](https://github.com/GyeongseokJeong/habit-star/actions/workflows/android-poc.yml) 워크플로를 `main`에서 **Run workflow**로 실행합니다. 일반 `main` push는 웹 CI만 실행하며 Android는 PR 검증 또는 수동 빌드로 생성됩니다.
 
-- Android 기본 job: `android-packaged-guest-step9` 한 개
+- Android CI: `android-packaged-guest-step9`(Debug), `release-bundle`(미서명 AAB 및 테스트 서명 APK), 별도 승인된 main 수동 실행의 `sign-internal`(Play 업로드 키 서명)
 - Artifact: `byeolharu-android-packaged-guest-step9-debug`, 안에 디버그 APK와 `build-info.json` 포함
-- 앱 설정 화면 하단에 버전과 빌드 SHA 표시. PR의 SHA는 검증용 임시 병합 커밋일 수 있음
+- 앱 설정 화면 하단에 Android 버전과 빌드 SHA 표시. PR의 SHA는 검증용 임시 병합 커밋일 수 있음. Web 버전은 루트 package.json에서 독립 관리합니다.
 
 ## 로컬 빌드 (Node 24.22.1, pnpm 11.25.0)
 ```sh
 pnpm install --frozen-lockfile
 cd mobile
-npm install --no-package-lock --no-audit --no-fund
+npm ci --no-audit --no-fund
 npm run check
 BYEOLHARU_POC_PACKAGED_GUEST=1 npm run packaged-guest:build
 npm run packaged-guest:verify
@@ -41,9 +41,16 @@ cd android && ./gradlew assembleDebug
 - **알림과 이메일** — 새 앱에서 알림 권한과 실제 수신을 확인한 뒤 기존 앱의 알림을 끕니다. 두 앱이 설치된 상태에서 각각 요청한 가입·재설정 이메일이 요청한 앱으로 돌아오는지 확인합니다. 정식 앱의 웹 복귀 링크와 네이티브 등록은 한 변경으로 검증합니다.
 - **서명과 내부 테스트** — Play App Signing을 사용하고 업로드 키는 디버그 키와 분리해 저장소 밖에서 관리합니다. 릴리스 AAB를 내부 테스트에 올려 최초 설치와 다음 버전 업데이트에서 기록·로그인·알림이 유지되는지 확인합니다.
 
-CI의 `release-bundle` 작업은 별도 작업 디렉터리에서 정식 ID와 런처 이름으로 네이티브 프로젝트를 생성하고 `bundleRelease`를 실행합니다. 검증된 미서명 AAB는 `byeolharu-android-release-unsigned` 아티팩트로 받습니다. 내부 테스트 버전은 `mobile/release-version.json`에서 관리합니다. 첫 업로드 기본값은 1 / 0.1.0이며 기존 Play 업로드가 있으면 사용 가능한 더 높은 code로 바꿉니다. 후속 업로드마다 code를 올립니다.
+CI의 `release-bundle` 작업은 별도 작업 디렉터리에서 정식 ID와 런처 이름으로 네이티브 프로젝트를 생성하고 `bundleRelease`를 실행합니다. 검증된 미서명 AAB는 `byeolharu-android-release-unsigned` 아티팩트로 받습니다. Android Debug와 Release 모두 `mobile/release-version.json`의 code/name을 Gradle과 UI/build-info에 사용합니다. 현재 값은 1 / 0.1.0이며 Play에서 이미 사용한 최고 code는 이 저장소만으로 확인할 수 없습니다. 최초 업로드인지 확인하고, 후속 업로드마다 새 code는 Play Console에 이미 사용한 모든 code보다 높여야 합니다. 루트 package.json은 Web 버전, mobile/package.json의 version은 private 빌드 도구 메타데이터일 뿐 Android 배포 버전이 아닙니다.
 
-GitHub 환경 `play-internal`에 업로드 키의 `ANDROID_UPLOAD_KEYSTORE_BASE64`, `ANDROID_UPLOAD_STORE_PASSWORD`, `ANDROID_UPLOAD_KEY_PASSWORD`, `ANDROID_UPLOAD_KEY_ALIAS`를 등록합니다. PKCS12에서 두 비밀번호가 같으면 같은 값을 각각 등록합니다. Android Shell PoC를 main에서 수동 실행할 때 `sign_internal`을 선택하면 검증된 AAB를 서명하고 인증서를 검사한 뒤 `byeolharu-play-internal-signed`를 제공합니다. 이 파일을 Play Console 내부 테스트 트랙에 업로드합니다. 이메일 복귀에는 정식 앱 전용 `from=android-release`를 사용하므로 같은 버전의 웹 인증 경로를 먼저 배포합니다.
+### 앱 산출물 및 준비 점검
+
+- `npm run release:readiness -- --assert-source-ready`는 버전 관리 설정·생성 프로젝트·빌드/검증/보호 서명 경로만 검사합니다. 결과의 `sourceReady`와 별개로 기존 `ready`는 false(출시 증거 미확인)입니다. `--assert-ready`는 수동 출시 게이트를 증명하지 못하므로 실패합니다.
+- CI는 실제 APK/AAB의 ID, code/name, SDK(현재 min 24, target 36), APK 런처 이름, 포함된 build-info.json(버전/SHA/variant/ID)과 필수 자산을 대조합니다. Release에서 Debug 위젯 cold 실행 JS가 없어야 합니다.
+- Release 산출물과 함께 `build-info.json`, `SHA256SUMS`를 다운로드하여 대상 소스와 파일을 확인할 수 있습니다. 테스트 서명 APK는 매 CI 일회성 인증서를 사용하므로 Play 설치본이나 다른 실행의 APK 업데이트에 사용할 수 있다고 가정하지 않습니다. 체크섬은 파일 무결성 확인이지 Play 서명 인증을 대체하지 않습니다.
+- 네이티브 템플릿·Capacitor config·patcher로 깨끗한 네이티브 프로젝트를 재생성합니다. `pnpm-lock.yaml`과 `mobile/package-lock.json`으로 npm 직접·하위 의존성을 고정합니다. Release 빌드는 추적 파일이 수정된 작업 트리를 거부하며 CI는 checkout SHA를 GitHub Actions SHA와 비교합니다. 정식 후보는 깨끗한 main CI 산출물을 사용합니다(로컬 untracked 소스·Gradle 환경·일회성 인증서 등의 차이로 바이트 단위 동일성을 보장하지 않습니다). 실제 서명, 기존 Play 설치 업데이트, 실기기 데이터 보존은 별도 검증이 필요합니다.
+
+GitHub 환경 `play-internal`에 업로드 키의 `ANDROID_UPLOAD_KEYSTORE_BASE64`, `ANDROID_UPLOAD_STORE_PASSWORD`, `ANDROID_UPLOAD_KEY_PASSWORD`, `ANDROID_UPLOAD_KEY_ALIAS`를 등록합니다. PKCS12에서 두 비밀번호가 같으면 같은 값을 각각 등록합니다. Android Shell PoC를 main에서 수동 실행할 때 `sign_internal`을 선택하고 Play Console에서 실제 확인한 최고 사용 코드 `highest_play_version_code`(최초 업로드가 확실한 경우만 0)를 입력하면, 새 code가 더 큰지 확인한 뒤 검증된 AAB를 서명하고 인증서를 검사하여 `byeolharu-play-internal-signed`를 제공합니다. 이 파일을 Play Console 내부 테스트 트랙에 업로드합니다. 이메일 복귀에는 정식 앱 전용 `from=android-release`를 사용하므로 같은 버전의 웹 인증 경로를 먼저 배포합니다.
 
 과거 Android STEP 1~22의 실험 기록은 [ANDROID_POC_HISTORY.md](ANDROID_POC_HISTORY.md)에 보관합니다. **그 문서의 이전 빌드 명령·실험 플래그·브랜치 안내는 현재 사용할 수 없습니다.**
 
