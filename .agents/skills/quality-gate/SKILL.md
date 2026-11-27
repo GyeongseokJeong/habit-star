@@ -15,7 +15,7 @@ description: 별하루 기능·데이터·인증·동기화 변경의 타입, �
 
 ## 실행 절차
 
-변경 경로를 분류하고 `pnpm validate:skills`(스킬 변경 시), `pnpm typecheck`, `pnpm test`부터 시작한다. 데이터는 `pnpm test:db --postgres`, 브라우저는 `pnpm test:e2e`, 빌드/운영 화면은 `pnpm build`, `pnpm test:e2e:production`을 적용한다. 인증·동기화는 로컬 Supabase에서 `pnpm test:db`와 `pnpm test:e2e:cloud`를 확인한다. GitHub CI의 SHA·verify/cloud 결과를 비교한다.
+변경 경로를 분류하고 `pnpm validate:skills`(스킬 변경 시), `pnpm typecheck`, `pnpm test`부터 시작한다. 데이터는 `pnpm test:db --postgres`, 브라우저는 `pnpm test:e2e`, 빌드/운영 화면은 `pnpm build`, `pnpm test:e2e:production`을 적용한다. 인증·동기화는 로컬 Supabase에서 `pnpm test:db`와 `pnpm test:e2e:cloud`를 확인한다. GitHub CI의 SHA·verify/cloud 결과를 비교한다. QA 역할이 선택된 작업은 테스트 계획·실행 근거·결함 심각도/재검증 및 인수 판단을 함께 기록한다. Android 네이티브/실기기·서명, 아트 실제 이미지, 보안 위협 모델, 실제 이용자 조사/분석 증거는 각각 관련 전문 역할의 결과와 구분하며 정적 검사나 mock 결과로 대체하지 않는다.
 
 ## Evidence Before CSS Changes
 

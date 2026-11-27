@@ -1,6 +1,8 @@
-# Stakeholder Harness 3.1 — 별하루
+# Stakeholder Harness 3.2 — 별하루
 
 ## 책임 및 적용 범위
+
+기존 10개 역할에 QA·Android·아트·보안·UX 리서치·제품 데이터 분석을 추가한 **16개 역할** 체계다. 필요한 전문성만 선택하며 16명 상시 호출이나 실제 채용을 의미하지 않는다.
 
 제품 헌장과 기존 보호 스킬을 보존한 채, 작업에 필요한 이해관계자만 선정한다. 역할은 독립된 **검토 관점**이지 실존 전문가나 실제 사용자 조사 결과가 아니다. 역할 정의의 기준은 각각의 SKILL.md, 가중치와 기본 선택은 [routing.json](stakeholder-routing.json), 조율 방법은 [stakeholder-panel](../.agents/skills/stakeholder-panel/SKILL.md)이다. UI 작업은 Android 앱 우선, 웹/PWA 기존 기능 보존. 실제 코드·스크린샷·이슈·PR·CI·사용자 확정 정책을 먼저 확인한다.
 
@@ -16,8 +18,14 @@
 | 시니어 클린코드 전문가 | 가독성, 응집도, 변경 용이성, 테스트 가능성과 불필요한 복잡도 제거를 책임진다. | 근거·대안·리스크·검증 및 반박 |
 | 풀스택 시니어 개발자 | 실제 구현 가능성, 프런트·백엔드·Android 통합, 오류 처리와 실행 검증을 책임진다. | 근거·대안·리스크·검증 및 반박 |
 | 시니어 서버 운영 전문가 | 가용성, 배포·복구, 관측 가능성, 비용 및 운영 부담을 책임진다. | 근거·대안·리스크·검증 및 반박 |
+| 시니어 QA 엔지니어 | 독립 품질 판단, 테스트 설계/실행 근거, 회귀·업데이트 및 출시 차단 판단 | 위험 기반 케이스 매트릭스 / 증거·PASS·FAIL·NOT RUN·BLOCKED / 재검증·인수 판단 |
+| 시니어 Android 네이티브 개발자 | Capacitor/OS 브리지, 생명주기·위젯·알림·권한·APK/AAB | 실패 모드 / 빌드 출처·서명·SDK / 기기 검증 및 네이티브 한계 |
+| 시니어 일러스트레이터·아트 디렉터 | 별자리 원화·단계별 서사·테마 컬렉션·별빛 카드 및 에셋 품질 | 승인 원화/신규 시안 / 아트 디렉션 / 포맷·해시·비율·권한·모바일 시각 QA |
+| 시니어 보안·개인정보 전문가 | 위협 모델, 인증·계정 격리·RLS/RPC·앱 저장·개인정보 및 계측 위험 | 신뢰 경계 / 위협·심각도·완화 / 안전한 재현·보안 차단 |
+| 시니어 UX 리서처 | Play 피드백/사용자 조사 방법·근거 품질; UX 설계 및 가상 사용자 관점과 구분 | 연구 질문 / 표본·과제·관찰/가설 / 한계·개선 및 재검증 |
+| 시니어 프로덕트 데이터 분석가 | 제품 의사결정 지표·코호트·품질·실험 및 최소 수집 기준 | 지표 정의표 / 출처·분모·표본·한계 / 실험·중단 기준 |
 
-PM은 조율 담당이며 사용자 승인이나 data-guardian, quality-gate, release-guardian의 금지 사항을 무효화할 권한이 없다. UI/UX 전문가는 설계 판단을, 기존 design-guardian/accessibility-auditor는 구현 검증을 담당한다. 기술 전문가 4종은 설계/구현 판단을 담당하고 기존 6개 보호 스킬은 별도의 필수 검증을 담당한다.
+PM은 조율 담당이며 사용자 승인이나 data-guardian, quality-gate, release-guardian의 금지 사항을 무효화할 권한이 없다. UI/UX 전문가는 설계 판단을, 기존 design-guardian/accessibility-auditor는 구현 검증을 담당한다. 기술 역할과 신규 전문 역할은 설계/구현/독립 품질 판단을 보완하고 기존 6개 보호 스킬은 별도의 필수 검증을 담당한다. QA는 구현자의 자기 평가와 구분되는 테스트/출시 인수 근거를 관리하고 보안 전문가는 위협/개인정보 검토를 책임진다. Android는 공유 웹 로직과 native/OS 경계를, 아트는 원화/세계관을 책임지며 UI/UX와 협업한다. 연구는 실제 관찰 근거, 데이터 분석은 지표 정의 및 허용된 집계 근거를 담당한다. PM의 조율·QA의 인수 의견은 사용자의 실제 배포·운영 변경 승인과 동일하지 않다.
 
 ## 작업별 선정
 
@@ -25,20 +33,34 @@ PM은 조율 담당이며 사용자 승인이나 data-guardian, quality-gate, re
 
 | route | 기본 역할 | 최소~최대 라운드 |
 |---|---|---|
-| ui-concept | product, ui, ux, user | 2~3 |
-| new-feature | product, ux, user, fullstack | 2~3 |
-| feature-discovery | product, ui, ux, business, marketing, user | 2~3 |
-| monetization | product, business, marketing, ux, user | 2~3 |
-| marketing | product, marketing, business, user | 2~3 |
-| user-facing-bug | ux, user, fullstack | 1~3 |
-| release | product, marketing, business, user, operations | 2~3 |
+| ui-concept | PM, UI, UX, 사용자 | 2~3 |
+| new-feature | PM, UX, 사용자, 풀스택, QA | 2~3 |
+| feature-discovery | PM, UI, UX, BM, 마케팅, 사용자, UX 리서치, 분석 | 2~3 |
+| monetization | PM, BM, 마케팅, UX, 사용자, 분석 | 2~3 |
+| marketing | PM, 마케팅, BM, 사용자, 분석 | 2~3 |
+| user-facing-bug | UX, 사용자, 풀스택, QA | 1~3 |
+| release | PM, 마케팅, BM, 사용자, 운영, QA, 보안 | 2~3 |
 | technical | 없음 (보호 스킬만) | 1~1 |
-| harness | product, architect, clean-code | 2~3 |
-| architecture | architect, fullstack | 2~3 |
-| code-review | clean-code, fullstack | 2~3 |
-| operations | operations, architect | 2~3 |
+| harness | PM, 아키텍트, 클린코드, QA | 2~3 |
+| architecture | 아키텍트, 풀스택 | 2~3 |
+| code-review | 클린코드, 풀스택, QA | 2~3 |
+| operations | 운영, 아키텍트 | 2~3 |
+| qa | QA | 2~3 |
+| android-native | 아키텍트, 풀스택, QA, Android | 2~3 |
+| art-direction | PM, UI, UX, 사용자, 아트 | 2~3 |
+| security-review | 아키텍트, 풀스택, QA, 보안 | 2~3 |
+| user-research | PM, UX, 사용자, UX 리서치 | 2~3 |
+| product-analytics | PM, 마케팅, 보안, 분석 | 2~3 |
 
-modifier: ui, data, business, acquisition, implementation, release, architecture, code-quality, operations. 실제 영향 범위에 따라 합집합 선택. data는 아키텍트·풀스택 및 data-guardian, implementation은 풀스택·클린코드 및 feature-builder/quality-gate, release는 운영 및 release-guardian, architecture/code-quality/operations는 해당 기술 역할과 quality-gate를 추가한다. 단순 CI/오타만 technical로 처리하며 의미 있는 리팩터링은 code-review를 사용한다. 영향에 따른 보호 스킬은 제외할 수 없다.
+modifier: ui, data, business, acquisition, implementation, release, architecture, code-quality, operations, qa, android, art, security, research, analytics. 실제 영향 범위에 따라 합집합 선택. `data`는 아키텍트·풀스택·QA·보안 및 data-guardian/quality-gate, `implementation`은 풀스택·클린코드·QA 및 feature-builder/quality-gate, `release`는 운영·QA·보안 및 release-guardian/quality-gate를 추가한다. `android`는 Android·QA와 quality-gate, `art`는 아트와 design-guardian/accessibility-auditor, `security`는 보안과 data-guardian/quality-gate, `qa`는 QA와 quality-gate, `research`는 리서처, `analytics`는 분석·보안을 추가한다. 실제 데이터/계측 구현은 `data implementation`도 함께 적용한다. 단순 CI/오타만 technical로 처리하며 의미 있는 리팩터링은 code-review를 사용한다. 영향에 따른 보호 스킬은 제외할 수 없다.
+
+### 신규 역할 필수 선택과 적용 경계
+
+- **Android 전용 변경 및 Android 릴리스:** `android-native` 또는 `android` modifier; 배포 판단은 `release android` (UI/데이터 영향 시 추가). 공유 웹만 변경하는 경우는 자동 포함하지 않는다. QA 기기 매트릭스, 실제 서명·버전·설치/업데이트 경계, release 활성화 게이트 유지.
+- **아트/원화/테마/카드 아트 변경:** `art-direction` 또는 `art`; UI 배치만 바꾸는 경우 UI/UX 우선. 승인된 원화와 신규 시안을 구분하며 실제 에셋 변경 시 `implementation` 및 QA. 승인 원화 해시·2:3 비율·Stage 정책은 [V3.2 기준](CONSTELLATION_V3_2.md) 우선.
+- **인증/저장/동기화/권한·개인정보:** 실제 데이터 모델·저장·인증·동기화 변경에는 `data` modifier가 필수(`security`만으로 대체하지 않음). 저장 영향 없는 권한·개인정보·보안 검토는 `security` 또는 `security-review`; 로컬 테스트 및 정적 검토가 기본. 보안 점수나 검토 의견은 운영 침투 테스트, 비밀 조회, DB 변경 등의 승인이 아니다.
+- **사용자 근거/제품 지표:** `user-research`/ `research`, `product-analytics`/ `analytics`. 연구/분석은 실제 관찰·측정 근거와 가설을 분리한다. 사용자 연락·개인정보 수집·추적·새 SDK/실험 배포는 별도 승인 없이 실행하지 않는다. 실제 관찰이나 이용 자료가 없으면 N/E/계획만 기록한다.
+- **독립 품질 점검:** `qa` route/modifier. 신규 기능·사용자 영향 결함·리뷰·릴리스 및 데이터/구현 modifier에 QA를 포함한다. PASS/FAIL/NOT RUN/BLOCKED, 기기/빌드/서명/환경, 필수 차단 판정을 기록한다. 단순 CI는 기존 1회 보호 스킬 경로를 유지한다.
 
 ## 비판적 검토 루프 및 승인 게이트
 
@@ -71,14 +93,20 @@ modifier: ui, data, business, acquisition, implementation, release, architecture
 
 ## 검증 시나리오
 
-- 위젯 V6 시안: ui-concept + ui → PM/UI/UX/사용자, 시스템 테마·48dp 직접 체크·저장 성공·좁은 화면을 검토. 실제 기록 수정이면 data + implementation 추가.
-- 신규 기능 발굴: feature-discovery → 6개 관점으로 문제/기능/비용/유입/사용자 검토, 중복 이슈 확인, 최대 3회 비판적 우선순위 재검토.
-- 테마 컬렉션 유료화 검토: monetization + ui + acquisition → 6개 역할, 무료 기존 별자리/성장 정책 보존, 수익·전환은 가설.
+- 위젯 V6 시안: ui-concept + ui + android → PM/UI/UX/사용자/QA/Android, 시스템 테마·48dp 직접 체크·저장 성공·좁은 화면을 검토. 실제 기록 수정이면 data + implementation 추가.
+- 신규 기능 발굴: feature-discovery → 8개 관련 관점으로 문제/기능/비용/유입/사용자 검토, 중복 이슈 확인, 최대 3회 비판적 우선순위 재검토.
+- 테마 컬렉션 유료화 검토: monetization + ui + acquisition + art → 제품·UI/UX·BM·마케팅·사용자·아트·분석 역할, 무료 기존 별자리/성장 정책 보존, 수익·전환은 가설.
 - 단순 CI 실패: technical → quality-gate, 화면/데이터 변경이 없다면 전문가 패널 생략.
-- Supabase 변경: architecture + data + implementation → 아키텍트/풀스택/클린코드 및 data-guardian/quality-gate/feature-builder, 기존 원본·RLS·Outbox 보존.
-- 출시: release + ui + data → 관련 역할 및 기술 보호 스킬, 미검증/실패 시 보류.
+- Supabase 변경: architecture + data + implementation → 아키텍트/풀스택/클린코드/QA/보안 및 data-guardian/quality-gate/feature-builder, 기존 원본·RLS·Outbox 보존.
+- Android 출시: release + ui + data + android → 관련 역할(특히 QA·보안·Android) 및 기술 보호 스킬, 미검증/실패 시 보류.
 
 정적 검사는 routing과 스킬 파일의 정합성을 확인하며 실제 에이전트 호출/품질/실기기 검증을 증명하지 않는다.
 
-- 코드 리뷰: code-review + architecture (경계 변경 시) → 클린코드/풀스택/아키텍트, 반례와 최소 패치 검토.
-- 서버 장애: operations + data (저장 영향 시) → 운영/아키텍트/풀스택 및 데이터 보호. 승인 없는 운영 변경 금지.
+- 코드 리뷰: code-review + architecture (경계 변경 시) → 클린코드/풀스택/아키텍트/QA, 반례와 최소 패치 검토.
+- 서버 장애: operations + data (저장 영향 시) → 운영/아키텍트/풀스택/QA/보안 및 데이터 보호. 승인 없는 운영 변경 금지.
+
+- 알림/위젯 안정화: android-native + data + implementation → Android·QA·보안·아키텍트·풀스택·클린코드; Debug/release 계약과 원본·권한·실기기 회귀.
+- 신규 별자리 테마 시안: art-direction → PM·UI·UX·사용자·아트; 승인 원화 보존·Stage별 시각 차이·320px/두 테마 평가. 실제 에셋 구현은 implementation 추가.
+- 실제 Play 테스트 피드백(이슈 #200): user-research + analytics → PM·UX·사용자·리서치·분석·보안; 테스트 결과와 가설 분리, 개인정보 최소화, 미확인 N/E. 계측 구현은 승인 후 data 및 implementation 추가.
+- 보안 정적 리뷰: security-review → 아키텍트·풀스택·QA·보안; 승인 없는 운영 스캔 금지, 격리 테스트와 기존 불변식 검증.
+- 업데이트 QA: qa + android + release → QA·Android·운영·보안; 설치 서명/버전 검증, 필수 실기기 미실행이면 보류.

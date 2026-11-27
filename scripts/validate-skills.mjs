@@ -22,6 +22,12 @@ const names = [
   "clean-code-specialist",
   "senior-fullstack-developer",
   "server-operations-specialist",
+  "senior-qa-engineer",
+  "senior-android-native-developer",
+  "illustration-art-director",
+  "security-privacy-specialist",
+  "ux-researcher",
+  "product-data-analyst",
 ];
 const sections = [
   "호출 조건 및 제외 조건",
@@ -108,9 +114,11 @@ for (const scenario of [
 const routing = JSON.parse(file("docs/stakeholder-routing.json"));
 const roleIds = routing.roles.map(role => role.id);
 const guardIds = names.slice(0, 6);
-check(routing.version === 2, "Unexpected stakeholder routing version");
-check(roleIds.length === 10 && new Set(roleIds).size === 10, "Expected ten unique role IDs");
-check(new Set(routing.roles.map(role=>role.skill)).size === 10, "Role skills must be unique");
+check(routing.version === 3, "Unexpected stakeholder routing version");
+check(roleIds.length === 16 && new Set(roleIds).size === 16, "Expected sixteen unique role IDs");
+check(new Set(routing.roles.map(role=>role.skill)).size === 16, "Role skills must be unique");
+check(names.slice(7).every(skill=>routing.roles.some(role=>role.skill===skill)), "Role registry incomplete");
+check(routing.roles.every(role=>Object.values(routing.routes).some(route=>route.roles.includes(role.id))), "Unreachable role");
 for (const role of routing.roles) {
   check(names.includes(role.skill) && !guardIds.includes(role.skill) && role.skill !== "stakeholder-panel", "Invalid role skill: " + role.skill);
   const content = file(".agents/skills/" + role.skill + "/SKILL.md");
@@ -130,19 +138,40 @@ for(const [key,route] of Object.entries(routing.routes)) check(Number.isInteger(
 for(const [key,modifier] of Object.entries(routing.modifiers)) check(modifier.minRounds===undefined||[1,2,3].includes(modifier.minRounds),"Invalid modifier rounds: "+key);
 for (const [route, modifiers, expectedRoles, expectedGuards, minRounds, rounds] of [
  ["ui-concept",["ui"],["product","ui","ux","user"],["design-guardian","accessibility-auditor"],2,3],
- ["new-feature",["ui","data","implementation"],["product","ui","ux","user","architect","clean-code","fullstack"],["feature-builder","quality-gate","design-guardian","accessibility-auditor","data-guardian"],2,3],
- ["feature-discovery",[],["product","ui","ux","business","marketing","user"],[],2,3],
- ["monetization",["ui","acquisition"],["product","ui","ux","business","marketing","user"],["feature-builder","quality-gate","design-guardian","accessibility-auditor"],2,3],
- ["marketing",[],["product","business","marketing","user"],[],2,3],
- ["user-facing-bug",["ui"],["ui","ux","user","fullstack"],["feature-builder","quality-gate","design-guardian","accessibility-auditor"],1,3],
+ ["new-feature",["ui","data","implementation"],["product","ui","ux","user","architect","clean-code","fullstack","qa","security"],["feature-builder","quality-gate","design-guardian","accessibility-auditor","data-guardian"],2,3],
+ ["feature-discovery",[],["product","ui","ux","business","marketing","user","research","analytics"],[],2,3],
+ ["monetization",["ui","acquisition"],["product","ui","ux","business","marketing","user","analytics"],["feature-builder","quality-gate","design-guardian","accessibility-auditor"],2,3],
+ ["marketing",[],["product","business","marketing","user","analytics"],[],2,3],
+ ["user-facing-bug",["ui"],["ui","ux","user","fullstack","qa"],["feature-builder","quality-gate","design-guardian","accessibility-auditor"],1,3],
  ["technical",[],[],["quality-gate"],1,1],
- ["technical",["data","implementation"],["architect","clean-code","fullstack"],["quality-gate","data-guardian","feature-builder"],2,3],
- ["release",["ui","data"],["product","ui","ux","business","marketing","user","architect","fullstack","operations"],["release-guardian","quality-gate","design-guardian","accessibility-auditor","data-guardian"],2,3],
- ["harness",[],["product","architect","clean-code"],["quality-gate"],2,3],
- ["architecture",["data","implementation"],["architect","clean-code","fullstack"],["feature-builder","quality-gate","data-guardian"],2,3],
- ["code-review",["architecture"],["architect","clean-code","fullstack"],["quality-gate"],2,3],
- ["operations",["data"],["architect","fullstack","operations"],["quality-gate","data-guardian"],2,3],
- ["technical",["operations","release"],["operations"],["quality-gate","release-guardian"],2,3],
+ ["technical",["data","implementation"],["architect","clean-code","fullstack","qa","security"],["quality-gate","data-guardian","feature-builder"],2,3],
+ ["release",["ui","data"],["product","ui","ux","business","marketing","user","architect","fullstack","operations","qa","security"],["release-guardian","quality-gate","design-guardian","accessibility-auditor","data-guardian"],2,3],
+ ["harness",[],["product","architect","clean-code","qa"],["quality-gate"],2,3],
+ ["architecture",["data","implementation"],["architect","clean-code","fullstack","qa","security"],["feature-builder","quality-gate","data-guardian"],2,3],
+ ["code-review",["architecture"],["architect","clean-code","fullstack","qa"],["quality-gate"],2,3],
+ ["operations",["data"],["architect","fullstack","operations","qa","security"],["quality-gate","data-guardian"],2,3],
+ ["technical",["operations","release"],["operations","qa","security"],["quality-gate","release-guardian"],2,3],
+ // New specialist routes, direct modifiers and realistic compositions.
+ ["qa",[],["qa"],["quality-gate"],2,3],
+ ["android-native",[],["architect","fullstack","qa","android"],["feature-builder","quality-gate"],2,3],
+ ["ui-concept",["ui","android"],["product","ui","ux","user","qa","android"],["design-guardian","accessibility-auditor","quality-gate"],2,3],
+ ["android-native",["data","implementation"],["architect","clean-code","fullstack","qa","android","security"],["feature-builder","quality-gate","data-guardian"],2,3],
+ ["art-direction",[],["product","ui","ux","user","art"],["design-guardian","accessibility-auditor"],2,3],
+ ["art-direction",["implementation"],["product","ui","ux","user","clean-code","fullstack","qa","art"],["design-guardian","accessibility-auditor","feature-builder","quality-gate"],2,3],
+ ["security-review",[],["architect","fullstack","qa","security"],["data-guardian","quality-gate"],2,3],
+ ["user-research",[],["product","ux","user","research"],[],2,3],
+ ["user-research",["analytics"],["product","ux","user","security","research","analytics"],[],2,3],
+ ["product-analytics",[],["product","marketing","security","analytics"],[],2,3],
+ ["product-analytics",["data","implementation"],["product","marketing","architect","clean-code","fullstack","qa","security","analytics"],["data-guardian","quality-gate","feature-builder"],2,3],
+ ["release",["ui","data","android"],["product","ui","ux","business","marketing","user","architect","fullstack","operations","qa","android","security"],["release-guardian","quality-gate","design-guardian","accessibility-auditor","data-guardian"],2,3],
+ ["monetization",["ui","acquisition","art"],["product","ui","ux","business","marketing","user","art","analytics"],["feature-builder","quality-gate","design-guardian","accessibility-auditor"],2,3],
+ ["technical",["qa"],["qa"],["quality-gate"],2,3],
+ ["technical",["android"],["qa","android"],["quality-gate"],2,3],
+ ["technical",["art"],["art"],["quality-gate","design-guardian","accessibility-auditor"],2,3],
+ ["technical",["security"],["security"],["quality-gate","data-guardian"],2,3],
+ ["technical",["research"],["research"],["quality-gate"],2,3],
+ ["technical",["analytics"],["security","analytics"],["quality-gate"],2,3],
+ ["qa",["android","release","android"],["operations","qa","android","security"],["quality-gate","release-guardian"],2,3],
 ]) {
  const selected=selectStakeholders(route,modifiers);
  const expectedSkills=[...(expectedRoles.length?["stakeholder-panel"]:[]), ...routing.roles.filter(role=>expectedRoles.includes(role.id)).map(role=>role.skill),...expectedGuards];
@@ -151,7 +180,7 @@ for (const [route, modifiers, expectedRoles, expectedGuards, minRounds, rounds] 
  check(JSON.stringify(selected.reviewPhases)===JSON.stringify(routing.reviewPolicy.phases),"Review phase mismatch: "+route);
  check(selected.skills.length===expectedSkills.length&&expectedSkills.every(id=>selected.skills.includes(id)),"Skill scenario mismatch: "+route);
 }
-for(const args of [["__unknown__",[]],["technical",["__unknown__"]],["constructor",[]]]){
+for(const args of [["__unknown__",[]],["technical",["__unknown__"]],["constructor",[]],["technical",["constructor"]]]){
   let rejected=false;try{selectStakeholders(...args)}catch{rejected=true;}
   check(rejected,"Invalid selection accepted: "+args[0]);
 }

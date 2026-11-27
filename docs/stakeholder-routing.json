@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "roles": [
     {
       "id": "product",
@@ -260,6 +260,162 @@
           "weight": 15
         }
       ]
+    },
+    {
+      "id": "qa",
+      "skill": "senior-qa-engineer",
+      "criteria": [
+        {
+          "id": "coverage",
+          "weight": 25
+        },
+        {
+          "id": "evidence",
+          "weight": 25
+        },
+        {
+          "id": "integrity",
+          "weight": 20
+        },
+        {
+          "id": "severity",
+          "weight": 20
+        },
+        {
+          "id": "efficiency",
+          "weight": 10
+        }
+      ]
+    },
+    {
+      "id": "android",
+      "skill": "senior-android-native-developer",
+      "criteria": [
+        {
+          "id": "lifecycle",
+          "weight": 25
+        },
+        {
+          "id": "integrity",
+          "weight": 25
+        },
+        {
+          "id": "integration",
+          "weight": 20
+        },
+        {
+          "id": "compatibility",
+          "weight": 15
+        },
+        {
+          "id": "delivery",
+          "weight": 15
+        }
+      ]
+    },
+    {
+      "id": "art",
+      "skill": "illustration-art-director",
+      "criteria": [
+        {
+          "id": "identity",
+          "weight": 25
+        },
+        {
+          "id": "narrative",
+          "weight": 25
+        },
+        {
+          "id": "craft",
+          "weight": 25
+        },
+        {
+          "id": "production",
+          "weight": 15
+        },
+        {
+          "id": "context",
+          "weight": 10
+        }
+      ]
+    },
+    {
+      "id": "security",
+      "skill": "security-privacy-specialist",
+      "criteria": [
+        {
+          "id": "boundaries",
+          "weight": 25
+        },
+        {
+          "id": "isolation",
+          "weight": 30
+        },
+        {
+          "id": "exposure",
+          "weight": 20
+        },
+        {
+          "id": "privacy",
+          "weight": 15
+        },
+        {
+          "id": "verification",
+          "weight": 10
+        }
+      ]
+    },
+    {
+      "id": "research",
+      "skill": "ux-researcher",
+      "criteria": [
+        {
+          "id": "question",
+          "weight": 25
+        },
+        {
+          "id": "method",
+          "weight": 25
+        },
+        {
+          "id": "evidence",
+          "weight": 25
+        },
+        {
+          "id": "ethics",
+          "weight": 15
+        },
+        {
+          "id": "action",
+          "weight": 10
+        }
+      ]
+    },
+    {
+      "id": "analytics",
+      "skill": "product-data-analyst",
+      "criteria": [
+        {
+          "id": "definition",
+          "weight": 25
+        },
+        {
+          "id": "validity",
+          "weight": 25
+        },
+        {
+          "id": "interpretation",
+          "weight": 20
+        },
+        {
+          "id": "privacy",
+          "weight": 20
+        },
+        {
+          "id": "action",
+          "weight": 10
+        }
+      ]
     }
   ],
   "routes": {
@@ -282,7 +438,8 @@
         "product",
         "ux",
         "user",
-        "fullstack"
+        "fullstack",
+        "qa"
       ],
       "guards": [
         "feature-builder",
@@ -298,7 +455,9 @@
         "ux",
         "business",
         "marketing",
-        "user"
+        "user",
+        "research",
+        "analytics"
       ],
       "guards": [],
       "rounds": 3,
@@ -310,7 +469,8 @@
         "business",
         "marketing",
         "ux",
-        "user"
+        "user",
+        "analytics"
       ],
       "guards": [
         "feature-builder",
@@ -324,7 +484,8 @@
         "product",
         "marketing",
         "business",
-        "user"
+        "user",
+        "analytics"
       ],
       "guards": [],
       "rounds": 3,
@@ -334,7 +495,8 @@
       "roles": [
         "ux",
         "user",
-        "fullstack"
+        "fullstack",
+        "qa"
       ],
       "guards": [
         "feature-builder",
@@ -349,7 +511,9 @@
         "marketing",
         "business",
         "user",
-        "operations"
+        "operations",
+        "qa",
+        "security"
       ],
       "guards": [
         "release-guardian",
@@ -370,7 +534,8 @@
       "roles": [
         "product",
         "architect",
-        "clean-code"
+        "clean-code",
+        "qa"
       ],
       "guards": [
         "quality-gate"
@@ -393,7 +558,8 @@
     "code-review": {
       "roles": [
         "clean-code",
-        "fullstack"
+        "fullstack",
+        "qa"
       ],
       "guards": [
         "quality-gate"
@@ -409,6 +575,81 @@
       "guards": [
         "quality-gate"
       ],
+      "minRounds": 2,
+      "rounds": 3
+    },
+    "qa": {
+      "roles": [
+        "qa"
+      ],
+      "guards": [
+        "quality-gate"
+      ],
+      "minRounds": 2,
+      "rounds": 3
+    },
+    "android-native": {
+      "roles": [
+        "architect",
+        "fullstack",
+        "qa",
+        "android"
+      ],
+      "guards": [
+        "feature-builder",
+        "quality-gate"
+      ],
+      "minRounds": 2,
+      "rounds": 3
+    },
+    "art-direction": {
+      "roles": [
+        "product",
+        "ui",
+        "ux",
+        "user",
+        "art"
+      ],
+      "guards": [
+        "design-guardian",
+        "accessibility-auditor"
+      ],
+      "minRounds": 2,
+      "rounds": 3
+    },
+    "security-review": {
+      "roles": [
+        "architect",
+        "fullstack",
+        "qa",
+        "security"
+      ],
+      "guards": [
+        "data-guardian",
+        "quality-gate"
+      ],
+      "minRounds": 2,
+      "rounds": 3
+    },
+    "user-research": {
+      "roles": [
+        "product",
+        "ux",
+        "user",
+        "research"
+      ],
+      "guards": [],
+      "minRounds": 2,
+      "rounds": 3
+    },
+    "product-analytics": {
+      "roles": [
+        "product",
+        "marketing",
+        "analytics",
+        "security"
+      ],
+      "guards": [],
       "minRounds": 2,
       "rounds": 3
     }
@@ -427,7 +668,9 @@
     "data": {
       "roles": [
         "architect",
-        "fullstack"
+        "fullstack",
+        "qa",
+        "security"
       ],
       "guards": [
         "data-guardian",
@@ -450,7 +693,8 @@
     "implementation": {
       "roles": [
         "fullstack",
-        "clean-code"
+        "clean-code",
+        "qa"
       ],
       "guards": [
         "feature-builder",
@@ -460,7 +704,9 @@
     },
     "release": {
       "roles": [
-        "operations"
+        "operations",
+        "qa",
+        "security"
       ],
       "guards": [
         "release-guardian",
@@ -493,6 +739,60 @@
       "guards": [
         "quality-gate"
       ],
+      "minRounds": 2
+    },
+    "qa": {
+      "roles": [
+        "qa"
+      ],
+      "guards": [
+        "quality-gate"
+      ],
+      "minRounds": 2
+    },
+    "android": {
+      "roles": [
+        "qa",
+        "android"
+      ],
+      "guards": [
+        "quality-gate"
+      ],
+      "minRounds": 2
+    },
+    "art": {
+      "roles": [
+        "art"
+      ],
+      "guards": [
+        "design-guardian",
+        "accessibility-auditor"
+      ],
+      "minRounds": 2
+    },
+    "security": {
+      "roles": [
+        "security"
+      ],
+      "guards": [
+        "data-guardian",
+        "quality-gate"
+      ],
+      "minRounds": 2
+    },
+    "research": {
+      "roles": [
+        "research"
+      ],
+      "guards": [],
+      "minRounds": 2
+    },
+    "analytics": {
+      "roles": [
+        "analytics",
+        "security"
+      ],
+      "guards": [],
       "minRounds": 2
     }
   },
