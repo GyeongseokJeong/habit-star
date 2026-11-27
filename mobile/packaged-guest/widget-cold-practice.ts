@@ -95,7 +95,7 @@ export async function runColdWidgetPractice(input: { origin: string; actionKey: 
     if (!allowed()) return {status:"saved"};
     // An intervening generation/revision/day change invalidates the earlier
     // projection as well as the alarm. Do not publish stale action handles.
-    if (alarm.kind === "defer" && alarm.reason === "stale-commit")
+    if (alarm.kind === "defer" && "reason" in alarm && alarm.reason === "stale-commit")
       return {status:"saved",alarm};
     return {status:"saved",summary,alarm};
   } catch { return {status:saved?"saved":"error"}; }

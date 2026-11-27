@@ -37,7 +37,7 @@ export async function decideCommittedColdReminder(input: {
       permissionGranted:true, exact:false,
       queue:{storedIds:[],scheduledIds:[],visibleIds:[],saved:[]}});
     if (initial.kind === "defer" ||
-        (initial.kind === "noop" && ["opted-out-or-unconfigured","no-future-target"].includes(initial.reason ?? "")))
+        (initial.kind === "noop" && "reason" in initial && ["opted-out-or-unconfigured","no-future-target"].includes(initial.reason ?? "")))
       return initial;
     const timeZone = memberId ? snapshot.state.timezone : Intl.DateTimeFormat().resolvedOptions().timeZone;
     let prepared: ColdReminderInventory | null=null;
@@ -59,7 +59,7 @@ export async function decideCommittedColdReminder(input: {
     const decision=planColdWidgetReminder({snapshot:fresh, command, memberId, ...latestPrefs,
       permissionGranted:prepared?.permissionGranted ?? false, exact:prepared?.exact ?? false,
       queue:prepared?.queue ?? {storedIds:[],scheduledIds:[],visibleIds:[],saved:[]}});
-    if (decision.kind==="defer" && decision.reason==="stale-commit") return decision;
+    if (decision.kind==="defer" && "reason" in decision && decision.reason==="stale-commit") return decision;
     if (prefs.optInRaw !== latestPrefs.optInRaw || prefs.wrapupRaw !== latestPrefs.wrapupRaw)
       return defer("preferences-changed");
     return prepared ? decision : defer("transport-unavailable");
