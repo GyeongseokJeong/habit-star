@@ -9,6 +9,7 @@ import { readFileSync, statSync, existsSync, writeFileSync } from "node:fs";
 import { resolve, extname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
+import { assertWrapupSettingsStable } from "./smoke-wrapup-settings.mjs";
 
 const dir = resolve(fileURLToPath(new URL("../www-packaged-guest/", import.meta.url)));
 const mime = { ".js":"application/javascript", ".html":"text/html; charset=utf-8", ".css":"text/css; charset=utf-8", ".svg":"image/svg+xml", ".png":"image/png", ".woff2":"font/woff2", ".webp":"image/webp", ".json":"application/json" };
@@ -17,6 +18,11 @@ const requests = [];
 const server = createServer((req,res)=>{
   try {
     const rel = decodeURIComponent(new URL(req.url ?? "/", "http://localhost").pathname);
+    if (rel === "/__wrapup_fixture__") {
+      res.setHeader("Content-Type", mime[".html"]);
+      res.end('<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><div id="root"></div></html>');
+      return;
+    }
     const abs = resolve(dir,"."+rel,rel.endsWith("/")?"index.html":"");
     if (!(abs===dir || abs.startsWith(dir+sep)) || !existsSync(abs) || !statSync(abs).isFile()) {
       requests.push(rel);
@@ -31,7 +37,7 @@ let browser;
 try {
   await new Promise(resolveListen=>server.listen(0,"127.0.0.1",resolveListen));
   const port=server.address().port;
-  browser = await chromium.launch({headless:true});
+  browser = await chromium.launch({headless:true, executablePath:process.env.CHROMIUM_PATH || undefined});
   const page = await browser.newPage({viewport:{width:393,height:852}, isMobile:true,hasTouch:true});
   page.on("pageerror",e=>errors.push("JS "+(e.stack??e.message)));
   page.on("console",m=>{if(m.type()==="error")errors.push("console "+m.text());});
@@ -132,8 +138,9 @@ try {
     "Habit editor sheet cannot be transparent");
   assert.notEqual(layout.footerBackground,"rgba(0, 0, 0, 0)",
     "Sticky action footer cannot be transparent");
-  if(errors.length)throw new Error("Packaged app runtime exceptions: "+errors.join("\n"));
+  if(errors.length)throw new Error("Packaged app runtime exceptions: "+errors.join("\n")+"\nFailed resources: "+requests.join(", "));
   console.log("PASS: first-party guest UI mounted from packaged assets, no JS startup errors");
+  await assertWrapupSettingsStable(browser, "http://127.0.0.1:"+port);
 } finally {
   if(browser)await browser.close();
   await new Promise(ok=>server.close(ok));

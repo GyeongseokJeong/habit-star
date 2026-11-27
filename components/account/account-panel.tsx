@@ -548,13 +548,13 @@ export function AccountPanel({
                 const working = nativeReminders.busy || workingAction !== null || app.busy;
                 const PeriodIcon = group === "morning" ? Sunrise : group === "day" ? Sun : Moon;
                 return (
-                  <div className="android-wrapup-period" key={group}>
+                  <div className="android-wrapup-period" data-enabled={choice.enabled} key={group}>
                     <div className="android-wrapup-inline-row">
                       <span className="android-wrapup-label"><PeriodIcon size={19} aria-hidden="true" /><strong>{name}</strong></span>
                       <label className="android-wrapup-time" htmlFor={"wrapup-time-" + group}>
                         <span className="sr-only">{name} 마무리 알림 시간</span>
                         <select id={"wrapup-time-" + group} value={choice.time} disabled={!choice.enabled || working}
-                          aria-label={name + " 마무리 알림 시간"}
+                          aria-label={name + " 마무리 알림 시간"} aria-busy={workingAction === "wrapup-time-" + group}
                           onChange={(event) => void runOnce("wrapup-time-" + group, async () => {
                             await changeWrapup(group, { time: event.target.value });
                           })}>
@@ -573,7 +573,9 @@ export function AccountPanel({
                   </div>
                 );
               })}
-              {(nativeReminders.busy || workingAction?.startsWith("wrapup")) && <p className="account-note" role="status">알림 설정을 확인하고 있어요…</p>}
+              {/* Keep the live region mounted for assistive technology, but
+                  never insert a visible row or shift the settings below. */}
+              <p className="sr-only" role="status">{workingAction?.startsWith("wrapup-") ? "알림 설정을 확인하고 있어요…" : ""}</p>
             </div>
           )}
 
