@@ -1,4 +1,4 @@
-import { MAX_REMINDERS, localDayKey, REMINDER_KIND } from "./reminder-plan.js";
+import { MAX_REMINDERS, localDayKey, reminderId, REMINDER_KIND } from "./reminder-plan.js";
 import { buildScopedReminderPlan, diffScopedNotifications } from "./scoped-reminder-runtime.js";
 import { WRAPUP_GROUPS, WRAPUP_TIMES } from "./wrapup-reminders.js";
 import { effectiveHabitReminderOptIn } from "./habit-reminder-intent.js";
@@ -45,12 +45,49 @@ function nativeTarget(plan, id, day, exact) {
   return item ? diffScopedNotifications([], { ...plan, notifications: [item] }, { exact }).schedule[0] : null;
 }
 
+const titlePrefix = "별하루 ✦ ";
+function onlyFields(value, fields) {
+  return value !== null && typeof value === "object" && !Array.isArray(value) &&
+    Object.keys(value).every(key => fields.includes(key));
+}
+
+/** Completion can cancel an earlier setting's reservation for this exact
+ * habit/day/scope. Reconstruct the stored payload with the canonical planner
+ * (including its fingerprint and DST policy); IDs alone are not ownership.
+ * Native independently validates the same stored payload before mutation.
+ * This helper must NEVER be used to decide what to restore. */
+function canonicalStoredTarget(stored, { scope, habit, day, timeZone, now }) {
+  if (!onlyFields(stored, ["id", "title", "body", "schedule", "isExactNotification", "channelId", "extra", "cancelled"]) ||
+      (stored.cancelled !== undefined && stored.cancelled !== false) ||
+      typeof stored.title !== "string" || !stored.title.startsWith(titlePrefix) || stored.title.length > 8192 ||
+      typeof stored.isExactNotification !== "boolean" ||
+      !onlyFields(stored.schedule, ["at", "allowWhileIdle", "repeats"]) ||
+      !onlyFields(stored.extra, ["kind", "scope", "habitId", "category", "day", "fingerprint"])) return null;
+  const title = stored.title.slice(titlePrefix.length);
+  if (!title.trim() || title !== title.trim()) return null;
+  const rawAt = stored.schedule.at;
+  const at = rawAt instanceof Date ? new Date(rawAt.getTime())
+    : typeof rawAt === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(rawAt) ? new Date(rawAt) : null;
+  if (!at || !Number.isFinite(at.getTime()) || (typeof rawAt === "string" && at.toISOString() !== rawAt) ||
+      at <= now || at.getMilliseconds() !== 0 || localDayKey(at, timeZone) !== day) return null;
+  const minute = timeZone === undefined
+    ? [at.getHours(), at.getMinutes()].map(n => String(n).padStart(2, "0")).join(":")
+    : new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(at);
+  const plan = buildScopedReminderPlan({ day, timeZone, habits: [{ ...habit, title,
+    scheduledTime: minute, repeatDays: undefined, completed: false }] },
+  { scope, now, daysAhead: 1, habitOptIn: true });
+  const expected = nativeTarget(plan, habit.id, day, stored.isExactNotification);
+  return expected && sameOwner(stored, expected) ? expected : null;
+}
+
 /**
  * STEP 4B: pure post-commit decision; external native adapter applies it.
  * Invoke only after the existing widget transaction returned "saved", while
- * the exact verified request is still valid. The complete inventory must be
- * obtained from the same native plugin store plus its visible/scheduled sets;
- * validate each actual storage key against its decoded ID before normalizing.
+ * the exact verified request is still valid. Cancellation needs the complete
+ * inventory for its single target ID; restoration needs the complete native
+ * queue (including other IDs for capacity/collision checks). Both must come
+ * from the same plugin store and visible/scheduled sets; validate each
+ * selected actual storage key against its decoded ID before normalizing.
  * getPending() alone cannot prove ID availability or actual OS delivery.
  * The adapter must revalidate request, revision, scope, day, prefs,
  * permissions, inventory & time immediately before one native operation.
@@ -96,10 +133,31 @@ export function planColdWidgetReminder({ snapshot, command, memberId, optInRaw, 
       return noop("opted-out-or-unconfigured");
     if (permissionGranted !== true || typeof exact !== "boolean") return defer("permission-unconfirmed");
 
-    // Derive today's potential target from the canonical planner. A past or
-    // nonexistent (DST) minute is not safe to restore or recall.
+    // Keep validation of the CURRENT habit configuration, even when its own
+    // occurrence is now past. The widget command must still be for today's
+    // scheduled habit; only the stored reservation's title/time may differ.
     const candidate = buildScopedReminderPlan({ day, timeZone, habits: [{ ...habit, completed: false }] },
       { scope, now, daysAhead: 1, habitOptIn: true });
+    if (habit.repeatDays && !habit.repeatDays.includes(new Date(day + "T12:00:00Z").getUTCDay()))
+      return defer("stale-commit");
+
+    if (command.completed) {
+      // The old reservation can be later than today's edited schedule. Check
+      // its own still-future time and ownership rather than skipping it just
+      // because the latest schedule no longer has a future occurrence.
+      const inventory = inspectQueue(queue);
+      const id = reminderId(scope + ":" + habit.id, day);
+      if (inventory.visible.has(id)) return defer("visible-id");
+      const current = inventory.byId.get(id);
+      if (!current) return noop("already-absent");
+      const expected = canonicalStoredTarget(current, { scope, habit, day, timeZone, now });
+      if (!expected || !inventory.scheduled.has(id)) return defer("occupied-id");
+      if (expected.schedule.at.getTime() <= now.getTime() + 2000) return defer("too-close");
+      return { kind: "cancel", expected };
+    }
+
+    // Undo must use today's CURRENT settings, never an earlier notification's
+    // title/time. A past or nonexistent (DST) minute is not safe to restore.
     const ordinary = nativeTarget(candidate, habit.id, day, false);
     const precise = nativeTarget(candidate, habit.id, day, true);
     if (!ordinary || !precise) return noop("no-future-target");
@@ -109,12 +167,6 @@ export function planColdWidgetReminder({ snapshot, command, memberId, optInRaw, 
     const current = inventory.byId.get(id);
     if (current && (!inventory.scheduled.has(id) ||
         (!sameOwner(current, ordinary) && !sameOwner(current, precise)))) return defer("occupied-id");
-    if (command.completed) {
-      if (current && ordinary.schedule.at.getTime() <= now.getTime() + 2000) return defer("too-close");
-      return current ? { kind: "cancel", expected: sameOwner(current, precise) ? precise : ordinary }
-        : noop("already-absent");
-    }
-
     // Restoration must obey the full existing priority/cap policy AND never
     // evict unrelated reservations to create space during a cold tap.
     const rolling = buildScopedReminderPlan({ day, timeZone, habits: snapshot.habits },

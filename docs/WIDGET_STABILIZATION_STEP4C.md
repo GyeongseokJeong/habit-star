@@ -29,3 +29,8 @@
 테스트 계정 A의 미완료 습관/메모를 준비, 다른 기기에 같은 A 로그인. Debug APK에서 기기 네트워크 OFF, 프로세스 종료(강제 중지 아님), 위젯 완료 → 앱 재진입(오프라인 기록/대기) → ON/정상 앱 sync → 기기 B 5점·메모 확인 → 같은 방식 취소 0점. 인증 만료·계정 변경 시 기록 유실/다른 계정 노출/잘못된 재전송 없음; 로그아웃의 기존 대기 기록 백업 및 명시 확인 정책 준수. 4B alarm 취소·복구 및 실제 전달, 날짜/시간대·DST·연속 탭·충돌·권한·프로세스 경계의 종합 회귀와 Release 읽기 전용 검사 병행. 실제 기기 결과와 Release 활성화 결정은 별도 기록한다.
 
 현재 환경에 Docker/로컬 Supabase 및 프로젝트 의존성 설치가 없으므로 실제 통합·타입·회귀 실행은 GitHub CI의 해당 head SHA로 판정한다. 실기기 및 사용자 관찰 NOT RUN / N/E.
+
+
+## 2026-11-28 재검증 — #234 / STEP 4D 통합 기준
+
+#234 CI [run 46028167720, cloud job 140607068073](https://github.com/GyeongseokJeong/habit-star/actions/runs/46028167720/job/140607068073): 실제 로컬 Supabase 시작, `pnpm test:db`, `pnpm test:e2e:cloud` 모두 성공. 10/10 Playwright 통과, 9번 `member cold widget completion and undo reach actual cloud and independent browser after durable retry`와 10번 `member cold widget rejects expired cache and account changes; real auth protects queued operation` 성공 확인. #234 head `ec9e3ea`의 tree와 병합 main `4aa7fb9` 일치. C01~C03의 자동화 근거 확보. Android 런처·OS offline·실제 기기 회원 왕복은 N/E로 유지하고 [STEP 4D D05/D06](WIDGET_STABILIZATION_STEP4D.md)의 사용자 인수를 수행한다. 이 CI는 운영 환경 연결·실제 사용자 데이터 동기화 또는 Release 승인 증거가 아니다.

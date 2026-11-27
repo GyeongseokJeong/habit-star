@@ -7,6 +7,8 @@ import { HABIT_REMINDER_OPT_IN_KEY, WRAPUP_REMINDER_STORAGE_PREFIX } from "./rem
 export type ColdReminderTarget = {
   scope: string; day: string; habitId: string; timeZone: string; completed: boolean;
 };
+/** Completion inventory is scoped to its one target ID; undo still
+ * requires the entire queue for the rolling capacity/ownership checks. */
 export type ColdReminderInventory = {
   permissionGranted: boolean; exact: boolean;
   queue: { storedIds: number[]; scheduledIds: number[]; visibleIds: number[]; saved: unknown[] };
@@ -32,12 +34,15 @@ export async function decideCommittedColdReminder(input: {
       wrapupRaw: storage.getItem(WRAPUP_REMINDER_STORAGE_PREFIX + command.scope),
     });
     const prefs = readPrefs();
-    // Evaluate no-op and invalid/stale cases without exposing any native data.
+    // Evaluate policy and invalid/stale cases without exposing native data.
+    // Completion still needs the actual inventory: today's edited schedule
+    // may be past while its earlier canonical reservation is still pending.
     const initial = planColdWidgetReminder({snapshot, command, memberId, ...prefs,
       permissionGranted:true, exact:false,
       queue:{storedIds:[],scheduledIds:[],visibleIds:[],saved:[]}});
     if (initial.kind === "defer" ||
-        (initial.kind === "noop" && "reason" in initial && ["opted-out-or-unconfigured","no-future-target"].includes(initial.reason ?? "")))
+        (initial.kind === "noop" && "reason" in initial &&
+          (initial.reason === "opted-out-or-unconfigured" || (!command.completed && initial.reason === "no-future-target"))))
       return initial;
     const timeZone = memberId ? snapshot.state.timezone : Intl.DateTimeFormat().resolvedOptions().timeZone;
     let prepared: ColdReminderInventory | null=null;

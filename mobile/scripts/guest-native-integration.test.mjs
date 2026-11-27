@@ -12,7 +12,11 @@ test("only bundled guest entrypoint imports native Capacitor reminders", () => {
   assert.match(entry, /@capacitor\/local-notifications/);
   assert.match(entry, /createReminderLifecycle/);
   assert.match(entry, /const OPT_IN_KEY/);
-  assert.match(entry, /requestPermissions\(\)/);
+  const permission = read("mobile/notifications/notification-permission-onboarding.js");
+  assert.match(entry, /await runReminderPermissionSetup\(\{/);
+  assert.match(permission, /await requestHabitReminderPermission\(localNotifications, current.permissionState\)/);
+  assert.match(permission, /localNotifications\.requestPermissions\(\)/);
+  assert.doesNotMatch(entry, /LocalNotifications\.requestPermissions\(\)/);
   assert.match(entry, /identity = \{ kind: "guest"/);
   assert.doesNotMatch(website, /Capacitor|nativeReminders|LocalNotifications/);
 });
@@ -29,7 +33,8 @@ test("guest opt-in UI is passed only as an optional prop", () => {
   // Profile settings no longer own a second/global opt-in switch.
   assert.doesNotMatch(account, /nativeReminders\.onEnabledChange/);
   // Habit editor still routes per-habit opt-in to the native permission flow.
-  assert.match(ui, /onEnsureNativeAlarm=\{nativeReminders \? \(\) => nativeReminders\.onEnabledChange\(true\)/);
+  assert.match(ui, /onEnsureNativeAlarm=\{nativeReminders \? \(\) => scope === activeScope\.current\s*\? nativeReminders\.onEnabledChange\(true\) : Promise\.resolve\(false\)/);
+  assert.match(ui, /isCurrentEditorScope=\{\(\) => scope === activeScope\.current\}/);
   assert.match(ui, /disabled=\{alarmChecking \|\| \(!draft\.scheduledTime && !draft\.alarmEnabled\)\}/);
 });
 test("STEP 10 respects existing per-habit opt-in without requesting OS permissions on startup", () => {
@@ -37,12 +42,20 @@ test("STEP 10 respects existing per-habit opt-in without requesting OS permissio
   assert.match(app, /onSnapshot = useCallback/);
   assert.match(app, /enabledRef\.current/);
   assert.match(app, /effectiveHabitReminderOptIn\(value, next\)/);
-  assert.match(app, /setHasHabitIntent\(hasConfiguredHabitReminders\(next\)\)/);
+  assert.match(app, /const ready = isReminderSnapshotReady\(next, memberUserId\)/);
+  assert.match(app, /snapshot\.current = ready \? next : null/);
+  assert.match(app, /setHasHabitIntent\(ready && hasConfiguredHabitReminders\(next\)\)/);
   assert.match(app, /const preference = localStorage\.getItem\(OPT_IN_KEY\)/);
   assert.match(app, /preference === "1" \? true : preference === "0" \? false : null/);
   assert.match(app, /localStorage\.setItem\(OPT_IN_KEY, next \? "1" : "0"\)/);
   assert.match(app, /if \(next\) \{/);
-  assert.match(app, /await LocalNotifications\.requestPermissions\(\)/);
+  const permission = read("mobile/notifications/notification-permission-onboarding.js");
+  const startup = app.slice(app.indexOf("const refreshPermission ="), app.indexOf("const widgetQueue ="));
+  assert.match(startup, /void refreshPermission\(\)/);
+  assert.match(startup, /await onCheckPermissions\(\)/);
+  assert.doesNotMatch(startup, /requestHabitReminderPermission|requestPermissions\(|openNotificationSettings\(|changeExactNotificationSetting\(/);
+  assert.match(permission, /localNotifications\.checkPermissions\(\)/);
+  assert.match(permission, /localNotifications\.checkExactNotificationSetting\(\)/);
   assert.doesNotMatch(app, /auth\.getUser\(|supabase\(|NEXT_PUBLIC_SUPABASE/);
 });
 
@@ -53,6 +66,8 @@ test("STEP 11 preserves scheduled jobs until the guest repository finishes loadi
   assert.match(app, /action === "await-snapshot" \|\| action === "await-today"/);
   assert.doesNotMatch(app, /if \(!saved.*schedule\(false, null\)/);
   assert.match(app, /if \(snapshot\.current\) \{/);
+  assert.match(app, /!isReminderSnapshotReady\(next, context.identity.kind === "member" \? context.identity.userId : null\)\) return/);
+  assert.match(app, /if \(!ready \|\| !next\) return/);
   assert.match(gate, /return "await-today"/);
 });
 

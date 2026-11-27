@@ -64,11 +64,11 @@ test("entrypoint reconnects after OS permission grant without requiring a habit 
  // The direct permission path still reconciles; resume instead refreshes
  // the repository before publishing a fresh snapshot and scheduling.
  assert.match(entry,/const refreshPermission = useCallback\(async \(reconcileSnapshot = true\)/);
- assert.match(entry,/if \(reconcileSnapshot && granted && snapshot\.current\) \{/);
+ assert.match(entry,/if \(reconcileSnapshot && mounted\.current && result\.permissionState === "granted" && snapshot\.current\) \{/);
  assert.match(entry,/schedule\(enabledRef\.current, snapshot\.current, true\)/);
  assert.match(entry,/emit\(\);\s*void refreshPermission\(false\);/);
  assert.match(entry,/void schedule\(enabledRef\.current, next, true\)/);
- assert.match(entry,/setHasHabitIntent\(hasConfiguredHabitReminders\(next\)\)/);
+ assert.match(entry,/setHasHabitIntent\(ready && hasConfiguredHabitReminders\(next\)\)/);
  assert.match(entry,/effectiveHabitReminderOptIn\(value, next\)/);
  assert.match(entry,/preference === "1" \? true : preference === "0" \? false : null/);
  assert.doesNotMatch(entry,/if \(!saved.*schedule\(false, null\)/);

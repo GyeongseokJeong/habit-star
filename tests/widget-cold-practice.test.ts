@@ -248,6 +248,36 @@ describe("debug cold widget practice",()=>{
     }finally{f.r.close();await writeWidgetCommandGeneration(origin,null);vi.useRealTimers();}
   });
 
+  for(const member of [false,true]) it("cancels only the stale canonical reservation after a real current-day commit, member="+member,async()=>{
+    vi.useFakeTimers({toFake:["Date"]});vi.setSystemTime(new Date(2026,10,25,8,0,0));
+    const f=await setupAlarm(member);
+    try {
+      // Simulate a prior native reservation surviving a settings edit. The
+      // command is newly issued for the latest committed settings, not stale.
+      await f.r.update(f.habit.id,{title:"새 독서 시간",scheduledTime:"07:00"});
+      const latest=await f.r.load();
+      const projected=buildWidgetActionProjection(latest,f.id);
+      const generation=newWidgetCommandGeneration(projected.summary!);
+      const handles=await recoverableWidgetProjection(projected,generation);
+      await writeWidgetCommandGeneration(origin,generation);
+      const prepare=vi.fn(async()=>f.inventory(f.booked));
+      const input={origin,actionKey:handles.summary!.rows[0].actionKey!,deadline:Date.now()+7500,
+        storage:storage(f.values),nativeAllowed:()=>true,reminderTransport:{prepare}};
+      const saved=await runColdWidgetPractice(input);
+      expect(prepare).toHaveBeenCalledTimes(1);
+      expect(saved.status).toBe("saved");
+      expect(saved.alarm).toEqual({kind:"cancel",expected:f.target});
+      expect((await f.r.load()).habits[0]).toMatchObject({title:"새 독서 시간",scheduledTime:"07:00",completed:true,rating:5,memo:"보존"});
+      const restore=vi.fn(async()=>f.inventory(f.booked.filter(n=>n.id!==f.target.id)));
+      const undone=await runColdWidgetPractice({...input,actionKey:saved.summary!.rows[0].actionKey!,reminderTransport:{prepare:restore}});
+      expect(restore).not.toHaveBeenCalled();
+      expect(undone.status).toBe("saved");
+      expect(undone.alarm).toEqual({kind:"noop",reason:"no-future-target"});
+      expect((await f.r.load()).habits[0]).toMatchObject({title:"새 독서 시간",scheduledTime:"07:00",completed:false,rating:0,memo:"보존"});
+      expect((await f.r.state()).outbox).toHaveLength(latest.state.outbox.length+(member?2:0));
+    }finally{f.r.close();await writeWidgetCommandGeneration(origin,null);vi.useRealTimers();}
+  });
+
   for(const failure of ["transport","preferences","generation","revision","transport-race","owner","permission","opt-out"]) it("keeps a committed record separate from reminder "+failure,async()=>{
     vi.useFakeTimers({toFake:["Date"]});vi.setSystemTime(new Date(2026,10,25,8,0,0));
     const f=await setupAlarm(true);

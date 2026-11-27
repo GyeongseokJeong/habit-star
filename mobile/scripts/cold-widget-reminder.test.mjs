@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { runInNewContext } from "node:vm";
 import { planColdWidgetReminder } from "../notifications/cold-widget-reminder.js";
 import { buildScopedReminderPlan, diffScopedNotifications } from "../notifications/scoped-reminder-runtime.js";
 import { localDayKey } from "../notifications/reminder-plan.js";
@@ -31,6 +33,59 @@ const target=all.find(n=>n.extra.day===day&&n.extra.habitId===habit.id);
 const ordinary=planned(false).find(n=>n.id===target.id);
 const untouched=all.filter(n=>n.id!==target.id);
 
+// Execute the actual native poll expression, not a separate test-only codec.
+const nativePollSource = readFileSync(new URL("../native/widgets/ByeolharuWidgetColdPractice.java.template", import.meta.url), "utf8");
+function pollColdWebView(window) {
+  const match = nativePollSource.match(/view\.evaluateJavascript\(("(?:[^"\\]|\\.)*__byeolharuColdResult(?:[^"\\]|\\.)*"),value->/);
+  assert.ok(match, "native poll expression not found");
+  const value = runInNewContext(JSON.parse(match[1]), { window });
+  // Chromium converts the evaluation result via V8ValueConverter, not
+  // Date.toJSON(). Returning a string prevents it from converting dates
+  // in the decision to epoch seconds (or a dictionary on other paths).
+  assert.equal(typeof value, "string", "native poll must return explicitly serialized JSON");
+  const callback = JSON.stringify(value);
+  return JSON.parse(JSON.parse(callback));
+}
+test("actual native result poll transports canonical ISO dates for cancel and restore",()=>{
+  for (const verifiedMember of [null,"12ab34cd-5678-49ab-9cde-0123456789ab"]) {
+    const verifiedScope=verifiedMember?"member:"+verifiedMember:"guest";
+    const timeZone=verifiedMember?"Asia/Seoul":undefined;
+    const clock=verifiedMember?now:new Date(2026,10,27,8,0);
+    const plan=buildScopedReminderPlan({day,timeZone,habits:[habit,other]},
+      {scope:verifiedScope,now:clock,daysAhead:2});
+    for (const exact of [true,false]) {
+      const scheduled=diffScopedNotifications([],plan,{exact}).schedule;
+      const own=scheduled.find(n=>n.extra.day===day&&n.extra.habitId===habit.id);
+      const stored=JSON.parse(JSON.stringify(own));
+      for (const completed of [true,false]) {
+        const fixture=input(completed,{memberId:verifiedMember,now:clock,exact,
+          queue:queue(completed?[stored]:scheduled.filter(n=>n.id!==own.id))});
+        fixture.command.scope=verifiedScope;
+        const alarm=planColdWidgetReminder(fixture);
+        assert.equal(alarm.kind,completed?"cancel":"restore");
+        const payload=completed?alarm.expected:alarm.notification;
+        assert.ok(payload.schedule.at instanceof Date);
+        const result={status:"saved",alarm,summary:{ready:true,expiresAt:clock.getTime()+3600000,
+          timezone:timeZone??Intl.DateTimeFormat().resolvedOptions().timeZone,
+          rows:[{title:"별하루 ✦ \"\\\n🌟",icon:"📚",group:"night",completed}]}};
+        const decoded=pollColdWebView({__byeolharuColdResult:result});
+        assert.deepEqual(decoded,{result:JSON.parse(JSON.stringify(result)),prepare:null});
+        const nativePayload=completed?decoded.result.alarm.expected:decoded.result.alarm.notification;
+        assert.equal(nativePayload.schedule.at,stored.schedule.at);
+        assert.match(nativePayload.schedule.at,/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+        assert.deepEqual(nativePayload,stored);
+      }
+    }
+  }
+});
+test("actual native result poll preserves pending prepare, empty poll and failure result",()=>{
+  assert.deepEqual(pollColdWebView({}),{result:null,prepare:null});
+  const prepare={scope,habitId:habit.id,day,timeZone:"Asia/Seoul",completed:true};
+  assert.deepEqual(pollColdWebView({__byeolharuColdPrepare:prepare}),{result:null,prepare});
+  for (const result of [{status:"error"},{status:"saved",alarm:{kind:"defer",reason:"stale-commit"}}]) {
+    assert.deepEqual(pollColdWebView({__byeolharuColdResult:result}),{result,prepare:null});
+  }
+});
 test("completion selects only its current-day owned reservation; other days/scopes/wrapups excluded",()=>{
   const wrapup={id:73,extra:{kind:target.extra.kind,scope,day,category:"wrapup"}};
   const foreign={id:74,extra:{...target.extra,scope:"member:bob"}};
@@ -46,11 +101,68 @@ test("completion selects only its current-day owned reservation; other days/scop
   assert.deepEqual(planColdWidgetReminder(input(true,{queue:queue([stored,...untouched])})),
     {kind:"cancel",expected:target});
 });
+test("target-only completion inventory still rejects a corrupt, visible or foreign target and never invents a reservation",()=>{
+  const stored=JSON.parse(JSON.stringify(target));
+  assert.deepEqual(planColdWidgetReminder(input(true,{queue:queue([stored])})),{kind:"cancel",expected:target});
+  assert.deepEqual(planColdWidgetReminder(input(true,{queue:queue([])})),{kind:"noop",reason:"already-absent"});
+  for(const bad of [
+    queue([{id:target.id}]), // native redacts any noncanonical target, but never drops its ID
+    queue([{...stored,extra:{...stored.extra,scope:"member:bob"}}]),
+    queue([stored],[target.id],[target.id]),
+    {...queue([]),storedIds:[target.id]},
+  ]) assert.equal(planColdWidgetReminder(input(true,{queue:bad})).kind,"defer");
+});
 test("undo restores exactly the canonical future payload and respects exact/inexact policy",()=>{
   assert.deepEqual(planColdWidgetReminder(input(false,{queue:queue(untouched)})),{kind:"restore",notification:target});
   assert.deepEqual(planColdWidgetReminder(input(false,{queue:queue(untouched),exact:false})),{kind:"restore",notification:ordinary});
   assert.equal(planColdWidgetReminder(input(false,{queue:queue(all)})).kind,"noop");
   assert.equal(planColdWidgetReminder(input(false,{queue:queue([ordinary,...untouched])})).kind,"defer");
+});
+function edited(completed,scheduledTime,extra={}) {
+  const b=input(completed,extra);
+  b.snapshot.habits[0]={...b.snapshot.habits[0],title:"새 독서 시간",scheduledTime};
+  b.snapshot.history[day]=b.snapshot.habits;
+  return b;
+}
+test("completion cancels the previous canonical title/time even when the latest time has passed",()=>{
+  for(const scheduledTime of ["19:00","07:00"]) for(const saved of [target,ordinary]) {
+    const raw=JSON.parse(JSON.stringify(saved));
+    const b=edited(true,scheduledTime,{queue:queue([raw,...untouched])});
+    const copy=structuredClone(b.queue);
+    assert.deepEqual(planColdWidgetReminder(b),{kind:"cancel",expected:saved});
+    assert.deepEqual(b.queue,copy);
+  }
+  assert.deepEqual(planColdWidgetReminder(edited(true,"07:00",{queue:queue(untouched)})),
+    {kind:"noop",reason:"already-absent"});
+});
+test("undo never restores an earlier setting, including a previous reservation later today",()=>{
+  const oldQueue=queue([target,...untouched]);
+  assert.deepEqual(planColdWidgetReminder(edited(false,"21:00",{queue:oldQueue})),{kind:"defer",reason:"occupied-id"});
+  const b=edited(false,"21:00",{queue:queue(untouched)});
+  const expected=diffScopedNotifications([],buildScopedReminderPlan({day,timeZone:"Asia/Seoul",habits:b.snapshot.habits},
+    {scope,now,daysAhead:1}),{exact:true}).schedule.find(n=>n.id===target.id);
+  assert.notEqual(expected.extra.fingerprint,target.extra.fingerprint);
+  assert.deepEqual(planColdWidgetReminder(b),{kind:"restore",notification:expected});
+  assert.deepEqual(planColdWidgetReminder(edited(false,"07:00",{queue:oldQueue})),{kind:"noop",reason:"no-future-target"});
+});
+test("a previous schedule never permits opaque, modified, visible, foreign or unproven payload cancellation",()=>{
+  for(const bad of [
+    {...target,extra:{...target.extra,scope:"member:bob"}},
+    {...target,extra:{...target.extra,habitId:"other"}},
+    {...target,extra:{...target.extra,fingerprint:"old"}},
+    {...target,extra:{...target.extra,arbitrary:true}},
+    {...target,schedule:{...target.schedule,at:"2026-11-27T11:00:01.000Z"}},
+    {...target,schedule:{...target.schedule,repeats:null}},
+    {...target,schedule:{...target.schedule,arbitrary:true}},
+    {...target,title:target.title+" "}, {...target,sound:"other"}, {...target,cancelled:null}, {id:target.id},
+  ]) assert.deepEqual(planColdWidgetReminder(edited(true,"07:00",{queue:queue([bad])})),
+    {kind:"defer",reason:"occupied-id"});
+  for(const inventory of [queue([target],[]),queue([target],[target.id],[target.id]),
+    {...queue([]),scheduledIds:[target.id]}]) assert.equal(planColdWidgetReminder(edited(true,"07:00",{queue:inventory})).kind,"defer");
+  assert.deepEqual(planColdWidgetReminder(edited(true,"07:00",{queue:queue([target]),permissionGranted:false})),
+    {kind:"defer",reason:"permission-unconfirmed"});
+  assert.deepEqual(planColdWidgetReminder(edited(true,"07:00",{queue:queue([target]),optInRaw:"0"})),
+    {kind:"noop",reason:"opted-out-or-unconfigured"});
 });
 test("no changes for other owners, same-id different category/day, unexpected fingerprint, visible or stored-only IDs",()=>{
   for(const bad of [
@@ -134,4 +246,22 @@ test("member DST gap is not restored to a different clock minute",()=>{
   b.snapshot={...b.snapshot,day:d,habits:[h],history:{[d]:[h]},
     state:{...state(h),timezone:"America/New_York",entities:{entry:{...state(h).entities.entry,day:d}}}};
   assert.deepEqual(planColdWidgetReminder(b),{kind:"noop",reason:"no-future-target"});
+});
+
+test("completion accepts only the canonical earlier instant of a repeated member wall minute",()=>{
+  const d="2027-11-07", timeZone="America/New_York";
+  const n=new Date("2027-11-07T00:00:00-04:00");
+  const h={...habit,completed:true,rating:5,scheduledTime:"04:00",title:"변경된 독서"};
+  const b=input(true,{now:n});
+  b.command={...b.command,day:d};
+  b.snapshot={...b.snapshot,day:d,habits:[h],history:{[d]:[h]},
+    state:{...state(h),timezone:timeZone,entities:{entry:{...state(h).entities.entry,day:d}}}};
+  const first=diffScopedNotifications([],buildScopedReminderPlan({day:d,timeZone,habits:[{...habit,scheduledTime:"01:30"}]},
+    {scope,now:n,daysAhead:1}),{exact:true}).schedule[0];
+  assert.equal(first.schedule.at.toISOString(),"2027-11-07T05:30:00.000Z");
+  assert.deepEqual(planColdWidgetReminder({...b,queue:queue([first])}),{kind:"cancel",expected:first});
+  const at=new Date("2027-11-07T06:30:00.000Z");
+  const second={...first,schedule:{...first.schedule,at},extra:{...first.extra,
+    fingerprint:first.extra.fingerprint.replace(String(first.schedule.at.getTime()),String(at.getTime()))}};
+  assert.deepEqual(planColdWidgetReminder({...b,queue:queue([second])}),{kind:"defer",reason:"occupied-id"});
 });

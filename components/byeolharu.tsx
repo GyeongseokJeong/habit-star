@@ -53,6 +53,7 @@ import { alarmForSelectedTime } from "@/lib/habits/alarm-default-policy";
 import { scheduledTimeGroup, templateGroupForTime, timeForSelectedGroup } from "@/lib/habits/habit-editor-time";
 import { AccountPanel } from "@/components/account/account-panel";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { ReminderPermissionDialog, useReminderPermissionGuide } from "@/components/reminder-permission-dialog";
 import { THEME_PREFERENCE_KEY, parseThemePreference, resolveTheme, type ThemePreference } from "@/lib/theme-preference";
 import { StarlitHero } from "@/components/starlit-hero";
 import { countEarlierPendingHabits, countOtherPendingHabits, initialRoutineTab, startupDataReady } from "@/lib/habits/time-tab";
@@ -351,49 +352,58 @@ function HabitEditor({
   onClose,
   nativeAlarmEditor = false,
   nativeAlarmActive = false,
-  nativeAlarmStatus = "",
+  nativeAlarmIntentEnabled = false,
+  isCurrentEditorScope: isParentEditorScope = () => true,
   onEnsureNativeAlarm,
-  nativeFirstPermissionOffer = false,
-  onRequestFirstPermission,
-  onDismissFirstPermission,
+  onCheckNativePermissions,
+  onRequestPermission,
+  onDismissPermission,
   guardUnsaved = false,
 }: {
   habit?: Habit;
   defaultGroup: TimeGroup;
-  onSave: (draft: HabitSettingsPatch, meta?: { alarmPermissionDenied: boolean }) => Promise<void>;
+  onSave: (draft: HabitSettingsPatch, meta?: { alarmPermissionDenied: boolean; alarmPermissionDeferred?: boolean }) => Promise<void>;
   onDelete?: () => void;
   onClose: () => void;
   nativeAlarmEditor?: boolean;
   nativeAlarmActive?: boolean;
-  nativeAlarmStatus?: string;
+  nativeAlarmIntentEnabled?: boolean;
+  isCurrentEditorScope?: () => boolean;
   onEnsureNativeAlarm?: () => Promise<boolean>;
-  nativeFirstPermissionOffer?: boolean;
-  onRequestFirstPermission?: () => Promise<boolean>;
-  onDismissFirstPermission?: () => void;
+  onCheckNativePermissions?: NativeReminderControls["onCheckPermissions"];
+  onRequestPermission?: NativeReminderControls["onRequestPermission"];
+  onDismissPermission?: () => void;
   guardUnsaved?: boolean;
 }) {
+  const editorMounted = useRef(false);
+  useEffect(() => { editorMounted.current = true; return () => { editorMounted.current = false; }; }, []);
+  const isCurrentEditorScope = () => editorMounted.current && isParentEditorScope();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [alarmChecking, setAlarmChecking] = useState(false);
+  const alarmCheckingRef = useRef(false);
   const [alarmTouched, setAlarmTouched] = useState(false);
   const [alarmNotice, setAlarmNotice] = useState("");
-  const [permissionPromptOpen, setPermissionPromptOpen] = useState(false);
-  const [permissionPromptBusy, setPermissionPromptBusy] = useState(false);
-  const permissionPromptResolve = useRef<((granted: boolean) => void) | null>(null);
-  const promptForFirstPermission = async () => {
-    if (!nativeFirstPermissionOffer || !onRequestFirstPermission || !onDismissFirstPermission) return true;
-    return new Promise<boolean>((resolve) => {
-      permissionPromptResolve.current = resolve;
-      setPermissionPromptOpen(true);
-    });
-  };
-  const settleFirstPermissionPrompt = (granted: boolean) => {
-    permissionPromptResolve.current?.(granted);
-    permissionPromptResolve.current = null;
-    setPermissionPromptOpen(false);
-  };
-  const enableNativeAlarm = async () => {
-    if (!(await promptForFirstPermission())) return false;
-    return Boolean(await onEnsureNativeAlarm?.());
+  const permissionGuide = useReminderPermissionGuide();
+  // Once per deliberate ON/time change, not once for the toggle and again for
+  // saving that same draft. A changed time is a new relevant action.
+  const alarmCheckedTime = useRef<string | undefined>(undefined);
+  const enableNativeAlarm = async (activateDevice: boolean) => {
+    if (!onCheckNativePermissions || !onEnsureNativeAlarm || !isCurrentEditorScope()) return false;
+    const checked = await onCheckNativePermissions();
+    if (!isCurrentEditorScope() || checked.permissionState === "unknown") return false;
+    const needsDisplay = checked.permissionState !== "granted";
+    if (needsDisplay || checked.exactPermission === "denied") {
+      if (!onRequestPermission || !onDismissPermission) return false;
+      const accepted = await permissionGuide.ask(checked,
+        isCurrent => onRequestPermission(() => isCurrent() && isCurrentEditorScope()), onDismissPermission);
+      // Dismissal of optional exact access never blocks ordinary reminders.
+      if (!isCurrentEditorScope() || (needsDisplay && !accepted)) return false;
+      if ((await onCheckNativePermissions()).permissionState !== "granted" || !isCurrentEditorScope()) return false;
+    }
+    // Permission recovery and existing ON time edits are not device opt-in.
+    // Only a newly enabled alarm can deliberately change the device preference.
+    if (activateDevice && (!nativeAlarmActive || needsDisplay) && !await onEnsureNativeAlarm()) return false;
+    return isCurrentEditorScope();
   };
   const [moreTemplates, setMoreTemplates] = useState(false);
   const [nameEdited, setNameEdited] = useState(false);
@@ -411,7 +421,7 @@ function HabitEditor({
   const initialDraft = useRef(draft);
   const [discardPrompt, setDiscardPrompt] = useState(false);
   const requestClose = () => {
-    if (alarmChecking) return;
+    if (alarmCheckingRef.current) return;
     if (guardUnsaved && hasUnsavedHabitSettings(initialDraft.current, draft)) {
       setDiscardPrompt(true);
       return;
@@ -475,36 +485,7 @@ function HabitEditor({
       onClose={requestClose}
     >
       {discardPrompt && <UnsavedChangesPrompt onContinue={() => setDiscardPrompt(false)} onDiscard={onClose} />}
-      {permissionPromptOpen && (
-        <ConfirmDialog
-          title="습관 알림을 받아볼까요?"
-          description="설정한 시간에 실천을 알려드려요."
-          cancelLabel="나중에"
-          confirmLabel="알림 허용하기"
-          confirmTone="neutral"
-          primaryAction="confirm"
-          icon="bell"
-          busy={permissionPromptBusy}
-          onCancel={() => {
-            onDismissFirstPermission?.();
-            settleFirstPermissionPrompt(false);
-          }}
-          onConfirm={() => {
-            if (permissionPromptBusy) return;
-            setPermissionPromptBusy(true);
-            void (async () => {
-              try {
-                const granted = Boolean(await onRequestFirstPermission?.());
-                settleFirstPermissionPrompt(granted);
-              } catch {
-                settleFirstPermissionPrompt(false);
-              } finally {
-                setPermissionPromptBusy(false);
-              }
-            })();
-          }}
-        />
-      )}
+      {permissionGuide.dialog}
       {confirmDelete && onDelete && (
         <ConfirmDialog
           title="이 습관을 삭제할까요?"
@@ -521,20 +502,30 @@ function HabitEditor({
         aria-busy={alarmChecking}
         onSubmit={(event) => {
           event.preventDefault();
-          if (!draft.title.trim() || alarmChecking) return;
+          if (!draft.title.trim() || alarmCheckingRef.current) return;
+          alarmCheckingRef.current = true;
           setAlarmChecking(true);
           void (async () => {
             let alarmEnabled = Boolean(nativeAlarmEditor && draft.scheduledTime && draft.alarmEnabled);
             let alarmPermissionDenied = false;
+            let alarmPermissionDeferred = false;
             try {
-              if (alarmEnabled && !nativeAlarmActive) {
+              const relevantAlarmChange = alarmEnabled && (!habit?.alarmEnabled || alarmTouched ||
+                (nativeAlarmIntentEnabled && draft.scheduledTime !== habit.scheduledTime));
+              if (relevantAlarmChange && alarmCheckedTime.current !== draft.scheduledTime) {
+                let granted = false;
                 try {
-                  alarmEnabled = await enableNativeAlarm();
-                } catch {
-                  alarmEnabled = false;
+                  granted = await enableNativeAlarm(!habit?.alarmEnabled && alarmCheckedTime.current === undefined);
+                } catch { /* the habit itself remains editable */ }
+                if (!granted) {
+                  // Missing OS permission is not a user's decision to delete
+                  // a restored ON preference. New unsuccessful ON stays OFF.
+                  alarmPermissionDeferred = Boolean(habit?.alarmEnabled);
+                  alarmEnabled = alarmPermissionDeferred;
+                  alarmPermissionDenied = !alarmEnabled;
                 }
-                alarmPermissionDenied = !alarmEnabled;
               }
+              if (!isCurrentEditorScope()) throw Error("계정이 변경되었어요.");
               await onSave({
                 title: draft.title.trim(),
                 icon: draft.icon,
@@ -542,10 +533,12 @@ function HabitEditor({
                 repeatDays: draft.repeatDays,
                 scheduledTime: draft.scheduledTime || undefined,
                 alarmEnabled: nativeAlarmEditor ? alarmEnabled : draft.alarmEnabled,
-              }, { alarmPermissionDenied });
+              }, { alarmPermissionDenied, alarmPermissionDeferred });
             } catch {
-              setAlarmNotice("습관을 저장하지 못했어요. 다시 시도해 주세요.");
+              setAlarmNotice(isCurrentEditorScope() ? "습관을 저장하지 못했어요. 다시 시도해 주세요."
+                : "계정이 변경되었어요. 현재 계정에서 습관을 다시 열어 주세요.");
             } finally {
+              alarmCheckingRef.current = false;
               setAlarmChecking(false);
             }
           })();
@@ -724,7 +717,8 @@ function HabitEditor({
                 <span className="account-setting-heading">
                   <span>이 습관 알림</span>
                   <small>{!draft.scheduledTime ? "예정 시간을 먼저 선택해 주세요" :
-                    draft.alarmEnabled ? (nativeAlarmActive ? "설정한 시간에 알려드려요" : "저장할 때 알림 권한을 확인해요") :
+                    draft.alarmEnabled ? (nativeAlarmActive ? "설정한 시간에 알려드려요" : habit?.alarmEnabled
+                      ? "저장된 알림 설정을 유지해요. 기기 권한을 확인해 주세요." : "저장할 때 알림 권한을 확인해요") :
                     "알림 없이 습관만 기록해요"}</small>
                 </span>
                 <button
@@ -735,28 +729,29 @@ function HabitEditor({
                   aria-checked={Boolean(draft.alarmEnabled)}
                   disabled={alarmChecking || (!draft.scheduledTime && !draft.alarmEnabled)}
                   onClick={() => {
-                    if (alarmChecking) return;
+                    if (alarmCheckingRef.current) return;
                     setAlarmTouched(true);
                     if (draft.alarmEnabled) {
+                      alarmCheckedTime.current = undefined;
                       setDraft((prev) => ({ ...prev, alarmEnabled: false }));
                       setAlarmNotice("");
                       return;
                     }
-                    if (nativeAlarmActive) {
-                      setDraft((prev) => ({ ...prev, alarmEnabled: true }));
-                      setAlarmNotice("");
-                      return;
-                    }
+                    alarmCheckingRef.current = true;
                     setAlarmChecking(true);
                     setAlarmNotice("");
                     void (async () => {
                       try {
-                        const enabled = await enableNativeAlarm();
-                        if (enabled) setDraft((prev) => ({ ...prev, alarmEnabled: true }));
+                        const enabled = await enableNativeAlarm(true);
+                        if (enabled && isCurrentEditorScope()) {
+                          alarmCheckedTime.current = draft.scheduledTime;
+                          setDraft((prev) => ({ ...prev, alarmEnabled: true }));
+                        }
                         else setAlarmNotice("Android 알림 사용을 허용한 뒤 다시 켜주세요.");
                       } catch {
                         setAlarmNotice("알림을 활성화하지 못했습니다. 다시 시도해 주세요.");
                       } finally {
+                        alarmCheckingRef.current = false;
                         setAlarmChecking(false);
                       }
                     })();
@@ -1299,6 +1294,8 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
   const [pastDate, setPastDate] = useState<string | null>(null);
   const [installEvent, setInstallEvent] = useState<InstallEvent | null>(null);
   const [storageWarning, setStorageWarning] = useState(false);
+  const [startupPermissionBusy, setStartupPermissionBusy] = useState(false);
+  const startupPermissionBusyRef = useRef(false);
   const [ratingOverrides, setRatingOverrides] = useState<
     Map<string, { rating: number; scope: string; day: string }>
   >(new Map());
@@ -1314,6 +1311,14 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
   const scope = app.user?.id ?? "guest";
   const activeScope = useRef(scope);
   activeScope.current = scope;
+  const editorScope = useRef(scope);
+  useEffect(() => {
+    if (editorScope.current !== scope) {
+      // An old account's unsaved alarm draft cannot be reused by the next account.
+      editorScope.current = scope;
+      setEditing(null);
+    }
+  }, [scope]);
   // A dismissed first-use hint stays dismissed for this local account scope.
   useEffect(() => {
     let dismissed = false;
@@ -1545,7 +1550,10 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
         setRatingOverrides(next);
       });
   };
-  const handleSave = async (data: HabitSettingsPatch, meta?: { alarmPermissionDenied: boolean }) => {
+  const handleSave = async (data: HabitSettingsPatch, meta?: { alarmPermissionDenied: boolean; alarmPermissionDeferred?: boolean }) => {
+    // The permission choice may leave the app for Android Settings. Never
+    // write an old editor draft into an account that changed in the meantime.
+    if (scope !== activeScope.current) throw Error("계정이 변경되었어요.");
     if (editing === "new") {
       const newHabit: Habit = {
         id: uid(),
@@ -1579,6 +1587,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
       );
       showToast(meta?.alarmPermissionDenied
         ? "✦ 습관은 수정했어요. 알림 권한이 없어 알림은 꺼졌어요."
+        : meta?.alarmPermissionDeferred ? "✦ 습관은 수정했어요. 기존 알림 설정은 유지했어요."
         : "✦ 습관이 수정되었습니다!");
     }
     setEditing(null);
@@ -1729,6 +1738,22 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
     }
   }, [nativeDetailValid]);
   const detail = nativeDetailValid ? visibleHabits.find((h) => h.id === detailId) : undefined;
+  // A restored reminder invitation never interrupts account/login screens,
+  // an editor, an active record action, or a pending native navigation tap.
+  const startupPermissionContext = Boolean(
+    app.snapshot && startupDataReady(!!app.user, app.snapshot) &&
+    !editing && !detailId && !accountOpen && !constellationOpen && !reflectionOpen &&
+    !pastDate && !sampleCleanupOpen && !celebration && !firstPractice &&
+    !ratingOverrides.size && activeTab !== "matrix" &&
+    (!nativeAuthReturn || nativeAuthReturn <= handledAuthReturn.current) &&
+    (!nativeHabitNavigation || nativeHabitNavigation.serial <= handledHabitNavigation.current) &&
+    (!nativeReminderNavigation || nativeReminderNavigation.serial <= handledReminderNavigation.current));
+  const startupPermissionContextRef = useRef({ current: startupPermissionContext, revision: 0 });
+  if (startupPermissionContextRef.current.current !== startupPermissionContext) {
+    startupPermissionContextRef.current = { current: startupPermissionContext, revision: startupPermissionContextRef.current.revision + 1 };
+  }
+  const startupPermissionOpen = Boolean(nativeReminders?.startupPermissionOffer && startupPermissionContext && !app.busy &&
+    typeof document !== "undefined" && document.visibilityState === "visible");
   // Only visual order changes. Keep the held-completion period (700ms),
   // then sort each group by scheduled HH:mm; unscheduled routines come last.
   const filtered = sortHabitsForDisplay(
@@ -2354,6 +2379,26 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
         </>
         )}
       </main>
+      {startupPermissionOpen && nativeReminders?.startupPermissionOffer && (
+        <ReminderPermissionDialog
+          permissionState={nativeReminders.permissionState}
+          exactPermission={nativeReminders.exactPermission}
+          busy={startupPermissionBusy || nativeReminders.busy}
+          onCancel={() => {
+            if (!startupPermissionBusyRef.current) nativeReminders.onDismissStartupPermissionOffer();
+          }}
+          onConfirm={() => {
+            if (startupPermissionBusyRef.current || nativeReminders.busy) return;
+            startupPermissionBusyRef.current = true;
+            setStartupPermissionBusy(true);
+            const context = startupPermissionContextRef.current;
+            void nativeReminders.onRequestStartupPermission(() => scope === activeScope.current && context.current && startupPermissionContextRef.current === context).catch(() => false).finally(() => {
+              startupPermissionBusyRef.current = false;
+              setStartupPermissionBusy(false);
+            });
+          }}
+        />
+      )}
       {sampleCleanupOpen && (
         <ConfirmDialog
           title={`예시 습관 ${sampleHabits.length}개를 정리할까요?`}
@@ -2368,7 +2413,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
           onConfirm={() => { void handleClearSampleHabits(); }}
         />
       )}
-      {editing && (
+      {editing && editorScope.current === scope && (
         <HabitEditor
           key={editing === "new" ? "new" : editing.id}
           habit={
@@ -2395,11 +2440,13 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
           guardUnsaved={Boolean(nativeReminders)}
           nativeAlarmEditor={Boolean(nativeReminders)}
           nativeAlarmActive={nativeReminders?.active}
-          nativeAlarmStatus={nativeReminders?.status}
-          onEnsureNativeAlarm={nativeReminders ? () => nativeReminders.onEnabledChange(true) : undefined}
-          nativeFirstPermissionOffer={nativeReminders?.showPermissionOffer}
-          onRequestFirstPermission={nativeReminders?.onRequestPermission}
-          onDismissFirstPermission={nativeReminders?.onDismissPermissionOffer}
+          nativeAlarmIntentEnabled={nativeReminders?.enabled}
+          isCurrentEditorScope={() => scope === activeScope.current}
+          onEnsureNativeAlarm={nativeReminders ? () => scope === activeScope.current
+            ? nativeReminders.onEnabledChange(true) : Promise.resolve(false) : undefined}
+          onCheckNativePermissions={nativeReminders?.onCheckPermissions}
+          onRequestPermission={nativeReminders?.onRequestPermission}
+          onDismissPermission={nativeReminders?.onDismissPermissionOffer}
         />
       )}
       {detail && (

@@ -4883,10 +4883,15 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   background: var(--control-bg); color: var(--ink); font-size: 13px; font-weight: 600;
 }
 .account-panel .account-settings-final .android-wrapup-time select:disabled { opacity: .55; }
+/* The transaction lock still disables other controls. Only a genuinely
+   OFF period should look inactive; pending work must not flash the card. */
+.account-panel .account-settings-final .android-wrapup-period[data-enabled="true"] .android-wrapup-time select:disabled { opacity: 1; }
 .account-panel .account-settings-final .android-wrapup-toggle {
   min-height: 44px; width: 56px; height: 44px; padding: 0;
 }
-.account-panel .account-settings-final .android-wrapup-toggle:disabled { opacity: .6; cursor: progress; }
+.account-panel .account-settings-final .android-wrapup-toggle:disabled { opacity: 1; cursor: default; }
+.account-panel .account-settings-final .android-wrapup-toggle[aria-busy="true"],
+.account-panel .account-settings-final .android-wrapup-time select[aria-busy="true"] { cursor: progress; }
 .account-panel .account-theme-options { gap: 6px; }
 .account-panel .account-theme-options > button { min-width: 0; padding: 8px 4px; gap: 5px; }
 .account-panel .account-settings-final .account-timezone-trigger,
@@ -5049,6 +5054,10 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   grid-template-columns: minmax(0,1fr);
   gap: 4px;
 }
+.byeolharu-confirm-dialog.is-permission-opt-in .byeolharu-confirm-dialog-actions { gap: 10px; }
+/* A programmatically focused heading is not an interactive control. Keep
+   the visible keyboard focus treatment on every button. */
+.byeolharu-confirm-dialog.is-permission-opt-in h2:focus { outline: none; }
 .byeolharu-confirm-dialog-actions > button {
   display: flex;
   align-items: center;
@@ -5073,6 +5082,9 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 .byeolharu-confirm-dialog-actions > button:focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: 2px;
+}
+.byeolharu-confirm-dialog.is-permission-opt-in .byeolharu-confirm-dialog-actions > button:focus-visible {
+  outline-color: var(--accent);
 }
 @media (max-width: 350px) {
   .byeolharu-confirm-dialog { width: calc(100% - 32px); }
@@ -5152,6 +5164,9 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 .account-panel .android-reminder-action-notice .android-permission-text strong {
   font-size: 14px;
 }
+.account-panel .android-reminder-action-notice .android-permission-text small {
+  color: var(--body);
+}
 .account-panel .android-reminder-action-notice .android-permission-help {
   width: 100%;
   margin: 0;
@@ -5173,6 +5188,8 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   }
   .account-panel .android-reminder-action-notice .android-permission-action {
     margin-left: 28px;
+    max-width: calc(100% - 28px);
+    white-space: normal;
   }
   .account-panel .account-settings-final .android-wrapup-settings {
     padding-left: 10px;

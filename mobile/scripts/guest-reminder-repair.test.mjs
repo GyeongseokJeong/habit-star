@@ -58,7 +58,7 @@ test("guest-only repair remains guarded by audit and permission but not exposed 
  const main=readFileSync(resolve(root,"mobile/packaged-guest/main.tsx"),"utf8");
  const settings=readFileSync(resolve(root,"components/account/account-panel.tsx"),"utf8");
  const web=readFileSync(resolve(root,"app/page.tsx"),"utf8");
- assert.match(main,/canManuallyRepairGuestReminders\(report, effectiveHabitReminderOptIn\(enabledRef\.current, snapshot\.current\) \|\| hasEnabledWrapup\(wrapupRef\.current\), permissions\.display\)/);
+ assert.match(main,/canManuallyRepairGuestReminders\(report, effectiveHabitReminderOptIn\(enabledRef\.current, snapshot\.current\) \|\| hasEnabledWrapup\(wrapupRef\.current\), permissions\.permissionState\)/);
  assert.match(main,/const onRepairPending = useCallback/);
  assert.match(main,/identityRef\.current\.kind !== "guest"/);
  assert.match(main,/!repairAvailable/);
