@@ -25,6 +25,9 @@ const config: CapacitorConfig = {
   }),
   webDir: "www-packaged-guest",
   // MainActivity handles physical insets. Never double-apply system-bar insets.
-  plugins: { SystemBars: { insetsHandling: "disable" as const } },
+  plugins: {
+    SystemBars: { insetsHandling: "disable" as const },
+    LocalNotifications: { smallIcon: "ic_stat_byeolharu" },
+  },
 };
 export default config;

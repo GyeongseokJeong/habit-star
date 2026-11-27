@@ -98,6 +98,10 @@ for (const folder of ["layout", "xml", "drawable"]) {
     else copyFileSync(source, join(dest, file));
   }
 }
+copyFileSync(
+  join(mobileRoot, "native/drawable/ic_stat_byeolharu.xml"),
+  join(mainRoot, "res/drawable/ic_stat_byeolharu.xml"),
+);
 // Remove retired unmerged prototype registrations if an existing generated tree is reused.
 returnManifest = returnManifest.replace(/<receiver\b[^>]*android:name="\.ByeolharuWidgetProvider\$(?:Growth|Practice)"[^>]*>[\s\S]*?<\/receiver>\s*/g, "");
 for (const [name, resource, label] of [
