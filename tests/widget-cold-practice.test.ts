@@ -9,6 +9,7 @@ import { SyncEngine, type CloudTransport, type SyncResult } from "../lib/habits/
 import type { Entity } from "../lib/habits/domain";
 import { planColdWidgetReminder } from "../mobile/notifications/cold-widget-reminder.js";
 import { buildScopedReminderPlan, diffScopedNotifications } from "../mobile/notifications/scoped-reminder-runtime.js";
+import type { toNativeNotification } from "../mobile/notifications/reminder-plan.js";
 
 const origin = "https://localhost";
 const auth = "byeolharu_android_auth_v1", verified = "byeolharu_verified_user";
@@ -136,7 +137,7 @@ describe("debug cold widget practice",()=>{
         {scope,now:new Date(),daysAhead:2,habitOptIn:true},
       );
       const hasToday=(s:typeof before)=>plan(s).notifications.some(n=>n.day===s.day&&n.habitId===habit.id);
-      const booked=diffScopedNotifications([], plan(before), {exact:true}).schedule;
+      const booked: ReturnType<typeof toNativeNotification>[] = diffScopedNotifications([], plan(before), {exact:true}).schedule;
       const target=booked.find(n=>n.extra.day===before.day&&n.extra.habitId===habit.id)!;
       const inventory=(saved:typeof booked)=>({saved, storedIds:saved.map(n=>n.id), scheduledIds:saved.map(n=>n.id), visibleIds:[]});
       const reminderArgs={memberId:id, optInRaw:"1", wrapupRaw:null, permissionGranted:true, exact:true, now:new Date()};
