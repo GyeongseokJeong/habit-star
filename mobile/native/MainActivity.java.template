@@ -15,6 +15,7 @@ import androidx.activity.OnBackPressedCallback;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.Bridge;
 
 /**
  * Native back navigation for the bundled 별하루 WebView.
@@ -71,6 +72,7 @@ public class MainActivity extends BridgeActivity {
     private long lastRootBackAt;
     private Boolean lastLightBars;
     private ViewGroup nativeContentRoot;
+    private ByeolharuWidgetBridgeLease.Lease widgetBridgeLease;
     private final Runnable themeSync = new Runnable() {
         @Override public void run() {
             if (!foreground) return;
@@ -84,9 +86,17 @@ public class MainActivity extends BridgeActivity {
         // Capacitor requires registering custom plugins before super.onCreate.
         // The patcher inserts plugin registration only for the packaged guest
         // flavor. Other standalone demo variants must not refer to its class.
-        ByeolharuWidgetColdPractice.activityStarted();
+        widgetBridgeLease=ByeolharuWidgetColdPractice.activityStarted();
         __GUEST_SETTINGS_PLUGIN_REGISTER__
         super.onCreate(state);
+        // Pinned Capacitor 8.6.2 Bridge.execute posts on the same plugin
+        // task handler as callPluginMethod. Capture only from the executed
+        // task: posting alone is not evidence of a known/running worker.
+        final ByeolharuWidgetBridgeLease.Lease lease=widgetBridgeLease;
+        Bridge bridge=getBridge();
+        if(bridge!=null)try {
+            bridge.execute(()->ByeolharuWidgetColdPractice.workerCaptured(lease,Thread.currentThread()));
+        } catch(RuntimeException ignored){/* unknown worker: defer cold alarms */}
         if (getPackageName().endsWith(".packagedgueststep9") || getPackageName().equals("app.byeolharu.android")) {
             installNativeSystemBarInsets();
         }
@@ -118,7 +128,11 @@ public class MainActivity extends BridgeActivity {
     public void onDestroy() {
         lastRootBackAt = 0L;
         handler.removeCallbacks(themeSync);
-        try { super.onDestroy(); } finally { ByeolharuWidgetColdPractice.activityStopped(); }
+        // BridgeActivity.onDestroy initiates quitSafely; it does not join.
+        // Mark destruction only after super succeeds. The lease separately
+        // requires the captured plugin worker to have actually terminated.
+        super.onDestroy();
+        ByeolharuWidgetColdPractice.activityStopped(widgetBridgeLease);
     }
 
     /**

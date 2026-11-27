@@ -24,7 +24,7 @@ import { mergeReminderLedger, measureReminderLatency, formatReminderDelay } from
 import { WRAPUP_GROUPS, WRAPUP_DEFAULTS, normalizeWrapupSettings, hasEnabledWrapup } from "../notifications/wrapup-reminders.js";
 import { createReminderLifecycle } from "../notifications/reminder-lifecycle.js";
 import { reconcileWithForegroundRetry } from "../notifications/foreground-reminder-retry.js";
-import { guestReminderAction } from "../notifications/guest-reminder-readiness.js";
+import { guestReminderAction, isReminderSnapshotReady } from "../notifications/guest-reminder-readiness.js";
 import { createResumeDispatcher } from "../notifications/native-resume-refresh.js";
 import { summarizeGuestPending } from "../notifications/guest-reminder-diagnostics.js";
 import { auditGuestReminders } from "../notifications/guest-reminder-audit.js";
@@ -32,7 +32,7 @@ import { repairGuestReminders } from "../notifications/guest-reminder-repair.js"
 import { reminderPermissionPresentation } from "../notifications/guest-reminder-permission-view.js";
 import { reminderSwitchChecked, canManuallyRepairGuestReminders } from "../notifications/guest-reminder-switch-state.js";
 import { effectiveHabitReminderOptIn, hasConfiguredHabitReminders } from "../notifications/habit-reminder-intent.js";
-import { PERMISSION_OFFER_SEEN_KEY, permissionStateFromAndroid, shouldShowPermissionOffer, requestHabitReminderPermission } from "../notifications/notification-permission-onboarding.js";
+import { PERMISSION_OFFER_SEEN_KEY, permissionStateFromAndroid, startupPermissionOffer, readDeviceReminderPermissions, requestHabitReminderPermission } from "../notifications/notification-permission-onboarding.js";
 
 
 // This module is bundled into the isolated Android guest APK only.
@@ -107,6 +107,10 @@ function GuestNativeApp() {
   const [exactPermission, setExactPermission] = useState<"unknown" | "granted" | "denied">("unknown");
   const [latencyStatus, setLatencyStatus] = useState("");
   const [permissionOfferSeen, setPermissionOfferSeen] = useState(true);
+  const [snapshotReady, setSnapshotReady] = useState(false);
+  const preferencesReady = useRef(false);
+  const wrapupScope = useRef<string | null>(null);
+  const permissionRevision = useRef(0);
   const [diagnostic, setDiagnostic] = useState("");
   const [auditStatus, setAuditStatus] = useState("");
   const [repairAvailable, setRepairAvailable] = useState(false);
@@ -124,7 +128,7 @@ function GuestNativeApp() {
     (window as Window & { __byeolharuStartupReady?: boolean }).__byeolharuStartupReady = true;
   }, []);
 
-  const schedule = useCallback((value: boolean, next: Snapshot | null, currentOnly = false) => {
+  const schedule = useCallback((value: boolean | null, next: Snapshot | null, currentOnly = true) => {
     if (!lifecycle) return Promise.resolve();
     const context = {
       identity: identityRef.current, optIn: effectiveHabitReminderOptIn(value, next), wrapupSettings: wrapupRef.current,
@@ -135,7 +139,8 @@ function GuestNativeApp() {
     }};
     const currentScope = reminderIdentityKey(context.identity);
     const task = operation.current.then(async () => {
-      if (!mounted.current) return;
+      if (!mounted.current || !preferencesReady.current || wrapupScope.current !== currentScope ||
+          !isReminderSnapshotReady(next, context.identity.kind === "member" ? context.identity.userId : null)) return;
       // Snapshot-driven reconciliation can wait behind an earlier native
       // operation. Do not replay obsolete account/record snapshots.
       if (currentOnly && (snapshot.current !== next ||
@@ -178,11 +183,7 @@ function GuestNativeApp() {
             JSON.stringify(mergeReminderLedger(readReminderLedger(scope), plan.notifications)));
         } catch { /* Diagnostics never block delivery. */ }
       }
-      if (mounted.current) {
-        if (result.status === "updated" || result.status === "unchanged") {
-          setExactPermission(result.exactPermission === "granted" ? "granted" :
-            result.exactPermission === "denied" ? "denied" : "unknown");
-        }
+      if (mounted.current && currentScope === reminderIdentityKey(identityRef.current) && snapshot.current === next) {
         if (result.status === "permission-required") setStatus("Android 알림 권한을 확인해 주세요.");
         else if (result.status === "snapshot-not-ready") setStatus("오늘 기록을 불러온 후 다시 확인해 주세요.");
         else if (result.status === "updated" || result.status === "unchanged") setStatus("알림 예약을 확인했어요.");
@@ -193,31 +194,30 @@ function GuestNativeApp() {
     return task;
   }, []);
 
+  type PermissionRead = { permissionState: "unknown" | "prompt" | "granted" | "denied"; exactPermission: "unknown" | "granted" | "denied" };
+  const onCheckPermissions = useCallback(async (): Promise<PermissionRead> => {
+    const revision = ++permissionRevision.current;
+    const result = await readDeviceReminderPermissions(LocalNotifications);
+    if (isAndroid && mounted.current && permissionRevision.current === revision) {
+      setPermissionState(result.permissionState);
+      setExactPermission(result.exactPermission);
+      if (result.permissionState !== "granted") setRepairAvailable(false);
+    }
+    return result;
+  }, []);
+
   const refreshPermission = useCallback(async (reconcileSnapshot = true) => {
     if (!isAndroid) return;
-    try {
-      const [current, exact] = await Promise.all([
-        LocalNotifications.checkPermissions(),
-        LocalNotifications.checkExactNotificationSetting().catch(() => null),
-      ]);
-      if (mounted.current) {
-        setExactPermission(exact?.exact_alarm === "granted" ? "granted" : exact ? "denied" : "unknown");
-        const granted = current.display === "granted";
-        setPermissionState(permissionStateFromAndroid(current.display));
-        if (!granted) setRepairAvailable(false);
-        // Resume refreshes the repository separately. Its freshly committed
-        // snapshot drives scheduling; a permission result alone must not
-        // replay a pre-resume snapshot.
-        if (reconcileSnapshot && granted && snapshot.current) {
-          void schedule(enabledRef.current, snapshot.current, true).catch(() => {
-            if (mounted.current) setStatus("알림 예약을 확인하지 못했어요.");
-          });
-        }
-      }
-    } catch {
-      if (mounted.current) setPermissionState("unknown");
+    const result = await onCheckPermissions();
+    // Resume refreshes the repository separately. Its freshly committed
+    // snapshot drives scheduling; a permission result alone must not replay
+    // an outdated account or day.
+    if (reconcileSnapshot && mounted.current && result.permissionState === "granted" && snapshot.current) {
+      void schedule(enabledRef.current, snapshot.current, true).catch(() => {
+        if (mounted.current) setStatus("알림 예약을 확인하지 못했어요.");
+      });
     }
-  }, [schedule]);
+  }, [onCheckPermissions, schedule]);
 
   useEffect(() => {
     mounted.current = true;
@@ -227,9 +227,14 @@ function GuestNativeApp() {
     try {
       const preference = localStorage.getItem(OPT_IN_KEY);
       const saved = preference === "1" ? true : preference === "0" ? false : null;
-      // Do not re-prompt existing users with an explicit device preference.
-      setPermissionOfferSeen(localStorage.getItem(PERMISSION_OFFER_SEEN_KEY) === "1" || saved !== null);
-      const configured = readWrapupSettings("guest");
+      // A one-time invitation is consumed only via an actual user choice.
+      // Empty launches and an already-stored habit opt-in are not consent
+      // to notification permission on this installation.
+      setPermissionOfferSeen(localStorage.getItem(PERMISSION_OFFER_SEEN_KEY) === "1");
+      if (preference !== null && preference !== "1" && preference !== "0") throw Error("invalid reminder preference");
+      const configured = readWrapupSettings(reminderIdentityKey(identityRef.current));
+      preferencesReady.current = true;
+      wrapupScope.current = reminderIdentityKey(identityRef.current);
       enabledRef.current = saved;
       wrapupRef.current = configured;
       setEnabled(saved);
@@ -244,7 +249,7 @@ function GuestNativeApp() {
       // native queue and ask the user to review settings rather than delete.
       setStatus("알림 설정을 읽지 못했어요. 기기 저장 공간을 확인해 주세요.");
     }
-    return () => { mounted.current = false; };
+    return () => { mounted.current = false; preferencesReady.current = false; wrapupScope.current = null; ++permissionRevision.current; };
   }, [schedule, refreshPermission]);
 
   const widgetQueue = useRef(Promise.resolve());
@@ -325,6 +330,7 @@ function GuestNativeApp() {
     // account's repository has actually hydrated.
     if (!next && !memberUserId) {
       snapshot.current = null; // never allow old account data to be rescheduled during auth hydration
+      setSnapshotReady(false);
       setHasHabitIntent(false);
       return;
     }
@@ -338,6 +344,9 @@ function GuestNativeApp() {
       // A cold restart also enters this branch: preserve valid reservations
       // for the incoming verified account until its fresh snapshot is ready.
       snapshot.current = null;
+      wrapupScope.current = null;
+      setSnapshotReady(false);
+      setHasHabitIntent(false);
       if (lifecycle) {
         const incomingScope = reminderIdentityKey(nextIdentity);
         const cleanup = operation.current.then(async () => {
@@ -350,22 +359,34 @@ function GuestNativeApp() {
           if (mounted.current) setStatus("계정 전환 중 이전 알림 예약을 정리하지 못했어요.");
         });
       }
+    }
+    const incomingScope = reminderIdentityKey(nextIdentity);
+    if (wrapupScope.current !== incomingScope) {
       try {
-        const loaded = readWrapupSettings(reminderIdentityKey(nextIdentity));
+        const loaded = readWrapupSettings(incomingScope);
+        wrapupScope.current = incomingScope;
         wrapupRef.current = loaded;
         setWrapupSettings(loaded);
       } catch {
-        // Do not silently erase old reservations on unreadable preferences.
+        // Do not reuse another account’s settings or erase old reservations.
+        snapshot.current = null;
+        setSnapshotReady(false);
+        setHasHabitIntent(false);
         setStatus("마무리 알림 설정을 읽지 못했어요. 기기 저장소를 확인해 주세요.");
         return;
       }
     }
-    snapshot.current = next;
-    setHasHabitIntent(hasConfiguredHabitReminders(next));
+    // Member repository publication may precede initial cloud pull and
+    // ensureDay(). A partial empty snapshot must not revoke its own alarms
+    // or consume the permission invitation.
+    const ready = isReminderSnapshotReady(next, memberUserId);
+    snapshot.current = ready ? next : null;
+    setSnapshotReady(ready);
+    setHasHabitIntent(ready && hasConfiguredHabitReminders(next));
     auditRevision.current += 1;
     setRepairAvailable(false);
     if (!mounted.current) return;
-    if (!next) return; // Verified account cleanup is already queued above.
+    if (!ready || !next) return; // Verified account cleanup is already queued above.
     // Reconcile member/guest scopes even when this device toggle is OFF.
     // No previous account can leave an active scoped reminder behind.
     void schedule(enabledRef.current, next, true).catch(() =>
@@ -378,48 +399,55 @@ function GuestNativeApp() {
     catch { setStatus("알림 안내 선택을 기기에 저장하지 못했어요."); }
   }, []);
 
+  // Shared permission request/recovery for a deliberate habit/wrap-up or
+  // settings action. A known denial may open Settings on that tap only.
+  // No preference or habit data is written by this method.
+  const attemptDisplayPermission = useCallback(async (): Promise<boolean> => {
+    const checked = await onCheckPermissions();
+    const attempt = await requestHabitReminderPermission(LocalNotifications, checked.permissionState);
+    ++permissionRevision.current; // invalidate reads started before the OS result
+    if (!mounted.current) return false;
+    setPermissionState(permissionStateFromAndroid(attempt.permission));
+    if (attempt.route === "enable") {
+      const after = await onCheckPermissions(); // exact permission remains independent
+      if (after.permissionState === "granted") return true;
+      setStatus("알림 권한을 다시 확인해 주세요.");
+      return false;
+    }
+    setRepairAvailable(false);
+    if (attempt.route === "settings") {
+      try {
+        if (!deviceSettings) throw new Error("Android settings bridge unavailable");
+        await deviceSettings.openNotificationSettings();
+        setStatus("휴대폰 알림 설정에서 별하루 알림을 허용해 주세요.");
+      } catch {
+        setStatus("휴대폰 설정 → 앱 → 별하루 → 알림에서 허용해 주세요.");
+      }
+    } else if (attempt.route === "declined") {
+      setStatus("알림을 허용하지 않아도 기존 습관 설정과 기록은 유지돼요.");
+    } else {
+      setStatus("알림 권한을 확인하지 못했어요. 다시 시도해 주세요.");
+    }
+    return false;
+  }, [onCheckPermissions]);
+
   // Asking for OS permission is not opting in to any habit or wrap-up alerts.
-  // The user may accept the permission while keeping all individual alerts OFF.
   const onRequestPermission = useCallback(async (): Promise<boolean> => {
     if (!isAndroid || busyRef.current) return false;
     dismissPermissionOffer();
     busyRef.current = true;
     setBusy(true);
     try {
-      const current = await LocalNotifications.checkPermissions();
-      const currentState = permissionStateFromAndroid(current.display);
-      setPermissionState(currentState);
-      if (currentState === "unknown") {
-        setStatus("알림 권한을 확인하지 못했어요. 다시 시도해 주세요.");
-        return false;
-      }
-      if (current.display === "denied") {
-        // The Android dialog might no longer be available. Open Settings only
-        // because the user deliberately selected the permission action.
-        try {
-          if (!deviceSettings) throw new Error("Android settings bridge unavailable");
-          await deviceSettings.openNotificationSettings();
-        } catch { setStatus("휴대폰 설정 → 앱 → 별하루 → 알림에서 허용해 주세요."); }
-        return false;
-      }
-      const result = current.display === "granted"
-        ? current : await LocalNotifications.requestPermissions();
-      const resultState = permissionStateFromAndroid(result.display);
-      setPermissionState(resultState);
-      if (resultState === "unknown") {
-        setStatus("알림 권한을 확인하지 못했어요. 다시 시도해 주세요.");
-        return false;
-      }
-      if (resultState !== "granted") {
-        setStatus("알림을 허용하지 않아도 습관 기록은 계속 사용할 수 있어요.");
-        return false;
-      }
-      setStatus("기기 알림이 허용됐어요. 습관별 알림은 별도로 선택해요.");
-      if (snapshot.current) void schedule(enabledRef.current, snapshot.current).catch(() => {
+      if (!(await attemptDisplayPermission())) return false;
+      setStatus("기기 알림이 허용됐어요. 기존 습관 알림 설정을 유지해요.");
+      // Current verified scope only; a previous account may have changed
+      // while the Android permission dialog was open.
+      if (snapshot.current) void schedule(enabledRef.current, snapshot.current, true).catch(() => {
         if (mounted.current) setStatus("알림 권한은 허용됐지만 예약은 확인하지 못했어요.");
       });
       return true;
     } catch {
+      ++permissionRevision.current;
       setPermissionState("unknown");
       setStatus("알림 권한을 확인하지 못했어요. 다시 시도해 주세요.");
       return false;
@@ -427,24 +455,45 @@ function GuestNativeApp() {
       busyRef.current = false;
       setBusy(false);
     }
-  }, [dismissPermissionOffer, schedule]);
+  }, [dismissPermissionOffer, attemptDisplayPermission, schedule]);
 
   const onRequestExactPermission = useCallback(async (): Promise<boolean> => {
     if (!isAndroid || busyRef.current) return false;
+    dismissPermissionOffer();
     busyRef.current = true;
     setBusy(true);
     try {
-      const setting = await LocalNotifications.checkExactNotificationSetting();
-      if (setting.exact_alarm !== "granted") {
+      const current = await onCheckPermissions();
+      if (current.permissionState !== "granted") {
+        setStatus("먼저 일반 알림 권한을 확인해 주세요.");
+        return false;
+      }
+      if (current.exactPermission === "unknown") {
+        setStatus("정확 알림 권한을 확인하지 못했어요. 다시 시도해 주세요.");
+        return false;
+      }
+      // The pinned plugin resolves from the Settings activity callback.
+      // Read both permissions again: opening Settings alone is not a grant.
+      if (current.exactPermission === "denied") {
         await LocalNotifications.changeExactNotificationSetting();
-        setStatus("기기 설정에서 정확 알림을 허용해 주세요. 앱으로 돌아오면 예약을 갱신해요.");
-      } else setExactPermission("granted");
-      return true;
+      }
+      const after = await onCheckPermissions();
+      if (after.permissionState === "granted" && snapshot.current) {
+        void schedule(enabledRef.current, snapshot.current, true).catch(() => {});
+      }
+      if (after.exactPermission === "granted") {
+        setStatus("정확 알림 권한을 허용했어요.");
+      } else if (after.exactPermission === "denied") {
+        setStatus("정확 알림 없이도 일반 알림을 받을 수 있어요.");
+      } else {
+        setStatus("정확 알림 권한을 확인하지 못했어요.");
+      }
+      return after.permissionState === "granted" && after.exactPermission === "granted";
     } catch {
       setStatus("정확 알림 설정을 열 수 없어요. 기존 일반 알림은 유지돼요.");
       return false;
     } finally { busyRef.current = false; setBusy(false); }
-  }, []);
+  }, [onCheckPermissions, dismissPermissionOffer, schedule]);
 
   const onInspectLatency = useCallback(async (): Promise<void> => {
     if (!deviceSettings) return;
@@ -461,47 +510,31 @@ function GuestNativeApp() {
   }, []);
 
   const onEnabledChange = useCallback(async (next: boolean): Promise<boolean> => {
-    if (!lifecycle || busyRef.current) return false;
+    if (!lifecycle || busyRef.current || !preferencesReady.current) return false;
+    const scope = reminderIdentityKey(identityRef.current);
+    const ready = () => scope === reminderIdentityKey(identityRef.current) && wrapupScope.current === scope &&
+      isReminderSnapshotReady(snapshot.current, identityRef.current.kind === "member" ? identityRef.current.userId : null);
     busyRef.current = true;
     setBusy(true);
     auditRevision.current += 1;
     setRepairAvailable(false);
     try {
+      if (!ready()) {
+        setStatus("오늘 습관 기록을 준비한 후 다시 시도해 주세요.");
+        return false;
+      }
       if (next) {
-        if (guestReminderAction(true, snapshot.current && {
-          ...snapshot.current,
-          timeZone: identityRef.current.kind === "member" ? snapshot.current.state.timezone : undefined,
-        }) !== "sync") {
-          setStatus("오늘 습관 기록을 준비한 후 다시 시도해 주세요.");
-          return false;
-        }
-        // An already-granted OS permission needs no second request. A fresh
-        // denial or dismissal must not send the user straight to Settings.
-        const attempt = await requestHabitReminderPermission(LocalNotifications);
-        const granted = attempt.route === "enable";
-        setPermissionState(permissionStateFromAndroid(attempt.permission));
-        if (!granted) {
-          if (attempt.route === "settings") {
-            try {
-              if (!deviceSettings) throw new Error("Android settings bridge unavailable");
-              await deviceSettings.openNotificationSettings();
-              setStatus("휴대폰 알림 설정에서 별하루 알림을 허용해 주세요.");
-            } catch {
-              setStatus("휴대폰 설정 → 앱 → 별하루 → 알림에서 허용해 주세요.");
-            }
-          } else if (attempt.route === "declined") {
-            setStatus("알림을 허용하지 않아도 습관 기록은 계속 사용할 수 있어요.");
-          } else {
-            setStatus("알림 권한을 확인하지 못했어요. 다시 시도해 주세요.");
-          }
-          return false;
-        }
+        dismissPermissionOffer();
+        if (!(await attemptDisplayPermission()) || !ready()) return false;
       }
       // On disable, clear pending reminders before persisting the opt-out.
-      await schedule(next, snapshot.current);
+      const committed = snapshot.current;
+      await schedule(next, committed, true);
+      if (!ready()) return false;
       localStorage.setItem(OPT_IN_KEY, next ? "1" : "0");
       enabledRef.current = next;
       setEnabled(next);
+      if (snapshot.current !== committed) void schedule(next, snapshot.current, true).catch(() => {});
       if (!next) setStatus("습관 알림을 껐어요.");
       return true;
     } catch {
@@ -511,7 +544,7 @@ function GuestNativeApp() {
       busyRef.current = false;
       setBusy(false);
     }
-  }, [schedule]);
+  }, [schedule, attemptDisplayPermission, dismissPermissionOffer]);
 
   useEffect(() => {
     if (!isAndroid) return;
@@ -547,7 +580,7 @@ function GuestNativeApp() {
   const onWrapupChange = useCallback(async (
     group: WrapupGroup, patch: { enabled?: boolean; time?: string },
   ): Promise<boolean> => {
-    if (!isAndroid || busyRef.current || !WRAPUP_GROUPS.includes(group)) return false;
+    if (!isAndroid || busyRef.current || !preferencesReady.current || !WRAPUP_GROUPS.includes(group)) return false;
     const original = wrapupRef.current;
     const next = normalizeWrapupSettings({
       ...original, [group]: { ...original[group], ...patch },
@@ -556,37 +589,36 @@ function GuestNativeApp() {
     if (patch.time !== undefined && next[group].time !== patch.time) return false;
     if (patch.enabled === true && !next[group].enabled) return false;
     const scope = reminderIdentityKey(identityRef.current);
+    const ready = () => scope === reminderIdentityKey(identityRef.current) && wrapupScope.current === scope &&
+      isReminderSnapshotReady(snapshot.current, identityRef.current.kind === "member" ? identityRef.current.userId : null);
     busyRef.current = true;
     setBusy(true);
     try {
-      if (next[group].enabled) {
-        let permission = await LocalNotifications.checkPermissions();
-        if (permission.display !== "granted") permission = await LocalNotifications.requestPermissions();
-        const granted = permission.display === "granted";
-        setPermissionState(granted ? "granted" : "denied");
-        if (!granted) {
-          try { await deviceSettings?.openNotificationSettings(); }
-          catch { /* Native settings bridge is optional; show manual instructions below. */ }
-          setStatus("휴대폰 설정 → 앱 → 별하루 → 알림에서 허용해 주세요.");
-          return false;
-        }
-      }
-      if (hasEnabledWrapup(next) && !snapshot.current) {
-        setStatus("오늘 습관 기록이 준비된 뒤 다시 켜주세요.");
+      if (!ready()) {
+        setStatus("오늘 습관 기록이 준비된 뒤 다시 시도해 주세요.");
         return false;
+      }
+      if (next[group].enabled) {
+        dismissPermissionOffer();
+        if (!(await attemptDisplayPermission()) || !ready()) return false;
       }
       wrapupRef.current = next;
       try {
-        await schedule(enabledRef.current, snapshot.current);
-        if (scope !== reminderIdentityKey(identityRef.current)) throw Error("account changed");
+        const committed = snapshot.current;
+        await schedule(enabledRef.current, committed, true);
+        if (!ready()) throw Error("account changed");
         // Persist only after successful scheduling, per device and identity.
         localStorage.setItem(WRAPUP_STORAGE_KEY + scope, JSON.stringify(next));
         setWrapupSettings(next);
+        if (snapshot.current !== committed) void schedule(enabledRef.current, snapshot.current, true).catch(() => {});
         setStatus("시간대 마무리 알림 설정을 저장했어요.");
         return true;
       } catch {
-        wrapupRef.current = original;
-        void schedule(enabledRef.current, snapshot.current).catch(() => {});
+        // A newer account owns its own wrap-up settings.
+        if (scope === reminderIdentityKey(identityRef.current)) {
+          wrapupRef.current = original;
+          void schedule(enabledRef.current, snapshot.current, true).catch(() => {});
+        }
         setStatus("마무리 알림 설정에 실패했어요. 다시 시도해 주세요.");
         return false;
       }
@@ -597,7 +629,7 @@ function GuestNativeApp() {
       busyRef.current = false;
       setBusy(false);
     }
-  }, [schedule]);
+  }, [schedule, attemptDisplayPermission, dismissPermissionOffer]);
 
   useEffect(() => {
     if (!isAndroid) return;
@@ -630,9 +662,8 @@ function GuestNativeApp() {
     busyRef.current = true;
     setBusy(true);
     try {
-      const permission = await LocalNotifications.checkPermissions();
-      setPermissionState(permissionStateFromAndroid(permission.display));
       const scope = reminderIdentityKey(identityRef.current);
+      const { permissionState } = await onCheckPermissions();
       const pending = await LocalNotifications.getPending();
       if (scope !== reminderIdentityKey(identityRef.current)) return;
       const report = summarizeGuestPending(pending.notifications, new Date(), scope);
@@ -641,10 +672,10 @@ function GuestNativeApp() {
         : "없음";
       const presentation = reminderPermissionPresentation({
         optIn: effectiveHabitReminderOptIn(enabledRef.current, snapshot.current),
-        permission: permission.display,
+        permission: permissionState,
         pendingCount: report.total,
       });
-      setDiagnostic(permission.display !== "granted"
+      setDiagnostic(permissionState !== "granted"
         ? presentation.headline + " · " + (presentation.queueNote ?? "예약 " + report.total + "건") +
           " · " + (effectiveHabitReminderOptIn(enabledRef.current, snapshot.current) ? "습관 알림 설정은 유지돼요." : "별하루 알림 사용은 꺼져 있어요.")
         : "Android 권한: 허용 · 예약 " + report.total + "건" +
@@ -657,7 +688,7 @@ function GuestNativeApp() {
       busyRef.current = false;
       setBusy(false);
     }
-  }, []);
+  }, [onCheckPermissions]);
 
   const onAuditPending = useCallback(async () => {
     if (!isAndroid || busyRef.current || identityRef.current.kind !== "guest") return;
@@ -670,16 +701,15 @@ function GuestNativeApp() {
       // This is an observation only: no permission dialog, scheduling, or
       // mutations. The latest committed snapshot is the comparison source.
       const [permissions, queue] = await Promise.all([
-        LocalNotifications.checkPermissions(),
+        onCheckPermissions(),
         LocalNotifications.getPending(),
       ]);
-      setPermissionState(permissionStateFromAndroid(permissions.display));
       const report = auditGuestReminders({
         snapshot: snapshot.current,
         optIn: effectiveHabitReminderOptIn(enabledRef.current, snapshot.current),
         wrapupSettings: wrapupRef.current,
         pending: queue.notifications,
-        permission: permissions.display,
+        permission: permissions.permissionState,
         now: new Date(),
       });
       const message = {
@@ -697,7 +727,7 @@ function GuestNativeApp() {
       if (revision === auditRevision.current) {
         setAuditStatus(message + " " + counts +
           (report.truncated ? " · 최대 예약 건수에 도달했어요." : ""));
-        setRepairAvailable(canManuallyRepairGuestReminders(report, effectiveHabitReminderOptIn(enabledRef.current, snapshot.current) || hasEnabledWrapup(wrapupRef.current), permissions.display));
+        setRepairAvailable(canManuallyRepairGuestReminders(report, effectiveHabitReminderOptIn(enabledRef.current, snapshot.current) || hasEnabledWrapup(wrapupRef.current), permissions.permissionState));
       }
     } catch {
       setAuditStatus("예약 비교에 실패했습니다. 습관 데이터와 기기 설정을 확인해 주세요.");
@@ -705,7 +735,7 @@ function GuestNativeApp() {
       busyRef.current = false;
       setBusy(false);
     }
-  }, []);
+  }, [onCheckPermissions]);
 
   const onRepairPending = useCallback(async () => {
     if (!isAndroid || busyRef.current || !repairAvailable || identityRef.current.kind !== "guest") return;
@@ -743,9 +773,27 @@ function GuestNativeApp() {
     }
   }, [repairAvailable]);
 
+  const startupOffer = startupPermissionOffer({
+    permission: permissionState, exactPermission, seen: permissionOfferSeen,
+    ready: preferencesReady.current && snapshotReady && wrapupScope.current === reminderIdentityKey(identityRef.current),
+    habitIntent: hasHabitIntent, explicitlyDisabled: enabled === false,
+    wrapupEnabled: hasEnabledWrapup(wrapupSettings),
+  });
+  const onRequestStartupPermission = async (): Promise<boolean> => {
+    if (!startupOffer || !snapshot.current || !preferencesReady.current || wrapupScope.current !== reminderIdentityKey(identityRef.current) ||
+        !isReminderSnapshotReady(snapshot.current, identityRef.current.kind === "member" ? identityRef.current.userId : null) ||
+        !(effectiveHabitReminderOptIn(enabledRef.current, snapshot.current) && hasConfiguredHabitReminders(snapshot.current) ||
+          hasEnabledWrapup(wrapupRef.current))) return false;
+    return startupOffer === "display" ? onRequestPermission() : onRequestExactPermission();
+  };
   const nativeReminders: NativeReminderControls | undefined = isAndroid
     ? { exactPermission, onRequestExactPermission, latencyStatus, onInspectLatency,
-        enabled: enabled === true || (enabled === null && hasHabitIntent), active: reminderSwitchChecked(enabled === true || (enabled === null && hasHabitIntent), permissionState), busy, status, permissionState, showPermissionOffer: shouldShowPermissionOffer({ permission: permissionState, seen: permissionOfferSeen, explicitlyDisabled: enabled === false }), onRequestPermission, onDismissPermissionOffer: dismissPermissionOffer, diagnostic, auditStatus, repairAvailable, repairStatus, wrapupSettings, onWrapupChange, onInspectPending, onAuditPending, onRepairPending, onEnabledChange, onSnapshot, registerWidgetPractice: experimentalWidgetPractice ? registerWidgetPractice : undefined }
+        enabled: enabled === true || (enabled === null && hasHabitIntent), active: reminderSwitchChecked(enabled === true || (enabled === null && hasHabitIntent), permissionState),
+        busy, status, permissionState,
+        startupPermissionOffer: startupOffer, onDismissStartupPermissionOffer: dismissPermissionOffer, onRequestStartupPermission, onCheckPermissions,
+        onRequestPermission, onDismissPermissionOffer: dismissPermissionOffer, diagnostic, auditStatus, repairAvailable, repairStatus, wrapupSettings, onWrapupChange,
+        onInspectPending, onAuditPending, onRepairPending, onEnabledChange, onSnapshot,
+        registerWidgetPractice: experimentalWidgetPractice ? registerWidgetPractice : undefined }
     : undefined;
   return <Byeolharu nativeReminders={nativeReminders} nativeShare={isAndroid ? shareStarlightPngOnAndroid : undefined} nativeBackupExport={isAndroid ? exportGuestBackupOnAndroid : undefined} nativeAuthReturn={isAndroid ? nativeAuthReturn : undefined} nativeReminderNavigation={isAndroid ? wrapupNavigation : null} nativeHabitNavigation={isAndroid ? habitNavigation : null} />;
 }

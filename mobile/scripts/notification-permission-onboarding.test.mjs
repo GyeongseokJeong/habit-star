@@ -1,82 +1,73 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { permissionStateFromAndroid, shouldShowPermissionOffer, requestHabitReminderPermission } from "../notifications/notification-permission-onboarding.js";
+import {
+  permissionStateFromAndroid, exactPermissionStateFromAndroid, shouldShowPermissionOffer,
+  startupPermissionOffer, readDeviceReminderPermissions, requestHabitReminderPermission,
+} from "../notifications/notification-permission-onboarding.js";
 
-test("Android permission states do not confuse a first-time prompt with a blocked permission", () => {
-  assert.equal(permissionStateFromAndroid("granted"), "granted");
-  assert.equal(permissionStateFromAndroid("prompt"), "prompt");
-  assert.equal(permissionStateFromAndroid("prompt-with-rationale"), "prompt");
-  assert.equal(permissionStateFromAndroid("denied"), "denied");
-  assert.equal(permissionStateFromAndroid("unexpected"), "unknown");
+test("Android permission states keep prompts, known blocks, grants and unknown separate", () => {
+  for (const [raw, expected] of [
+    ["granted", "granted"], ["prompt", "prompt"], ["prompt-with-rationale", "prompt"],
+    ["denied", "denied"], ["unexpected", "unknown"], [undefined, "unknown"],
+  ]) assert.equal(permissionStateFromAndroid(raw), expected);
+  assert.equal(exactPermissionStateFromAndroid("granted"), "granted");
+  assert.equal(exactPermissionStateFromAndroid("denied"), "denied");
+  for (const raw of [undefined, "unexpected", "prompt"]) assert.equal(exactPermissionStateFromAndroid(raw), "unknown");
 });
 
-test("first-run invitation only appears once and never overrides an explicit opt-out", () => {
-  const base = { permission: "prompt", seen: false, explicitlyDisabled: false };
-  assert.equal(shouldShowPermissionOffer(base), true);
-  assert.equal(shouldShowPermissionOffer({ ...base, seen: true }), false);
-  assert.equal(shouldShowPermissionOffer({ ...base, explicitlyDisabled: true }), false);
-  assert.equal(shouldShowPermissionOffer({ ...base, permission: "denied" }), false);
-  assert.equal(shouldShowPermissionOffer({ ...base, permission: "granted" }), false);
-  assert.equal(shouldShowPermissionOffer({ ...base, permission: "unknown" }), false);
-});
-
-test("native permission invitation stays outside the website entrypoint", () => {
-  const native = readFileSync(new URL("../packaged-guest/main.tsx", import.meta.url), "utf8");
-  const website = readFileSync(new URL("../../app/page.tsx", import.meta.url), "utf8");
-  const ui = readFileSync(new URL("../../components/byeolharu.tsx", import.meta.url), "utf8");
-  assert.match(native, /onRequestPermission/);
-  assert.match(native, /onDismissPermissionOffer/);
-  assert.match(native, /PERMISSION_OFFER_SEEN_KEY/);
-  assert.match(ui, /nativeReminders\?\.showPermissionOffer/);
-  assert.doesNotMatch(website, /notification-permission-onboarding|LocalNotifications/);
-});
-
-
-test("habit editor first permission prompt requires eligible native onboarding, never startup", () => {
-  const ui = readFileSync(new URL("../../components/byeolharu.tsx", import.meta.url), "utf8");
-  const main = readFileSync(new URL("../packaged-guest/main.tsx", import.meta.url), "utf8");
-  assert.match(main, /showPermissionOffer: shouldShowPermissionOffer\(/);
-  assert.match(ui, /nativeFirstPermissionOffer=\{nativeReminders\?\.showPermissionOffer\}/);
-  assert.match(ui, /onRequestFirstPermission=\{nativeReminders\?\.onRequestPermission\}/);
-  assert.match(ui, /onDismissFirstPermission=\{nativeReminders\?\.onDismissPermissionOffer\}/);
-  assert.match(ui, /if \(!nativeFirstPermissionOffer \|\| !onRequestFirstPermission \|\| !onDismissFirstPermission\) return true/);
-  assert.match(ui, /title="습관 알림을 받아볼까요\?"/);
-  assert.match(ui, /cancelLabel="나중에"/);
-  assert.match(ui, /confirmLabel="알림 허용하기"/);
-  assert.doesNotMatch(ui, /className="android-permission-invite"/);
-});
-
-test("both first opt-in entry points await the same permission dialog", () => {
-  const ui = readFileSync(new URL("../../components/byeolharu.tsx", import.meta.url), "utf8");
-  assert.match(ui, /const enableNativeAlarm = async \(\) => \{\s*if \(!\(await promptForFirstPermission\(\)\)\) return false;\s*return Boolean\(await onEnsureNativeAlarm\?\.\(\)\)/);
-  assert.match(ui, /alarmEnabled = await enableNativeAlarm\(\)/); // default ON at timed habit save
-  assert.match(ui, /const enabled = await enableNativeAlarm\(\)/); // explicit habit alarm ON
-  assert.match(ui, /alarmPermissionDenied = !alarmEnabled/); // declined/denied -> saved OFF
-  assert.match(ui, /onCancel=\{\(\) => \{\s*onDismissFirstPermission\?\.\(\);\s*settleFirstPermissionPrompt\(false\)/);
-  assert.match(ui, /const granted = Boolean\(await onRequestFirstPermission\?\.\(\)\)/);
-});
-
-test("legacy devices do not repeat onboarding and explicit re-enabling remains available", () => {
-  const main = readFileSync(new URL("../packaged-guest/main.tsx", import.meta.url), "utf8");
-  assert.match(main, /setPermissionOfferSeen\(localStorage.getItem\(PERMISSION_OFFER_SEEN_KEY\) === "1" \|\| saved !== null\)/);
-  assert.match(main, /localStorage\.setItem\(PERMISSION_OFFER_SEEN_KEY, "1"\)/);
-  assert.match(main, /if \(current\.display === "denied"\)/); // confirmed action may navigate to Android settings
-  assert.match(main, /setPermissionState\(currentState\);/);
-  assert.match(main, /deviceSettings\.openNotificationSettings\(\)/);
-  assert.match(main, /const onEnabledChange = useCallback\(async \(next: boolean\)/);
-  assert.match(main, /LocalNotifications\.requestPermissions\(\)/);
-  const first = { permission: "prompt", seen: false, explicitlyDisabled: false };
-  assert.equal(shouldShowPermissionOffer(first), true);
-  for (const state of [
-    { ...first, seen: true },
-    { ...first, explicitlyDisabled: true },
-    { ...first, permission: "granted" },
-    { ...first, permission: "denied" },
-    { ...first, permission: "unknown" },
+test("initial empty-install check reads both permissions independently and never requests", async () => {
+  for (const [display, exact, expected] of [
+    ["prompt", "denied", { permissionState: "prompt", exactPermission: "denied" }],
+    [new Error("display"), "granted", { permissionState: "unknown", exactPermission: "granted" }],
+    ["granted", new Error("exact"), { permissionState: "granted", exactPermission: "unknown" }],
+    ["unexpected", "unexpected", { permissionState: "unknown", exactPermission: "unknown" }],
   ]) {
-    assert.equal(shouldShowPermissionOffer(state), false);
+    const calls = [];
+    const result = await readDeviceReminderPermissions({
+      async checkPermissions() {
+        calls.push("display");
+        if (display instanceof Error) throw display;
+        return { display };
+      },
+      async checkExactNotificationSetting() {
+        calls.push("exact");
+        if (exact instanceof Error) throw exact;
+        return { exact_alarm: exact };
+      },
+      requestPermissions() { assert.fail("must not request"); },
+      changeExactNotificationSetting() { assert.fail("must not open settings"); },
+    });
+    assert.deepEqual(result, expected);
+    assert.deepEqual(calls.sort(), ["display", "exact"]);
   }
+});
+
+const restored = {
+  permission: "prompt", exactPermission: "denied", seen: false, ready: true,
+  habitIntent: true, explicitlyDisabled: false, wrapupEnabled: false,
+};
+test("restored timed habit ON triggers one startup offer regardless of legacy device preference", () => {
+  assert.equal(startupPermissionOffer(restored), "display");
+  assert.equal(startupPermissionOffer({ ...restored, permission: "denied" }), "display");
+  assert.equal(startupPermissionOffer({ ...restored, permission: "granted" }), "exact");
+  assert.equal(startupPermissionOffer({ ...restored, permission: "granted", exactPermission: "granted" }), null);
+  assert.equal(startupPermissionOffer({ ...restored, permission: "granted", exactPermission: "unknown" }), null);
+  assert.equal(startupPermissionOffer({ ...restored, permission: "unknown" }), null);
+  for (const patch of [
+    { seen: true }, { seen: undefined }, { ready: false },
+    { habitIntent: false }, { explicitlyDisabled: true },
+  ]) assert.equal(startupPermissionOffer({ ...restored, ...patch }), null);
+  assert.equal(startupPermissionOffer({
+    ...restored, habitIntent: false, explicitlyDisabled: true, wrapupEnabled: true,
+  }), "display");
+});
+
+test("later related actions offer POST permission recovery even after dismissal or device OFF", () => {
+  for (const permission of ["prompt", "denied"]) {
+    assert.equal(shouldShowPermissionOffer({ permission, seen: true, explicitlyDisabled: true }), true);
+  }
+  for (const permission of ["granted", "unknown"]) assert.equal(shouldShowPermissionOffer({ permission }), false);
 });
 
 function permissionBridge(before, after) {
@@ -96,13 +87,15 @@ function permissionBridge(before, after) {
   return { bridge, calls };
 }
 
-test("already granted (including immediately after first offer) skips a duplicate OS request", async () => {
+test("already granted skips a duplicate OS request; checked state can be reused", async () => {
   const { bridge, calls } = permissionBridge("granted", new Error("must not request"));
   assert.deepEqual(await requestHabitReminderPermission(bridge), { permission: "granted", route: "enable" });
   assert.deepEqual(calls, ["check"]);
+  assert.deepEqual(await requestHabitReminderPermission(bridge, "granted"), { permission: "granted", route: "enable" });
+  assert.deepEqual(calls, ["check"]);
 });
 
-test("first or rationale prompt requests once and never opens settings on a fresh denial or dismissal", async () => {
+test("first or rationale prompt requests once, never routes a fresh denial or dismissal to Settings", async () => {
   for (const before of ["prompt", "prompt-with-rationale"]) {
     for (const [after, permission, route] of [
       ["granted", "granted", "enable"],
@@ -117,19 +110,15 @@ test("first or rationale prompt requests once and never opens settings on a fres
   }
 });
 
-test("a later deliberate ON after a known block can still recover permissions or open settings", async () => {
-  for (const [after, permission, route] of [
-    ["denied", "denied", "settings"], ["granted", "granted", "enable"],
-    ["prompt", "prompt", "declined"], [new Error("blocked"), "denied", "settings"],
-    ["unexpected", "unknown", "retry"],
-  ]) {
-    const { bridge, calls } = permissionBridge("denied", after);
-    assert.deepEqual(await requestHabitReminderPermission(bridge), { permission, route });
-    assert.deepEqual(calls, ["check", "request"]);
-  }
+test("a later deliberate action after a confirmed block offers Settings without another OS request", async () => {
+  const { bridge, calls } = permissionBridge("denied", new Error("must not request"));
+  assert.deepEqual(await requestHabitReminderPermission(bridge), { permission: "denied", route: "settings" });
+  assert.deepEqual(calls, ["check"]);
+  assert.deepEqual(await requestHabitReminderPermission(bridge, "denied"), { permission: "denied", route: "settings" });
+  assert.deepEqual(calls, ["check"]);
 });
 
-test("unknown permissions and bridge errors without a known block do not trigger settings", async () => {
+test("unknown permissions and bridge errors do not trigger settings", async () => {
   for (const [before, after, expectedCalls] of [
     [new Error("unavailable"), "granted", ["check"]],
     ["unexpected", "granted", ["check"]],
@@ -140,4 +129,24 @@ test("unknown permissions and bridge errors without a known block do not trigger
     assert.deepEqual(await requestHabitReminderPermission(bridge), { permission: "unknown", route: "retry" });
     assert.deepEqual(calls, expectedCalls);
   }
+});
+
+test("native permission checks, startup offer, scope readiness and later recovery stay in the Android entrypoint", () => {
+  const native = readFileSync(new URL("../packaged-guest/main.tsx", import.meta.url), "utf8");
+  const website = readFileSync(new URL("../../app/page.tsx", import.meta.url), "utf8");
+  const ui = readFileSync(new URL("../../components/byeolharu.tsx", import.meta.url), "utf8");
+  assert.match(native, /readDeviceReminderPermissions\(LocalNotifications\)/);
+  assert.match(native, /void refreshPermission\(\)/);
+  assert.match(native, /isReminderSnapshotReady\(next, memberUserId\)/);
+  assert.match(native, /snapshot\.current = ready \? next : null/);
+  assert.match(native, /startupPermissionOffer: startupOffer/);
+  assert.match(native, /onDismissStartupPermissionOffer: dismissPermissionOffer/);
+  assert.match(native, /localStorage\.setItem\(PERMISSION_OFFER_SEEN_KEY, "1"\)/);
+  assert.match(native, /permissionRevision\.current === revision/);
+  assert.match(native, /attemptDisplayPermission/);
+  assert.match(native, /changeExactNotificationSetting\(\)/);
+  assert.match(ui, /onCheckNativePermissions=/);
+  assert.match(ui, /startupPermissionOffer/);
+  assert.doesNotMatch(website, /notification-permission-onboarding|LocalNotifications/);
+  assert.doesNotMatch(ui, /className="android-permission-invite"/);
 });

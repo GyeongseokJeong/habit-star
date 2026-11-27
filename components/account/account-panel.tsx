@@ -16,6 +16,7 @@ import { AuthForm, type AuthMode } from "./auth-form";
 import { AccountSectionTitle } from "./account-design";
 import { accountFeedbackTone } from "./account-feedback-tone";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { useReminderPermissionGuide } from "@/components/reminder-permission-dialog";
 import type { ThemePreference } from "@/lib/theme-preference";
 
 const wrapupPeriods: { group: WrapupGroup; name: string; range: string; times: string[] }[] = [
@@ -78,14 +79,19 @@ export function AccountPanel({
 }) {
   const state = app.snapshot?.state;
   // Android silently reconciles pending alarms on launch, saved changes and resume.
-  // Surface only OS permissions that cannot be repaired without the user's tap.
+  // Settings is the user's explicit recovery surface even before a first habit.
+  // No missing permission is itself evidence that the user wants reminders.
   const wantsNativeReminders = Boolean(nativeReminders &&
     (nativeReminders.enabled ||
       Object.values(nativeReminders.wrapupSettings).some((period) => period.enabled)));
-  const displayPermissionNeeded = Boolean(wantsNativeReminders && nativeReminders &&
-    (nativeReminders.permissionState === "denied" || nativeReminders.permissionState === "prompt"));
-  const exactPermissionNeeded = Boolean(wantsNativeReminders && nativeReminders &&
-    nativeReminders.permissionState === "granted" && nativeReminders.exactPermission === "denied");
+  const displayPermissionNeeded = Boolean(nativeReminders && nativeReminders.permissionState !== "granted");
+  const exactPermissionNeeded = Boolean(nativeReminders &&
+    nativeReminders.permissionState === "granted" && nativeReminders.exactPermission !== "granted");
+  const permissionNeedsCheck = nativeReminders?.permissionState === "unknown" ||
+    (nativeReminders?.permissionState === "granted" && nativeReminders.exactPermission === "unknown");
+  const permissionGuide = useReminderPermissionGuide();
+  const currentAccount = useRef(app.user?.id ?? null);
+  currentAccount.current = app.user?.id ?? null;
   const [message, setMessage] = useState("");
   const [feedbackVisible, setFeedbackVisible] = useState(true);
   const accountFeedback = app.error || message;
@@ -187,6 +193,38 @@ export function AccountPanel({
     } finally {
       activeAction.current = null;
       setWorkingAction(null);
+    }
+  };
+
+  const changeWrapup = async (group: WrapupGroup, patch: { enabled?: boolean; time?: string }) => {
+    if (!nativeReminders) return;
+    const account = currentAccount.current;
+    const previous = nativeReminders.wrapupSettings[group];
+    const relevant = patch.enabled === true || (patch.time !== undefined && previous.enabled);
+    if (relevant) {
+      const checked = await nativeReminders.onCheckPermissions();
+      if (account !== currentAccount.current) return;
+      if (checked.permissionState === "unknown") throw Error("알림 권한을 확인하지 못했어요. 다시 시도해 주세요.");
+      if (checked.permissionState !== "granted" && !await permissionGuide.ask("display", checked.permissionState,
+        () => account === currentAccount.current ? nativeReminders.onRequestPermission() : Promise.resolve(false), nativeReminders.onDismissPermissionOffer)) {
+        if (account !== currentAccount.current) return;
+        setMessage(previous.enabled ? "기존 마무리 알림 설정은 유지했어요." : "마무리 알림은 꺼져 있어요. 습관 기록은 계속 사용할 수 있어요.");
+        return;
+      }
+    }
+    if (account !== currentAccount.current) return;
+    if (!await nativeReminders.onWrapupChange(group, patch)) {
+      throw Error(patch.time === undefined ? "알림 설정을 저장하지 못했어요. Android 알림 권한을 확인해 주세요." : "알림 시간을 변경하지 못했어요.");
+    }
+    // Save first using the ordinary scheduling path. Exact access is optional.
+    if (relevant && account === currentAccount.current) {
+      try {
+        const current = await nativeReminders.onCheckPermissions();
+        if (account === currentAccount.current && current.permissionState === "granted" && current.exactPermission === "denied") {
+          await permissionGuide.ask("exact", current.permissionState,
+            () => account === currentAccount.current ? nativeReminders.onRequestExactPermission() : Promise.resolve(false));
+        }
+      } catch { /* ordinary notifications and the saved choice remain available */ }
     }
   };
 
@@ -301,6 +339,7 @@ export function AccountPanel({
   }
   return (
     <div className="account-panel account-hub">
+      {permissionGuide.dialog}
       {pendingRestore && nativeBackup && (
         <ConfirmDialog
           title="백업을 복원할까요?"
@@ -468,19 +507,22 @@ export function AccountPanel({
             <div className="account-ui-card android-reminder-action-notice" role="group" aria-label="알림 설정 안내">
               <AlertCircle size={19} aria-hidden="true" className="android-permission-icon" />
               <span className="android-permission-text">
-                <strong>{displayPermissionNeeded ? "알림이 꺼져 있어요" : "정확한 시간 알림 설정"}</strong>
-                <small>{displayPermissionNeeded
-                  ? "알림을 받으려면 휴대폰에서 별하루 알림을 허용해 주세요."
-                  : "알림 시간을 더 정확히 맞추려면 기기에서 허용해 주세요."}</small>
+                <strong>{permissionNeedsCheck ? "알림 권한 확인" : displayPermissionNeeded
+                  ? (wantsNativeReminders ? "알림 권한이 필요해요" : "기기 알림 권한") : "정확 알림 설정"}</strong>
+                <small>{permissionNeedsCheck ? "현재 기기의 알림 권한을 다시 확인할 수 있어요." : displayPermissionNeeded
+                  ? (wantsNativeReminders ? "알림을 받으려면 휴대폰에서 별하루 알림을 허용해 주세요." : "알림을 사용할 때 기기 권한이 필요해요.")
+                  : "설정한 시간에 더 가깝게 알려드려요. 일반 알림은 계속 사용할 수 있어요."}</small>
               </span>
               <button type="button" className="secondary android-permission-action"
                 disabled={nativeReminders.busy || workingAction !== null || app.busy}
                 aria-busy={workingAction === (displayPermissionNeeded ? "device-permission" : "exact-permission")}
                 onClick={() => void runOnce(displayPermissionNeeded ? "device-permission" : "exact-permission", async () => {
-                  if (displayPermissionNeeded) await nativeReminders.onRequestPermission();
+                  if (permissionNeedsCheck) await nativeReminders.onCheckPermissions();
+                  else if (displayPermissionNeeded) await nativeReminders.onRequestPermission();
                   else await nativeReminders.onRequestExactPermission();
                 })}>
-                {displayPermissionNeeded ? "알림 허용" : "설정"}
+                {permissionNeedsCheck ? "다시 확인" : displayPermissionNeeded
+                  ? (nativeReminders.permissionState === "denied" ? "기기 설정 열기" : "알림 허용하기") : "정확 알림 설정"}
               </button>
               {!!nativeReminders.status && /실패|못했|확인해 주세요|허용해 주세요|차단/.test(nativeReminders.status) && (
                 <p className="android-permission-help" role="status">{nativeReminders.status}</p>
@@ -506,9 +548,7 @@ export function AccountPanel({
                         <select id={"wrapup-time-" + group} value={choice.time} disabled={!choice.enabled || working}
                           aria-label={name + " 마무리 알림 시간"}
                           onChange={(event) => void runOnce("wrapup-time-" + group, async () => {
-                            if (!await nativeReminders.onWrapupChange(group, { time: event.target.value })) {
-                              throw Error("알림 시간을 변경하지 못했어요.");
-                            }
+                            await changeWrapup(group, { time: event.target.value });
                           })}>
                           {times.map(time => <option key={time} value={time}>{time}</option>)}
                         </select>
@@ -517,9 +557,7 @@ export function AccountPanel({
                         aria-label={name + " 마무리 알림"} aria-checked={choice.enabled}
                         disabled={working} aria-busy={workingAction === "wrapup-" + group}
                         onClick={() => void runOnce("wrapup-" + group, async () => {
-                          if (!await nativeReminders.onWrapupChange(group, { enabled: !choice.enabled })) {
-                            throw Error("알림 설정을 저장하지 못했어요. Android 알림 권한을 확인해 주세요.");
-                          }
+                          await changeWrapup(group, { enabled: !choice.enabled });
                         })}>
                         <span className="compact-switch-track" aria-hidden="true"><span className="compact-switch-thumb" /></span>
                       </button>

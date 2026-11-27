@@ -52,7 +52,7 @@ test("three independent wrap-up settings keep user intent and reveal time only w
  assert.doesNotMatch(web,/onWrapupChange|localNotificationActionPerformed/);
 });
 
-test("release settings show help only for OS permission that needs a user action",()=>{
+test("release settings distinguish missing display, exact, and unknown OS permission",()=>{
  const settings=ui.slice(ui.indexOf('{page === "settings" && ('),ui.indexOf('{page === "help" && ('));
  const notice=settings.slice(settings.indexOf('android-reminder-action-notice'),settings.indexOf('android-wrapup-settings'));
  assert.match(ui,/const displayPermissionNeeded = Boolean/);
@@ -60,6 +60,12 @@ test("release settings show help only for OS permission that needs a user action
  assert.match(settings,/displayPermissionNeeded \|\| exactPermissionNeeded/);
  assert.match(notice,/onRequestPermission/);
  assert.match(notice,/onRequestExactPermission/);
+ assert.match(notice,/onCheckPermissions/);
+ assert.match(notice,/기기 설정 열기/);
+ assert.match(notice,/알림 허용하기/);
+ assert.match(notice,/정확 알림 설정/);
+ assert.match(notice,/기기 알림 권한/);
+ assert.match(notice,/일반 알림은 계속 사용할 수 있어요/);
  assert.match(notice,/aria-label="알림 설정 안내"/);
  assert.doesNotMatch(notice,/<ChevronRight/);
  assert.doesNotMatch(settings,/onInspectLatency|latencyStatus|최근 알림 지연 확인/);
@@ -87,26 +93,52 @@ test("account screens share design elements and no settings-only landscape",()=>
 });
 
 
-test("Android first habit reminder uses a one-time in-context modal, not a home banner", () => {
+test("Android restored and deliberate alarm actions use the shared confirmation, not a home banner", () => {
  const app=readFileSync(resolve(root,"components/byeolharu.tsx"),"utf8");
+ const guide=readFileSync(resolve(root,"components/reminder-permission-dialog.tsx"),"utf8");
  const confirm=readFileSync(resolve(root,"components/confirm-dialog.tsx"),"utf8");
  const native=readFileSync(resolve(root,"mobile/packaged-guest/main.tsx"),"utf8");
  assert.doesNotMatch(app,/className="android-permission-invite"/);
- assert.match(app,/title="습관 알림을 받아볼까요\?"/);
- assert.match(app,/cancelLabel="나중에"/);
- assert.match(app,/confirmLabel="알림 허용하기"/);
- assert.match(app,/primaryAction="confirm"/);
- assert.match(app,/onDismissFirstPermission\?\.\(\)/);
- assert.match(app,/nativeFirstPermissionOffer=\{nativeReminders\?\.showPermissionOffer\}/);
+ assert.match(guide,/습관 알림을 받아볼까요\?/);
+ assert.match(guide,/cancelLabel="나중에"/);
+ assert.match(guide,/confirmLabel=\{exact \? "정확 알림 설정" : permissionState === "denied" \? "기기 설정 열기" : "알림 허용하기"\}/);
+ assert.match(guide,/primaryAction="confirm"/);
+ assert.match(guide,/일반 알림은 받을 수 있어요/);
+ assert.match(guide,/앱 설정에서 정확 알림도 선택할 수 있어요/);
+ assert.match(guide,/pending\.current\?\.dismiss\?\.\(\)/);
+ assert.match(app,/const startupPermissionOpen = Boolean\(nativeReminders\?\.startupPermissionOffer/);
+ assert.match(app,/startupDataReady\(!!app.user, app.snapshot\)/);
+ assert.match(app,/!editing && !detailId && !accountOpen && !constellationOpen && !reflectionOpen/);
+ assert.match(app,/onDismissStartupPermissionOffer\(\)/);
+ assert.match(app,/onRequestStartupPermission\(\)/);
+ assert.match(app,/onCheckNativePermissions=\{nativeReminders\?\.onCheckPermissions\}/);
  assert.match(app,/onRequestFirstPermission=\{nativeReminders\?\.onRequestPermission\}/);
- assert.match(app,/if \(!\(await promptForFirstPermission\(\)\)\) return false/);
- assert.match(app,/alarmEnabled = await enableNativeAlarm\(\)/);
- assert.match(app,/const enabled = await enableNativeAlarm\(\)/);
+ assert.match(app,/onRequestNativeExactPermission=\{nativeReminders\?\.onRequestExactPermission\}/);
+ assert.match(app,/permissionGuide\.ask\("display"/);
+ assert.match(app,/permissionGuide\.ask\("exact"/);
+ assert.match(app,/if \(activateDevice && \(!nativeAlarmActive \|\| needsDisplay\) && !await onEnsureNativeAlarm\(\)\) return false/);
+ assert.match(app,/granted = await enableNativeAlarm\(!habit\?\.alarmEnabled && alarmCheckedTime.current === undefined\)/);
+ assert.match(app,/const enabled = await enableNativeAlarm\(true\)/);
+ assert.match(app,/alarmPermissionDeferred = Boolean\(habit\?\.alarmEnabled\)/);
+ assert.match(app,/nativeAlarmIntentEnabled && draft.scheduledTime !== habit.scheduledTime/);
+ assert.match(app,/if \(!isCurrentEditorScope\(\)\) return false/);
+ assert.match(app,/editorScope.current === scope/);
  assert.match(confirm,/primaryAction === "confirm"/);
  assert.match(confirm,/data-confirm-cancel/);
- assert.match(native,/shouldShowPermissionOffer\(/);
+ assert.match(native,/startupPermissionOffer/);
+ assert.match(native,/onCheckPermissions/);
  assert.match(native,/onDismissPermissionOffer: dismissPermissionOffer/);
  assert.doesNotMatch(css,/\.android-permission-invite\s*\{/);
+});
+
+test("wrap-up permission retry is deliberate and exact access cannot block the saved choice", () => {
+ const action=ui.slice(ui.indexOf("const changeWrapup = async"),ui.indexOf("const lastSyncAt"));
+ assert.match(action,/patch.enabled === true \|\| \(patch.time !== undefined && previous.enabled\)/);
+ assert.match(action,/onCheckPermissions\(\)/);
+ assert.match(action,/permissionGuide.ask\("display"/);
+ assert.match(action,/account !== currentAccount.current/);
+ assert.ok(action.indexOf("await nativeReminders.onWrapupChange") < action.indexOf('permissionGuide.ask("exact"'));
+ assert.match(action,/ordinary notifications and the saved choice remain available/);
 });
 
 test("sample cleanup uses one shared, non-destructive confirmation", () => {

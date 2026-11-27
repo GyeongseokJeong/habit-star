@@ -8,15 +8,23 @@ import type { WidgetPracticeCommand, WidgetPracticeResult } from "./widget-pract
  */
 export type WrapupGroup = "morning" | "day" | "night";
 export type WrapupSettings = Record<WrapupGroup, { enabled: boolean; time: string }>;
+export type DisplayPermissionState = "unknown" | "prompt" | "granted" | "denied";
+export type ExactPermissionState = "unknown" | "granted" | "denied";
+export type ReminderPermissionOffer = "display" | "exact";
+export type ReminderPermissionStates = { permissionState: DisplayPermissionState; exactPermission: ExactPermissionState };
 
 export type NativeReminderControls = {
   enabled: boolean;
   active: boolean;
-  permissionState: "unknown" | "prompt" | "granted" | "denied";
-  /** Android-first-run invitation, independent of the saved reminder switches. */
-  showPermissionOffer: boolean;
+  permissionState: DisplayPermissionState;
+  /** Once per installation, only for verified, restored reminder intent. */
+  startupPermissionOffer: ReminderPermissionOffer | null;
+  onDismissStartupPermissionOffer: () => void;
+  onRequestStartupPermission: () => Promise<boolean>;
+  /** Read both OS states without requesting permission or opening settings. */
+  onCheckPermissions: () => Promise<ReminderPermissionStates>;
   onRequestPermission: () => Promise<boolean>;
-  exactPermission: "unknown" | "granted" | "denied";
+  exactPermission: ExactPermissionState;
   onRequestExactPermission: () => Promise<boolean>;
   latencyStatus: string;
   onInspectLatency: () => Promise<void>;

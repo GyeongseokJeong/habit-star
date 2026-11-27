@@ -12,6 +12,22 @@ const mobile = fileURLToPath(new URL("../", import.meta.url));
 const moduleDir = resolve(mobile, "node_modules/@capacitor/local-notifications");
 const version = JSON.parse(readFileSync(join(moduleDir,"package.json"),"utf8")).version;
 assert.equal(version, "8.3.1", "Re-audit cold reminder transport on a notification dependency change");
+// The post-destroy worker lease is sound only for the pinned bridge's actual
+// worker lifecycle. Inspect the installed source alongside the real build;
+// public execute() shape alone would not establish that it uses the same
+// plugin handler or that destroy actually requests its termination.
+const capacitorDir=resolve(mobile,"node_modules/@capacitor/android");
+assert.equal(JSON.parse(readFileSync(join(capacitorDir,"package.json"),"utf8")).version,"8.6.2",
+  "Re-audit bridge worker lifecycle on a Capacitor Android dependency change");
+const capJava=join(capacitorDir,"capacitor/src/main/java/com/getcapacitor");
+const bridge=readFileSync(join(capJava,"Bridge.java"),"utf8");
+const bridgeActivity=readFileSync(join(capJava,"BridgeActivity.java"),"utf8");
+assert.match(bridge,/taskHandler\s*=\s*new Handler\(handlerThread\.getLooper\(\)\)/);
+assert.match(bridge,/public void callPluginMethod\([\s\S]*?Runnable currentThreadTask\s*=\s*\(\) -> \{[\s\S]*?plugin\.invoke\(methodName, call\)[\s\S]*?taskHandler\.post\(currentThreadTask\)/);
+assert.match(bridge,/public void execute\(Runnable runnable\)\s*\{\s*taskHandler\.post\(runnable\);\s*\}/);
+assert.match(bridge,/public void onDestroy\(\)\s*\{[\s\S]*?handlerThread\.quitSafely\(\)/);
+assert.match(bridgeActivity,/public void onDestroy\(\)\s*\{\s*super\.onDestroy\(\);\s*if\s*\(this\.bridge != null\)\s*\{\s*this\.bridge\.onDestroy\(\)/);
+console.log("PASS: pinned Capacitor Android bridge plugin worker lifecycle source contract");
 const gradle = process.env.GRADLE_USER_HOME || join(homedir(), ".gradle");
 const roots = [
   join(moduleDir, "android/build"),
