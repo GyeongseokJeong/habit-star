@@ -91,6 +91,8 @@ jobs:
       - name: Compile packaged guest APK
         run: ./gradlew assembleDebug --no-daemon
         working-directory: mobile/android
+      - name: Inspect compiled LocalNotifications API for cold widget transport
+        run: node mobile/scripts/inspect-cold-reminder-native-api.mjs
       - name: Assert compiled APK includes Android reboot receiver and notification permissions
         run: node mobile/scripts/check-guest-boot-manifest.mjs
       - name: Verify compiled debug APK identity, version, SDK and embedded source
