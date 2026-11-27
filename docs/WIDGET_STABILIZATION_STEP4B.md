@@ -35,3 +35,30 @@ Android/QA, 아키텍트/보안/data, PM/UX/사용자 독립 서브에이전트 
 | B08 | wrapup·미래·다른 습관/테마·위젯 V12.2 및 Release 읽기 전용 | 기존 계약 유지 |
 
 B01~B08은 4B-2 이후 실기기 인수 기준이다. 4B-1에서는 자동화와 binary API evidence만 해당한다. #189 및 출시 게이트는 open.
+
+---
+
+# STEP 4B-2 — Debug 종료 상태 알림의 실제 네이티브 연결
+
+기준 main `785e7bcc` (#227 병합). 4B-1 위 안전 계약에 실제 Debug 연동을 추가한다. **Release 직접 기록 비활성·V12.2 UI·원본/Outbox·회원 auth·wrapup 정책은 유지한다.** 사용자 습관 저장을 알림 성공으로 정의하지 않는다.
+
+## 설계 결정 / 실패 경계
+
+- 기존 `runColdWidgetPractice`의 repository commit 성공 이후만 실행. 새 저장소/토큰 복제/네트워크/Activity 호출/새 권한 요청 없음. 준비 단계는 같은 오프라인 WebView의 기존 poll에서 한 번만 native inventory를 요청한다. 응답 데이터는 JSON 문자열 전체를 인용하여 전달하고 다른 저장 알림은 ID만, 목표와 정확히 일치하는 payload만 반환한다. JavascriptInterface는 기존 allowed() 하나뿐.
+- native adapter는 request-local; 현재 claim/currentKey/동의, Debug, 동일 기본 application process의 main thread, **MainActivity가 한 번도 생성되지 않은 프로세스**에서만 예약 변경 허용. 과거 bridge executor가 남을 수 있는 Activity만 종료한 과정은 기록 저장 가능하더라도 알림 적용을 보류한다. prepare 후 repo load·generation·identity·prefs·day/revision 재확인; generation/revision이 바뀌거나 신선도를 확인 못하면 이전 summary/handle도 publish하지 않는다. wall 및 monotonic deadline을 WebView 시작에 고정, 시간대/clock drift 및 예정 2초 이내(취소도) 보수적 보류. 기존 6.5초 WebView timeout을 늘리지 않음.
+- 8.3.1 `NotificationStorage.getSavedNotificationIds/getSavedNotificationAsJSObject`로 매 key의 canonical 정수 ID와 decoded/parsed ID 대조. 전체 raw store·scheduled classification·visible IDs·권한(POST 및 exact)·기존 channel·실제 target PendingIntent token을 수집, 512개/512KiB 상한. 저장 목록만으로 예약 생성을 결정하지 않고 같은 inventory를 다시 읽어서 drift를 막음. 다른 습관·계정·미래·wrapup은 변경하지 않는다. Native owner/category/day/ID 및 title/body/schedule/fingerprint를 canonical 형태로 독립 재검증; Java UTF-16 FNV-1a와 JS 실제 planner의 16개 JVM vector 비교. [TimedNotificationPublisher](https://github.com/ionic-team/capacitor-local-notifications/blob/0fbde4878e97e9947d5413737252012befbab139/android/src/main/kotlin/com/capacitorjs/plugins/localnotifications/TimedNotificationPublisher.kt), [RestoreReceiver](https://github.com/ionic-team/capacitor-local-notifications/blob/0fbde4878e97e9947d5413737252012befbab139/android/src/main/kotlin/com/capacitorjs/plugins/localnotifications/LocalNotificationRestoreReceiver.kt)는 같은 프로세스의 동기 BroadcastReceiver. 최종 APK의 relevant component process 검증 추가.
+- 실제 변경은 `LocalNotificationManager.cancel(PluginCall)` (정확히 1 ID), `schedule(PluginCall,List)` (정확히 1 payload) → upstream `storage.appendNotifications`. 로컬 SingleCall에서 reject가 resolve/ID 반환에 우선하고 예외/읽기 결과를 검증한다. 신규 PendingIntent를 만들거나 취소하는 별도 구현/AlarmManager 직접 변경/private storage key 접근 없음. FLAG_NO_CREATE 조회만 pinned manager의 명시적 receiver/requestCode/flags와 일치. 이미 저장되지 않은 ID에 남은 token은 복구를 강행하지 않는다. restore 부분 실패 시 원래 비어 있었던 당일 target만 현재 소유/안전/동의가 유지될 때 best-effort 보상 cancel; 기록은 rollback하지 않음. foreground 기존 재조정은 보존.
+- **잔여 위험:** 실제 예약 OS·store apply는 원자적이지 않다. 특히 프로세스 사망이 manager.schedule과 저장 사이 발생하면 orphan token/알림이 남을 수 있고, 동일 fingerprint인데 token 없는 경우나 다른 계정/opt-out에서 orphan은 기존 foreground diff로 완전 복구된다고 보장하지 못한다. PendingIntent 존재 증거는 실제 AlarmManager 등록/수신 증거가 아니며, 권한/시각/OS delivery는 마지막 확인 이후에도 변할 수 있다. B01~B08 및 kill/boot/권한 실기기 확인 전 출시 직접 기록 gate 유지. 실기기에서 orphan/불일치가 관찰되면 추가 보상/복구 설계 전 Release 금지.
+- 저장 성공 & 알림 불확실/실패: 기존 위젯 summary 유효하면 publish 후 한 번 안내(기록은 저장, 알림은 앱에서 확인). summary가 신선하지 않으면 위젯과 알림 확인 통합 안내. opt-out/unconfigured/past/visible 아닌 already-absent/scheduled의 증거 충족/정상 계획 우선순위 제외/near-due/알림 권한 차단은 불필요 알림 경고 없음. 소유권/claim/기한 변경으로 저장 결과를 확정할 수 없는 종료는 기존 중립 안내. 새 UI/자동 권한 요청 없음.
+
+## 이해관계자 하네스 (android-native + data + implementation)
+
+- 1차 독립 Android/QA, architecture/security/data, PM/UX/user. 대안: A 기존 foreground만 유지(알림 즉시 조정 불가), B Activity/일반 Capacitor bridge/직접 AlarmManager(권한·원본·경쟁 위험), C offline request-bound polling + pinned native manager(채택). Android의 구체적 SDK API/PluginCall·storage append 계약, 보안의 다른 ID collision/redaction·부분 실패·MainActivity executor 경합, UX의 commit/알림 결과 분리·단일 안내를 채택. 구현/클린코드 관점: Key 분리, 기존 planner와 prefs key 공용, 오프라인 원본 write 재사용.
+- 2차 독립 코드 교차 검토. Android/QA exact Kotlin getter·call parser·PI identity·source checks 일치, JDK 없는 local JVM/실기기 N/E. 보안 P1 clock rollback: open 시 고정 monotonic deadline 수용, process manifest 검사 보강. UX/보안 stale summary 경합: 준비 실패 포함 fresh revision/generation 확인, stale이면 summary 미게시, 회귀 테스트 추가. 원본/Outbox 영향 없음(기존 저장 동작 유지), 다른 계정/범용 mutation transport 없음. 남은 hard-crash/OS evidence는 Debug에 한정하고 Release gate로 열어 둔다. 핵심 이견은 수정 및 재평가로 해소(현 Debug 범위의 신규 P0/P1 없음). 실제 연구 및 실기기 N/E.
+- 로컬 관련 Node plan/회귀 40개, native-template source contracts, manifest 두 테스트 실행. 전체 CI, compiled API, JVM identity vectors 및 APK/AAB 결과는 PR 확인. 원본 DB/운영/실제 기기 변경 없음.
+
+## B01~B08 확장 인수 (NOT RUN)
+- B01/B02: 테스트 guest/member, 예약 전 PID 종료(강제 중지 아님) 이후 위젯 cold 실행; 새 PID에서 MainActivity 미생성 확인. 저장/별점/메모/Outbox 유지, 선택된 당일 알림만 취소·재예약, 예정 시간 *실제* 미수신/수신, 다른 예약 및 wrapup·미래 보존. 기존 프로세스에서 MainActivity만 종료 시 실제 알림 작업 보류 및 앱에 돌아오면 기존 재조정.
+- B03/B04/B05: 같은 ID의 다른 owner/category, malformed key/decoded ID, orphan/missing token, visible/권한·channel·exact 변경, 48 cap 및 저장 상한, DST/자정/시계 역행, 2초 margin에서 변경 없음 또는 안전 보류. 정상 opt-out/정책 no-op 무경고.
+- B06/B07: manager 성공+storage 실패/읽기 실패, schedule 실패/compensation, native TTL/renderer 종료/Activity 시작/동의 철회/계정 전환/프로세스 kill/재부팅·Doze. 원본 저장 성공 vs 알림 결과별 단일 안내, stale summary 미게시, 중복 기록/자동 재시도/외부 알림 수정 금지. 실제 AlarmManager·수신·복구 결과 별도 확인. 업데이트 설치 시 기존 앱 삭제/데이터 초기화 금지.
+- B08: Release build에는 cold JS bundle 없음, Debug 실험 외 기존 V12.2 위젯 읽기 전용 및 일반 앱 알림 유지. STEP 4C 회원 실제 클라우드, 4D 통합 인수 및 #189/출시 gate는 열린 상태 유지.

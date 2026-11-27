@@ -1,6 +1,6 @@
 /** Compile-time evidence only: inspect the installed, compiled dependency
  * from the Debug build. No Android execution, private preference keys, app
- * records, reflection at runtime, or mutable native alarm bridge. */
+ * records, or reflection at runtime. The adapter is compiled separately. */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -66,6 +66,7 @@ try {
       ["getSchedule()", "()"+base+"LocalNotificationSchedule;"], ["isExactNotification()", "()Z"],
       ["getCancelled()", "()Z"],
     ]],
+    ["TimedNotificationPublisher",[[ "onReceive(android.content.Context, android.content.Intent)", "(Landroid/content/Context;Landroid/content/Intent;)V"]]],
     ["LocalNotificationSchedule",[
       ["getAt()", "()Ljava/util/Date;"], ["isPerpetual()", "()Z"], ["allowWhileIdle()", "()Z"],
     ]],

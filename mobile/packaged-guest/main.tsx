@@ -17,6 +17,7 @@ import type { PluginListenerHandle } from "@capacitor/core";
 import type { NativeReminderControls, WrapupSettings, WrapupGroup } from "../../lib/habits/native-reminder-controls";
 import type { TimeGroup } from "../../lib/habits/domain";
 import { parseHabitReminder, type HabitReminderNavigation } from "../../lib/habits/reminder-navigation";
+import { HABIT_REMINDER_OPT_IN_KEY, WRAPUP_REMINDER_STORAGE_PREFIX } from "./reminder-preferences";
 import { REMINDER_KIND } from "../notifications/reminder-plan.js";
 import { buildScopedReminderPlan } from "../notifications/scoped-reminder-runtime.js";
 import { mergeReminderLedger, measureReminderLatency, formatReminderDelay } from "../notifications/reminder-latency.js";
@@ -36,8 +37,8 @@ import { PERMISSION_OFFER_SEEN_KEY, permissionStateFromAndroid, shouldShowPermis
 
 // This module is bundled into the isolated Android guest APK only.
 // The website's Next.js entrypoint never imports Capacitor or native controls.
-const OPT_IN_KEY = "byeolharu_android_guest_reminders_optin_v1";
-const WRAPUP_STORAGE_KEY = "byeolharu_android_wrapup_reminders_v1:";
+const OPT_IN_KEY = HABIT_REMINDER_OPT_IN_KEY;
+const WRAPUP_STORAGE_KEY = WRAPUP_REMINDER_STORAGE_PREFIX;
 function readWrapupSettings(scope: string): WrapupSettings {
   const stored = localStorage.getItem(WRAPUP_STORAGE_KEY + scope);
   return normalizeWrapupSettings(stored ? JSON.parse(stored) : WRAPUP_DEFAULTS) as WrapupSettings;

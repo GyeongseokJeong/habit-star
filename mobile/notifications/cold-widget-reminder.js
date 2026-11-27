@@ -46,13 +46,13 @@ function nativeTarget(plan, id, day, exact) {
 }
 
 /**
- * STEP 4B-1: pure post-commit decision; not a native transport.
+ * STEP 4B: pure post-commit decision; external native adapter applies it.
  * Invoke only after the existing widget transaction returned "saved", while
  * the exact verified request is still valid. The complete inventory must be
  * obtained from the same native plugin store plus its visible/scheduled sets;
  * validate each actual storage key against its decoded ID before normalizing.
  * getPending() alone cannot prove ID availability or actual OS delivery.
- * A future adapter must revalidate request, revision, scope, day, prefs,
+ * The adapter must revalidate request, revision, scope, day, prefs,
  * permissions, inventory & time immediately before one native operation.
  * Never applies an entire rolling-horizon diff in the cold runtime.
  */
@@ -110,6 +110,7 @@ export function planColdWidgetReminder({ snapshot, command, memberId, optInRaw, 
     if (current && (!inventory.scheduled.has(id) ||
         (!sameOwner(current, ordinary) && !sameOwner(current, precise)))) return defer("occupied-id");
     if (command.completed) {
+      if (current && ordinary.schedule.at.getTime() <= now.getTime() + 2000) return defer("too-close");
       return current ? { kind: "cancel", expected: sameOwner(current, precise) ? precise : ordinary }
         : noop("already-absent");
     }

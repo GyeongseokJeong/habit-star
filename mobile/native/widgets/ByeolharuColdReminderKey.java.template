@@ -1,0 +1,18 @@
+package __PACKAGE__;
+
+/** Exact UTF-16 FNV-1a identity/fingerprint used by the shared JS planner.
+ * Kept free of Android I/O for a cross-language JVM vector check in CI. */
+final class ByeolharuColdReminderKey {
+    private static long hash(String input) {
+        int h=0x811c9dc5;
+        for(int i=0;i<input.length();i++)h=(h^input.charAt(i))*16777619;
+        return h&0xffffffffL;
+    }
+    static int id(String scope,String habit,String day) {
+        return 1000000000+(int)(hash(scope+":"+habit+":"+day)%900000000L);
+    }
+    static String fingerprint(String scope,String habit,String day,String title,String localTime,long at,boolean exact) {
+        return hash(habit+":"+day+":"+title+":"+localTime+":prefer-exact-v3")+":"+at+":"+scope+
+            (exact?":exact-v1":"");
+    }
+}

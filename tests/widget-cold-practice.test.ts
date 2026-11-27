@@ -9,6 +9,8 @@ import { SyncEngine, type CloudTransport, type SyncResult } from "../lib/habits/
 import type { Entity } from "../lib/habits/domain";
 import { planColdWidgetReminder } from "../mobile/notifications/cold-widget-reminder.js";
 import { buildScopedReminderPlan, diffScopedNotifications } from "../mobile/notifications/scoped-reminder-runtime.js";
+import { HABIT_REMINDER_OPT_IN_KEY, WRAPUP_REMINDER_STORAGE_PREFIX } from "../mobile/packaged-guest/reminder-preferences";
+import type { ColdReminderInventory } from "../mobile/packaged-guest/cold-reminder-transport";
 import type { toNativeNotification } from "../mobile/notifications/reminder-plan.js";
 
 const origin = "https://localhost";
@@ -200,6 +202,91 @@ describe("debug cold widget practice",()=>{
       vi.useRealTimers();
     }
   });
+  async function setupAlarm(member: boolean) {
+    const ctx=await setup(member);
+    const before=await ctx.r.load();
+    const habit=before.habits[0];
+    await ctx.r.update(habit.id,{alarmEnabled:true,scheduledTime:"20:00"});
+    const snap=await ctx.r.load();
+    const projection=buildWidgetActionProjection(snap,ctx.id);
+    const generation=newWidgetCommandGeneration(projection.summary!);
+    const recovered=await recoverableWidgetProjection(projection,generation);
+    await writeWidgetCommandGeneration(origin,generation);
+    const booked:ReturnType<typeof toNativeNotification>[]=diffScopedNotifications([],buildScopedReminderPlan(
+      {day:snap.day,timeZone:ctx.id?snap.state.timezone:undefined,habits:snap.habits},
+      {scope:ctx.r.scope,now:new Date(),daysAhead:2,habitOptIn:true}),{exact:true}).schedule;
+    const target=booked.find(n=>n.extra.day===snap.day)!;
+    const inventory=(rows:typeof booked):ColdReminderInventory=>({permissionGranted:true,exact:true,
+      queue:{saved:JSON.parse(JSON.stringify(rows)),storedIds:rows.map(n=>n.id),scheduledIds:rows.map(n=>n.id),visibleIds:[]}});
+    return {...ctx, key:recovered.summary!.rows[0].actionKey!, habit, snap, booked, target, inventory,generation};
+  }
+
+  for(const member of [false,true]) it("runs the request-scoped reminder decision after the real commit, member="+member,async()=>{
+    vi.useFakeTimers({toFake:["Date"]});vi.setSystemTime(new Date(2026,10,25,8,0,0));
+    const f=await setupAlarm(member);
+    try {
+      const prepare=vi.fn(async (target: {scope:string;habitId:string;day:string;completed:boolean})=>{
+        expect(target).toMatchObject({scope:f.r.scope,habitId:f.habit.id,day:f.snap.day,completed:true});
+        expect((await f.r.load()).habits[0]).toMatchObject({completed:true,rating:5,memo:"보존"});
+        return f.inventory(f.booked);
+      });
+      const input={origin,actionKey:f.key,deadline:Date.now()+7500,storage:storage(f.values),nativeAllowed:()=>true};
+      const saved=await runColdWidgetPractice({...input,reminderTransport:{prepare}});
+      expect(prepare).toHaveBeenCalledTimes(1);
+      expect(saved.status).toBe("saved");
+      expect(saved.summary?.rows[0].completed).toBe(true);
+      expect(saved.alarm).toEqual({kind:"cancel",expected:f.target});
+      const restore=vi.fn(async()=>f.inventory(f.booked.filter(n=>n.id!==f.target.id)));
+      const undone=await runColdWidgetPractice({...input,actionKey:saved.summary!.rows[0].actionKey!,
+        reminderTransport:{prepare:restore}});
+      expect(restore).toHaveBeenCalledTimes(1);
+      expect(undone.status).toBe("saved");
+      expect(undone.summary?.rows[0].completed).toBe(false);
+      expect(undone.alarm).toEqual({kind:"restore",notification:f.target});
+      expect((await f.r.load()).habits[0]).toMatchObject({completed:false,rating:0,memo:"보존"});
+      expect((await f.r.state()).outbox).toHaveLength(f.snap.state.outbox.length+(member?2:0));
+    }finally{f.r.close();await writeWidgetCommandGeneration(origin,null);vi.useRealTimers();}
+  });
+
+  for(const failure of ["transport","preferences","generation","revision","transport-race","owner","permission","opt-out"]) it("keeps a committed record separate from reminder "+failure,async()=>{
+    vi.useFakeTimers({toFake:["Date"]});vi.setSystemTime(new Date(2026,10,25,8,0,0));
+    const f=await setupAlarm(true);
+    try {
+      if(failure==="opt-out") f.values[HABIT_REMINDER_OPT_IN_KEY]="0";
+      const prepare=vi.fn(async()=>{
+        if(failure==="transport")throw Error("native_unavailable");
+        if(failure==="preferences") f.values[WRAPUP_REMINDER_STORAGE_PREFIX+f.r.scope]=JSON.stringify({night:{enabled:true,time:"22:00"}});
+        if(failure==="generation") await writeWidgetCommandGeneration(origin,f.generation);
+        if(failure==="revision"||failure==="transport-race") await f.r.update(f.habit.id,{memo:"변경"});
+        if(failure==="transport-race") throw Error("native_unavailable");
+        if(failure==="owner") f.values[verified]=crypto.randomUUID();
+        const inv=f.inventory(f.booked);
+        if(failure==="permission") inv.permissionGranted=false;
+        return inv;
+      });
+      const result=await runColdWidgetPractice({origin,actionKey:f.key,deadline:Date.now()+7500,
+        storage:storage(f.values),nativeAllowed:()=>true,reminderTransport:{prepare}});
+      expect(result.status).toBe("saved");
+      expect((await f.r.load()).habits[0]).toMatchObject({completed:true,rating:5,memo:(failure==="revision"||failure==="transport-race")?"변경":"보존"});
+      expect((await f.r.state()).outbox).toHaveLength(f.snap.state.outbox.length+((failure==="revision"||failure==="transport-race")?2:1));
+      if(failure==="opt-out") {
+        expect(prepare).not.toHaveBeenCalled();
+        expect(result.alarm).toEqual({kind:"noop",reason:"opted-out-or-unconfigured"});
+      }else if(failure==="owner"){
+        expect(result.summary).toBeUndefined();
+        expect(result.alarm).toBeUndefined();
+      }else if(failure==="generation"||failure==="revision"||failure==="transport-race"){
+        expect(prepare).toHaveBeenCalledTimes(1);
+        expect(result.summary).toBeUndefined();
+        expect(result.alarm).toEqual({kind:"defer",reason:"stale-commit"});
+      }else{
+        expect(prepare).toHaveBeenCalledTimes(1);
+        expect(result.summary?.rows[0].completed).toBe(true);
+        expect(result.alarm?.kind).toBe("defer");
+      }
+    }finally{f.r.close();await writeWidgetCommandGeneration(origin,null);vi.useRealTimers();}
+  });
+
   it("never guesses guest from partial or corrupt session",()=>{
     const id=crypto.randomUUID();
     expect(coldWidgetIdentity(storage())?.memberId).toBeNull();

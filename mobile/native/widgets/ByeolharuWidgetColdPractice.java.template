@@ -3,6 +3,7 @@ package __PACKAGE__;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.webkit.JavascriptInterface;
 import android.webkit.RenderProcessGoneDetail;
 import android.webkit.WebResourceRequest;
@@ -14,13 +15,19 @@ import org.json.JSONTokener;
 import java.io.InputStream;
 import java.util.Scanner;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Debug-only detached, same-origin runtime. The bridge exposes only a
- * request-bound permission check; no identifiers, data or token methods. */
+ * request-bound permission check; the result poll owns the one-shot alarm
+ * preparation/application and exposes no general native write methods. */
 final class ByeolharuWidgetColdPractice {
     private static final String ORIGIN="https://localhost/";
     private static final AtomicInteger ACTIVITIES=new AtomicInteger();
-    static void activityStarted(){ACTIVITIES.incrementAndGet();}
+    private static final AtomicBoolean ACTIVITY_EVER_CREATED=new AtomicBoolean();
+    static void activityStarted(){ACTIVITY_EVER_CREATED.set(true);ACTIVITIES.incrementAndGet();}
+    // A stopped/destroyed bridge might still have a plugin executor in flight.
+    // Only a process that never created MainActivity can mutate alarms cold.
+    static boolean reminderProcessExclusive(){return !ACTIVITY_EVER_CREATED.get()&&!hasActivity();}
     static void activityStopped(){ACTIVITIES.updateAndGet(n->Math.max(0,n-1));}
     static boolean hasActivity(){return ACTIVITIES.get()>0 || ByeolharuDeviceSettingsPlugin.hasWidgetActivity();}
 
@@ -29,7 +36,9 @@ final class ByeolharuWidgetColdPractice {
     private final long deadline;
     private final Handler handler=new Handler(Looper.getMainLooper());
     private WebView view;
-    private boolean finished,started;
+    private boolean finished,started,prepareSeen;
+    private long reminderDeadline,reminderElapsedDeadline;
+    private ByeolharuColdReminder reminders;
     private final Runnable timeout=()->finish(null);
     private final Runnable poll=this::readResult;
 
@@ -51,6 +60,8 @@ final class ByeolharuWidgetColdPractice {
     private void open(){
         long remaining=Math.min(6500L,deadline-System.currentTimeMillis()-300L);
         if(remaining<=0){finish(null);return;}
+        reminderDeadline=System.currentTimeMillis()+remaining;
+        reminderElapsedDeadline=SystemClock.elapsedRealtime()+remaining;
         handler.postDelayed(timeout,remaining);
         try(InputStream input=context.getAssets().open("public/widget-cold-runtime.js");
             Scanner scanner=new Scanner(input,"UTF-8")){
@@ -69,7 +80,7 @@ final class ByeolharuWidgetColdPractice {
                     if(finished||started)return;
                     if(!ORIGIN.equals(url)||!ByeolharuWidgetProvider.coldAllowed(context,requestId)){finish(null);return;}
                     started=true;
-                    v.evaluateJavascript(script+"\n;window.__byeolharuColdStart("+JSONObject.quote(key)+","+deadline+");",ignored->{
+                    v.evaluateJavascript(script+"\n;window.__byeolharuColdStart("+JSONObject.quote(key)+","+deadline+","+reminderDeadline+");",ignored->{
                         if(!finished)handler.postDelayed(poll,100L);
                     });
                 }
@@ -83,13 +94,46 @@ final class ByeolharuWidgetColdPractice {
         if(finished||view==null)return;
         if(!ByeolharuWidgetProvider.coldAllowed(context,requestId)){finish(null);return;}
         try{
-            view.evaluateJavascript("window.__byeolharuColdResult || null",value->{
+            view.evaluateJavascript("({result:window.__byeolharuColdResult||null,prepare:window.__byeolharuColdPrepare||null})",value->{
                 if(finished)return;
-                if(value==null||"null".equals(value)){handler.postDelayed(poll,150L);return;}
+                if(!ByeolharuWidgetProvider.coldAllowed(context,requestId)){finish(null);return;}
                 try{
                     Object parsed=new JSONTokener(value).nextValue();
-                    if(parsed instanceof JSONObject) finish(new JSObject(parsed.toString()));
-                    else finish(null);
+                    if(!(parsed instanceof JSONObject)){finish(null);return;}
+                    JSONObject message=(JSONObject)parsed;
+                    JSONObject result=message.optJSONObject("result");
+                    if(result!=null){
+                        boolean alarmCheck=false;
+                        if("saved".equals(result.optString("status")) && result.has("alarm")){
+                            JSONObject decision=result.optJSONObject("alarm");
+                            // Even a no-op can be decided without a native prepare.
+                            // A mutated inventory or invalid claim only defers the
+                            // alarm, never the committed habit.
+                            try {
+                                if(reminders==null) reminders=new ByeolharuColdReminder(context,reminderDeadline,reminderElapsedDeadline,
+                                    ()->ByeolharuWidgetProvider.coldAllowed(context,requestId));
+                                alarmCheck=reminders.needsAppCheck(decision);
+                            } catch(RuntimeException e){alarmCheck=true;}
+                        }
+                        result.remove("alarm");
+                        result.put("alarmCheckNeeded",alarmCheck);
+                        finish(new JSObject(result.toString()));
+                        return;
+                    }
+                    JSONObject prepare=message.optJSONObject("prepare");
+                    if(prepare!=null&&!prepareSeen){
+                        prepareSeen=true;
+                        JSObject inventory=null;
+                        try {
+                            reminders=new ByeolharuColdReminder(context,reminderDeadline,reminderElapsedDeadline,
+                                ()->ByeolharuWidgetProvider.coldAllowed(context,requestId));
+                            inventory=reminders.prepare(prepare);
+                        }catch(RuntimeException ignored){}
+                        String json=inventory==null?"null":inventory.toString();
+                        // Quote the entire response; habit text is never JS source.
+                        if(view!=null)view.evaluateJavascript("window.__byeolharuColdPrepared&&window.__byeolharuColdPrepared("+JSONObject.quote(json)+")",ignored->{});
+                    }
+                    handler.postDelayed(poll,150L);
                 }catch(Exception e){finish(null);}
             });
         }catch(RuntimeException e){finish(null);}
@@ -97,6 +141,7 @@ final class ByeolharuWidgetColdPractice {
     private void finish(JSObject result){
         if(finished)return;finished=true;
         handler.removeCallbacks(timeout);handler.removeCallbacks(poll);
+        reminders=null;
         WebView old=view;view=null;
         if(old!=null){try{old.removeJavascriptInterface("ByeolharuColdGate");old.destroy();}catch(RuntimeException ignored){}}
         if(result!=null)ByeolharuWidgetProvider.completeCold(context,requestId,result);
