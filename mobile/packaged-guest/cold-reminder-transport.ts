@@ -7,6 +7,8 @@ import { HABIT_REMINDER_OPT_IN_KEY, WRAPUP_REMINDER_STORAGE_PREFIX } from "./rem
 export type ColdReminderTarget = {
   scope: string; day: string; habitId: string; timeZone: string; completed: boolean;
 };
+/** Completion inventory is scoped to its one target ID; undo still
+ * requires the entire queue for the rolling capacity/ownership checks. */
 export type ColdReminderInventory = {
   permissionGranted: boolean; exact: boolean;
   queue: { storedIds: number[]; scheduledIds: number[]; visibleIds: number[]; saved: unknown[] };

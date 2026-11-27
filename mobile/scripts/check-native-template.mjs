@@ -465,9 +465,17 @@ assert.match(bridgeLease,/lease\.worker==null\|\|lease\.ambiguous\)return WORKER
 assert.match(bridgeLease,/if\(!outstanding\.isEmpty\(\)\)return WORKER_DRAINING/);
 assert.match(coldJava,/ByeolharuWidgetBridgeLease\.NEW_PROCESS\.equals\(state\)\|\|ByeolharuWidgetBridgeLease\.DRAINED_PROCESS\.equals\(state\)/);
 assert.match(coldJava,/boolean alarmCheck=saved/);
-assert.match(coldJava,/else if\(saved\) Log\.i\(TAG,"cold-alarm apply=missing-decision"\)/);
+assert.match(coldJava,/else if\(saved\) \{alarmDiagnostic="missing-decision";Log\.i\(TAG,"cold-alarm apply=missing-decision"\)/);
 assert.doesNotMatch(bridgeLease+coldJava,/\.join\(|Thread\.sleep\(|getAllStackTraces\(|getDeclaredField\(/);
 assert.match(coldJava,/if\(prepare!=null&&!prepareSeen\)/);
+assert.match(coldJava,/if\(mayWaitForWorker\(reminderProcessState\(\),now,prepareWaitUntil,reminderElapsedDeadline\)\)\{\s*handler.postDelayed\(poll,100L\);return;\s*\}\s*prepareSeen=true/);
+assert.match(coldJava,/if\(prepareWaitUntil==0L\)prepareWaitUntil=now\+1000L/);
+assert.match(coldJava,/WORKER_DRAINING\.equals\(state\) &&\s*now<waitUntil && deadline-now>750L/);
+assert.match(coldReminder,/inventoryKeys\(storage.getSavedNotificationIds\(\),target.id,target.completed\)/);
+assert.match(coldReminder,/if\(!completed\)return keys/);
+assert.match(coldReminder,/if\(target.completed\) \{\s*if\(visible.contains\(target.id\)\)q.visible.add\(target.id\);\s*\} else q.visible.addAll\(visible\)/);
+assert.match(coldJava,/completeCold\(context,requestId,result,alarmDiagnostic\)/);
+assert.match(widget,/experimental\(c\)&&alarmDiagnostic!=null&&alarmDiagnostic.matches/);
 assert.match(coldJava,/JSONObject\.quote\(json\)/);
 assert.match(coldJava,/"saved"\.equals\(result\.optString\("status"\)\)/);
 assert.match(coldTs,/saved = true;[\s\S]*decideCommittedColdReminder/);

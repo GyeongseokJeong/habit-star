@@ -41,8 +41,9 @@ final class ByeolharuWidgetColdPractice {
     private final Handler handler=new Handler(Looper.getMainLooper());
     private WebView view;
     private boolean finished,started,prepareSeen;
-    private long reminderDeadline,reminderElapsedDeadline;
+    private long reminderDeadline,reminderElapsedDeadline,prepareWaitUntil;
     private ByeolharuColdReminder reminders;
+    private String alarmDiagnostic="";
     private final Runnable timeout=()->{Log.i(TAG,"cold-alarm result=deadline");finish(null);};
     private final Runnable poll=this::readResult;
 
@@ -94,6 +95,14 @@ final class ByeolharuWidgetColdPractice {
             view.loadDataWithBaseURL(ORIGIN,"<!doctype html><html><head><meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; connect-src 'none'; base-uri 'none'; form-action 'none'\"></head><body></body></html>","text/html","UTF-8",null);
         }catch(RuntimeException | java.io.IOException e){finish(null);}
     }
+    // A swipe from Recents can leave a known worker draining briefly.
+    // Wait only for that provable transitional state, never for an unknown
+    // worker or live Activity. Keep enough of the existing cold deadline
+    // for the single prepare/result exchange and the final native check.
+    private static boolean mayWaitForWorker(String state,long now,long waitUntil,long deadline){
+        return ByeolharuWidgetBridgeLease.WORKER_DRAINING.equals(state) &&
+            now<waitUntil && deadline-now>750L;
+    }
     private void readResult(){
         if(finished||view==null)return;
         if(!ByeolharuWidgetProvider.coldAllowed(context,requestId)){finish(null);return;}
@@ -121,9 +130,10 @@ final class ByeolharuWidgetColdPractice {
                                 if(reminders==null) reminders=new ByeolharuColdReminder(context,reminderDeadline,reminderElapsedDeadline,
                                     ()->ByeolharuWidgetProvider.coldAllowed(context,requestId));
                                 alarmCheck=reminders.needsAppCheck(decision);
-                                Log.i(TAG,"cold-alarm apply="+reminders.diagnosticReason());
-                            } catch(RuntimeException e){alarmCheck=true;Log.i(TAG,"cold-alarm apply=exception");}
-                        } else if(saved) Log.i(TAG,"cold-alarm apply=missing-decision");
+                                alarmDiagnostic=reminders.diagnosticReason();
+                                Log.i(TAG,"cold-alarm apply="+alarmDiagnostic);
+                            } catch(RuntimeException e){alarmCheck=true;alarmDiagnostic="exception";Log.i(TAG,"cold-alarm apply=exception");}
+                        } else if(saved) {alarmDiagnostic="missing-decision";Log.i(TAG,"cold-alarm apply=missing-decision");}
                         result.remove("alarm");
                         result.put("alarmCheckNeeded",alarmCheck);
                         finish(new JSObject(result.toString()));
@@ -131,6 +141,11 @@ final class ByeolharuWidgetColdPractice {
                     }
                     JSONObject prepare=message.optJSONObject("prepare");
                     if(prepare!=null&&!prepareSeen){
+                        long now=SystemClock.elapsedRealtime();
+                        if(prepareWaitUntil==0L)prepareWaitUntil=now+1000L;
+                        if(mayWaitForWorker(reminderProcessState(),now,prepareWaitUntil,reminderElapsedDeadline)){
+                            handler.postDelayed(poll,100L);return;
+                        }
                         prepareSeen=true;
                         JSObject inventory=null;
                         try {
@@ -154,7 +169,7 @@ final class ByeolharuWidgetColdPractice {
         reminders=null;
         WebView old=view;view=null;
         if(old!=null){try{old.removeJavascriptInterface("ByeolharuColdGate");old.destroy();}catch(RuntimeException ignored){}}
-        if(result!=null)ByeolharuWidgetProvider.completeCold(context,requestId,result);
+        if(result!=null)ByeolharuWidgetProvider.completeCold(context,requestId,result,alarmDiagnostic);
         else ByeolharuWidgetProvider.complete(context,requestId,"not-ready");
     }
 }

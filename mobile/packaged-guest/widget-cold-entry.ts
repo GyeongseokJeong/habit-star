@@ -20,7 +20,9 @@ window.__byeolharuColdStart = (actionKey, deadline, nativeDeadline) => {
       // One read-only prepare response through the existing result poll.
       // No JavascriptInterface method accepts IDs, payloads or mutations.
       prepare: target => new Promise<ColdReminderInventory | null>(resolve => {
-        const remaining=Math.min(1000, nativeDeadline-Date.now()-500);
+        // Allow a known, briefly draining native worker to finish, but
+        // leave time for the post-prepare fresh snapshot and final apply.
+        const remaining=Math.min(2300, nativeDeadline-Date.now()-500);
         if (remaining<=0) { resolve(null); return; }
         const finish=(value: ColdReminderInventory | null)=>{
           clearTimeout(timer);
