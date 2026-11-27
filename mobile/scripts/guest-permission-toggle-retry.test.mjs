@@ -29,8 +29,8 @@ test("visible Android reminder switch reflects actual OS ability, not only saved
   // Native preferences remain distinct from a momentary OS permission toggle.
   assert.match(entry,/localStorage\.setItem\(OPT_IN_KEY, next \? "1" : "0"\)/);
 });
-test("turning visible switch ON re-requests permission then opens Android settings if blocked",()=>{
-  assert.match(entry,/LocalNotifications\.requestPermissions\(\)/);
+test("turning visible switch ON checks permission and opens settings only for previously blocked recovery",()=>{
+  assert.match(entry,/await requestHabitReminderPermission\(LocalNotifications\)/);
   assert.match(entry,/if \(!granted\) \{/);
   assert.match(entry,/deviceSettings\.openNotificationSettings\(\)/);
   assert.match(native,/Settings\.ACTION_APP_NOTIFICATION_SETTINGS/);
@@ -63,7 +63,8 @@ test("denied OS permission cannot silently clear opt-in, native queue or habit d
   assert.ok(start>=0 && end>start);
   const denial=entry.slice(start,end);
   assert.doesNotMatch(denial,/localStorage\.setItem|schedule\(|lifecycle\.disable\(|setEnabled\(false\)/);
-  assert.match(entry,/if \(!granted\) \{\s*try/);
+  assert.match(denial,/if \(attempt\.route === "settings"\) \{\s*try/);
+  assert.match(denial,/else if \(attempt\.route === "declined"\)/);
   assert.match(account,/알림을 받으려면 휴대폰에서 별하루 알림을 허용해 주세요./);
   assert.match(account,/aria-label="알림 설정 안내"/);
   assert.doesNotMatch(account,/aria-checked=\{nativeReminders\.active\}/);

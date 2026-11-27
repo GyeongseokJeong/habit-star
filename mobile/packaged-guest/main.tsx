@@ -31,7 +31,7 @@ import { repairGuestReminders } from "../notifications/guest-reminder-repair.js"
 import { reminderPermissionPresentation } from "../notifications/guest-reminder-permission-view.js";
 import { reminderSwitchChecked, canManuallyRepairGuestReminders } from "../notifications/guest-reminder-switch-state.js";
 import { effectiveHabitReminderOptIn, hasConfiguredHabitReminders } from "../notifications/habit-reminder-intent.js";
-import { PERMISSION_OFFER_SEEN_KEY, permissionStateFromAndroid, shouldShowPermissionOffer } from "../notifications/notification-permission-onboarding.js";
+import { PERMISSION_OFFER_SEEN_KEY, permissionStateFromAndroid, shouldShowPermissionOffer, requestHabitReminderPermission } from "../notifications/notification-permission-onboarding.js";
 
 
 // This module is bundled into the isolated Android guest APK only.
@@ -386,17 +386,30 @@ function GuestNativeApp() {
     setBusy(true);
     try {
       const current = await LocalNotifications.checkPermissions();
+      const currentState = permissionStateFromAndroid(current.display);
+      setPermissionState(currentState);
+      if (currentState === "unknown") {
+        setStatus("알림 권한을 확인하지 못했어요. 다시 시도해 주세요.");
+        return false;
+      }
       if (current.display === "denied") {
         // The Android dialog might no longer be available. Open Settings only
         // because the user deliberately selected the permission action.
-        try { await deviceSettings?.openNotificationSettings(); }
-        catch { setStatus("휴대폰 설정 → 앱 → 별하루 → 알림에서 허용해 주세요."); }
+        try {
+          if (!deviceSettings) throw new Error("Android settings bridge unavailable");
+          await deviceSettings.openNotificationSettings();
+        } catch { setStatus("휴대폰 설정 → 앱 → 별하루 → 알림에서 허용해 주세요."); }
         return false;
       }
       const result = current.display === "granted"
         ? current : await LocalNotifications.requestPermissions();
-      setPermissionState(permissionStateFromAndroid(result.display));
-      if (result.display !== "granted") {
+      const resultState = permissionStateFromAndroid(result.display);
+      setPermissionState(resultState);
+      if (resultState === "unknown") {
+        setStatus("알림 권한을 확인하지 못했어요. 다시 시도해 주세요.");
+        return false;
+      }
+      if (resultState !== "granted") {
         setStatus("알림을 허용하지 않아도 습관 기록은 계속 사용할 수 있어요.");
         return false;
       }
@@ -406,7 +419,8 @@ function GuestNativeApp() {
       });
       return true;
     } catch {
-      setStatus("알림 권한을 확인하지 못했어요. 앱 설정에서 다시 시도해 주세요.");
+      setPermissionState("unknown");
+      setStatus("알림 권한을 확인하지 못했어요. 다시 시도해 주세요.");
       return false;
     } finally {
       busyRef.current = false;
@@ -460,26 +474,24 @@ function GuestNativeApp() {
           setStatus("오늘 습관 기록을 준비한 후 다시 시도해 주세요.");
           return false;
         }
-        // The toggle is visually OFF when Android denies permission even if
-        // the user's previous opt-in remains saved. A new ON press may attempt
-        // the runtime permission request, then open the *actual* Android app
-        // settings if that system prompt is no longer available.
-        let granted = false;
-        try {
-          const permission = await LocalNotifications.requestPermissions();
-          granted = permission.display === "granted";
-        } catch {
-          // Some OS versions throw rather than return "denied" once
-          // notifications have been blocked in the Android app settings.
-        }
-        setPermissionState(granted ? "granted" : "denied");
+        // An already-granted OS permission needs no second request. A fresh
+        // denial or dismissal must not send the user straight to Settings.
+        const attempt = await requestHabitReminderPermission(LocalNotifications);
+        const granted = attempt.route === "enable";
+        setPermissionState(permissionStateFromAndroid(attempt.permission));
         if (!granted) {
-          try {
-            if (!deviceSettings) throw new Error("Android settings bridge unavailable");
-            await deviceSettings.openNotificationSettings();
-            setStatus("휴대폰 알림 설정에서 별하루 알림을 허용해 주세요.");
-          } catch {
-            setStatus("휴대폰 설정 → 앱 → 별하루 → 알림에서 허용해 주세요.");
+          if (attempt.route === "settings") {
+            try {
+              if (!deviceSettings) throw new Error("Android settings bridge unavailable");
+              await deviceSettings.openNotificationSettings();
+              setStatus("휴대폰 알림 설정에서 별하루 알림을 허용해 주세요.");
+            } catch {
+              setStatus("휴대폰 설정 → 앱 → 별하루 → 알림에서 허용해 주세요.");
+            }
+          } else if (attempt.route === "declined") {
+            setStatus("알림을 허용하지 않아도 습관 기록은 계속 사용할 수 있어요.");
+          } else {
+            setStatus("알림 권한을 확인하지 못했어요. 다시 시도해 주세요.");
           }
           return false;
         }
