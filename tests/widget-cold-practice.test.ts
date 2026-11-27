@@ -7,7 +7,9 @@ import { readWidgetCommandGeneration, writeWidgetCommandGeneration } from "../mo
 import { coldWidgetIdentity, runColdWidgetPractice } from "../mobile/packaged-guest/widget-cold-practice";
 import { SyncEngine, type CloudTransport, type SyncResult } from "../lib/habits/sync";
 import type { Entity } from "../lib/habits/domain";
-import { buildScopedReminderPlan } from "../mobile/notifications/scoped-reminder-runtime.js";
+import { planColdWidgetReminder } from "../mobile/notifications/cold-widget-reminder.js";
+import { buildScopedReminderPlan, diffScopedNotifications } from "../mobile/notifications/scoped-reminder-runtime.js";
+import type { toNativeNotification } from "../mobile/notifications/reminder-plan.js";
 
 const origin = "https://localhost";
 const auth = "byeolharu_android_auth_v1", verified = "byeolharu_verified_user";
@@ -135,6 +137,10 @@ describe("debug cold widget practice",()=>{
         {scope,now:new Date(),daysAhead:2,habitOptIn:true},
       );
       const hasToday=(s:typeof before)=>plan(s).notifications.some(n=>n.day===s.day&&n.habitId===habit.id);
+      const booked: ReturnType<typeof toNativeNotification>[] = diffScopedNotifications([], plan(before), {exact:true}).schedule;
+      const target=booked.find(n=>n.extra.day===before.day&&n.extra.habitId===habit.id)!;
+      const inventory=(saved:typeof booked)=>({saved, storedIds:saved.map(n=>n.id), scheduledIds:saved.map(n=>n.id), visibleIds:[]});
+      const reminderArgs={memberId:id, optInRaw:"1", wrapupRaw:null, permissionGranted:true, exact:true, now:new Date()};
       expect(hasToday(before)).toBe(true);
       const projected=buildWidgetActionProjection(before,id);
       const generation=newWidgetCommandGeneration(projected.summary!);
@@ -151,6 +157,11 @@ describe("debug cold widget practice",()=>{
       expect(after.habits[0]).toMatchObject({completed:true,rating:5,memo:"보존"});
       expect(after.state.outbox).toHaveLength(1);
       expect(hasToday(after)).toBe(false);
+      // The decision sees the actual committed IndexedDB snapshot, but does
+      // not run a native alarm call. Scope/day/revision are from the command.
+      const command=[...projected.commands.values()].find(c=>c.habitId===habit.id)!;
+      expect(planColdWidgetReminder({...reminderArgs,snapshot:after,command,queue:inventory(booked)}))
+        .toEqual({kind:"cancel",expected:target});
       expect(plan(after).notifications.some(n=>n.day!==after.day&&n.habitId===habit.id)).toBe(true);
       const opId=after.state.outbox[0].id;
       loseAck=true;
@@ -177,6 +188,9 @@ describe("debug cold widget practice",()=>{
       const undone=await resumed.load();
       expect(undone.habits[0]).toMatchObject({completed:false,rating:0,memo:"보존"});
       expect(hasToday(undone)).toBe(true);
+      const undoCommand=[...undoProjection.commands.values()].find(c=>c.habitId===habit.id)!;
+      expect(planColdWidgetReminder({...reminderArgs,snapshot:undone,command:undoCommand,
+        queue:inventory(booked.filter(n=>n.id!==target.id))})).toEqual({kind:"restore",notification:target});
       await new SyncEngine(resumed,cloud).run();
       expect((await resumed.state()).outbox).toEqual([]);
       expect([...remote.values()].find(e=>e.kind==="habit_entries"&&e.id===habit.id&&e.day===undone.day)?.data).toMatchObject({completed:false,rating:0,memo:"보존"});
