@@ -99,15 +99,22 @@ jobs:
         run: node mobile/scripts/check-guest-boot-manifest.mjs
       - name: Verify compiled debug APK identity, version, SDK and embedded source
         run: node mobile/scripts/check-android-artifact.mjs apk mobile/android/app/build/outputs/apk/debug/app-debug.apk "$ANDROID_HOME/build-tools/36.0.0/aapt"
+      - name: Record verified debug APK signature and checksums
+        run: |
+          apk_dir=mobile/android/app/build/outputs/apk/debug
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$apk_dir/app-debug.apk"
+          cp mobile/www-packaged-guest/build-info.json "$apk_dir/"
+          (cd "$apk_dir" && sha256sum app-debug.apk build-info.json > SHA256SUMS)
       - name: Upload packaged guest APK and build provenance
         uses: actions/upload-artifact@v4
         with:
           name: byeolharu-android-packaged-guest-step9-debug
           path: |
             mobile/android/app/build/outputs/apk/debug/app-debug.apk
-            mobile/www-packaged-guest/build-info.json
+            mobile/android/app/build/outputs/apk/debug/build-info.json
+            mobile/android/app/build/outputs/apk/debug/SHA256SUMS
           if-no-files-found: error
-          retention-days: 3
+          retention-days: 7
 
   release-bundle:
     runs-on: ubuntu-latest
@@ -180,6 +187,7 @@ jobs:
             --out "$signed" "$aligned"
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$signed"
           node mobile/scripts/check-android-artifact.mjs apk "$signed" "$ANDROID_HOME/build-tools/36.0.0/aapt"
+          node mobile/scripts/check-guest-boot-manifest.mjs "$signed"
           sha256sum "$signed"
       - name: Record verified release artifact provenance and checksums
         run: |

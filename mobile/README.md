@@ -14,7 +14,8 @@
 GitHub Actions의 [Android Shell PoC](https://github.com/GyeongseokJeong/habit-star/actions/workflows/android-poc.yml) 워크플로를 `main`에서 **Run workflow**로 실행합니다. 일반 `main` push는 웹 CI만 실행하며 Android는 PR 검증 또는 수동 빌드로 생성됩니다.
 
 - Android CI: `android-packaged-guest-step9`(Debug), `release-bundle`(미서명 AAB 및 테스트 서명 APK), 별도 승인된 main 수동 실행의 `sign-internal`(Play 업로드 키 서명)
-- Artifact: `byeolharu-android-packaged-guest-step9-debug`, 안에 디버그 APK와 `build-info.json` 포함
+- Artifact: `byeolharu-android-packaged-guest-step9-debug`, 안에 디버그 APK, `build-info.json`, `SHA256SUMS` 포함(7일 보관)
+- APK/AAB 실제 manifest debuggable 값, 원본 staging과 패키징 자산 바이트 일치, variant별 cold runtime 존재 여부를 검증합니다. APK SHA256SUMS 및 같은 실행의 build-info를 확인하고 [STEP 4D 실기기 인수표](../docs/WIDGET_STABILIZATION_STEP4D.md)를 사용하세요.
 - 앱 설정 화면 하단에 Android 버전과 빌드 SHA 표시. PR의 SHA는 검증용 임시 병합 커밋일 수 있음. Web 버전은 루트 package.json에서 독립 관리합니다.
 
 ## 로컬 빌드 (Node 24.22.1, pnpm 11.25.0)
