@@ -15,7 +15,7 @@ description: 별하루 배포/출시/Publish 준비 시 변경 파일, GitHub CI
 
 ## 실행 절차
 
-변경 파일과 데이터 영향, CI SHA와 verify/cloud 상태, `pnpm build`·프로덕션 브라우저 테스트를 확인한다. 인증/RLS·환경변수 노출·기존 PWA 앱 셸 캐시/오프라인 재진입과 순차 DB 적용을 검토한다. 백업·복구·중단 기준 및 기존 v0.app Publish 준비 상태를 기록한다.
+변경 파일과 데이터 영향, CI SHA와 verify/cloud 상태, `pnpm build`·프로덕션 브라우저 테스트를 확인한다. 인증/RLS·환경변수 노출·기존 PWA 앱 셸 캐시/오프라인 재진입과 순차 DB 적용을 검토한다. 백업·복구·중단 기준 및 기존 v0.app Publish 준비 상태를 기록한다. 하네스 release route(특히 QA·보안)와 Android 앱 출시는 android modifier를 적용한다. Android에서는 대상 소스/빌드 SHA, APK/AAB·패키지/SDK/versionCode/versionName, 테스트/Play 서명·기존 설치 업데이트 경로, 앱 데이터 보존 및 필수 실기기/권한·위젯/알림 검증 증거를 확인한다. 테스트 서명 APK와 Play 설치본의 서명 호환성을 가정하지 않는다. QA·보안·Android의 미해결 P0/P1/필수 게이트는 배포 보류로 기록한다.
 
 ## 금지 사항
 
