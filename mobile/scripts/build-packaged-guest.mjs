@@ -14,6 +14,7 @@ const mobile = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const root = resolve(mobile, "..");
 const out = resolve(mobile, "www-packaged-guest");
 const provenance = sourceBuildInfo(root, true);
+const widgetDirectPractice = provenance.widgetPractice !== "read-only";
 // Public API settings only. Never package secret/service-role credentials.
 const publicAuth = JSON.parse(readFileSync(resolve(mobile, "public-auth-config.json"), "utf8"));
 assert.match(publicAuth.supabaseUrl, /^https:\/\/[a-z0-9-]+\.supabase\.co$/);
@@ -46,7 +47,8 @@ await build({
     "process.env.NODE_ENV": '"production"',
     "process.env.NEXT_PUBLIC_APP_VERSION": JSON.stringify(provenance.version),
     "process.env.NEXT_PUBLIC_BUILD_SHA": JSON.stringify(provenance.sourceSha),
-    "process.env.NEXT_PUBLIC_ANDROID_RELEASE": JSON.stringify(process.env.BYEOLHARU_ANDROID_RELEASE === "1" ? "true" : "false"),
+    "process.env.NEXT_PUBLIC_ANDROID_RELEASE": JSON.stringify(provenance.variant === "release" ? "true" : "false"),
+    "process.env.NEXT_PUBLIC_ANDROID_WIDGET_DIRECT_PRACTICE": JSON.stringify(widgetDirectPractice ? "true" : "false"),
     "process.env.NEXT_PUBLIC_ANDROID_PACKAGED_GUEST": '"true"',
     "process.env.NEXT_PUBLIC_CLOUD_ENABLED": '"true"',
     "process.env.NEXT_PUBLIC_SUPABASE_URL": JSON.stringify(publicAuth.supabaseUrl),
@@ -59,8 +61,9 @@ await build({
   },
   logLevel:"info",
 });
-// Isolated offline runtime: debug only, no React mount, network or Auth client.
-if (process.env.BYEOLHARU_ANDROID_RELEASE !== "1") {
+// Isolated offline runtime: Debug or explicit test-only release candidate.
+// No React mount, network or Auth client.
+if (widgetDirectPractice) {
   await build({
     absWorkingDir: root,
     entryPoints: [resolve(mobile, "packaged-guest/widget-cold-entry.ts")],

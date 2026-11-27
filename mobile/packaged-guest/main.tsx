@@ -51,9 +51,10 @@ type ReminderIdentity =
   | { kind: "member"; userId: string; verified: true };
 const reminderIdentityKey = (value: ReminderIdentity) =>
   value.kind === "guest" ? "guest" : "member:" + value.userId;
-const experimentalWidgetPractice = isAndroid && process.env.NEXT_PUBLIC_ANDROID_RELEASE !== "true";
+const widgetDirectPractice = isAndroid && process.env.NEXT_PUBLIC_ANDROID_WIDGET_DIRECT_PRACTICE === "true";
+const debugWidgetProbe = isAndroid && process.env.NEXT_PUBLIC_ANDROID_RELEASE !== "true";
 // Debug-only synthetic marker; no habit, identity, session, or cloud data.
-if (experimentalWidgetPractice) void seedWidgetRuntimeProbe(window.location.origin).catch(() => {});
+if (debugWidgetProbe) void seedWidgetRuntimeProbe(window.location.origin).catch(() => {});
 type WidgetPracticeRequest = { requestId: string; actionKey: string; deadline: number };
 type DeviceSettings = {
   addListener: (event: "widgetPracticeRequest", listener: (request: WidgetPracticeRequest) => void) => Promise<PluginListenerHandle>;
@@ -261,7 +262,7 @@ function GuestNativeApp() {
     return () => { if (widgetHandler.current === handler) widgetHandler.current = null; };
   }, []);
   useEffect(() => {
-    if (!experimentalWidgetPractice || !deviceSettings) return;
+    if (!widgetDirectPractice || !deviceSettings) return;
     const bridge = deviceSettings;
     let disposed = false;
     const listener = bridge.addListener("widgetPracticeRequest", async request => {
@@ -290,7 +291,7 @@ function GuestNativeApp() {
       // when the asynchronous native publication finishes.
       widgetCommands.current.clear();
       try {
-        if (experimentalWidgetPractice && next) {
+        if (widgetDirectPractice && next) {
           const projection = buildWidgetActionProjection(next, memberUserId);
           summary = projection.summary ?? summary;
           commands = projection.commands;
@@ -299,7 +300,7 @@ function GuestNativeApp() {
       widgetCommands.current = commands;
       widgetQueue.current = widgetQueue.current.catch(() => {}).then(async () => {
         if (widgetCommands.current !== commands) return;
-        if (experimentalWidgetPractice) {
+        if (widgetDirectPractice) {
           // Serialize generation replacement before publishing corresponding
           // handles. Warm dispatch uses this in-memory map; the isolated
           // debug cold runtime re-derives them from committed state.
@@ -767,7 +768,7 @@ function GuestNativeApp() {
         startupPermissionOffer: startupOffer, onDismissStartupPermissionOffer: dismissPermissionOffer, onRequestStartupPermission, onCheckPermissions,
         onRequestPermission, onDismissPermissionOffer: dismissPermissionOffer, diagnostic, auditStatus, repairAvailable, repairStatus, wrapupSettings, onWrapupChange,
         onInspectPending, onAuditPending, onRepairPending, onEnabledChange, onSnapshot,
-        registerWidgetPractice: experimentalWidgetPractice ? registerWidgetPractice : undefined }
+        registerWidgetPractice: widgetDirectPractice ? registerWidgetPractice : undefined }
     : undefined;
   return <Byeolharu nativeReminders={nativeReminders} nativeShare={isAndroid ? shareStarlightPngOnAndroid : undefined} nativeBackupExport={isAndroid ? exportGuestBackupOnAndroid : undefined} nativeAuthReturn={isAndroid ? nativeAuthReturn : undefined} nativeReminderNavigation={isAndroid ? wrapupNavigation : null} nativeHabitNavigation={isAndroid ? habitNavigation : null} />;
 }

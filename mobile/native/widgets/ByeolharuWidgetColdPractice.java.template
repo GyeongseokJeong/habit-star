@@ -51,7 +51,7 @@ final class ByeolharuWidgetColdPractice {
         context=c.getApplicationContext();this.requestId=requestId;this.key=key;this.deadline=deadline;
     }
     static void start(Context c,String requestId,String key,long deadline){
-        if(!ByeolharuWidgetProvider.experimental(c)||hasActivity()||
+        if(!ByeolharuWidgetProvider.directPracticeEnabled(c)||hasActivity()||
             !ByeolharuWidgetProvider.coldAllowed(c,requestId)){
             ByeolharuWidgetProvider.complete(c,requestId,"not-ready");return;
         }
