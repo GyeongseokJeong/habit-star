@@ -40,8 +40,8 @@ export function startupPermissionOffer({
 }) {
   if (seen !== false || ready !== true ||
       !((habitIntent === true && explicitlyDisabled !== true) || wrapupEnabled === true)) return null;
-  if (shouldShowPermissionOffer({ permission })) return "display";
-  if (permission === "granted" && exactPermission === "denied") return "exact";
+  if (shouldShowPermissionOffer({ permission })) return "setup";
+  if (permission === "granted" && exactPermission === "denied") return "setup";
   return null;
 }
 
@@ -71,4 +71,57 @@ export async function requestHabitReminderPermission(localNotifications, checked
   if (permission === "unknown") return { permission, route: "retry" };
   // Respect a fresh OS dismissal or denial. No automatic Settings redirect.
   return { permission, route: "declined" };
+}
+
+/** Single deliberate setup session. Neither an OS activity launch nor an
+ * ActivityResult is permission consent. Read both OS states after every return.
+ * The caller owns the in-flight lock, scope generation, foreground guard and
+ * scheduling. Exact access is optional; it never gates ordinary reminders. */
+export async function runReminderPermissionSetup({
+  localNotifications, read, openDisplaySettings, checkForeground, waitForForeground, isCurrent,
+}) {
+  const interrupted = { status: "interrupted", displayGranted: false };
+  const result = (status, permissions) => ({
+    status, displayGranted: permissions?.permissionState === "granted",
+  });
+  const canContinue = async () => isCurrent() && await checkForeground() && isCurrent();
+  if (!await canContinue()) return interrupted;
+  let current = await read();
+  if (!await canContinue()) return interrupted;
+  const attempt = await requestHabitReminderPermission(localNotifications, current.permissionState);
+  if (!isCurrent()) return interrupted;
+  if (attempt.route === "declined") {
+    await read();
+    return result("declined");
+  }
+  if (attempt.route === "retry") return result("retry");
+  if (attempt.route === "settings") {
+    try {
+      if (!await canContinue()) return interrupted;
+      await openDisplaySettings();
+    } catch { return result("settings-error"); }
+  }
+  if (!await waitForForeground() || !isCurrent()) return interrupted;
+  current = await read();
+  if (!await canContinue()) return interrupted;
+  if (current.permissionState !== "granted") {
+    return result(current.permissionState === "unknown" ? "retry" : "declined");
+  }
+  if (current.exactPermission === "granted") return result("complete", current);
+  if (current.exactPermission !== "denied") return result("exact-unknown", current);
+
+  // Same explicit CTA, same verified scope, freshly read display grant,
+  // and a foreground check after that read, not just before its bridge I/O.
+  let exactFailed = false;
+  try { await localNotifications.changeExactNotificationSetting(); }
+  catch { exactFailed = true; }
+  if (!await waitForForeground() || !isCurrent()) return interrupted;
+  current = await read();
+  if (!await canContinue()) return interrupted;
+  if (current.permissionState !== "granted") {
+    return result(current.permissionState === "unknown" ? "retry" : "declined");
+  }
+  if (current.exactPermission === "granted") return result("complete", current);
+  if (exactFailed) return result("exact-error", current);
+  return result(current.exactPermission === "denied" ? "ordinary" : "exact-unknown", current);
 }

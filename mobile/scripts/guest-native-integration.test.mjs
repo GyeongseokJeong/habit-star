@@ -13,7 +13,8 @@ test("only bundled guest entrypoint imports native Capacitor reminders", () => {
   assert.match(entry, /createReminderLifecycle/);
   assert.match(entry, /const OPT_IN_KEY/);
   const permission = read("mobile/notifications/notification-permission-onboarding.js");
-  assert.match(entry, /await requestHabitReminderPermission\(LocalNotifications, checked.permissionState\)/);
+  assert.match(entry, /await runReminderPermissionSetup\(\{/);
+  assert.match(permission, /await requestHabitReminderPermission\(localNotifications, current.permissionState\)/);
   assert.match(permission, /localNotifications\.requestPermissions\(\)/);
   assert.doesNotMatch(entry, /LocalNotifications\.requestPermissions\(\)/);
   assert.match(entry, /identity = \{ kind: "guest"/);

@@ -92,6 +92,16 @@ export function AccountPanel({
   const permissionGuide = useReminderPermissionGuide();
   const currentAccount = useRef(app.user?.id ?? null);
   currentAccount.current = app.user?.id ?? null;
+  const settingsPageCurrent = useRef({ page, account: currentAccount.current });
+  if (settingsPageCurrent.current.page !== page || settingsPageCurrent.current.account !== currentAccount.current) {
+    settingsPageCurrent.current = { page, account: currentAccount.current };
+  }
+  const settingsMounted = useRef(false);
+  useEffect(() => { settingsMounted.current = true; return () => { settingsMounted.current = false; }; }, []);
+  const captureSettingsScope = () => {
+    const context = settingsPageCurrent.current;
+    return () => settingsMounted.current && context.page === "settings" && settingsPageCurrent.current === context;
+  };
   const [message, setMessage] = useState("");
   const [feedbackVisible, setFeedbackVisible] = useState(true);
   const accountFeedback = app.error || message;
@@ -199,32 +209,30 @@ export function AccountPanel({
   const changeWrapup = async (group: WrapupGroup, patch: { enabled?: boolean; time?: string }) => {
     if (!nativeReminders) return;
     const account = currentAccount.current;
+    const isSettingsCurrent = captureSettingsScope();
     const previous = nativeReminders.wrapupSettings[group];
     const relevant = patch.enabled === true || (patch.time !== undefined && previous.enabled);
     if (relevant) {
       const checked = await nativeReminders.onCheckPermissions();
-      if (account !== currentAccount.current) return;
+      if (account !== currentAccount.current || !isSettingsCurrent()) return;
       if (checked.permissionState === "unknown") throw Error("알림 권한을 확인하지 못했어요. 다시 시도해 주세요.");
-      if (checked.permissionState !== "granted" && !await permissionGuide.ask("display", checked.permissionState,
-        () => account === currentAccount.current ? nativeReminders.onRequestPermission() : Promise.resolve(false), nativeReminders.onDismissPermissionOffer)) {
-        if (account !== currentAccount.current) return;
-        setMessage(previous.enabled ? "기존 마무리 알림 설정은 유지했어요." : "마무리 알림은 꺼져 있어요. 습관 기록은 계속 사용할 수 있어요.");
-        return;
+      if (checked.permissionState !== "granted" || checked.exactPermission === "denied") {
+        const accepted = await permissionGuide.ask(checked,
+          isCurrent => nativeReminders.onRequestPermission(() => isCurrent() && isSettingsCurrent() && account === currentAccount.current),
+          nativeReminders.onDismissPermissionOffer);
+        if (account !== currentAccount.current || !isSettingsCurrent()) return;
+        if ((checked.permissionState !== "granted" && !accepted) ||
+            (await nativeReminders.onCheckPermissions()).permissionState !== "granted") {
+          setMessage(previous.enabled ? "기존 마무리 알림 설정은 유지했어요." : "마무리 알림은 꺼져 있어요. 습관 기록은 계속 사용할 수 있어요.");
+          return;
+        }
       }
     }
-    if (account !== currentAccount.current) return;
+    if (account !== currentAccount.current || !isSettingsCurrent()) return;
+    // Exact access is optional, so either successful display-only result or
+    // a full grant can save the explicit wrap-up choice.
     if (!await nativeReminders.onWrapupChange(group, patch)) {
       throw Error(patch.time === undefined ? "알림 설정을 저장하지 못했어요. Android 알림 권한을 확인해 주세요." : "알림 시간을 변경하지 못했어요.");
-    }
-    // Save first using the ordinary scheduling path. Exact access is optional.
-    if (relevant && account === currentAccount.current) {
-      try {
-        const current = await nativeReminders.onCheckPermissions();
-        if (account === currentAccount.current && current.permissionState === "granted" && current.exactPermission === "denied") {
-          await permissionGuide.ask("exact", current.permissionState,
-            () => account === currentAccount.current ? nativeReminders.onRequestExactPermission() : Promise.resolve(false));
-        }
-      } catch { /* ordinary notifications and the saved choice remain available */ }
     }
   };
 
@@ -507,22 +515,22 @@ export function AccountPanel({
             <div className="account-ui-card android-reminder-action-notice" role="group" aria-label="알림 설정 안내">
               <AlertCircle size={19} aria-hidden="true" className="android-permission-icon" />
               <span className="android-permission-text">
-                <strong>{permissionNeedsCheck ? "알림 권한 확인" : displayPermissionNeeded
-                  ? (wantsNativeReminders ? "알림 권한이 필요해요" : "기기 알림 권한") : "정확 알림 설정"}</strong>
+                <strong>알림 권한</strong>
                 <small>{permissionNeedsCheck ? "현재 기기의 알림 권한을 다시 확인할 수 있어요." : displayPermissionNeeded
-                  ? (wantsNativeReminders ? "알림을 받으려면 휴대폰에서 별하루 알림을 허용해 주세요." : "알림을 사용할 때 기기 권한이 필요해요.")
-                  : "설정한 시간에 더 가깝게 알려드려요. 일반 알림은 계속 사용할 수 있어요."}</small>
+                  ? (wantsNativeReminders ? "알림을 받으려면 휴대폰에서 별하루 알림을 허용해 주세요." : "알림을 사용할 때 휴대폰 권한이 필요해요.") +
+                    (nativeReminders.exactPermission !== "granted" ? " 알림 허용 후 기기 설정 화면이 이어질 수 있어요." : "")
+                  : "알림은 받을 수 있지만 설정한 시간보다 늦어질 수 있어요."}</small>
               </span>
               <button type="button" className="secondary android-permission-action"
+                aria-label={permissionNeedsCheck ? "알림 권한 다시 확인" : "알림 권한 설정하기"}
                 disabled={nativeReminders.busy || workingAction !== null || app.busy}
-                aria-busy={workingAction === (displayPermissionNeeded ? "device-permission" : "exact-permission")}
-                onClick={() => void runOnce(displayPermissionNeeded ? "device-permission" : "exact-permission", async () => {
+                aria-busy={workingAction === "device-permission"}
+                onClick={() => void runOnce("device-permission", async () => {
+                  const isSettingsCurrent = captureSettingsScope();
                   if (permissionNeedsCheck) await nativeReminders.onCheckPermissions();
-                  else if (displayPermissionNeeded) await nativeReminders.onRequestPermission();
-                  else await nativeReminders.onRequestExactPermission();
+                  else await nativeReminders.onRequestPermission(isSettingsCurrent);
                 })}>
-                {permissionNeedsCheck ? "다시 확인" : displayPermissionNeeded
-                  ? (nativeReminders.permissionState === "denied" ? "기기 설정 열기" : "알림 허용하기") : "정확 알림 설정"}
+                {permissionNeedsCheck ? "다시 확인" : "설정하기"}
               </button>
               {!!nativeReminders.status && /실패|못했|확인해 주세요|허용해 주세요|차단/.test(nativeReminders.status) && (
                 <p className="android-permission-help" role="status">{nativeReminders.status}</p>

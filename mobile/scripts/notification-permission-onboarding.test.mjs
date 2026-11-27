@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   permissionStateFromAndroid, exactPermissionStateFromAndroid, shouldShowPermissionOffer,
-  startupPermissionOffer, readDeviceReminderPermissions, requestHabitReminderPermission,
+  startupPermissionOffer, readDeviceReminderPermissions, requestHabitReminderPermission, runReminderPermissionSetup,
 } from "../notifications/notification-permission-onboarding.js";
 
 test("Android permission states keep prompts, known blocks, grants and unknown separate", () => {
@@ -48,9 +48,9 @@ const restored = {
   habitIntent: true, explicitlyDisabled: false, wrapupEnabled: false,
 };
 test("restored timed habit ON triggers one startup offer regardless of legacy device preference", () => {
-  assert.equal(startupPermissionOffer(restored), "display");
-  assert.equal(startupPermissionOffer({ ...restored, permission: "denied" }), "display");
-  assert.equal(startupPermissionOffer({ ...restored, permission: "granted" }), "exact");
+  assert.equal(startupPermissionOffer(restored), "setup");
+  assert.equal(startupPermissionOffer({ ...restored, permission: "denied" }), "setup");
+  assert.equal(startupPermissionOffer({ ...restored, permission: "granted" }), "setup");
   assert.equal(startupPermissionOffer({ ...restored, permission: "granted", exactPermission: "granted" }), null);
   assert.equal(startupPermissionOffer({ ...restored, permission: "granted", exactPermission: "unknown" }), null);
   assert.equal(startupPermissionOffer({ ...restored, permission: "unknown" }), null);
@@ -60,7 +60,7 @@ test("restored timed habit ON triggers one startup offer regardless of legacy de
   ]) assert.equal(startupPermissionOffer({ ...restored, ...patch }), null);
   assert.equal(startupPermissionOffer({
     ...restored, habitIntent: false, explicitlyDisabled: true, wrapupEnabled: true,
-  }), "display");
+  }), "setup");
 });
 
 test("later related actions offer POST permission recovery even after dismissal or device OFF", () => {
@@ -143,10 +143,146 @@ test("native permission checks, startup offer, scope readiness and later recover
   assert.match(native, /onDismissStartupPermissionOffer: dismissPermissionOffer/);
   assert.match(native, /localStorage\.setItem\(PERMISSION_OFFER_SEEN_KEY, "1"\)/);
   assert.match(native, /permissionRevision\.current === revision/);
-  assert.match(native, /attemptDisplayPermission/);
-  assert.match(native, /changeExactNotificationSetting\(\)/);
+  assert.match(native, /runReminderPermissionSetup/);
+  assert.match(native, /permissionScopeRevision\.current === revision/);
+  assert.match(native, /App\.getState\(\)/);
+  assert.doesNotMatch(native, /onRequestExactPermission/);
   assert.match(ui, /onCheckNativePermissions=/);
   assert.match(ui, /startupPermissionOffer/);
   assert.doesNotMatch(website, /notification-permission-onboarding|LocalNotifications/);
   assert.doesNotMatch(ui, /className="android-permission-invite"/);
+});
+
+function setupBridge({ display = "prompt", exact = "denied", displayReturn = "granted", exactReturn = "granted",
+  settingsReturn = "granted", exactError = false, displayError = false } = {}) {
+  const events = [];
+  let alive = true;
+  let foreground = true;
+  const state = () => ({ permissionState: display, exactPermission: exact });
+  const localNotifications = {
+    async requestPermissions() {
+      events.push("request-display");
+      display = displayReturn;
+      return { display };
+    },
+    async changeExactNotificationSetting() {
+      events.push("open-exact");
+      if (exactError) throw Error("cannot open exact settings");
+      exact = exactReturn;
+    },
+  };
+  const config = {
+    localNotifications,
+    read: async () => state(),
+    openDisplaySettings: async () => {
+      events.push("open-display-settings");
+      if (displayError) throw Error("cannot open display settings");
+      display = settingsReturn;
+    },
+    checkForeground: async () => foreground,
+    waitForForeground: async () => foreground,
+    isCurrent: () => alive,
+  };
+  return { events, config, invalidate: () => { alive = false; },
+    background: () => { foreground = false; }, setDisplay: value => { display = value; },
+    setExact: value => { exact = value; } };
+}
+
+test("single CTA: request only missing permissions, with optional exact access", async () => {
+  const cases = [
+    [{}, ["request-display", "open-exact"], "complete", true],
+    [{ display: "granted" }, ["open-exact"], "complete", true],
+    [{ exact: "granted" }, ["request-display"], "complete", true],
+    [{ display: "granted", exact: "granted" }, [], "complete", true],
+    [{ exactReturn: "denied" }, ["request-display", "open-exact"], "ordinary", true],
+    [{ exactError: true }, ["request-display", "open-exact"], "exact-error", true],
+    [{ exactReturn: "unknown" }, ["request-display", "open-exact"], "exact-unknown", true],
+    [{ exact: "unknown" }, ["request-display"], "exact-unknown", true],
+    [{ displayReturn: "denied" }, ["request-display"], "declined", false],
+    [{ displayReturn: "prompt" }, ["request-display"], "declined", false],
+    [{ display: "unknown" }, [], "retry", false],
+    [{ display: "denied", settingsReturn: "denied" }, ["open-display-settings"], "declined", false],
+    [{ display: "denied" }, ["open-display-settings", "open-exact"], "complete", true],
+    [{ display: "denied", displayError: true }, ["open-display-settings"], "settings-error", false],
+    [{ display: "denied", exact: "granted" }, ["open-display-settings"], "complete", true],
+  ];
+  for (const [options, events, status, displayGranted] of cases) {
+    const bridge = setupBridge(options);
+    assert.deepEqual(await runReminderPermissionSetup(bridge.config), { status, displayGranted }, JSON.stringify(options));
+    assert.deepEqual(bridge.events, events, JSON.stringify(options));
+  }
+});
+
+test("normal settings activity must actually return and re-read a grant before exact settings", async () => {
+  const bridge = setupBridge({ display: "denied" });
+  let finish;
+  let launched;
+  const returned = new Promise(resolve => { finish = resolve; });
+  const started = new Promise(resolve => { launched = resolve; });
+  bridge.config.openDisplaySettings = async () => {
+    bridge.events.push("open-display-settings");
+    launched();
+    await returned;
+    bridge.setDisplay("granted");
+  };
+  const setup = runReminderPermissionSetup(bridge.config);
+  await started;
+  assert.deepEqual(bridge.events, ["open-display-settings"]);
+  finish();
+  assert.deepEqual(await setup, { status: "complete", displayGranted: true });
+  assert.deepEqual(bridge.events, ["open-display-settings", "open-exact"]);
+});
+
+test("auth/UI invalidation or failure to return to foreground prevents chaining exact access", async () => {
+  for (const stop of ["invalidate", "background"]) {
+    const bridge = setupBridge({ display: "denied" });
+    const open = bridge.config.openDisplaySettings;
+    bridge.config.openDisplaySettings = async () => { await open(); bridge[stop](); };
+    assert.deepEqual(await runReminderPermissionSetup(bridge.config), { status: "interrupted", displayGranted: false });
+    assert.deepEqual(bridge.events, ["open-display-settings"]);
+  }
+  const bridge = setupBridge();
+  const request = bridge.config.localNotifications.requestPermissions;
+  bridge.config.localNotifications.requestPermissions = async () => {
+    const result = await request();
+    bridge.invalidate();
+    return result;
+  };
+  assert.equal((await runReminderPermissionSetup(bridge.config)).status, "interrupted");
+  assert.deepEqual(bridge.events, ["request-display"]);
+});
+
+test("a POST callback alone is not a grant and display revocation during exact settings is not success", async () => {
+  const bridge = setupBridge();
+  bridge.config.localNotifications.requestPermissions = async () => ({ display: "granted" });
+  assert.deepEqual(await runReminderPermissionSetup(bridge.config), { status: "declined", displayGranted: false });
+  assert.deepEqual(bridge.events, []);
+  const duringExact = setupBridge({ display: "granted" });
+  const exact = duringExact.config.localNotifications.changeExactNotificationSetting;
+  duringExact.config.localNotifications.changeExactNotificationSetting = async () => { await exact(); duringExact.setDisplay("denied"); };
+  assert.deepEqual(await runReminderPermissionSetup(duringExact.config), { status: "declined", displayGranted: false });
+});
+
+test("blocked-display native bridge awaits an ActivityResult and never trusts a result code", () => {
+  const java = readFileSync(new URL("../native/ByeolharuDeviceSettingsPlugin.java.template", import.meta.url), "utf8");
+  const method = java.slice(java.indexOf("public void openNotificationSettings"));
+  assert.match(method, /startActivityForResult\(call, intent, "onNotificationSettingsReturned"\)/);
+  assert.match(method, /@ActivityCallback\s+private void onNotificationSettingsReturned/);
+  assert.match(method, /if \(call != null\) call.resolve\(\)/);
+  assert.doesNotMatch(method, /intent.addFlags|result.getResultCode|getContext\(\).startActivity/);
+});
+
+test("foreground loss during a permission bridge read cannot open another OS screen", async () => {
+  for (const [dropAfterRead, expected] of [[1, []], [2, ["request-display"]]]) {
+    const bridge = setupBridge();
+    const read = bridge.config.read;
+    let reads = 0;
+    bridge.config.read = async () => {
+      const result = await read();
+      if (++reads === dropAfterRead) bridge.background();
+      return result;
+    };
+    assert.deepEqual(await runReminderPermissionSetup(bridge.config), { status: "interrupted", displayGranted: false });
+    assert.deepEqual(bridge.events, expected);
+  }
 });

@@ -10,7 +10,9 @@ export type WrapupGroup = "morning" | "day" | "night";
 export type WrapupSettings = Record<WrapupGroup, { enabled: boolean; time: string }>;
 export type DisplayPermissionState = "unknown" | "prompt" | "granted" | "denied";
 export type ExactPermissionState = "unknown" | "granted" | "denied";
-export type ReminderPermissionOffer = "display" | "exact";
+export type ReminderPermissionOffer = "setup";
+/** Live, non-persisted guard for the UI that initiated permission setup. */
+export type ReminderPermissionScope = () => boolean;
 export type ReminderPermissionStates = { permissionState: DisplayPermissionState; exactPermission: ExactPermissionState };
 
 export type NativeReminderControls = {
@@ -20,12 +22,13 @@ export type NativeReminderControls = {
   /** Once per installation, only for verified, restored reminder intent. */
   startupPermissionOffer: ReminderPermissionOffer | null;
   onDismissStartupPermissionOffer: () => void;
-  onRequestStartupPermission: () => Promise<boolean>;
+  onRequestStartupPermission: (isCurrent: ReminderPermissionScope) => Promise<boolean>;
   /** Read both OS states without requesting permission or opening settings. */
   onCheckPermissions: () => Promise<ReminderPermissionStates>;
-  onRequestPermission: () => Promise<boolean>;
+  /** A single explicit setup action; true means display permission is granted,
+   * even when optional exact alarm access is declined. */
+  onRequestPermission: (isCurrent: ReminderPermissionScope) => Promise<boolean>;
   exactPermission: ExactPermissionState;
-  onRequestExactPermission: () => Promise<boolean>;
   latencyStatus: string;
   onInspectLatency: () => Promise<void>;
   onDismissPermissionOffer: () => void;

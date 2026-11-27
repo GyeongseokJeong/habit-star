@@ -353,12 +353,11 @@ function HabitEditor({
   nativeAlarmEditor = false,
   nativeAlarmActive = false,
   nativeAlarmIntentEnabled = false,
-  isCurrentEditorScope = () => true,
+  isCurrentEditorScope: isParentEditorScope = () => true,
   onEnsureNativeAlarm,
   onCheckNativePermissions,
-  onRequestFirstPermission,
-  onDismissFirstPermission,
-  onRequestNativeExactPermission,
+  onRequestPermission,
+  onDismissPermission,
   guardUnsaved = false,
 }: {
   habit?: Habit;
@@ -372,11 +371,13 @@ function HabitEditor({
   isCurrentEditorScope?: () => boolean;
   onEnsureNativeAlarm?: () => Promise<boolean>;
   onCheckNativePermissions?: NativeReminderControls["onCheckPermissions"];
-  onRequestFirstPermission?: () => Promise<boolean>;
-  onDismissFirstPermission?: () => void;
-  onRequestNativeExactPermission?: () => Promise<boolean>;
+  onRequestPermission?: NativeReminderControls["onRequestPermission"];
+  onDismissPermission?: () => void;
   guardUnsaved?: boolean;
 }) {
+  const editorMounted = useRef(false);
+  useEffect(() => { editorMounted.current = true; return () => { editorMounted.current = false; }; }, []);
+  const isCurrentEditorScope = () => editorMounted.current && isParentEditorScope();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [alarmChecking, setAlarmChecking] = useState(false);
   const alarmCheckingRef = useRef(false);
@@ -391,25 +392,17 @@ function HabitEditor({
     const checked = await onCheckNativePermissions();
     if (!isCurrentEditorScope() || checked.permissionState === "unknown") return false;
     const needsDisplay = checked.permissionState !== "granted";
-    if (needsDisplay) {
-      if (!onRequestFirstPermission || !onDismissFirstPermission ||
-          !await permissionGuide.ask("display", checked.permissionState,
-            () => isCurrentEditorScope() ? onRequestFirstPermission() : Promise.resolve(false), onDismissFirstPermission)) return false;
+    if (needsDisplay || checked.exactPermission === "denied") {
+      if (!onRequestPermission || !onDismissPermission) return false;
+      const accepted = await permissionGuide.ask(checked,
+        isCurrent => onRequestPermission(() => isCurrent() && isCurrentEditorScope()), onDismissPermission);
+      // Dismissal of optional exact access never blocks ordinary reminders.
+      if (!isCurrentEditorScope() || (needsDisplay && !accepted)) return false;
+      if ((await onCheckNativePermissions()).permissionState !== "granted" || !isCurrentEditorScope()) return false;
     }
-    if (!isCurrentEditorScope()) return false;
     // Permission recovery and existing ON time edits are not device opt-in.
     // Only a newly enabled alarm can deliberately change the device preference.
     if (activateDevice && (!nativeAlarmActive || needsDisplay) && !await onEnsureNativeAlarm()) return false;
-    if (!isCurrentEditorScope()) return false;
-    // Exact timing is optional. General notifications and the habit save are
-    // never gated on this independent special app access.
-    try {
-      const current = await onCheckNativePermissions();
-      if (isCurrentEditorScope() && current.permissionState === "granted" && current.exactPermission === "denied" && onRequestNativeExactPermission) {
-        await permissionGuide.ask("exact", current.permissionState,
-          () => isCurrentEditorScope() ? onRequestNativeExactPermission() : Promise.resolve(false));
-      }
-    } catch { /* existing general alarm remains available */ }
     return isCurrentEditorScope();
   };
   const [moreTemplates, setMoreTemplates] = useState(false);
@@ -1747,15 +1740,20 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
   const detail = nativeDetailValid ? visibleHabits.find((h) => h.id === detailId) : undefined;
   // A restored reminder invitation never interrupts account/login screens,
   // an editor, an active record action, or a pending native navigation tap.
-  const startupPermissionOpen = Boolean(nativeReminders?.startupPermissionOffer &&
-    app.snapshot && startupDataReady(!!app.user, app.snapshot) && !app.busy &&
-    typeof document !== "undefined" && document.visibilityState === "visible" &&
+  const startupPermissionContext = Boolean(
+    app.snapshot && startupDataReady(!!app.user, app.snapshot) &&
     !editing && !detailId && !accountOpen && !constellationOpen && !reflectionOpen &&
     !pastDate && !sampleCleanupOpen && !celebration && !firstPractice &&
     !ratingOverrides.size && activeTab !== "matrix" &&
     (!nativeAuthReturn || nativeAuthReturn <= handledAuthReturn.current) &&
     (!nativeHabitNavigation || nativeHabitNavigation.serial <= handledHabitNavigation.current) &&
     (!nativeReminderNavigation || nativeReminderNavigation.serial <= handledReminderNavigation.current));
+  const startupPermissionContextRef = useRef({ current: startupPermissionContext, revision: 0 });
+  if (startupPermissionContextRef.current.current !== startupPermissionContext) {
+    startupPermissionContextRef.current = { current: startupPermissionContext, revision: startupPermissionContextRef.current.revision + 1 };
+  }
+  const startupPermissionOpen = Boolean(nativeReminders?.startupPermissionOffer && startupPermissionContext && !app.busy &&
+    typeof document !== "undefined" && document.visibilityState === "visible");
   // Only visual order changes. Keep the held-completion period (700ms),
   // then sort each group by scheduled HH:mm; unscheduled routines come last.
   const filtered = sortHabitsForDisplay(
@@ -2383,10 +2381,8 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
       </main>
       {startupPermissionOpen && nativeReminders?.startupPermissionOffer && (
         <ReminderPermissionDialog
-          kind={nativeReminders.startupPermissionOffer}
           permissionState={nativeReminders.permissionState}
-          restored
-          exactOptionAvailable={nativeReminders.exactPermission === "denied"}
+          exactPermission={nativeReminders.exactPermission}
           busy={startupPermissionBusy || nativeReminders.busy}
           onCancel={() => {
             if (!startupPermissionBusyRef.current) nativeReminders.onDismissStartupPermissionOffer();
@@ -2395,7 +2391,8 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
             if (startupPermissionBusyRef.current || nativeReminders.busy) return;
             startupPermissionBusyRef.current = true;
             setStartupPermissionBusy(true);
-            void nativeReminders.onRequestStartupPermission().catch(() => false).finally(() => {
+            const context = startupPermissionContextRef.current;
+            void nativeReminders.onRequestStartupPermission(() => scope === activeScope.current && context.current && startupPermissionContextRef.current === context).catch(() => false).finally(() => {
               startupPermissionBusyRef.current = false;
               setStartupPermissionBusy(false);
             });
@@ -2448,9 +2445,8 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
           onEnsureNativeAlarm={nativeReminders ? () => scope === activeScope.current
             ? nativeReminders.onEnabledChange(true) : Promise.resolve(false) : undefined}
           onCheckNativePermissions={nativeReminders?.onCheckPermissions}
-          onRequestFirstPermission={nativeReminders?.onRequestPermission}
-          onDismissFirstPermission={nativeReminders?.onDismissPermissionOffer}
-          onRequestNativeExactPermission={nativeReminders?.onRequestExactPermission}
+          onRequestPermission={nativeReminders?.onRequestPermission}
+          onDismissPermission={nativeReminders?.onDismissPermissionOffer}
         />
       )}
       {detail && (

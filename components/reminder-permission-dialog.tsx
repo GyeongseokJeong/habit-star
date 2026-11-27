@@ -1,30 +1,27 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { DisplayPermissionState, ReminderPermissionOffer } from "@/lib/habits/native-reminder-controls";
+import type { ReminderPermissionStates, ReminderPermissionScope } from "@/lib/habits/native-reminder-controls";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
 /** One shared confirmation surface; no native call on mount or dismissal. */
-export function ReminderPermissionDialog({ kind, permissionState, restored = false, exactOptionAvailable = false, busy, onCancel, onConfirm }: {
-  kind: ReminderPermissionOffer;
-  permissionState: DisplayPermissionState;
-  restored?: boolean;
-  exactOptionAvailable?: boolean;
+export function ReminderPermissionDialog({ permissionState, exactPermission, busy, onCancel, onConfirm }: ReminderPermissionStates & {
   busy: boolean;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
-  const exact = kind === "exact";
+  const exactOnly = permissionState === "granted";
   return <ConfirmDialog
-    title={exact ? "더 정확한 시간에 알려드릴까요?" : "습관 알림을 받아볼까요?"}
-    description={exact ? "정확 알림을 허용하면 설정한 시간에 더 가깝게 알림을 받을 수 있어요. 나중에 해도 일반 알림은 받을 수 있어요." : restored
-      ? "저장된 습관 알림을 이 기기에서도 받으려면 알림 권한이 필요해요. 나중에 해도 기록은 그대로 사용할 수 있어요." +
-        (exactOptionAvailable ? " 일반 알림을 허용한 뒤 앱 설정에서 정확 알림도 선택할 수 있어요." : "")
-      : "설정한 시간에 실천을 알려드려요. 알림을 허용하지 않아도 습관 기록은 계속 사용할 수 있어요."}
+    title="습관 알림을 설정할까요?"
+    description={exactOnly
+      ? "설정한 시간에 더 가깝게 알림을 받을 수 있도록 휴대폰 권한을 설정해 주세요. 나중에 해도 알림은 받을 수 있어요."
+      : "설정한 시간에 가깝게 습관 알림을 받을 수 있도록 휴대폰 권한을 설정해 주세요." +
+        (exactPermission !== "granted" ? " 알림 허용 후 기기 설정 화면이 이어질 수 있어요." : "")}
     cancelLabel="나중에"
-    confirmLabel={exact ? "정확 알림 설정" : permissionState === "denied" ? "기기 설정 열기" : "알림 허용하기"}
+    confirmLabel="알림 설정하기"
     confirmTone="neutral"
     primaryAction="confirm"
+    initialFocus="heading"
     icon="bell"
     busy={busy}
     onCancel={onCancel}
@@ -35,9 +32,9 @@ export function ReminderPermissionDialog({ kind, permissionState, restored = fal
 /** Await an explicit choice, including Back/Escape/outside tap. A dismissal
  * never performs a permission call; a second tap cannot start another one. */
 export function useReminderPermissionGuide() {
-  const [offer, setOffer] = useState<{ kind: ReminderPermissionOffer; permissionState: DisplayPermissionState } | null>(null);
+  const [offer, setOffer] = useState<ReminderPermissionStates | null>(null);
   const [busy, setBusy] = useState(false);
-  const pending = useRef<{ resolve: (accepted: boolean) => void; request: () => Promise<boolean>; dismiss?: () => void } | null>(null);
+  const pending = useRef<{ resolve: (accepted: boolean) => void; request: (isCurrent: ReminderPermissionScope) => Promise<boolean>; dismiss?: () => void } | null>(null);
   const busyRef = useRef(false);
   useEffect(() => () => {
     pending.current?.resolve(false);
@@ -53,12 +50,12 @@ export function useReminderPermissionGuide() {
     setOffer(null);
     current.resolve(accepted);
   };
-  const ask = (kind: ReminderPermissionOffer, permissionState: DisplayPermissionState,
-    request: () => Promise<boolean>, dismiss?: () => void) => {
+  const ask = (permissions: ReminderPermissionStates,
+    request: (isCurrent: ReminderPermissionScope) => Promise<boolean>, dismiss?: () => void) => {
     if (pending.current) return Promise.resolve(false);
     return new Promise<boolean>((resolve) => {
       pending.current = { resolve, request, dismiss };
-      setOffer({ kind, permissionState });
+      setOffer(permissions);
     });
   };
   const dialog = offer && <ReminderPermissionDialog
@@ -75,7 +72,7 @@ export function useReminderPermissionGuide() {
       const current = pending.current;
       void (async () => {
         let accepted = false;
-        try { accepted = await current.request(); } catch { /* retry after another deliberate action */ }
+        try { accepted = await current.request(() => pending.current === current); } catch { /* retry after another deliberate action */ }
         if (pending.current === current) settle(accepted);
       })();
     }}

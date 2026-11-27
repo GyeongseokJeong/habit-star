@@ -1,6 +1,8 @@
 package __PACKAGE__;
 
 import android.content.Intent;
+import androidx.activity.result.ActivityResult;
+import com.getcapacitor.annotation.ActivityCallback;
 import android.content.Context;
 import java.lang.ref.WeakReference;
 import android.app.NotificationManager;
@@ -80,11 +82,17 @@ public class ByeolharuDeviceSettingsPlugin extends Plugin {
         try {
             Intent intent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
             intent.putExtra(Settings.EXTRA_APP_PACKAGE, getContext().getPackageName());
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            getContext().startActivity(intent);
-            call.resolve();
+            // Await a real activity return, not merely launching Settings.
+            // NEW_TASK would detach the activity result from this caller.
+            startActivityForResult(call, intent, "onNotificationSettingsReturned");
         } catch (Exception e) {
             call.reject("Android 알림 설정을 열 수 없습니다.", e);
         }
+    }
+    @ActivityCallback
+    private void onNotificationSettingsReturned(PluginCall call, ActivityResult result) {
+        // Settings does not provide a meaningful permission resultCode.
+        // The live JS session must re-read both permissions on return.
+        if (call != null) call.resolve();
     }
 }

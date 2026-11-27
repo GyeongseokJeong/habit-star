@@ -16,6 +16,8 @@ export type ConfirmDialogProps = {
   /** Non-destructive opt-in can use the confirmation as the primary action. */
   primaryAction?: "cancel" | "confirm";
   icon?: "alert" | "bell";
+  /** Read the explanation first on non-destructive permission invitations. */
+  initialFocus?: "cancel" | "heading";
 };
 
 /**
@@ -37,9 +39,11 @@ export function ConfirmDialog({
   confirmTone = "danger",
   primaryAction = "cancel",
   icon = "alert",
+  initialFocus = "cancel",
 }: ConfirmDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
   const titleId = useId();
   const descriptionId = useId();
 
@@ -47,7 +51,7 @@ export function ConfirmDialog({
     const dialog = dialogRef.current;
     const previouslyFocused = document.activeElement;
     dialog?.showModal();
-    cancelRef.current?.focus({ preventScroll: true });
+    (initialFocus === "heading" ? headingRef : cancelRef).current?.focus({ preventScroll: true });
     return () => {
       if (dialog?.open) dialog.close();
       if (previouslyFocused instanceof HTMLElement && previouslyFocused.isConnected) {
@@ -86,7 +90,7 @@ export function ConfirmDialog({
   return createPortal(
     <dialog
       ref={dialogRef}
-      className="byeolharu-confirm-dialog"
+      className={"byeolharu-confirm-dialog" + (initialFocus === "heading" ? " is-permission-opt-in" : "")}
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
       aria-busy={busy}
@@ -105,7 +109,7 @@ export function ConfirmDialog({
       <div className="byeolharu-confirm-dialog-content">
         <div className="byeolharu-confirm-dialog-heading">
           {icon === "bell" ? <BellRing size={20} aria-hidden="true" /> : <AlertCircle size={20} aria-hidden="true" />}
-          <h2 id={titleId}>{title}</h2>
+          <h2 id={titleId} ref={headingRef} tabIndex={initialFocus === "heading" ? -1 : undefined}>{title}</h2>
         </div>
         <p id={descriptionId}>{description}</p>
         <div className="byeolharu-confirm-dialog-actions">

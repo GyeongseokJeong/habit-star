@@ -32,7 +32,7 @@ test("Android uses existing website email-confirm redirect and never auto-import
  assert.match(android,/if \(!next && !memberUserId\) \{/);
  assert.match(android,/snapshot\.current = null/);
  const transition=android.slice(android.indexOf("const switched ="),android.indexOf("const dismissPermissionOffer"));
- assert.match(transition,/if \(switched\) \{\s*(?:\/\/[^\n]*\n\s*)*snapshot\.current = null;/);
+ assert.match(transition,/if \(switched\) \{\s*\+\+permissionScopeRevision\.current;\s*(?:\/\/[^\n]*\n\s*)*snapshot\.current = null;/);
  assert.match(transition,/const incomingScope = reminderIdentityKey\(nextIdentity\)/);
  assert.match(transition,/const cleanup = operation\.current\.then\(async \(\) => \{/);
  assert.match(transition,/if \(incomingScope !== reminderIdentityKey\(identityRef\.current\)\) return;/);
