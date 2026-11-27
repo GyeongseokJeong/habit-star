@@ -451,6 +451,28 @@ assert.doesNotMatch(coldJava,/startActivity\(|startService\(/);
 assert.match(coldBuild,/if \(process.env.BYEOLHARU_ANDROID_RELEASE !== "1"\) \{\s*await build/);
 assert.match(coldTs,/repo.applyWidgetPractice\(command, allowed\)/);
 assert.doesNotMatch(coldTs,/repo\.initialize\(|repo\.ensureDay\(|supabase\(|fetch\(/);
+// STEP 4B-2: one prepare/result poll, no additional JavascriptInterface.
+const coldReminder=readFileSync(resolve(root,"native/widgets/ByeolharuColdReminder.java.template"),"utf8");
+const coldTransport=readFileSync(resolve(root,"packaged-guest/cold-reminder-transport.ts"),"utf8");
+assert.match(patcher,/"ByeolharuColdReminder", "ByeolharuColdReminderKey"/);
+assert.match(coldJava,/ACTIVITY_EVER_CREATED\.set\(true\)/);
+assert.match(coldJava,/if\(prepare!=null&&!prepareSeen\)/);
+assert.match(coldJava,/JSONObject\.quote\(json\)/);
+assert.match(coldJava,/"saved"\.equals\(result\.optString\("status"\)\)/);
+assert.match(coldTs,/saved = true;[\s\S]*decideCommittedColdReminder/);
+assert.match(coldTransport,/await freshSnapshot\(\)/);
+assert.match(coldReminder,/ByeolharuWidgetProvider\.experimental\(context\)/);
+assert.match(coldReminder,/ByeolharuWidgetColdPractice\.reminderProcessExclusive\(\)/);
+assert.match(coldReminder,/getSavedNotificationAsJSObject\(key\)/);
+assert.match(coldReminder,/id\(raw\)!=k/);
+assert.match(coldReminder,/prepared\.same\(current\)/);
+assert.match(coldReminder,/manager\.schedule\(call,Collections\.singletonList\(n\)\)/);
+assert.match(coldReminder,/manager\.cancel\(call\)/);
+assert.match(coldReminder,/PendingIntent\.FLAG_NO_CREATE/);
+assert.doesNotMatch(coldReminder,/@JavascriptInterface|\.setExact\(|\.setAndAllowWhileIdle\(|\.getSharedPreferences\(|cancelAll\(|startActivity\(/);
+assert.match(coldReminder,/call\.rejected\|\|ids==null[\s\S]*storage\.appendNotifications/);
+assert.match(widget,/saved-alarm-check/);
+assert.match(widget,/saved-refresh-alarm-check/);
 console.log("Debug cold practice source contracts OK (not an Android runtime test)");
 
 

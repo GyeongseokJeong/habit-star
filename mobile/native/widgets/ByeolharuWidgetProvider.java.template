@@ -300,12 +300,13 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
         String status=result.optString("status");
         if("saved".equals(status)) {
             // Only a committed repository result may publish a new projection.
+            boolean alarmCheck=result.optBoolean("alarmCheckNeeded",false);
             JSONObject summary=result.optJSONObject("summary");
             if(summary!=null) {
-                try { publish(c,new JSObject(summary.toString()));complete(c,id,"saved");return; }
+                try { publish(c,new JSObject(summary.toString()));complete(c,id,alarmCheck?"saved-alarm-check":"saved");return; }
                 catch(Exception ignored){}
             }
-            complete(c,id,"saved-refresh-needed");return;
+            complete(c,id,alarmCheck?"saved-refresh-alarm-check":"saved-refresh-needed");return;
         }
         complete(c,id,"not-ready");
     }
@@ -315,7 +316,11 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
         pending=null;request.broadcast.finish();
         // Never modify the displayed check state here. Only committed JS
         // snapshot publication can update it, including after a timeout.
-        if("saved-refresh-needed".equals(result)&&request.claimed) {
+        if("saved-alarm-check".equals(result)&&request.claimed) {
+            message(c,"기록은 저장했어요. 알림은 앱에서 다시 확인해 주세요.");
+        } else if("saved-refresh-alarm-check".equals(result)&&request.claimed) {
+            message(c,"기록은 저장했어요. 앱에서 위젯과 알림을 확인해 주세요.");
+        } else if("saved-refresh-needed".equals(result)&&request.claimed) {
             message(c,"기록은 저장했어요. 앱에서 위젯을 갱신해 주세요.");
         } else if(!"saved".equals(result)||!request.claimed)
             message(c,"별하루 앱에서 오늘 기록을 확인해 주세요.");

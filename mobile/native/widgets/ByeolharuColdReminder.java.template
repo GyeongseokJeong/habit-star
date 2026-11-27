@@ -1,0 +1,365 @@
+package __PACKAGE__;
+
+import android.Manifest;
+import android.app.AlarmManager;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Build;
+import android.os.Looper;
+import android.os.SystemClock;
+import com.getcapacitor.CapConfig;
+import com.getcapacitor.JSObject;
+import com.getcapacitor.PluginCall;
+import com.capacitorjs.plugins.localnotifications.LocalNotification;
+import com.capacitorjs.plugins.localnotifications.LocalNotificationManager;
+import com.capacitorjs.plugins.localnotifications.NotificationStorage;
+import com.capacitorjs.plugins.localnotifications.TimedNotificationPublisher;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import java.text.SimpleDateFormat;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.TimeZone;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.function.BooleanSupplier;
+
+/** Request-local STEP 4B-2 adapter, never an exported component or JS interface.
+ * Uses the pinned LocalNotifications 8.3.1 manager and its own storage. A
+ * PendingIntent probe is only evidence of token existence, NOT alarm delivery.
+ * Native alarm and preference updates are not an atomic transaction. */
+final class ByeolharuColdReminder {
+    private static final String KIND="byeolharu-habit-reminder-v1";
+    private static final String CHANNEL="byeolharu-habit-reminders-step5";
+    private static final String TITLE="별하루 ✦ ";
+    private static final String BODY="오늘의 작은 실천을 떠올려 볼까요?";
+    private static final long MARGIN=2000L;
+    private static final int MAX_BOOKED=48, MAX_STORED=512, MAX_BYTES=512*1024;
+    private static final Set<String> ZONES=new HashSet<>(Arrays.asList(TimeZone.getAvailableIDs()));
+    private final Context context;
+    private final BooleanSupplier allowed;
+    private final long deadline, elapsedDeadline;
+    private final NotificationStorage storage;
+    private final LocalNotificationManager manager;
+    private Target target;
+    private Inventory prepared;
+    private boolean prepareUsed, applyUsed;
+
+    ByeolharuColdReminder(Context context, long deadline, long elapsedDeadline, BooleanSupplier allowed) {
+        this.context=context;
+        this.deadline=deadline;
+        this.elapsedDeadline=elapsedDeadline;
+        this.allowed=allowed;
+        storage=new NotificationStorage(context);
+        manager=new LocalNotificationManager(storage,null,context,CapConfig.loadDefault(context));
+    }
+
+    private boolean canAct() {
+        return Looper.myLooper()==Looper.getMainLooper() && ByeolharuWidgetProvider.experimental(context)
+            && ByeolharuWidgetColdPractice.reminderProcessExclusive()
+            && System.currentTimeMillis()<deadline && SystemClock.elapsedRealtime()<elapsedDeadline
+            && allowed.getAsBoolean();
+    }
+
+    private static String format(long time, String pattern, TimeZone zone) {
+        SimpleDateFormat sdf=new SimpleDateFormat(pattern,Locale.US);
+        sdf.setTimeZone(zone);
+        return sdf.format(new Date(time));
+    }
+    private static String text(JSONObject j,String key) {
+        Object value=j.opt(key);
+        if(!(value instanceof String))throw new IllegalArgumentException();
+        return (String)value;
+    }
+    private static boolean only(JSONObject j,String... fields) {
+        Set<String> keys=new HashSet<>(Arrays.asList(fields));
+        for(Iterator<String> it=j.keys();it.hasNext();)if(!keys.contains(it.next()))return false;
+        return true;
+    }
+    private static int id(JSONObject j) {
+        Object value=j.opt("id");
+        if(!(value instanceof Number))throw new IllegalArgumentException();
+        double n=((Number)value).doubleValue();
+        if(n<1 || n>Integer.MAX_VALUE || n!=(int)n)throw new IllegalArgumentException();
+        return (int)n;
+    }
+
+    private static final class Target {
+        final String scope,habit,day,deviceZone;
+        final TimeZone zone;
+        final boolean completed;
+        final int id;
+        Target(JSONObject j) {
+            if(!only(j,"scope","habitId","day","timeZone","completed"))throw new IllegalArgumentException();
+            scope=text(j,"scope"); habit=text(j,"habitId"); day=text(j,"day");
+            String tz=text(j,"timeZone");
+            if(!scope.matches("guest|member:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}") ||
+                habit.trim().isEmpty() || habit.length()>256 || !day.matches("[0-9]{4}-[0-9]{2}-[0-9]{2}") ||
+                !ZONES.contains(tz) || !(j.opt("completed") instanceof Boolean))throw new IllegalArgumentException();
+            zone=TimeZone.getTimeZone(tz); deviceZone=TimeZone.getDefault().getID();
+            if("guest".equals(scope) && !zone.hasSameRules(TimeZone.getDefault()))throw new IllegalArgumentException();
+            completed=j.optBoolean("completed");
+            id=ByeolharuColdReminderKey.id(scope,habit,day);
+        }
+        boolean current(long now) {
+            TimeZone device=TimeZone.getDefault();
+            return deviceZone.equals(device.getID()) && day.equals(format(now,"yyyy-MM-dd",zone)) &&
+                (!"guest".equals(scope)||zone.getOffset(now)==device.getOffset(now));
+        }
+        boolean owner(JSONObject j) {
+            JSONObject e=j.optJSONObject("extra");
+            return e!=null && KIND.equals(e.opt("kind")) && scope.equals(e.opt("scope")) &&
+                "habit".equals(e.opt("category")) && habit.equals(e.opt("habitId")) && day.equals(e.opt("day"));
+        }
+    }
+
+    // Read only the same PendingIntent identity and flags used by the pinned
+    // manager's cancelTimerForNotification. Never create or cancel it here.
+    private boolean tokenExists(int id) {
+        int flags=PendingIntent.FLAG_NO_CREATE;
+        if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.S)flags|=PendingIntent.FLAG_MUTABLE;
+        return PendingIntent.getBroadcast(context,id,new Intent(context,TimedNotificationPublisher.class),flags)!=null;
+    }
+    private boolean visible(int id) { return manager.currentlyVisibleIds().contains(id); }
+
+    private static final class Inventory {
+        final Map<Integer,String> rows=new TreeMap<>();
+        final Set<Integer> scheduled=new TreeSet<>(),visible=new TreeSet<>();
+        boolean permission,exact,channelReady,token;
+        long wall,elapsed;
+        boolean same(Inventory other) {
+            return rows.equals(other.rows)&&scheduled.equals(other.scheduled)&&visible.equals(other.visible)&&
+                permission==other.permission&&exact==other.exact&&channelReady==other.channelReady&&token==other.token&&
+                Math.abs((other.wall-wall)-(other.elapsed-elapsed))<1000L;
+        }
+        boolean sameExceptTarget(Inventory other,int id) {
+            Map<Integer,String> a=new TreeMap<>(rows),b=new TreeMap<>(other.rows);
+            a.remove(id);b.remove(id);
+            Set<Integer> c=new TreeSet<>(scheduled),d=new TreeSet<>(other.scheduled);
+            c.remove(id);d.remove(id);
+            return a.equals(b)&&c.equals(d)&&visible.equals(other.visible)&&
+                permission==other.permission&&exact==other.exact&&channelReady==other.channelReady&&
+                Math.abs((other.wall-wall)-(other.elapsed-elapsed))<1000L;
+        }
+        JSObject forPlanner(Target target) throws Exception {
+            JSObject result=new JSObject();
+            JSONObject queue=new JSONObject();
+            JSONArray saved=new JSONArray();
+            for(Map.Entry<Integer,String> row:rows.entrySet()) {
+                JSONObject value=new JSONObject(row.getValue());
+                // Only the intended habit's canonical fields can cross into
+                // the offline renderer; other IDs are collision sentinels.
+                if(row.getKey()==target.id && canonical(target,value)!=null) saved.put(value);
+                else saved.put(new JSONObject().put("id",row.getKey()));
+            }
+            queue.put("storedIds",new JSONArray(rows.keySet()));
+            queue.put("scheduledIds",new JSONArray(scheduled));
+            queue.put("visibleIds",new JSONArray(visible));
+            queue.put("saved",saved);
+            result.put("permissionGranted",permission&&channelReady);
+            result.put("exact",exact);
+            result.put("queue",queue);
+            return result;
+        }
+    }
+    private Inventory capture() throws Exception {
+        if(!canAct()||!target.current(System.currentTimeMillis()))throw new IllegalStateException();
+        Inventory q=new Inventory();
+        q.wall=System.currentTimeMillis();q.elapsed=SystemClock.elapsedRealtime();
+        q.permission=manager.areNotificationsEnabled() &&
+            (Build.VERSION.SDK_INT<33 || context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)==PackageManager.PERMISSION_GRANTED);
+        AlarmManager alarms=(AlarmManager)context.getSystemService(Context.ALARM_SERVICE);
+        q.exact=Build.VERSION.SDK_INT<31 || (alarms!=null&&alarms.canScheduleExactAlarms());
+        NotificationManager notifications=(NotificationManager)context.getSystemService(Context.NOTIFICATION_SERVICE);
+        if(notifications==null||alarms==null)throw new IllegalStateException();
+        q.channelReady=true;
+        if(Build.VERSION.SDK_INT>=26) {
+            NotificationChannel channel=notifications.getNotificationChannel(CHANNEL);
+            q.channelReady=channel!=null && channel.getImportance()!=NotificationManager.IMPORTANCE_NONE;
+        }
+        java.util.List<String> keys=storage.getSavedNotificationIds();
+        if(keys.size()>MAX_STORED)throw new IllegalStateException();
+        long bytes=0;
+        for(String key:keys) {
+            if(!canAct())throw new IllegalStateException();
+            int k=Integer.parseInt(key);
+            if(k<=0||!Integer.toString(k).equals(key)||q.rows.containsKey(k))throw new IllegalArgumentException();
+            JSObject raw=storage.getSavedNotificationAsJSObject(key);
+            if(raw==null||id(raw)!=k)throw new IllegalArgumentException();
+            String json=raw.toString();
+            bytes+=2L*json.length();
+            if(bytes>MAX_BYTES)throw new IllegalStateException();
+            LocalNotification parsed=LocalNotification.Companion.buildNotificationFromJSObject(raw);
+            if(parsed.getId()==null || parsed.getId()!=k)throw new IllegalArgumentException();
+            q.rows.put(k,json);
+            if(manager.isCurrentlyScheduled(parsed))q.scheduled.add(k);
+        }
+        q.visible.addAll(manager.currentlyVisibleIds());
+        if(q.visible.size()>MAX_STORED || q.visible.stream().anyMatch(k->k<=0))throw new IllegalArgumentException();
+        q.token=tokenExists(target.id);
+        if(!canAct() || !target.current(System.currentTimeMillis()))throw new IllegalStateException();
+        return q;
+    }
+
+    /** Reject non-canonical payloads even if the supplied fingerprint matches.
+     * The exact canonical title/time fingerprint is recomputed from the
+     * existing planner policy; repeating/other options cannot pass through. */
+    private static LocalNotification canonical(Target t,JSONObject j) {
+        try {
+            if(id(j)!=t.id || !t.owner(j) ||
+                !only(j,"id","title","body","schedule","isExactNotification","channelId","extra","cancelled") ||
+                (j.has("cancelled")&&!Boolean.FALSE.equals(j.opt("cancelled"))) ||
+                !CHANNEL.equals(j.opt("channelId")) || !BODY.equals(j.opt("body")) ||
+                !(j.opt("isExactNotification") instanceof Boolean))return null;
+            String title=text(j,"title");
+            if(!title.startsWith(TITLE)||title.length()<=TITLE.length()||title.length()>8192)return null;
+            JSONObject s=j.getJSONObject("schedule"),e=j.getJSONObject("extra");
+            if(!only(s,"at","allowWhileIdle","repeats") || !Boolean.TRUE.equals(s.opt("allowWhileIdle")) ||
+                (s.has("repeats")&&!Boolean.FALSE.equals(s.opt("repeats"))) ||
+                !only(e,"kind","scope","habitId","category","day","fingerprint"))return null;
+            String at=text(s,"at");
+            if(!at.matches("[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z"))return null;
+            LocalNotification n=LocalNotification.Companion.buildNotificationFromJSObject(new JSObject(j.toString()));
+            if(n.getSchedule()==null || n.getSchedule().getAt()==null || n.getSchedule().isPerpetual() ||
+                !n.getSchedule().allowWhileIdle() || n.getCancelled() || n.getId()==null || n.getId()!=t.id)return null;
+            long time=n.getSchedule().getAt().getTime();
+            if(!at.equals(format(time,"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",TimeZone.getTimeZone("UTC"))) ||
+                !t.day.equals(format(time,"yyyy-MM-dd",t.zone)) ||
+                !"00.000".equals(format(time,"ss.SSS",t.zone)))return null;
+            String fingerprint=ByeolharuColdReminderKey.fingerprint(t.scope,t.habit,t.day,title.substring(TITLE.length()),
+                format(time,"HH:mm",t.zone),time,n.isExactNotification());
+            if(!fingerprint.equals(e.opt("fingerprint")))return null;
+            return n;
+        } catch(Exception failure) {return null;}
+    }
+    private static boolean sameCanonical(Target t,JSONObject a,JSONObject b) {
+        LocalNotification x=canonical(t,a),y=canonical(t,b);
+        return x!=null&&y!=null&&a.opt("title").equals(b.opt("title"))&&
+            x.isExactNotification()==y.isExactNotification()&&
+            x.getSchedule().getAt().equals(y.getSchedule().getAt())&&
+            a.optJSONObject("extra").opt("fingerprint").equals(b.optJSONObject("extra").opt("fingerprint"));
+    }
+
+    JSObject prepare(JSONObject request) {
+        if(prepareUsed)return null;
+        prepareUsed=true;
+        try{
+            if(!canAct())return null;
+            target=new Target(request);
+            prepared=capture();
+            return prepared.forPlanner(target);
+        }catch(Exception failure){prepared=null;return null;}
+    }
+
+    /** Return true only for a meaningful reconciliation failure (not an
+     * expected policy skip). The persisted habit result is independent. */
+    boolean needsAppCheck(JSONObject decision) {
+        if(applyUsed)return true;
+        applyUsed=true;
+        if(decision==null)return true;
+        String kind=decision.optString("kind"),reason=decision.optString("reason");
+        if("noop".equals(kind)&&("opted-out-or-unconfigured".equals(reason)||"no-future-target".equals(reason)))return false;
+        if("defer".equals(kind)) {
+            if("outside-plan".equals(reason)||"too-close".equals(reason))return false;
+            return !("permission-unconfirmed".equals(reason)&&prepared!=null&&(!prepared.permission||!prepared.channelReady));
+        }
+        try{
+            if(prepared==null||!canAct())return true;
+            Inventory current=capture();
+            if(!prepared.same(current)||!current.permission||!current.channelReady||current.visible.contains(target.id))return true;
+            String old=current.rows.get(target.id);
+            if("noop".equals(kind)) {
+                if("already-absent".equals(reason))return old!=null||current.token;
+                if("already-scheduled".equals(reason))return old==null||!current.token;
+                return true;
+            }
+            boolean cancel="cancel".equals(kind),restore="restore".equals(kind);
+            if((!cancel&&!restore)||cancel!=target.completed)return true;
+            JSONObject payload=decision.optJSONObject(cancel?"expected":"notification");
+            if(payload==null)return true;
+            LocalNotification n=canonical(target,payload);
+            if(n==null||!withinTime(n))return true;
+            if(cancel) {
+                if(old==null||!current.scheduled.contains(target.id)||!sameCanonical(target,new JSONObject(old),payload))return true;
+                if(!readyToMutate(current,n))return true;
+                SingleCall call=cancelOne(target.id);
+                Inventory after=capture();
+                return !call.resolved||call.rejected||after.rows.containsKey(target.id)||
+                    after.token||after.visible.contains(target.id)||!current.sameExceptTarget(after,target.id)||!canAct();
+            }
+            if(old!=null||current.token||current.scheduled.size()>=MAX_BOOKED||n.isExactNotification()!=current.exact)return true;
+            if(!readyToMutate(current,n)||tokenExists(target.id))return true;
+            try{
+                SingleCall call=new SingleCall("schedule",new JSObject());
+                JSONArray ids=manager.schedule(call,Collections.singletonList(n));
+                if(call.rejected||ids==null||ids.length()!=1||ids.getInt(0)!=target.id)throw new IllegalStateException();
+                storage.appendNotifications(Collections.singletonList(n));
+                JSObject saved=storage.getSavedNotificationAsJSObject(Integer.toString(target.id));
+                Inventory after=capture();
+                if(saved==null||!sameCanonical(target,saved,payload)||!after.token||after.visible.contains(target.id)||
+                    !current.sameExceptTarget(after,target.id)||!after.scheduled.contains(target.id)||!withinTime(n))
+                    throw new IllegalStateException();
+                return false;
+            }catch(Exception failure){
+                // Only clean up a token created during this request, if still
+                // owned/not visible and the original claim remains valid.
+                // A hard process death between OS schedule and store append
+                // is not recoverable atomically; never replay the habit write.
+                compensate(payload,n);
+                return true;
+            }
+        }catch(Exception failure){return true;}
+    }
+    private boolean readyToMutate(Inventory expected,LocalNotification n) {
+        if(!canAct()||!withinTime(n)||visible(target.id)||!manager.areNotificationsEnabled())return false;
+        if(Build.VERSION.SDK_INT>=33 && context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)return false;
+        AlarmManager alarms=(AlarmManager)context.getSystemService(Context.ALARM_SERVICE);
+        if(alarms==null||expected.exact!=(Build.VERSION.SDK_INT<31||alarms.canScheduleExactAlarms()))return false;
+        if(Build.VERSION.SDK_INT>=26) {
+            NotificationManager manager=(NotificationManager)context.getSystemService(Context.NOTIFICATION_SERVICE);
+            NotificationChannel channel=manager==null?null:manager.getNotificationChannel(CHANNEL);
+            if(channel==null||channel.getImportance()==NotificationManager.IMPORTANCE_NONE)return false;
+        }
+        return canAct()&&withinTime(n);
+    }
+    private boolean withinTime(LocalNotification n) {
+        long now=System.currentTimeMillis();
+        long at=n.getSchedule().getAt().getTime();
+        return target.current(now)&&at>now+MARGIN&&
+            (!"guest".equals(target.scope)||target.zone.getOffset(at)==TimeZone.getDefault().getOffset(at));
+    }
+    private void compensate(JSONObject intended,LocalNotification n) {
+        try{
+            if(!canAct()||!withinTime(n)||visible(target.id))return;
+            JSObject existing=storage.getSavedNotificationAsJSObject(Integer.toString(target.id));
+            if((existing==null&&!storage.getSavedNotificationIds().contains(Integer.toString(target.id)))||
+                (existing!=null&&sameCanonical(target,existing,intended)))cancelOne(target.id);
+        }catch(Exception ignored){/* uncertain; foreground reconciliation only */}
+    }
+    private SingleCall cancelOne(int id) throws Exception {
+        JSObject options=new JSObject();
+        options.put("notifications",new JSONArray().put(new JSONObject().put("id",id)));
+        SingleCall call=new SingleCall("cancel",options);
+        manager.cancel(call);
+        return call;
+    }
+    /** PluginCall normally resolves to an Activity bridge. Capture completion
+     * locally; a rejection dominates even if manager subsequently resolves. */
+    private static final class SingleCall extends PluginCall {
+        boolean resolved,rejected;
+        SingleCall(String method,JSObject data){super(null,"LocalNotifications","cold-widget",method,data);}
+        @Override public void resolve(){resolved=true;}
+        @Override public void resolve(JSObject data){resolved=true;}
+        @Override public void reject(String msg,String code,Exception ex,JSObject data){rejected=true;}
+    }
+}

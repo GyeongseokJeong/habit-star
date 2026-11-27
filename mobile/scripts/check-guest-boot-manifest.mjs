@@ -33,6 +33,22 @@ export function validateNotificationManifest(tree) {
   return true;
 }
 
+/** The cold adapter serializes with the pinned plugin receivers on the
+ * application's main thread, not a second application process. */
+export function validateColdReminderProcessManifest(tree) {
+  const sections=tree.split(/\n(?=\s*E: )/);
+  const components=sections.filter(section=>/^\s*E: (application|activity|receiver|service)(?:\s|$)/.test(section));
+  const required=["E: application","MainActivity","ByeolharuWidgetProvider",
+    "TimedNotificationPublisher","NotificationDismissReceiver","LocalNotificationRestoreReceiver"];
+  for (const label of required) {
+    const matches=components.filter(section=>section.includes(label));
+    assert.ok(matches.length>0,"Cold reminder component missing: "+label);
+    for (const section of matches) assert.ok(!/A: android:process(?:\(|\s|=)/.test(section),
+      "Cold reminder component must use the application process: "+label);
+  }
+  return true;
+}
+
 function main() {
   const sdk = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT;
   assert.ok(sdk, "ANDROID_HOME/ANDROID_SDK_ROOT is required for APK inspection");
@@ -42,10 +58,11 @@ function main() {
   assert.ok(existsSync(apk), "Packaged guest APK is missing: " + apk);
   const dump = execFileSync(aapt, ["dump", "xmltree", apk, "AndroidManifest.xml"], {encoding:"utf8",maxBuffer:12*1024*1024});
   validateNotificationManifest(dump);
+  validateColdReminderProcessManifest(dump);
   for (const token of ["byeolharu-return", "android.intent.category.BROWSABLE", "/return"]) {
     assert.ok(dump.includes(token), "Compiled APK missing Android return intent: " + token);
   }
-  console.log("PASS: compiled guest APK contains boot receiver and required notification permissions");
+  console.log("PASS: compiled guest APK contains boot receiver, required notification permissions and same-process cold alarm components");
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();

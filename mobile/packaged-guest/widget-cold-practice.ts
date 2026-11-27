@@ -1,6 +1,7 @@
 import { LocalRepository } from "../../lib/habits/repository";
 import { buildWidgetActionProjection, buildWidgetSummary, type WidgetSummary } from "../../lib/habits/widget-summary";
 import { newWidgetCommandGeneration, recoverableWidgetProjection, recoverWidgetPracticeCommand } from "../../lib/habits/widget-command-recovery";
+import { decideCommittedColdReminder, type ColdReminderDecision, type ColdReminderTransport } from "./cold-reminder-transport";
 import { readWidgetCommandGeneration, writeWidgetCommandGeneration } from "./widget-command-generation";
 
 const ORIGIN = "https://localhost";
@@ -31,9 +32,9 @@ export function coldWidgetIdentity(storage: StorageRead, now = Date.now()): Iden
   } catch { return null; }
 }
 
-export type ColdWidgetResult = { status: "saved" | "not-ready" | "stale" | "error"; summary?: WidgetSummary };
+export type ColdWidgetResult = { status: "saved" | "not-ready" | "stale" | "error"; summary?: WidgetSummary; alarm?: ColdReminderDecision };
 export async function runColdWidgetPractice(input: { origin: string; actionKey: string; deadline: number;
-    storage: StorageRead; nativeAllowed: () => boolean }): Promise<ColdWidgetResult> {
+    storage: StorageRead; nativeAllowed: () => boolean; reminderTransport?: ColdReminderTransport }): Promise<ColdWidgetResult> {
   let repo: LocalRepository | undefined;
   let saved = false;
   try {
@@ -63,16 +64,40 @@ export async function runColdWidgetPractice(input: { origin: string; actionKey: 
     // Never synthesize a check state. Publish only the freshly committed snapshot.
     const display = buildWidgetSummary(snapshot, identity.memberId);
     if (!display) return {status:"saved"};
+    let summary=display;
+    let expectedGeneration=generation;
     try {
-      const projection = buildWidgetActionProjection(snapshot, identity.memberId);
-      if (!projection.summary || !projection.commands.size) return {status:"saved", summary:display};
-      const next = newWidgetCommandGeneration(projection.summary);
-      const recovered = await recoverableWidgetProjection(projection, next);
-      if (!allowed()) return {status:"saved"};
-      await writeWidgetCommandGeneration(origin,next);
-      if (!allowed()) return {status:"saved"};
-      return {status:"saved",summary:recovered.summary ?? display};
-    } catch { return {status:"saved",summary:display}; }
+      const projection=buildWidgetActionProjection(snapshot, identity.memberId);
+      if (projection.summary && projection.commands.size) {
+        const next=newWidgetCommandGeneration(projection.summary);
+        const recovered=await recoverableWidgetProjection(projection,next);
+        if (!allowed()) return {status:"saved"};
+        await writeWidgetCommandGeneration(origin,next);
+        expectedGeneration=next;
+        if (!allowed()) return {status:"saved"};
+        summary=recovered.summary ?? display;
+      }
+    } catch { /* retain display; no new command handle unless committed */ }
+    const transport=input.reminderTransport;
+    if (!transport) return {status:"saved",summary};
+    // The result includes only a decision. Native applies it once if the same
+    // request, native inventory and clock still permit, independently of saved.
+    const repository=repo;
+    const alarm=await decideCommittedColdReminder({
+      snapshot,command,memberId:identity.memberId,storage,allowed,transport,
+      freshSnapshot:async()=>{
+        const current=await repository.load();
+        const currentGeneration=await readWidgetCommandGeneration(origin);
+        return currentGeneration && currentGeneration.nonce === expectedGeneration.nonce &&
+          currentGeneration.expiresAt === expectedGeneration.expiresAt ? current : null;
+      },
+    });
+    if (!allowed()) return {status:"saved"};
+    // An intervening generation/revision/day change invalidates the earlier
+    // projection as well as the alarm. Do not publish stale action handles.
+    if (alarm.kind === "defer" && alarm.reason === "stale-commit")
+      return {status:"saved",alarm};
+    return {status:"saved",summary,alarm};
   } catch { return {status:saved?"saved":"error"}; }
   finally { repo?.close(); }
 }

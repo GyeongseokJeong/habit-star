@@ -91,6 +91,8 @@ jobs:
       - name: Compile packaged guest APK
         run: ./gradlew assembleDebug --no-daemon
         working-directory: mobile/android
+      - name: Test native cold reminder identity against the shared planner
+        run: node mobile/scripts/test-cold-reminder-native-key.mjs
       - name: Inspect compiled LocalNotifications API for cold widget transport
         run: node mobile/scripts/inspect-cold-reminder-native-api.mjs
       - name: Assert compiled APK includes Android reboot receiver and notification permissions

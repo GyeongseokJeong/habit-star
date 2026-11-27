@@ -111,6 +111,8 @@ test("prefs/OS permission and time are fail closed; do not create past/near-due 
   }
   assert.equal(planColdWidgetReminder(input(false,{optInRaw:null})).kind,"restore");
   assert.equal(planColdWidgetReminder(input(false,{now:new Date("2026-11-27T19:59:59+09:00")})).kind,"defer");
+  assert.deepEqual(planColdWidgetReminder(input(true,{now:new Date("2026-11-27T19:59:59+09:00"),queue:queue([target])})),
+    {kind:"defer",reason:"too-close"});
 });
 test("capacity and rolling plan priority never evict another reservation",()=>{
   assert.equal(planColdWidgetReminder(input(false,{queue:queue(Array.from({length:48},(_,i)=>({id:i+1})))})).kind,"defer");

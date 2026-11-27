@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { validateNotificationManifest } from "./check-guest-boot-manifest.mjs";
+import { validateNotificationManifest, validateColdReminderProcessManifest } from "./check-guest-boot-manifest.mjs";
 import { createReminderLifecycle } from "../notifications/reminder-lifecycle.js";
 import { guestReminderAction } from "../notifications/guest-reminder-readiness.js";
 
@@ -50,6 +50,22 @@ test("final APK manifest requires Android boot restore and notification permissi
   assert.throws(()=>validateNotificationManifest(tree.replace("android.intent.action.BOOT_COMPLETED","android.intent.action.NOT_BOOT")),/device reboot action/);
   assert.throws(()=>validateNotificationManifest(tree.replace("android.permission.RECEIVE_BOOT_COMPLETED","android.permission.NOT_BOOT")),/boot completed permission/);
   assert.throws(()=>validateNotificationManifest(tree.replace("LocalNotificationRestoreReceiver","WrongReceiver")),/boot restore receiver/);
+});
+
+test("cold alarm components cannot move into a second process",()=>{
+  const tree=["E: manifest","  E: application",
+    ...["activity MainActivity","receiver ByeolharuWidgetProvider$Compact",
+      "receiver TimedNotificationPublisher","receiver NotificationDismissReceiver",
+      "receiver LocalNotificationRestoreReceiver"].flatMap(value=>{
+        const [kind,name]=value.split(" ");
+        return ["    E: "+kind,'      A: android:name="'+name+'"'];
+      }),
+  ].join("\n");
+  assert.equal(validateColdReminderProcessManifest(tree),true);
+  assert.throws(()=>validateColdReminderProcessManifest(tree.replace('A: android:name="TimedNotificationPublisher"',
+    'A: android:name="TimedNotificationPublisher"\n      A: android:process(0x01010011)=":other"')),/application process/);
+  assert.throws(()=>validateColdReminderProcessManifest(tree.replace('E: application','E: application\n    A: android:process=":other"')),/application process/);
+  assert.throws(()=>validateColdReminderProcessManifest(tree.replace("NotificationDismissReceiver","MissingReceiver")),/component missing/);
 });
 
 test("simulated restart preserves restored queue without creating duplicate alarms",async()=>{
