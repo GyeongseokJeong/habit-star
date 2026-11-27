@@ -97,3 +97,32 @@ B01~B08은 4B-2 이후 실기기 인수 기준이다. 4B-1에서는 자동화와
 - 실제 시험 APK의 variant·패키지·source SHA·artifact SHA256, Android/런처/System WebView, 일반·정확 권한, Activity 생명주기 및 PID, 조작과 예상/실제 알림 시각, 고정 코드(있다면), 각 하위 시험의 PASS/FAIL/NOT RUN/BLOCKED를 기록한다. 실제 개인 데이터는 첨부하지 않고 가상 시험 데이터만 사용한다. 시험 앱의 AlarmManager 등록 확인 및 실제 예정 시간 미수신/수신을 둘 다 확인한다. PendingIntent 토큰/저장소/코드 결과만으로 OS 전달을 증명하지 않는다.
 - D04-a/b/d/h는 앱을 다시 열기 전 예약/전달 기준을 통과해야 한다. 정상 앱 재진입으로 알림이 복구된 사실만으로 D04를 통과 처리하지 않는다. 최근 앱 삭제 및 제조사 절전으로 worker 종료 조건이 다름을 고려하고 불가한 실험은 BLOCKED로 기록한다.
 - 이 재발 수정은 #189 및 #230의 실기기 인수 게이트를 닫지 않는다. 현재 D04 사용자 보고 실패 및 수정본 미검증 상태를 유지한다. 일반 권한 확인 회귀는 [첫 알림 권한 R01~R08](ANDROID_NOTIFICATION_FIRST_PERMISSION_TEST.md)에서 별도 기록한다. P0/P1 미해결 또는 필수 실기기 검증 미완료 시 Release 직접 기록 활성화/정식 출시는 보류한다.
+
+## D04 재발 — #232 Debug 최근 앱 제거 후 완료했으나 예약 알림 수신
+
+기준 main `afcd427`, 2026-11-28 사용자 보고. 앞서 Debug 위젯의 "기록은 저장했어요. 알림은 앱에서 다시 확인해 주세요." Toast를 확인했고, 최근 앱 목록에서 앱 제거 후 습관을 완료해도 예정 시간에 해당 습관 알림을 실제 수신했다고 보고했다. D04-a/P1 **FAIL (사용자 보고)** 유지. 이전 PR에서 안내한 test-signed Release는 별도 package이므로 Debug와 동시에 설치·예약된 경우 알림 발신 package도 확인한다. 화면만으로 PID, native reason, 발신 package 또는 실패 분기를 확정할 수 없다.
+
+### 변경 및 안전성
+
+- pinned LocalNotifications 8.3.1의 NotificationStorage는 예약의 원본 JSON을 보관하며, 완료 시 manager.cancel은 전달받은 ID만 취소한다. 기존 cold prepare/apply는 전체 저장 키의 파싱·상한·전체 visible/scheduled 비교를 요구했으므로 무관한 오래된/손상된 행, 다른 알림 수신, 또는 여러 건 파싱/반복 요청 검사에 따른 시간 초과로 유효한 단일 습관 취소까지 실패할 수 있었다. 재현 가능한 코드 결함 조건이지 해당 기기의 진단 코드가 확보된 것은 아니다.
+- 완료 취소가 아닌 **완료(예약 cancel)** 에만 target ID의 저장 키·decoded ID·canonical payload·예약/표시 상태·token을 prepare/apply/after에 읽는다. target의 손상·충돌 및 target token만 남은 경우는 여전히 fail-closed; 다른 알림의 수신/오래된 보관 행이 대상의 유효성 판단을 방해하지 않는다. 단일 ID manager.cancel 외 수정 없음. 완료를 되돌리는 경우(restore)는 전체 inventory/48 cap/소유권 비교 등 기존 기준 그대로.
+- Activity가 종료되어도 known worker가 아직 살아 있는 경우, 기존 native deadline(전체 6.5초) 내에서 최대 1초/100ms 간격으로 drain 여부를 비동기 재확인. unknown/live worker, stale claim·동의·계정·시간 변경은 기존대로 보류. worker가 실제 종료되기 전에는 예약 변경하지 않는다. JS prepare 응답 timeout 상한만 2.3초로 늘리되 native deadline 500ms 전에는 종료. 기존 단일 prepare/commit/decision 적용 및 권한 요청 금지 유지.
+- 새 오류 팝업을 추가하지 않고, 기존 Debug 실패 Toast에만 고정된 native reason을 붙인다. native에서 직접 전달하며 제목/계정/날짜/ID/예외·전체 로그/토큰은 노출·수집하지 않는다. 저장 성공과 알림 불확실의 구분 유지; 정상 완료는 무안내. Release와 실제 기록 원본, 인증, DB, Outbox, 앱 알림 권한 및 UI 디자인 변경 없음.
+
+### 하네스 두 차례 검토 (동일 모델 역할 관점, 독립 전문가·실기기 아님)
+
+| 쟁점 | 독립 관점 제안 → 반박 → 결정 및 재평가 |
+|---|---|
+| D04-R1-1 | UX/사용자: 앱 재진입 없이 예약 취소가 되어야 함. Android/풀스택: 전체 inventory와 worker drain이 정상 취소를 차단. 보안/아키텍트: 모든 guard 제거/ID만으로 취소하면 타 계정이나 ID 충돌 위험. 대상 ID의 canonical 소유권/날짜/fingerprint/PendingIntent를 동일 guard 아래 세 번 확인, 타 ID는 읽기 범위에서 제외. 복구에서 global cap 유지. 채택. |
+| D04-R1-2 | Android: 이전 worker를 잠시 기다림. QA/클린코드: 무제한 기다림·main thread 차단·unknown worker 허용·새 write retry는 위험. monotonic 1초 한도, no sleep/join, read-only prepare 전만 재확인, native request deadline 유지. 채택. |
+| D04-R2-1 | QA/보안: 다른 알림이 울리는 중, 512개 초과 이력, 손상된 타 ID와 target 손상을 구분해야 함. JVM 실제 selector/worker decision, JS target-only/foreign/malformed/visible tests 및 source guard를 추가. 전체 inventory restore 조건과 single-call mutation·기존 원본/동의 검증 재확인. |
+| D04-R2-2 | UX/사용자: 일반 안내를 숨겨서는 안 되나 실제 실패 사유가 없으면 반복 테스트가 곤란. Debug 기존 실패 Toast만 native reason 추가, 정상 시 표시 없음·Release unchanged. 실기기 계속 실패 시 reason과 발신 앱 이름으로 좁힘. |
+
+코드 기준의 실질적 이견은 해소. 기기 원인 확정·실제 예약 전달은 N/E. 사용자 보고 P1은 수정본에서 재현/검증 전 닫지 않는다. #189, #230/STEP 4D 및 Release 직접 기록 게이트 유지.
+
+### 추가 인수 조건 (수정본 모두 NOT RUN)
+
+- 동일 Debug 앱만 기준으로, 실제 알림 발신 앱이 Debug인지 확인. Release 앱도 설치된 경우 각각의 별도 알림임을 구분(기존 앱/기록 삭제 금지).
+- 오늘 5~10분 후 예약된 H1과 별도 시각의 H2로, 최근 앱 제거 직후 및 수 초 후 위젯 완료. 기록 5점·메모 유지, H1 예정 시각 실제 미수신, H2 예정 시각 실제 수신(앱 재실행 전). PID 유지 및 실제 PID 종료는 구분.
+- H1을 다시 미래 시각으로 준비해 완료 취소는 0점/미완료, 해당 예정 시각 1회 수신. 다른 날/마무리/계정 알림 불변.
+- 실패 Toast가 재발하면 고정 reason code를 캡처. 실제 기기에서 발생한 분기를 확인하기 전 억지로 guard 완화하지 않는다.

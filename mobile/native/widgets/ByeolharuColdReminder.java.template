@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -195,6 +196,16 @@ final class ByeolharuColdReminder {
             return result;
         }
     }
+    // Cancellation is a one-ID operation; a full inventory is only needed
+    // for restore (capacity and unrelated-reservation protection). Stored
+    // IDs come from a SharedPreferences map, so each key is unique. A present
+    // but corrupt target must still be decoded and rejected, never treated
+    // as an absent reservation.
+    private static List<String> inventoryKeys(List<String> keys,int targetId,boolean completed) {
+        if(!completed)return keys;
+        String key=Integer.toString(targetId);
+        return keys.contains(key)?Collections.singletonList(key):Collections.emptyList();
+    }
     private Inventory capture() throws Exception {
         if(!canAct()||!target.current(System.currentTimeMillis()))throw new IllegalStateException();
         Inventory q=new Inventory();
@@ -210,7 +221,7 @@ final class ByeolharuColdReminder {
             NotificationChannel channel=notifications.getNotificationChannel(CHANNEL);
             q.channelReady=channel!=null && channel.getImportance()!=NotificationManager.IMPORTANCE_NONE;
         }
-        java.util.List<String> keys=storage.getSavedNotificationIds();
+        List<String> keys=inventoryKeys(storage.getSavedNotificationIds(),target.id,target.completed);
         if(keys.size()>MAX_STORED)throw new IllegalStateException();
         long bytes=0;
         for(String key:keys) {
@@ -227,7 +238,10 @@ final class ByeolharuColdReminder {
             q.rows.put(k,json);
             if(manager.isCurrentlyScheduled(parsed))q.scheduled.add(k);
         }
-        q.visible.addAll(manager.currentlyVisibleIds());
+        Set<Integer> visible=manager.currentlyVisibleIds();
+        if(target.completed) {
+            if(visible.contains(target.id))q.visible.add(target.id);
+        } else q.visible.addAll(visible);
         if(q.visible.size()>MAX_STORED || q.visible.stream().anyMatch(k->k<=0))throw new IllegalArgumentException();
         q.token=tokenExists(target.id);
         if(!canAct() || !target.current(System.currentTimeMillis()))throw new IllegalStateException();
@@ -278,7 +292,12 @@ final class ByeolharuColdReminder {
     JSObject prepare(JSONObject request) {
         if(prepareUsed){diagnostic="prepare-reused";return null;}
         prepareUsed=true;
-        if(!canAct()){diagnostic="prepare-guard-blocked";return null;}
+        if(!canAct()){
+            String process=ByeolharuWidgetColdPractice.reminderProcessState();
+            diagnostic=ByeolharuWidgetBridgeLease.WORKER_UNKNOWN.equals(process)?"prepare-worker-unknown":
+                ByeolharuWidgetBridgeLease.WORKER_DRAINING.equals(process)?"prepare-worker-draining":"prepare-guard-blocked";
+            return null;
+        }
         try{target=new Target(request);}
         catch(Exception failure){diagnostic="prepare-invalid-target";return null;}
         try{

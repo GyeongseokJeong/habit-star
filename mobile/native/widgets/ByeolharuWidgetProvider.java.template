@@ -295,7 +295,7 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
             && !ByeolharuWidgetColdPractice.hasActivity()
             && currentKey(c,request.widget,request.key);
     }
-    static synchronized void completeCold(Context c,String id,JSObject result) {
+    static synchronized void completeCold(Context c,String id,JSObject result,String alarmDiagnostic) {
         if(!coldAllowed(c,id)) { complete(c,id,"not-ready");return; }
         String status=result.optString("status");
         if("saved".equals(status)) {
@@ -303,23 +303,32 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
             boolean alarmCheck=result.optBoolean("alarmCheckNeeded",false);
             JSONObject summary=result.optJSONObject("summary");
             if(summary!=null) {
-                try { publish(c,new JSObject(summary.toString()));complete(c,id,alarmCheck?"saved-alarm-check":"saved");return; }
+                try { publish(c,new JSObject(summary.toString()));complete(c,id,alarmCheck?"saved-alarm-check":"saved",alarmDiagnostic);return; }
                 catch(Exception ignored){}
             }
-            complete(c,id,alarmCheck?"saved-refresh-alarm-check":"saved-refresh-needed");return;
+            complete(c,id,alarmCheck?"saved-refresh-alarm-check":"saved-refresh-needed",alarmDiagnostic);return;
         }
         complete(c,id,"not-ready");
     }
     static synchronized void complete(Context c,String id,String result) {
+        complete(c,id,result,"");
+    }
+    private static synchronized void complete(Context c,String id,String result,String alarmDiagnostic) {
         PracticeRequest request=pending;
         if(request==null||!request.requestId.equals(id))return;
         pending=null;request.broadcast.finish();
         // Never modify the displayed check state here. Only committed JS
         // snapshot publication can update it, including after a timeout.
+        // Debug-only, only on an existing failure toast. A native fixed
+        // reason code helps diagnose device reports without collecting logs,
+        // account/record identifiers or any raw exception/user content.
+        boolean debugDetail=experimental(c)&&alarmDiagnostic!=null&&alarmDiagnostic.matches("[a-z-]{1,40}");
         if("saved-alarm-check".equals(result)&&request.claimed) {
-            message(c,"기록은 저장했어요. 알림은 앱에서 다시 확인해 주세요.");
+            message(c,debugDetail?"기록 저장 완료 · 알림 확인 필요\n"+alarmDiagnostic:
+                "기록은 저장했어요. 알림은 앱에서 다시 확인해 주세요.");
         } else if("saved-refresh-alarm-check".equals(result)&&request.claimed) {
-            message(c,"기록은 저장했어요. 앱에서 위젯과 알림을 확인해 주세요.");
+            message(c,debugDetail?"기록 저장 완료 · 위젯·알림 확인\n"+alarmDiagnostic:
+                "기록은 저장했어요. 앱에서 위젯과 알림을 확인해 주세요.");
         } else if("saved-refresh-needed".equals(result)&&request.claimed) {
             message(c,"기록은 저장했어요. 앱에서 위젯을 갱신해 주세요.");
         } else if(!"saved".equals(result)||!request.claimed)

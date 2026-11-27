@@ -83,9 +83,11 @@ function canonicalStoredTarget(stored, { scope, habit, day, timeZone, now }) {
 /**
  * STEP 4B: pure post-commit decision; external native adapter applies it.
  * Invoke only after the existing widget transaction returned "saved", while
- * the exact verified request is still valid. The complete inventory must be
- * obtained from the same native plugin store plus its visible/scheduled sets;
- * validate each actual storage key against its decoded ID before normalizing.
+ * the exact verified request is still valid. Cancellation needs the complete
+ * inventory for its single target ID; restoration needs the complete native
+ * queue (including other IDs for capacity/collision checks). Both must come
+ * from the same plugin store and visible/scheduled sets; validate each
+ * selected actual storage key against its decoded ID before normalizing.
  * getPending() alone cannot prove ID availability or actual OS delivery.
  * The adapter must revalidate request, revision, scope, day, prefs,
  * permissions, inventory & time immediately before one native operation.

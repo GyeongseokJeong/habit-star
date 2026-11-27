@@ -46,6 +46,17 @@ test("completion selects only its current-day owned reservation; other days/scop
   assert.deepEqual(planColdWidgetReminder(input(true,{queue:queue([stored,...untouched])})),
     {kind:"cancel",expected:target});
 });
+test("target-only completion inventory still rejects a corrupt, visible or foreign target and never invents a reservation",()=>{
+  const stored=JSON.parse(JSON.stringify(target));
+  assert.deepEqual(planColdWidgetReminder(input(true,{queue:queue([stored])})),{kind:"cancel",expected:target});
+  assert.deepEqual(planColdWidgetReminder(input(true,{queue:queue([])})),{kind:"noop",reason:"already-absent"});
+  for(const bad of [
+    queue([{id:target.id}]), // native redacts any noncanonical target, but never drops its ID
+    queue([{...stored,extra:{...stored.extra,scope:"member:bob"}}]),
+    queue([stored],[target.id],[target.id]),
+    {...queue([]),storedIds:[target.id]},
+  ]) assert.equal(planColdWidgetReminder(input(true,{queue:bad})).kind,"defer");
+});
 test("undo restores exactly the canonical future payload and respects exact/inexact policy",()=>{
   assert.deepEqual(planColdWidgetReminder(input(false,{queue:queue(untouched)})),{kind:"restore",notification:target});
   assert.deepEqual(planColdWidgetReminder(input(false,{queue:queue(untouched),exact:false})),{kind:"restore",notification:ordinary});

@@ -124,4 +124,39 @@ public final class LeaseVectors {
   execFileSync("javac",["-encoding","UTF-8","-d",root,join(root,"ByeolharuWidgetBridgeLease.java"),join(root,"LeaseVectors.java")],{stdio:"inherit"});
   execFileSync("java",["-cp",root,"coldreminder.LeaseVectors"],{stdio:"inherit"});
   console.log("PASS: process-local bridge worker lifecycle vectors (not an Android lifecycle test)");
+  // Compile actual selector + bounded-drain decision from production source.
+  // Target-only cancellation MUST not decode unrelated rows or hit the
+  // restore inventory cap; a corrupt target key is never mistaken for absence.
+  const keysHelper=adapter.match(/(    private static List<String> inventoryKeys\([^)]*\) \{[\s\S]*?\n    \})/);
+  const coldPractice=readFileSync(new URL("../native/widgets/ByeolharuWidgetColdPractice.java.template",import.meta.url),"utf8");
+  const waitHelper=coldPractice.match(/(    private static boolean mayWaitForWorker\([^)]*\)\{[\s\S]*?\n    \})/);
+  if(!keysHelper||!waitHelper)throw Error("Target inventory / bounded worker wait helper extraction failed");
+  writeFileSync(join(root,"CancelVectors.java"),`package coldreminder;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+public final class CancelVectors {
+${keysHelper[1]}
+${waitHelper[1]}
+  static void check(boolean value){if(!value)throw new AssertionError("Target inventory or wait mismatch");}
+  public static void main(String[] args){
+    List<String> keys=new ArrayList<>();
+    for(int k=1;k<=600;k++)keys.add(Integer.toString(k));
+    keys.add("bad-unrelated-key");keys.add("1200000000");
+    check(inventoryKeys(keys,1200000000,true).equals(List.of("1200000000")));
+    check(inventoryKeys(keys,1200000001,true).isEmpty());
+    check(inventoryKeys(keys,1200000000,false).equals(keys));
+    check(inventoryKeys(keys,1200000001,false).size()==602);
+    check(keys.size()==602);
+    // Only a known draining worker, and within both budgets.
+    check(mayWaitForWorker("worker-draining",100,1100,3000));
+    check(!mayWaitForWorker("worker-draining",1100,1100,3000));
+    check(!mayWaitForWorker("worker-draining",100,1100,850));
+    for(String state:List.of("new-process","drained-process","live-activity","worker-unknown"))
+      check(!mayWaitForWorker(state,100,1100,3000));
+  }
+}`);
+  execFileSync("javac",["-encoding","UTF-8","-cp",root,"-d",root,join(root,"CancelVectors.java")],{stdio:"inherit"});
+  execFileSync("java",["-cp",root,"coldreminder.CancelVectors"],{stdio:"inherit"});
+  console.log("PASS: target-only cancellation inventory and bounded worker wait vectors");
 } finally {rmSync(root,{recursive:true,force:true});}
