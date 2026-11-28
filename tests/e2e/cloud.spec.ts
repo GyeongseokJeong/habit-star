@@ -1196,6 +1196,25 @@ test("self-service withdrawal removes only the confirmed account and rejects sta
       await page.getByRole("group", { name: "화면 테마" }).getByRole("button", { name: theme }).click();
       await expect(page.locator(".byeolharu")).toHaveClass(new RegExp(className));
       await page.getByRole("button", { name: "내 계정으로" }).click();
+      const hub = page.getByRole("dialog", { name: "내 계정" });
+      const policyLink = hub.locator(".account-policy-footer").getByRole("button", { name: "개인정보처리방침", exact: true });
+      for (const width of [320, 390, 430]) {
+        await page.setViewportSize({ width, height: 844 });
+        await expect(policyLink).toBeInViewport();
+        const geometry = await hub.locator(".account-screen-body").evaluate(el => {
+          const footer = el.querySelector(".account-policy-footer")!.getBoundingClientRect();
+          const menu = el.querySelector(".account-menu")!.getBoundingClientRect();
+          return { bottomGap: el.getBoundingClientRect().bottom - parseFloat(getComputedStyle(el).paddingBottom) - footer.bottom,
+            afterMenu: footer.top >= menu.bottom, noHorizontalOverflow: el.scrollWidth <= el.clientWidth };
+        });
+        expect(Math.abs(geometry.bottomGap)).toBeLessThanOrEqual(2);
+        expect(geometry.afterMenu && geometry.noHorizontalOverflow).toBe(true);
+      }
+      await policyLink.click();
+      const policy = page.getByRole("dialog", { name: "개인정보처리방침" });
+      await expect(policy.locator(".legal-deletion-path > strong")).toHaveText("내 계정 → 계정 관리 → 회원 탈퇴");
+      await expect(policy.locator(".legal-copy").getByRole("button")).toHaveCount(0);
+      await page.getByRole("button", { name: "내 계정으로" }).click();
       await page.getByRole("button", { name: "계정 관리", exact: true }).click();
       const security = page.getByRole("dialog", { name: "계정 관리" });
       const logout = security.getByRole("button", { name: "로그아웃", exact: true });
