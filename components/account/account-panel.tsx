@@ -22,7 +22,6 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useReminderPermissionGuide } from "@/components/reminder-permission-dialog";
 import type { ThemePreference } from "@/lib/theme-preference";
 import { PrivacyContent } from "@/components/legal/privacy-content";
-import { AccountDeletionContent } from "@/components/legal/account-deletion-content";
 
 const wrapupPeriods: { group: WrapupGroup; name: string; range: string; times: string[] }[] = [
   { group: "morning", name: "아침", range: "05:00~10:59", times: ["09:30","10:00","10:30"] },
@@ -30,7 +29,7 @@ const wrapupPeriods: { group: WrapupGroup; name: string; range: string; times: s
   { group: "night", name: "밤", range: "17:00~다음 날 04:59", times: ["21:00","21:30","22:00","22:30"] },
 ];
 type App = ReturnType<typeof useHabitApp>;
-export type AccountPage = "home" | "records" | "import" | "settings" | "help" | "security" | "privacy" | "deletion" | "withdraw" | AuthMode;
+export type AccountPage = "home" | "records" | "import" | "settings" | "help" | "security" | "privacy" | "withdraw" | AuthMode;
 
 const zoneLabels: Record<string, string> = {
   "Asia/Seoul": "한국 · 서울",
@@ -356,7 +355,7 @@ export function AccountPanel({
     </div>;
   }
   return (
-    <div className="account-panel account-hub">
+    <div className={"account-panel account-hub" + (page === "home" ? " account-home" : "")}>
       {permissionGuide.dialog}
       {pendingRestore && nativeBackup && (
         <ConfirmDialog
@@ -407,7 +406,6 @@ export function AccountPanel({
             {app.user && <button type="button" aria-label="계정 관리" onClick={() => navigate("security")}><UserRound size={19} /><span>계정 관리<small>로그인 정보 · 로그아웃 · 회원 탈퇴</small></span><ChevronRight size={17} /></button>}
             <button type="button" aria-label="사용 안내" onClick={() => navigate("help")}><CircleHelp size={19} /><span>사용 안내<small>기록 · 성장 · 데이터 보관</small></span><ChevronRight size={17} /></button>
           </nav>
-          <button type="button" className="account-privacy-link" onClick={() => navigate("privacy")}>개인정보처리방침</button>
           {!app.user && app.deletionNotice && <p className="auth-feedback account-feedback" role="status">{app.deletionNotice}</p>}
         </>
       )}
@@ -712,10 +710,7 @@ export function AccountPanel({
       )}
 
       {page === "privacy" && (
-        <section className="account-detail"><PrivacyContent onDeletion={() => navigate(app.user ? "withdraw" : "deletion")} /></section>
-      )}
-      {page === "deletion" && (
-        <section className="account-detail"><AccountDeletionContent embedded onLogin={cloudEnabled() ? () => navigate(app.user ? "withdraw" : "login") : undefined} /></section>
+        <section className="account-detail"><PrivacyContent embedded /></section>
       )}
       {page === "security" && app.user && (
         <section className="account-detail account-security" aria-label="계정 관리">
@@ -791,6 +786,11 @@ export function AccountPanel({
           className={"auth-feedback account-feedback is-" + feedbackTone}>
           {accountFeedback}
         </p>
+      )}
+      {page === "home" && (
+        <footer className="account-policy-footer">
+          <button type="button" className="account-privacy-link" onClick={() => navigate("privacy")}>개인정보처리방침</button>
+        </footer>
       )}
     </div>
   );

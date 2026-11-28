@@ -5186,6 +5186,7 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 .legal-copy { color: var(--body); font-size: 14px; line-height: 1.75; overflow-wrap: anywhere; }
 .legal-copy p, .account-panel .legal-copy p { font-size: 14px; margin: 0 0 12px; }
 .legal-copy section { margin: 0; }
+.legal-copy .legal-deletion-path strong { color: var(--ink); font-weight: 650; }
 .legal-copy ul, .legal-copy ol { margin: 0 0 12px; padding-inline-start: 1.45em; }
 .legal-copy ul { list-style: disc; }
 .legal-copy ol { list-style: decimal; }
@@ -5232,6 +5233,24 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 .app-update-settings > div { display: grid; gap: 4px; }
 .app-update-settings small { color: var(--muted); font-size: 12px; }
 
+/* Profile-only footer: fill the mobile content area on short pages; scroll
+   with long content instead of overlaying menu items or the system nav. */
+.account-policy-footer {
+  margin-top: auto;
+  padding-top: 12px;
+}
+@media (max-width: 620px) {
+  dialog.modal.account-screen .account-screen-body:has(> .account-home) {
+    display: flex;
+    flex-direction: column;
+  }
+  .account-panel.account-hub.account-home {
+    display: flex;
+    flex-direction: column;
+    flex: 1 0 auto;
+    min-width: 0;
+  }
+}
 /* Legal link remains discoverable without a full account-menu row. */
 .account-privacy-link {
   display: block;
