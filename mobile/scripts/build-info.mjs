@@ -4,14 +4,14 @@ import { resolve } from "node:path";
 import { widgetPracticeMode } from "./widget-practice-mode.mjs";
 import { ANDROID_APPLICATION_IDS, androidVariant, readAndroidVersion, validateAndroidVersion } from "./android-release-version.mjs";
 
-export function buildInfoFor(version, sourceSha, cloudEnabled, variant, mode = widgetPracticeMode(variant, "0")) {
+export function buildInfoFor(version, sourceSha, cloudEnabled, variant, mode = widgetPracticeMode(variant)) {
   const { code, name } = validateAndroidVersion(version);
   assert.match(sourceSha, /^(?:[a-f0-9]{40}|unknown)$/i, "Invalid Git revision");
   assert.ok(Object.hasOwn(ANDROID_APPLICATION_IDS, variant), "Invalid Android variant");
   assert.equal(typeof cloudEnabled, "boolean", "Invalid cloud capability");
-  assert.ok(variant === "debug" ? mode === "debug" : ["read-only", "release-candidate"].includes(mode), "Invalid widget mode for variant");
+  assert.ok(mode === (variant === "debug" ? "debug" : "release-enabled"), "Invalid widget mode for variant");
   return Object.freeze({
-    schemaVersion: 3,
+    schemaVersion: 4,
     app: "byeolharu",
     platform: "android-packaged-guest",
     version: name,

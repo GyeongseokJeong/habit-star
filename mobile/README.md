@@ -15,7 +15,7 @@ GitHub Actions의 [Android Shell PoC](https://github.com/GyeongseokJeong/habit-s
 
 - Android CI: `android-packaged-guest-step9`(Debug), `release-bundle`(미서명 AAB 및 테스트 서명 APK), 별도 승인된 main 수동 실행의 `sign-internal`(Play 업로드 키 서명)
 - Artifact: `byeolharu-android-packaged-guest-step9-debug`, 안에 디버그 APK, `build-info.json`, `SHA256SUMS` 포함(7일 보관)
-- APK/AAB 실제 manifest debuggable 값, 원본 staging과 패키징 자산 바이트 일치, 위젯 실행 모드별 cold runtime 및 application 후보 metadata를 검증합니다. APK SHA256SUMS 및 같은 실행의 build-info를 확인하고 [STEP 4D 실기기 인수표](../docs/WIDGET_STABILIZATION_STEP4D.md)를 사용하세요.
+- APK/AAB 실제 manifest debuggable 값, 원본 staging과 패키징 자산 바이트 일치, 위젯 cold runtime 및 application Release 활성화 metadata를 검증합니다. APK SHA256SUMS 및 같은 실행의 build-info를 확인하고 [STEP 4D 실기기 인수표](../docs/WIDGET_STABILIZATION_STEP4D.md)를 사용하세요.
 - 앱 설정 화면 하단에 Android 버전과 빌드 SHA 표시. PR의 SHA는 검증용 임시 병합 커밋일 수 있음. Web 버전은 루트 package.json에서 독립 관리합니다.
 
 ## 로컬 빌드 (Node 24.22.1, pnpm 11.25.0)
@@ -42,13 +42,13 @@ cd android && ./gradlew assembleDebug
 - **알림과 이메일** — 새 앱에서 알림 권한과 실제 수신을 확인한 뒤 기존 앱의 알림을 끕니다. 두 앱이 설치된 상태에서 각각 요청한 가입·재설정 이메일이 요청한 앱으로 돌아오는지 확인합니다. 정식 앱의 웹 복귀 링크와 네이티브 등록은 한 변경으로 검증합니다.
 - **서명과 내부 테스트** — Play App Signing을 사용하고 업로드 키는 디버그 키와 분리해 저장소 밖에서 관리합니다. 릴리스 AAB를 내부 테스트에 올려 최초 설치와 다음 버전 업데이트에서 기록·로그인·알림이 유지되는지 확인합니다.
 
-CI의 `release-bundle` 작업은 별도 작업 디렉터리에서 정식 ID와 런처 이름으로 네이티브 프로젝트를 생성하고 `bundleRelease`를 실행합니다. 검증된 미서명 AAB는 `byeolharu-android-release-unsigned` 아티팩트로 받습니다. Android Debug와 Release 모두 `mobile/release-version.json`의 code/name을 Gradle과 UI/build-info에 사용합니다. 현재 값은 1 / 0.1.0이며 Play에서 이미 사용한 최고 code는 이 저장소만으로 확인할 수 없습니다. 최초 업로드인지 확인하고, 후속 업로드마다 새 code는 Play Console에 이미 사용한 모든 code보다 높여야 합니다. 루트 package.json은 Web 버전, mobile/package.json의 version은 private 빌드 도구 메타데이터일 뿐 Android 배포 버전이 아닙니다.
+CI의 `release-bundle` 작업은 별도 작업 디렉터리에서 정식 ID와 런처 이름으로 네이티브 프로젝트를 생성하고 `bundleRelease`를 실행합니다. 검증된 미서명 AAB는 `byeolharu-android-release-unsigned` 아티팩트로 받습니다. Android Debug와 Release 모두 `mobile/release-version.json`의 code/name을 Gradle과 UI/build-info에 사용합니다. 현재 값은 2 / 0.1.1(다음 시험 버전 후보)이며 Play에서 이미 사용한 최고 code는 이 저장소만으로 확인할 수 없습니다. 최초 업로드인지 확인하고, 후속 업로드마다 새 code는 Play Console에 이미 사용한 모든 code보다 높여야 합니다. 루트 package.json은 Web 버전, mobile/package.json의 version은 private 빌드 도구 메타데이터일 뿐 Android 배포 버전이 아닙니다.
 
 ### 앱 산출물 및 준비 점검
 
 - `npm run release:readiness -- --assert-source-ready`는 버전 관리 설정·생성 프로젝트·빌드/검증/보호 서명 경로만 검사합니다. 결과의 `sourceReady`와 별개로 기존 `ready`는 false(출시 증거 미확인)입니다. `--assert-ready`는 수동 출시 게이트를 증명하지 못하므로 실패합니다.
-- CI는 실제 APK/AAB의 ID, code/name, SDK(현재 min 24, target 36), APK 런처 이름, 포함된 build-info.json(버전/SHA/variant/ID)과 필수 자산을 대조합니다. 일반 Release에서는 cold 실행 JS가 없어야 하며, 별도 APK-only 후보에는 포함되어야 합니다.
-- PR CI에서는 정상 Release 아티팩트 업로드 후 비디버그 위젯 직접 완료/취소 검증용 APK를 별도로 생성합니다(`byeolharu-widget-release-candidate-apk-test-signed`, `widgetPractice=release-candidate`). 후보 AAB/Play 서명은 금지되고 일반 Release는 읽기 전용입니다. [STEP 4E 인수표](../docs/WIDGET_RELEASE_CANDIDATE.md)를 참고하세요.
+- CI는 실제 APK/AAB의 ID, code/name, SDK(현재 min 24, target 36), APK 런처 이름, 포함된 build-info.json(버전/SHA/variant/ID)과 필수 자산을 대조합니다. Debug 및 일반 Release 모두 cold 실행 JS와 원본 staging 바이트가 동일해야 하며, Release는 비디버그 및 compiled 활성화 marker가 필수입니다.
+- STEP 4F부터 일반 Release APK 및 AAB에서 위젯 직접 완료/취소가 활성화됩니다(`widgetPractice=release-enabled`, build-info schema 4). [STEP 4E](../docs/WIDGET_RELEASE_CANDIDATE.md) 후보 전용 환경 변수와 별도 APK는 폐기했습니다. [정식 출시 준비·내부 테스트 절차](../docs/WIDGET_RELEASE_ENABLED.md)를 사용하세요. 일반 Release 기능 활성화는 Play 공개 배포 승인이 아닙니다.
 - Release 산출물과 함께 `build-info.json`, `SHA256SUMS`를 다운로드하여 대상 소스와 파일을 확인할 수 있습니다. 테스트 서명 APK는 매 CI 일회성 인증서를 사용하므로 Play 설치본이나 다른 실행의 APK 업데이트에 사용할 수 있다고 가정하지 않습니다. 체크섬은 파일 무결성 확인이지 Play 서명 인증을 대체하지 않습니다.
 - 네이티브 템플릿·Capacitor config·patcher로 깨끗한 네이티브 프로젝트를 재생성합니다. `pnpm-lock.yaml`과 `mobile/package-lock.json`으로 npm 직접·하위 의존성을 고정합니다. Release 빌드는 추적 파일이 수정된 작업 트리를 거부하며 CI는 checkout SHA를 GitHub Actions SHA와 비교합니다. 정식 후보는 깨끗한 main CI 산출물을 사용합니다(로컬 untracked 소스·Gradle 환경·일회성 인증서 등의 차이로 바이트 단위 동일성을 보장하지 않습니다). 실제 서명, 기존 Play 설치 업데이트, 실기기 데이터 보존은 별도 검증이 필요합니다.
 

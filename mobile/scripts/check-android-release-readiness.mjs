@@ -72,7 +72,7 @@ export function inspectReleaseSources({ config, workflow, patcher, packageJson, 
     version,
     blockers,
     manualGates: [
-      "Verify final AAB/APK package, launcher label, version code/name, target/min SDK, embedded source SHA and release widget read-only boundary in CI",
+      "Verify final AAB/APK package, launcher label, version code/name, target/min SDK, embedded source SHA and release widget direct-practice and debug boundary in CI",
       "Confirm highest versionCode ever used in Play Console; choose a higher unused code before the next upload",
       "Verify repeatable clean builds from the locked dependency graph; byte-identical artifacts are not guaranteed across toolchain versions or disposable certificates",
       "Verify Play App Signing/upload-key custody and the actual signed AAB in internal testing",

@@ -42,19 +42,19 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
     static final String PRACTICE = "byeolharu.widget.PRACTICE";
     static final long REQUEST_TTL = 8000L;
     static boolean debuggable(Context c) { return (c.getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0; }
-    private static Boolean releaseCandidate;
+    private static Boolean releaseDirectPractice;
     // Loaded once from immutable compiled application metadata. Do not use
     // preferences, widget extras or WebView input to enable direct practice.
     static synchronized boolean directPracticeEnabled(Context c) {
         if(debuggable(c)) return true;
         if(!"app.byeolharu.android".equals(c.getPackageName())) return false;
-        if(releaseCandidate==null) {
+        if(releaseDirectPractice==null) {
             try {
                 Bundle meta=c.getPackageManager().getApplicationInfo(c.getPackageName(),PackageManager.GET_META_DATA).metaData;
-                releaseCandidate=meta!=null && Boolean.TRUE.equals(meta.get("app.byeolharu.widget.RELEASE_CANDIDATE"));
-            } catch(PackageManager.NameNotFoundException | RuntimeException ignored) { releaseCandidate=false; }
+                releaseDirectPractice=meta!=null && Boolean.TRUE.equals(meta.get("app.byeolharu.widget.RELEASE_DIRECT_PRACTICE"));
+            } catch(PackageManager.NameNotFoundException | RuntimeException ignored) { releaseDirectPractice=false; }
         }
-        return releaseCandidate;
+        return releaseDirectPractice;
     }
     static boolean validKey(String value) { return value != null && value.matches("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"); }
     private static final Handler MAIN = new Handler(Looper.getMainLooper());

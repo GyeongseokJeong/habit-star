@@ -5,13 +5,12 @@ import { resolve } from "node:path";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { sourceBuildInfo } from "./build-info.mjs";
-import { WIDGET_CANDIDATE_META } from "./widget-practice-mode.mjs";
+import { WIDGET_RELEASE_META, WIDGET_LEGACY_CANDIDATE_META } from "./widget-practice-mode.mjs";
 
 const root = resolve(fileURLToPath(new URL("../../", import.meta.url)));
 const run = (command, args) => execFileSync(command, args, { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
 const readArchive = (filename, path) => execFileSync("unzip", ["-p", filename, path], { maxBuffer: 16 * 1024 * 1024 });
-const requiredAssets = widgetPractice => ["app.js", "app.css", "index.html", "build-info.json",
-  ...(widgetPractice !== "read-only" ? ["widget-cold-runtime.js"] : [])];
+const requiredAssets = ["app.js", "app.css", "index.html", "build-info.json", "widget-cold-runtime.js"];
 const assetPrefix = kind => kind === "aab" ? "base/assets/public/" : "assets/public/";
 
 export function parseApkBadging(badging) {
@@ -29,7 +28,7 @@ export function parseApkBadging(badging) {
     label: value(/^application-label:'([^']+)'/m, "label"),
     // aapt emits this standalone marker only when the actual application
     // manifest resolves android:debuggable to true. The widget provider
-    // uses this flag only for Debug; the candidate uses separate metadata.
+    // uses this flag only for Debug; the Release uses separate metadata.
     debuggable: /^application-debuggable\r?$/m.test(badging),
   };
 }
@@ -43,7 +42,8 @@ export function parseBundleDebuggable(value) {
 
 // Validate the compiled application-level metadata. Never trust only the
 // JS build-info stamp. aapt reports each element with its own attributes.
-export function parseApkWidgetCandidate(tree) {
+export function parseApkWidgetPractice(tree) {
+  assert.ok(!tree.includes(WIDGET_LEGACY_CANDIDATE_META), "Obsolete APK widget candidate marker");
   const sections = tree.split(/\n(?=\s*E: )/);
   const stack = [], values = [];
   for (const section of sections) {
@@ -51,66 +51,64 @@ export function parseApkWidgetCandidate(tree) {
     if (!node) continue;
     const depth = node[1].length;
     while (stack.length && stack.at(-1).depth >= depth) stack.pop();
-    if (node[2] === "meta-data" && [...section.matchAll(/^\s*A: android:name(?:\(0x[0-9a-f]+\))?="([^"\n]+)"/gmi)].some(attribute => attribute[1] === WIDGET_CANDIDATE_META)) {
-      assert.equal(stack.at(-1)?.name, "application", "Widget candidate metadata must belong to application");
+    if (node[2] === "meta-data" && [...section.matchAll(/^\s*A: android:name(?:\(0x[0-9a-f]+\))?="([^"\n]+)"/gmi)].some(attribute => attribute[1] === WIDGET_RELEASE_META)) {
+      assert.equal(stack.at(-1)?.name, "application", "Widget practice metadata must belong to application");
       const attributes = [...section.matchAll(/^\s*A: android:value(?:\(0x[0-9a-f]+\))?=(.*)$/gmi)];
-      assert.equal(attributes.length, 1, "Invalid APK widget candidate metadata");
+      assert.equal(attributes.length, 1, "Invalid APK widget practice metadata");
       const value = attributes[0][1].trim().match(/^\(type 0x12\)(0x[0-9a-f]+)$/i);
-      assert.ok(value, "Invalid APK widget candidate metadata");
+      assert.ok(value, "Invalid APK widget practice metadata");
       const n=Number(value[1]);
-      assert.ok([0,1,0xffffffff].includes(n), "Invalid APK widget candidate boolean");
+      assert.ok([0,1,0xffffffff].includes(n), "Invalid APK widget practice boolean");
       values.push(n!==0);
     }
     stack.push({depth,name:node[2]});
   }
-  assert.equal(values.length,1,"Expected exactly one APK widget candidate metadata marker");
+  assert.equal(values.length,1,"Expected exactly one APK widget practice metadata marker");
   return values[0];
 }
 
 // Use bundletool's simple XPath for application-only names and the manifest
 // XML to bind the exact named marker to a literal boolean (no resource refs).
-export function parseBundleWidgetCandidate(names, xml) {
-  assert.equal(names.split(/\r?\n/).filter(name=>name.trim()===WIDGET_CANDIDATE_META).length,1,
-    "Expected exactly one AAB application widget candidate marker");
+export function parseBundleWidgetPractice(names, xml) {
+  assert.ok(!xml.includes(WIDGET_LEGACY_CANDIDATE_META), "Obsolete AAB widget candidate marker");
+  assert.equal(names.split(/\r?\n/).filter(name=>name.trim()===WIDGET_RELEASE_META).length,1,
+    "Expected exactly one AAB application widget practice marker");
   const tags=[...xml.matchAll(/<meta-data\b[^>]*>/g)].map(m=>m[0])
-    .filter(tag=>tag.includes('android:name="' + WIDGET_CANDIDATE_META + '"'));
-  assert.equal(tags.length,1,"Missing or duplicate AAB widget candidate metadata");
+    .filter(tag=>tag.includes('android:name="' + WIDGET_RELEASE_META + '"'));
+  assert.equal(tags.length,1,"Missing or duplicate AAB widget practice metadata");
   const value=tags[0].match(/\bandroid:value="(true|false)"/);
-  assert.ok(value,"Invalid AAB widget candidate metadata");
+  assert.ok(value,"Invalid AAB widget practice metadata");
   return value[1]==="true";
 }
 
 export function verifyArtifactMetadata({ metadata, embedded, assets, expected, kind }) {
   assert.ok(kind === "apk" || kind === "aab");
-  assert.ok(["debug", "read-only", "release-candidate"].includes(expected.widgetPractice), "Invalid expected widget practice mode");
+  assert.ok(["debug", "release"].includes(expected.variant), "Invalid variant");
+  assert.equal(expected.widgetPractice, expected.variant === "release" ? "release-enabled" : "debug", "Invalid expected widget practice mode");
   assert.equal(metadata.applicationId, expected.applicationId, "Artifact package mismatch");
   assert.equal(metadata.versionCode, String(expected.versionCode), "Artifact versionCode mismatch");
   assert.equal(metadata.versionName, expected.version, "Artifact versionName mismatch");
   assert.equal(metadata.minSdk, "24", "Artifact minSdk mismatch");
   assert.equal(metadata.targetSdk, "36", "Artifact targetSdk mismatch");
   assert.equal(metadata.debuggable, expected.variant === "debug", "Artifact debuggable mismatch");
-  assert.ok(kind !== "aab" || expected.widgetPractice === "read-only", "Widget candidate must never be an AAB");
-  assert.equal(metadata.widgetReleaseCandidate, expected.widgetPractice === "release-candidate", "Artifact widget candidate metadata mismatch");
+  assert.ok(kind !== "aab" || expected.variant === "release", "AAB must use release variant");
+  assert.equal(metadata.widgetReleaseDirectPractice, expected.widgetPractice === "release-enabled", "Artifact widget practice metadata mismatch");
   if (kind === "apk") {
     assert.equal(metadata.label, expected.variant === "release" ? "별하루" : "별하루 비회원 STEP 9", "APK label mismatch");
   }
   assert.deepEqual(embedded, expected, "Embedded build-info does not match checked-out source/variant");
   const prefix = assetPrefix(kind);
-  for (const file of ["app.js", "app.css", "index.html", "build-info.json"]) {
+  for (const file of requiredAssets) {
     assert.equal(assets.filter(name => name === prefix + file).length, 1, "Missing or duplicate asset: " + file);
   }
-  assert.equal(
-    assets.filter(name => name === prefix + "widget-cold-runtime.js").length,
-    expected.widgetPractice === "read-only" ? 0 : 1,
-    "Cold runtime must exist only in Debug or explicit Release candidate",
-  );
+
 }
 
 // Compare the archive bytes to the verified same-job staging inputs, not
 // merely the self-reported build-info stamp. Do not print bundle contents.
 export function verifyPackagedAssetBytes({ kind, widgetPractice, readEmbedded, readStaged }) {
-  assert.ok(["debug", "read-only", "release-candidate"].includes(widgetPractice), "Invalid expected widget practice mode");
-  for (const file of requiredAssets(widgetPractice)) {
+  assert.ok(["debug", "release-enabled"].includes(widgetPractice), "Invalid expected widget practice mode");
+  for (const file of requiredAssets) {
     const embedded = readEmbedded(assetPrefix(kind) + file);
     const staged = readStaged(file);
     assert.ok(Buffer.isBuffer(embedded) && Buffer.isBuffer(staged) && staged.length > 0,
@@ -126,10 +124,10 @@ function verifyArtifact(kind, filename, tool) {
   let metadata;
   if (kind === "apk") {
     metadata = { ...parseApkBadging(run(tool, ["dump", "badging", filename])),
-      widgetReleaseCandidate: parseApkWidgetCandidate(run(tool, ["dump", "xmltree", filename, "AndroidManifest.xml"])) };
+      widgetReleaseDirectPractice: parseApkWidgetPractice(run(tool, ["dump", "xmltree", filename, "AndroidManifest.xml"])) };
   } else {
     assert.equal(expected.variant, "release", "AAB must use release variant");
-    assert.equal(expected.widgetPractice, "read-only", "Widget candidate must never be an AAB");
+    assert.equal(expected.widgetPractice, "release-enabled", "AAB must include direct practice");
     run("java", ["-jar", tool, "validate", "--bundle=" + filename]);
     const dump = path => run("java", ["-jar", tool, "dump", "manifest", "--bundle=" + filename, "--xpath=" + path]).trim();
     metadata = {
@@ -139,7 +137,7 @@ function verifyArtifact(kind, filename, tool) {
       minSdk: dump("/manifest/uses-sdk/@android:minSdkVersion"),
       targetSdk: dump("/manifest/uses-sdk/@android:targetSdkVersion"),
       debuggable: parseBundleDebuggable(dump("/manifest/application/@android:debuggable")),
-      widgetReleaseCandidate: parseBundleWidgetCandidate(dump("/manifest/application/meta-data/@android:name"),
+      widgetReleaseDirectPractice: parseBundleWidgetPractice(dump("/manifest/application/meta-data/@android:name"),
         run("java", ["-jar", tool, "dump", "manifest", "--bundle=" + filename])),
     };
   }

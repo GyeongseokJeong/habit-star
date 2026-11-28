@@ -198,11 +198,11 @@ for(const theme of ["dark","light"]){
 }
 console.log("Compact widget layout, configuration and privacy source contracts OK (not a launcher test)");
 
-// Warm practice is debug-only and never launches an Activity or rewrites cache on tap.
+// Warm practice uses the compiled variant capability and never launches an Activity or rewrites cache on tap.
 assert.match(widget,/ApplicationInfo.FLAG_DEBUGGABLE/);
 assert.match(widget,/if\(debuggable\(c\)\) return true;[\s\S]*if\(!"app\.byeolharu\.android"\.equals\(c.getPackageName\(\)\)\) return false;/);
-assert.match(widget,/PackageManager\.GET_META_DATA[\s\S]*Boolean\.TRUE\.equals\(meta.get\("app\.byeolharu\.widget\.RELEASE_CANDIDATE"\)\)/);
-assert.match(patcher,/patchWidgetCandidateManifest\(returnManifest, widgetPracticeMode\(androidVariant\(\)\)\)/);
+assert.match(widget,/PackageManager\.GET_META_DATA[\s\S]*Boolean\.TRUE\.equals\(meta.get\("app\.byeolharu\.widget\.RELEASE_DIRECT_PRACTICE"\)\)/);
+assert.match(patcher,/patchWidgetPracticeManifest\(returnManifest, widgetPracticeMode\(androidVariant\(\)\)\)/);
 
 assert.match(widget,/setPendingIntentTemplate\(R.id.widget_list/);
 assert.match(widget,/new Intent\(c,Mini.class\).setAction\(PRACTICE\)/);
@@ -431,7 +431,7 @@ assert.doesNotMatch(probeSeed,/localStorage|sessionStorage|byeolharu-v2|supabase
 console.log("Cold runtime synthetic storage probe source contracts OK (not an Android runtime test)");
 
 
-// Cold direct practice remains debug-only; one request-scoped boolean bridge,
+// Cold direct practice uses the compiled capability; one request-scoped boolean bridge,
 // existing transaction, no network, no auth/record data passed to native.
 const coldJava=readFileSync(resolve(root,"native/widgets/ByeolharuWidgetColdPractice.java.template"),"utf8");
 const coldTs=readFileSync(resolve(root,"packaged-guest/widget-cold-practice.ts"),"utf8");
@@ -505,7 +505,7 @@ assert.doesNotMatch(coldReminder,/@JavascriptInterface|\.setExact\(|\.setAndAllo
 assert.match(coldReminder,/call\.rejected\|\|ids==null[\s\S]*storage\.appendNotifications/);
 assert.match(widget,/saved-alarm-check/);
 assert.match(widget,/saved-refresh-alarm-check/);
-console.log("Debug cold practice source contracts OK (not an Android runtime test)");
+console.log("Guarded cold practice source contracts OK (not an Android runtime test)");
 
 
 // V12 row-wide practice, explicit home, legacy navigation invalidation.

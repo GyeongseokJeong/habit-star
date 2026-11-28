@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
 import { applyLauncherIcons } from "./generate-launcher-icons.mjs";
 import { androidVariant, patchGradleVersion, readAndroidVersion } from "./android-release-version.mjs";
-import { patchWidgetCandidateManifest, widgetPracticeMode } from "./widget-practice-mode.mjs";
+import { patchWidgetPracticeManifest, widgetPracticeMode } from "./widget-practice-mode.mjs";
 
 const mobileRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const sourceRoot = resolve(mobileRoot, "android/app/src/main/java");
@@ -141,7 +141,7 @@ if (!applicationTag[0].includes('android:name=".ByeolharuWidgetApplication"')) {
   assert.ok(!/android:name\s*=/.test(applicationTag[0]), "Refusing to replace an existing Application class");
   returnManifest = returnManifest.replace(applicationTag[0], applicationTag[0].replace("<application", '<application android:name=".ByeolharuWidgetApplication"'));
 }
-returnManifest = patchWidgetCandidateManifest(returnManifest, widgetPracticeMode(androidVariant()));
+returnManifest = patchWidgetPracticeManifest(returnManifest, widgetPracticeMode(androidVariant()));
 if (returnManifest !== initialManifest) writeFileSync(returnManifestPath, returnManifest);
 
 // Both variants use the same Android version contract; their package IDs remain distinct.

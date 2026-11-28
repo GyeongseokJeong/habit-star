@@ -76,3 +76,7 @@
 ### 후속 STEP 4E — Release 검증 후보
 
 온라인 회원 위젯→앱 재진입→웹 동기화는 사용자 보고상 정상. 오프라인/실제 PID 및 D05/D06 복합 인수는 아직 미완료. 비디버그 Release 환경에서 직접 완료를 시험하기 위해 [별도 APK 후보](WIDGET_RELEASE_CANDIDATE.md)를 준비한다. 기존 일반 Release의 read-only D07과 Play 경로는 그대로 유지하며, 후보 자체를 정식 활성화 승인으로 취급하지 않는다.
+
+### 후속 STEP 4F — 일반 Release 활성화
+
+#235 후보의 소유자 확인 네 항목(PASS)은 [STEP 4E 후속 결과](WIDGET_RELEASE_CANDIDATE.md)에 기록했다. 이 표의 read-only D07은 당시 #230~235 일반 Release 기준 이력이다. 활성화 이후의 실제 Release 인수는 [STEP 4F](WIDGET_RELEASE_ENABLED.md)의 F01~F05로 대체한다. D04/D05/D06/D08의 추가 미확인 하위 항목 및 Play 서명/업데이트 인수는 유지하며 공개 출시는 별도 승인한다.

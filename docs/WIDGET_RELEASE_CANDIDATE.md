@@ -34,3 +34,7 @@
 | 2 — QA/아키텍처/Android/보안/출시 | 웹/manifest/asset 불일치, stale generated project 재사용, 잘못된 candidate AAB·Play signing 유입, 같은 ID 서명 충돌을 반례로 검토. 세 가지 mode, 최종 metadata/asset bytes 검증과 CI 경로 음성 테스트, 기존 앱 삭제 금지, Debug 진단 분리로 차단. 잔여 실기기 및 Play signing/version/데이터 보존은 미승인으로 유지. |
 
 로컬 단위/소스 계약 및 GitHub Android CI는 각각 다른 증거 층이다. PR Actions에서 제대로 컴파일된 후보 아티팩트 확인 후 실기기 시험을 시작한다.
+
+## 후속 결과 (2026-11-28 KST)
+
+#235 CI verify/cloud와 Android Shell PoC 성공, 후보 APK 사용자 보고 4개 항목 PASS: 최근 앱 제거 후 직접 완료, 예정 알림 취소, 완료 취소 후 알림 재예약, 오프라인 완료·취소 후 온라인 동기화. #235 main `6038a331` 병합. 실제 PID/계정·동의 경계 및 나머지 확장 인수 결과는 미확인. 소유자는 일반 Release 활성화 개발을 요청했으며 [STEP 4F](WIDGET_RELEASE_ENABLED.md)에서 기존 후보 모드를 종료하고 정상 APK/AAB에 같은 기능을 포함한다. 이 문서의 산출물·명령은 #235 시점 이력이고 현재 사용하지 않는다.
