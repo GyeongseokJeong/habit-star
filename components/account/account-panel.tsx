@@ -12,6 +12,8 @@ import { inspectPortableBackup, MAX_GUEST_BACKUP_BYTES } from "@/lib/habits/back
 import type { useHabitApp } from "@/lib/habits/use-habit-app";
 import type { Snapshot } from "@/lib/habits/repository";
 import type { NativeReminderControls, WrapupGroup } from "@/lib/habits/native-reminder-controls";
+import { AppUpdateSettings } from "@/components/app-update-notice";
+import type { NativeUpdateControls } from "@/lib/habits/native-app-update";
 import { AuthForm, type AuthMode } from "./auth-form";
 import { AccountSectionTitle } from "./account-design";
 import { accountFeedbackTone } from "./account-feedback-tone";
@@ -66,7 +68,7 @@ function guestHasOwnRecords(guest: Snapshot) {
 }
 
 export function AccountPanel({
-  app, page, onNavigate, theme, onThemeChange, compactView, onCompactViewChange, onInstall, nativeReminders, nativeBackup,
+  app, page, onNavigate, theme, onThemeChange, compactView, onCompactViewChange, onInstall, nativeReminders, nativeBackup, nativeUpdates, updateBlocked,
 }: {
   app: App;
   page: AccountPage;
@@ -78,6 +80,8 @@ export function AccountPanel({
   onInstall?: () => void;
   nativeReminders?: NativeReminderControls;
   nativeBackup?: boolean;
+  nativeUpdates?: NativeUpdateControls;
+  updateBlocked?: boolean;
 }) {
   const state = app.snapshot?.state;
   // Android silently reconciles pending alarms on launch, saved changes and resume.
@@ -642,6 +646,7 @@ export function AccountPanel({
             )}
           </div>
           {onInstall && <button type="button" className="account-action-row" onClick={onInstall}><ArrowDownToLine size={18}/><span>별하루 앱 설치</span><ChevronRight size={16}/></button>}
+          {nativeUpdates && <AppUpdateSettings update={nativeUpdates} blocked={Boolean(updateBlocked || workingAction || backupBusy)} />}
           <details className="account-app-info">
             <summary>앱 정보 <ChevronRight size={16} aria-hidden="true"/></summary>
             <p className="account-note" data-testid="build-info" aria-label="앱 빌드 정보">{nativeReminders ? "Android" : "Web"} · v{APP_BUILD_INFO.version} · 빌드 {APP_BUILD_INFO.shortSha}</p>

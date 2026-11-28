@@ -48,6 +48,8 @@ import {
 import { dailyStarlight } from "@/lib/habits/daily-starlight";
 import { useHabitApp } from "@/lib/habits/use-habit-app";
 import { hasUnsavedHabitSettings, hasUnsavedDailyRecord } from "@/lib/habits/unsaved-draft";
+import { AppUpdateNotice } from "@/components/app-update-notice";
+import type { NativeUpdateControls } from "@/lib/habits/native-app-update";
 import type { NativeReminderControls } from "@/lib/habits/native-reminder-controls";
 import { resolveHabitReminder, type HabitReminderNavigation } from "@/lib/habits/reminder-navigation";
 import { alarmForSelectedTime } from "@/lib/habits/alarm-default-policy";
@@ -1220,7 +1222,8 @@ function MonthlyMatrix({
   );
 }
 
-export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupExport, nativeAuthReturn, nativeReminderNavigation, nativeHabitNavigation }: {
+export default function Byeolharu({ nativeUpdates, nativeReminders, nativeShare, nativeBackupExport, nativeAuthReturn, nativeReminderNavigation, nativeHabitNavigation }: {
+  nativeUpdates?: NativeUpdateControls;
   nativeReminders?: NativeReminderControls;
   nativeShare?: (png: Blob, filename: string) => Promise<void>;
   nativeBackupExport?: (content: string) => Promise<void>;
@@ -2019,6 +2022,9 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
         </div>
       </header>
       <main id="main" className={`main-container ${reflectionOpen ? "reflection-main" : ""}`}>
+        {nativeUpdates?.notice && startupPermissionContext && !startupPermissionOpen && !app.busy && !storageWarning && (
+          <AppUpdateNotice update={nativeUpdates} />
+        )}
         {reflectionOpen ? (
           <WeeklyReflectionView
             reflection={weeklyReflection}
@@ -2563,6 +2569,8 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
             compactView={compactView}
             onCompactViewChange={updateCompactView}
             nativeReminders={nativeReminders}
+            nativeUpdates={nativeUpdates}
+            updateBlocked={Boolean(app.busy || ratingOverrides.size || storageWarning || !ready)}
             nativeBackup={Boolean(nativeBackupExport)}
             onInstall={installEvent ? () => {
               void (async () => {

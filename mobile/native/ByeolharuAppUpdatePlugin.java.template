@@ -1,0 +1,151 @@
+package __PACKAGE__;
+
+import android.app.Activity;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.os.Build;
+import com.getcapacitor.JSObject;
+import com.getcapacitor.Plugin;
+import com.getcapacitor.PluginCall;
+import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.CapacitorPlugin;
+import com.google.android.play.core.appupdate.AppUpdateInfo;
+import com.google.android.play.core.appupdate.AppUpdateManager;
+import com.google.android.play.core.appupdate.AppUpdateManagerFactory;
+import com.google.android.play.core.appupdate.AppUpdateOptions;
+import com.google.android.play.core.install.InstallStateUpdatedListener;
+import com.google.android.play.core.install.model.AppUpdateType;
+import com.google.android.play.core.install.model.InstallStatus;
+import com.google.android.play.core.install.model.UpdateAvailability;
+
+@CapacitorPlugin(name = "ByeolharuAppUpdate")
+public class ByeolharuAppUpdatePlugin extends Plugin {
+    private AppUpdateManager manager;
+    private long installedVersion;
+    private boolean actionInProgress;
+    private int lastInstallStatus = -1;
+    private final AppUpdateOptions options = AppUpdateOptions.newBuilder(AppUpdateType.FLEXIBLE).build();
+    private final InstallStateUpdatedListener listener = state -> {
+        int status = state.installStatus();
+        if (status != lastInstallStatus) {
+            lastInstallStatus = status;
+            notifyListeners("updateChanged", new JSObject());
+        }
+    };
+
+    @Override public void load() {
+        // Debug/sideload builds must not offer Play updates for a different app.
+        if (!"app.byeolharu.android".equals(getContext().getPackageName())) return;
+        try {
+            PackageManager pm = getContext().getPackageManager();
+            String pkg = getContext().getPackageName();
+            String installer = Build.VERSION.SDK_INT >= 30
+                ? pm.getInstallSourceInfo(pkg).getInstallingPackageName()
+                : pm.getInstallerPackageName(pkg);
+            if (!"com.android.vending".equals(installer)) return;
+            PackageInfo info = pm.getPackageInfo(pkg, 0);
+            installedVersion = Build.VERSION.SDK_INT >= 28 ? info.getLongVersionCode() : info.versionCode;
+            manager = AppUpdateManagerFactory.create(getContext());
+            manager.registerListener(listener);
+        } catch (Exception ignored) {
+            manager = null;
+        }
+    }
+
+    private JSObject result(String status, long version) {
+        JSObject value = new JSObject();
+        value.put("status", status);
+        if (version > 0) value.put("versionCode", version);
+        return value;
+    }
+
+    private JSObject describe(AppUpdateInfo info) {
+        long version = info.availableVersionCode();
+        if (version > installedVersion) {
+            int status = info.installStatus();
+            if (status == InstallStatus.DOWNLOADED) return result("downloaded", version);
+            if (status == InstallStatus.DOWNLOADING || status == InstallStatus.PENDING ||
+                status == InstallStatus.INSTALLING) return result("downloading", version);
+            if (info.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE &&
+                info.isUpdateTypeAllowed(options)) return result("available", version);
+        }
+        if (info.updateAvailability() == UpdateAvailability.UPDATE_NOT_AVAILABLE) return result("latest", 0);
+        return result("unknown", 0);
+    }
+
+    @PluginMethod public void check(PluginCall call) {
+        if (manager == null) { call.resolve(result("unavailable", 0)); return; }
+        try {
+            manager.getAppUpdateInfo()
+                .addOnSuccessListener(info -> call.resolve(describe(info)))
+                .addOnFailureListener(error -> call.resolve(result("unknown", 0)));
+        } catch (Exception error) {
+            call.resolve(result("unknown", 0));
+        }
+    }
+
+    @PluginMethod public void start(PluginCall call) {
+        if (manager == null) { call.reject("Update unavailable"); return; }
+        getActivity().runOnUiThread(() -> {
+            if (actionInProgress) { call.reject("Update already in progress"); return; }
+            actionInProgress = true;
+            manager.getAppUpdateInfo().addOnSuccessListener(info -> {
+                if (!"available".equals(describe(info).getString("status"))) {
+                    actionInProgress = false;
+                    call.reject("Update no longer available");
+                    return;
+                }
+                try {
+                    manager.startUpdateFlow(info, getActivity(), options).addOnCompleteListener(task -> {
+                        actionInProgress = false;
+                        if (!task.isSuccessful()) { call.reject("Update failed"); return; }
+                        int code = task.getResult();
+                        if (code == Activity.RESULT_OK) call.resolve(result("started", info.availableVersionCode()));
+                        else if (code == Activity.RESULT_CANCELED) call.resolve(result("canceled", info.availableVersionCode()));
+                        else call.reject("Update failed");
+                    });
+                } catch (Exception error) {
+                    actionInProgress = false;
+                    call.reject("Update failed");
+                }
+            }).addOnFailureListener(error -> {
+                actionInProgress = false;
+                call.reject("Update check failed");
+            });
+        });
+    }
+
+    @PluginMethod public void complete(PluginCall call) {
+        if (manager == null) { call.reject("Update unavailable"); return; }
+        getActivity().runOnUiThread(() -> {
+            if (actionInProgress) { call.reject("Update already in progress"); return; }
+            actionInProgress = true;
+            // Re-check; never request an install without an explicitly downloaded update.
+            manager.getAppUpdateInfo().addOnSuccessListener(info -> {
+                if (!"downloaded".equals(describe(info).getString("status"))) {
+                    actionInProgress = false;
+                    call.reject("Update not downloaded");
+                    return;
+                }
+                try {
+                    manager.completeUpdate().addOnCompleteListener(task -> {
+                        actionInProgress = false;
+                        if (task.isSuccessful()) call.resolve();
+                        else call.reject("Update installation failed");
+                    });
+                } catch (Exception error) {
+                    actionInProgress = false;
+                    call.reject("Update installation failed");
+                }
+            }).addOnFailureListener(error -> {
+                actionInProgress = false;
+                call.reject("Update check failed");
+            });
+        });
+    }
+
+    @Override protected void handleOnDestroy() {
+        if (manager != null) manager.unregisterListener(listener);
+        super.handleOnDestroy();
+    }
+}

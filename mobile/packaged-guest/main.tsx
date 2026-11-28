@@ -5,6 +5,7 @@ import { App } from "@capacitor/app";
 import { isAndroidReturnUrl } from "../../lib/supabase/android-return";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import Byeolharu from "../../components/byeolharu";
+import { usePlayAppUpdate } from "./native-app-update";
 import { shareStarlightPngOnAndroid } from "./native-starlight-share";
 import { exportGuestBackupOnAndroid } from "./native-guest-backup";
 import type { Snapshot } from "../../lib/habits/repository";
@@ -74,6 +75,7 @@ function readReminderLedger(scope: string): {id:number; at:number}[] {
 const deviceSettings = isAndroid ? registerPlugin<DeviceSettings>("ByeolharuDeviceSettings") : null;
 
 function GuestNativeApp() {
+  const nativeUpdates = usePlayAppUpdate(isAndroid);
   // null: not configured on this installation; false: explicitly opted out.
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [hasHabitIntent, setHasHabitIntent] = useState(false);
@@ -770,7 +772,7 @@ function GuestNativeApp() {
         onInspectPending, onAuditPending, onRepairPending, onEnabledChange, onSnapshot,
         registerWidgetPractice: widgetDirectPractice ? registerWidgetPractice : undefined }
     : undefined;
-  return <Byeolharu nativeReminders={nativeReminders} nativeShare={isAndroid ? shareStarlightPngOnAndroid : undefined} nativeBackupExport={isAndroid ? exportGuestBackupOnAndroid : undefined} nativeAuthReturn={isAndroid ? nativeAuthReturn : undefined} nativeReminderNavigation={isAndroid ? wrapupNavigation : null} nativeHabitNavigation={isAndroid ? habitNavigation : null} />;
+  return <Byeolharu nativeReminders={nativeReminders} nativeUpdates={nativeUpdates} nativeShare={isAndroid ? shareStarlightPngOnAndroid : undefined} nativeBackupExport={isAndroid ? exportGuestBackupOnAndroid : undefined} nativeAuthReturn={isAndroid ? nativeAuthReturn : undefined} nativeReminderNavigation={isAndroid ? wrapupNavigation : null} nativeHabitNavigation={isAndroid ? habitNavigation : null} />;
 }
 
 const root = document.getElementById("byeolharu-root");

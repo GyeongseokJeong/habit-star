@@ -63,3 +63,21 @@ test("web CSS and TypeScript configuration retain narrowly scoped changes",()=>{
  assert.ok(config.include.includes("**/*.ts"));
  assert.ok(config.include.includes("**/*.tsx"));
 });
+
+test("Play app update is packaged-native only and its restart is a user action", () => {
+ const app=read("components/byeolharu.tsx");
+ const bridge=read("mobile/packaged-guest/native-app-update.ts");
+ const notice=read("components/app-update-notice.tsx");
+ const account=read("components/account/account-panel.tsx");
+ const native=read("mobile/native/ByeolharuAppUpdatePlugin.java.template");
+ assert.match(app,/nativeUpdates\?: NativeUpdateControls/);
+ assert.match(app,/nativeUpdates\?\.notice && startupPermissionContext && !startupPermissionOpen && !app\.busy && !storageWarning/);
+ assert.match(app,/updateBlocked=\{Boolean\(app\.busy \|\| ratingOverrides\.size \|\| storageWarning \|\| !ready\)\}/);
+ assert.match(account,/nativeUpdates && <AppUpdateSettings/);
+ assert.match(notice,/onClick=\{update\.act\}/);
+ assert.match(bridge,/App\.addListener\("appStateChange"/);
+ assert.match(bridge,/bridge\.addListener\("updateChanged"/);
+ assert.match(bridge,/await plugin\.current\.complete\(\)/);
+ assert.match(native,/if \(!"downloaded"\.equals\(describe\(info\)\.getString\("status"\)\)\)/);
+ assert.doesNotMatch(app,/from ["']@capacitor\//);
+});
