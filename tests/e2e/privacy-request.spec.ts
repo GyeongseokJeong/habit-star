@@ -1,17 +1,25 @@
 import { expect, test } from "@playwright/test";
 import { ACCOUNT_DELETION_MAILTO, SUPPORT_EMAIL } from "../../lib/privacy-contact";
 
+const preparationCopy = /검토용|초안|정식\s*시행\s*전|출시\s*전|정책\s*확정|추후\s*고지/;
+
 test("public policy and deletion request are discoverable without sign-in", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 740 });
   expect((await page.goto("/privacy"))?.status()).toBe(200);
   await expect(page.getByRole("heading", { name: "개인정보처리방침", exact: true })).toBeVisible();
-  await expect(page.getByText("검토용 초안", { exact: false })).toBeVisible();
+  await expect(page.locator(".legal-copy")).not.toContainText(preparationCopy);
+  await expect(page.getByRole("heading", { name: "2. 개인정보의 보유 및 파기" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "3. 개인정보의 제공 및 처리 위탁" })).toBeVisible();
+  await expect(page.locator(".legal-copy")).toContainText("본 방침은 게시일부터 적용됩니다.");
+  await expect(page.getByRole("link", { name: SUPPORT_EMAIL })).toHaveAttribute("href", `mailto:${SUPPORT_EMAIL}`);
   await page.getByRole("link", { name: "계정 삭제 요청 안내", exact: true }).click();
   await expect(page).toHaveURL(/\/account-deletion$/);
   await expect(page.getByRole("heading", { name: "계정 삭제 요청", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "삭제 요청 메일 작성" })).toHaveAttribute("href", ACCOUNT_DELETION_MAILTO);
   await expect(page.getByText(SUPPORT_EMAIL, { exact: true })).toBeVisible();
-  await expect(page.getByText("메일 작성만으로 계정이 즉시 삭제되지는 않습니다.", { exact: false })).toBeVisible();
+  await expect(page.locator(".legal-copy")).not.toContainText(preparationCopy);
+  await expect(page.getByText("본인 확인 후 계정과 관련 기록을 삭제하고 결과를 이메일로 안내합니다.")).toBeVisible();
+  await expect(page.getByText("삭제한 기록은 복구할 수 없습니다.", { exact: false })).toBeVisible();
   expect(await page.locator("body").evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
   const href = await page.getByRole("link", { name: "삭제 요청 메일 작성" }).getAttribute("href");
@@ -32,10 +40,12 @@ test("guest can reach bundled policy and request guidance, copy the address, and
   await page.getByRole("button", { name: "개인정보처리방침", exact: true }).click();
   const policy = page.getByRole("dialog", { name: "개인정보처리방침" });
   await expect(policy).toBeVisible();
+  await expect(policy.locator(".legal-copy")).not.toContainText(preparationCopy);
   await expect(page.locator(".byeolharu")).toHaveClass(/dark/);
   await policy.getByRole("button", { name: "계정 삭제 요청 안내" }).click();
   const request = page.getByRole("dialog", { name: "계정 삭제 요청" });
   await expect(request).toBeVisible();
+  await expect(request.locator(".legal-copy")).not.toContainText(preparationCopy);
   await expect(request.getByRole("link", { name: "삭제 요청 메일 작성" })).toHaveAttribute("href", ACCOUNT_DELETION_MAILTO);
   await request.getByRole("button", { name: "이메일 주소 복사" }).click();
   await expect(request.getByRole("status").filter({ hasText: "문의 이메일을 복사했어요." })).toBeVisible();

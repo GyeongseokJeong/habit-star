@@ -5211,7 +5211,6 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 .legal-copy ul { list-style: disc; }
 .legal-copy ol { list-style: decimal; }
 .legal-copy li + li { margin-top: 6px; }
-.legal-copy .legal-draft-note { padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--ink); }
 .legal-contact { display: grid; gap: 6px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
 .legal-contact > span { color: var(--muted); font-size: 12px; }
 .legal-contact strong { color: var(--ink); font-weight: 600; }
