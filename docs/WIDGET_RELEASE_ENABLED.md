@@ -5,7 +5,7 @@
 ## 1. 확정 정책 / 증거
 
 - #235 Android Shell PoC [46033524170](https://github.com/GyeongseokJeong/habit-star/actions/runs/46033524170), CI verify/cloud [46033524329](https://github.com/GyeongseokJeong/habit-star/actions/runs/46033524329) 성공. #235 소유자 보고: 최근 앱에서 제거 후 위젯 완료, 해당 알림 취소, 완료 취소 시 재예약, 오프라인 기록→온라인 정상 동기화 4/4. OS PID 증거, exact 권한/다른 예약·날짜/재부팅·절전, 계정 전환 및 동의 철회 등의 확장 인수는 미확인.
-- 비회원·회원 원본 IndexedDB 및 Outbox/Supabase RPC/RLS, scope/day/revision/version, native 동의·handle/claim/deadline, 1~4점·메모·과거 기록 보호, 네트워크 차단된 cold WebView, 알림 취소·재예약/실패 시 기존 foreground 보정, V12.2 UI **변경 없음**. 앱을 열기 전 cold 즉시 클라우드 동기화는 지원 계약이 아님. 사용자 기록 삭제 및 운영 환경 변경 없음.
+- 비회원·회원 원본 IndexedDB 및 Outbox/Supabase RPC/RLS, scope/day/revision/version, native 동의·handle/claim/deadline, 메모·과거 기록·stale 기록 보호(1~4점의 명시적 취소는 0.1.6부터 허용), 네트워크 차단된 cold WebView, 알림 취소·재예약/실패 시 기존 foreground 보정, V12.2 UI **변경 없음**. 앱을 열기 전 cold 즉시 클라우드 동기화는 지원 계약이 아님. 사용자 기록 삭제 및 운영 환경 변경 없음.
 - Debug는 실제 debuggable 여부로 기능 활성화 및 synthetic probe/고정 디버그 진단만 지원. 실제 Release ID `app.byeolharu.android`는 **비디버그** + application-level `app.byeolharu.widget.RELEASE_DIRECT_PRACTICE=true`일 때 기존 실행 경로 활성화. 누락/잘못된 타입/다른 package는 fail closed. preference/token/Intent에서 이 기능을 켤 수 없음.
 - 후기 schema 4 build-info의 `widgetPractice=debug|release-enabled`, web capability, native metadata, cold JS와 실제 APK/AAB staging bytes 일치 확인. 오래된 release-candidate/read-only stamp, 기존 후보 marker 및 후보 flag, debug AAB, 변조/누락/중복 cold bundle을 거절. 후보 전용 CI 단계·환경 변수 폐기. PR에서는 표준 test-signed APK 및 미서명 AAB만 생성하며 main 수동/승인된 보호 경로에서만 서명 가능.
 - Android 버전 0.1.1 / code 2는 기존 저장소 code 1 다음의 **제안 후보**이다. 실제 Play Console에서 사용한 최고 code는 repository로 확인할 수 없으므로 서명 전에 확인한다. code 2 이상이 이미 사용됐다면 별도 version 변경 필요; 추측값으로 서명하지 않는다.

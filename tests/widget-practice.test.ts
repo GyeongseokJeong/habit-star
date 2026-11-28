@@ -34,7 +34,7 @@ describe("widget practice transaction", () => {
       expect(await r.state()).toEqual(before);
     } finally {r.close();}
   });
-  it("projects opaque handles for permitted actions and protects one-to-four-star records", async () => {
+  it("projects opaque undo handles for every completed rating; protects inconsistent incomplete records", async () => {
     const {r,habit}=await setup(true);
     try {
       const member=r.scope.slice("member:".length), snapshot=await r.load();
@@ -45,7 +45,7 @@ describe("widget practice transaction", () => {
       expect(b.commands.has(key!)).toBe(false);
       expect(JSON.stringify(a.summary)).not.toContain(habit.id);
       expect(JSON.stringify(a.summary)).not.toContain(member);
-      for (const rating of [0, 5]) {
+      for (const rating of [0, 1, 2, 3, 4, 5]) {
         await r.update(habit.id,{completed:true,rating});
         const rated=buildWidgetActionProjection(await r.load(),member);
         const undoKey=rated.summary?.rows[0].actionKey;
@@ -53,8 +53,8 @@ describe("widget practice transaction", () => {
         expect(rated.commands.get(undoKey!)).toMatchObject({expectedRating:rating,completed:false});
         expect(rated.summary?.rows[0]).not.toHaveProperty("rating");
       }
-      for (const rating of [1,2,3,4]) {
-        await r.update(habit.id,{completed:true,rating});
+      for (const rating of [1,2,3,4,5]) {
+        await r.update(habit.id,{completed:false,rating});
         const rated=buildWidgetActionProjection(await r.load(),member);
         expect(rated.commands.size).toBe(0);
         expect(rated.summary?.rows[0].actionKey).toBeUndefined();
@@ -124,7 +124,7 @@ describe("widget practice transaction", () => {
       expect(await r.state()).toEqual(newer);
     } finally { r.close(); other.r.close(); }
   });
-  it("does not remove protected ratings or overwrite a newer memo or rating", async () => {
+  it("does not overwrite a newer memo or rating with a stale action", async () => {
     const { r, habit } = await setup();
     try {
       const c = await command(r, habit.id);
@@ -136,23 +136,30 @@ describe("widget practice transaction", () => {
       const edited = await r.state();
       expect(await r.applyWidgetPractice(oldUndo)).toBe("stale");
       expect(await r.state()).toEqual(edited);
-      for (const rating of [1,2,3,4]) {
-        await r.update(habit.id, { completed: true, rating });
-        const rated = await command(r, habit.id);
-        const before = await r.state();
-        expect(await r.applyWidgetPractice(rated)).toBe("requires-detail");
-        expect(await r.state()).toEqual(before);
-      }
     } finally { r.close(); }
   });
-  it("undoes legacy unrated and app-rated five-star completions without touching memo", async () => {
-    const { r, habit } = await setup();
+  for (const member of [false, true]) it("undoes every app-rated completion without touching memo or definition, member=" + member, async () => {
+    const { r, habit } = await setup(member);
     try {
-      for (const rating of [0,5]) {
+      for (const rating of [0,1,2,3,4,5]) {
         await r.update(habit.id, { completed: true, rating, memo: "기존 메모" });
+        const before = await r.load();
         const undo = await command(r, habit.id);
-        expect(await r.applyWidgetPractice(undo)).toBe("saved");
-        expect((await r.load()).habits[0]).toMatchObject({ completed: false, rating: 0, memo: "기존 메모" });
+        expect(undo).toMatchObject({ expectedCompleted: true, expectedRating: rating, completed: false });
+        const results = await Promise.all([r.applyWidgetPractice(undo), r.applyWidgetPractice(undo)]);
+        expect(results.sort()).toEqual(["saved", "stale"]);
+        const cancelled = await r.load(), key = entityKey("habits", habit.id);
+        expect(cancelled.habits[0]).toMatchObject({ completed: false, rating: 0, memo: "기존 메모" });
+        expect(cancelled.state.entities[key]).toEqual(before.state.entities[key]);
+        expect(stats(cancelled.habits, cancelled.day)).toMatchObject({ completed: 0, average: 0 });
+        expect(calculateConstellationGrowth(cancelled).totalPoints).toBe(0);
+        expect(cancelled.state.outbox).toHaveLength(before.state.outbox.length + (member ? 1 : 0));
+        if (member) {
+          const changes = cancelled.state.outbox.at(-1)?.changes;
+          expect(changes).toHaveLength(1);
+          expect(changes?.[0]).toMatchObject({ kind: "habit_entries", id: habit.id, day: undo.day,
+            data: { completed: false, rating: 0, memo: "기존 메모" } });
+        }
       }
     } finally { r.close(); }
   });
@@ -162,8 +169,11 @@ describe("widget practice transaction", () => {
       const base = await command(r, habit.id);
       for (const completed of [false,true]) for (const rating of [0,1,2,3,4,5]) {
         const c = { ...base, expectedCompleted: completed, expectedRating: rating, completed: !completed };
-        const expected = completed ? (rating === 0 || rating === 5 ? 0 : null) : (rating === 0 ? 5 : null);
+        const expected = completed ? 0 : (rating === 0 ? 5 : null);
         expect(widgetPracticeTargetRating(c)).toBe(expected);
+      }
+      for (const rating of [-1, 6, 1.5, NaN, Infinity]) {
+        expect(widgetPracticeTargetRating({ ...base, expectedCompleted: true, expectedRating: rating, completed: false })).toBeNull();
       }
       await r.update(habit.id, { completed: false, rating: 5 });
       const inconsistent = await command(r, habit.id);
