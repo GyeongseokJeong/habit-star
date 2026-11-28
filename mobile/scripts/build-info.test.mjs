@@ -5,7 +5,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildInfoFor, sourceBuildInfo } from "./build-info.mjs";
-import { widgetPracticeMode, patchWidgetCandidateManifest, WIDGET_CANDIDATE_META } from "./widget-practice-mode.mjs";
+import { widgetPracticeMode, patchWidgetPracticeManifest, WIDGET_RELEASE_META, WIDGET_LEGACY_CANDIDATE_META } from "./widget-practice-mode.mjs";
 import { androidVariant, assertNewPlayVersion, patchGradleVersion, validateAndroidVersion } from "./android-release-version.mjs";
 
 const version = { code: 7, name: "0.2.0" };
@@ -14,9 +14,9 @@ const sha = "a".repeat(40);
 test("Android provenance records version, package and variant without affecting web version", () => {
   const result = buildInfoFor(version, sha, true, "release");
   assert.deepEqual(result, {
-    schemaVersion: 3, app: "byeolharu", platform: "android-packaged-guest",
+    schemaVersion: 4, app: "byeolharu", platform: "android-packaged-guest",
     version: "0.2.0", versionCode: 7, variant: "release",
-    applicationId: "app.byeolharu.android", sourceSha: sha, cloudEnabled: true, widgetPractice: "read-only",
+    applicationId: "app.byeolharu.android", sourceSha: sha, cloudEnabled: true, widgetPractice: "release-enabled",
   });
   assert.equal(Object.isFrozen(result), true);
   const debug = buildInfoFor(version, sha, false, "debug");
@@ -24,7 +24,8 @@ test("Android provenance records version, package and variant without affecting 
   assert.equal(debug.version, result.version);
   assert.equal(debug.versionCode, result.versionCode);
   assert.equal(debug.widgetPractice, "debug");
-  assert.equal(buildInfoFor(version, sha, true, "release", "release-candidate").widgetPractice, "release-candidate");
+  assert.throws(() => buildInfoFor(version, sha, true, "release", "release-candidate"), /widget mode/);
+  assert.throws(() => buildInfoFor(version, sha, true, "release", "read-only"), /widget mode/);
   assert.throws(() => buildInfoFor(version, sha, true, "debug", "release-candidate"), /widget mode/);
   assert.equal(Object.hasOwn(result, "publishableKey"), false);
 });
@@ -115,24 +116,32 @@ test("release stamps a clean committed source and rejects dirty or mismatched CI
 });
 
 
-test("explicit widget release candidate cannot enable normal release or debug mismatch", () => {
-  assert.equal(widgetPracticeMode("debug", "0"), "debug");
-  assert.equal(widgetPracticeMode("release", "0"), "read-only");
-  assert.equal(widgetPracticeMode("release", ""), "read-only");
-  assert.equal(widgetPracticeMode("release", "1"), "release-candidate");
-  assert.throws(() => widgetPracticeMode("debug", "1"));
-  for (const value of ["true", "yes", "2"]) assert.throws(() => widgetPracticeMode("release", value));
+
+test("normal variants enable practice and reject retired candidate switches", () => {
+  assert.equal(widgetPracticeMode("debug"), "debug");
+  assert.equal(widgetPracticeMode("release"), "release-enabled");
+  for (const variant of ["debug", "release"]) {
+    for (const value of ["", "0", "1", "true"]) assert.throws(() => widgetPracticeMode(variant, value), /Obsolete/);
+  }
 });
 
-test("widget candidate manifest marker is explicit, application-only, idempotent and reset on normal release", () => {
+test("release practice manifest marker is application-only, idempotent, and migrates legacy generated trees", () => {
   const base = '<manifest><application android:name=".Example"><activity /></application></manifest>';
-  const normal = patchWidgetCandidateManifest(base, "read-only");
-  assert.ok(normal.includes('android:name="' + WIDGET_CANDIDATE_META + '" android:value="false"'));
-  const candidate = patchWidgetCandidateManifest(normal, "release-candidate");
-  assert.ok(candidate.includes('android:name="' + WIDGET_CANDIDATE_META + '" android:value="true"'));
-  assert.equal(patchWidgetCandidateManifest(candidate, "release-candidate"), candidate);
-  assert.equal(patchWidgetCandidateManifest(candidate, "read-only"), normal);
-  assert.equal(patchWidgetCandidateManifest(candidate, "debug"), normal);
-  assert.throws(() => patchWidgetCandidateManifest(candidate.replace("<activity />", '<meta-data android:name="' + WIDGET_CANDIDATE_META + '" android:value="true" />'), "read-only"), /Duplicate/);
-  assert.throws(() => patchWidgetCandidateManifest(base.replace("<activity />", '<activity><meta-data android:name="' + WIDGET_CANDIDATE_META + '" android:value="true" /></activity>'), "read-only"), /belong to application/);
+  const debug = patchWidgetPracticeManifest(base, "debug");
+  const release = patchWidgetPracticeManifest(base, "release-enabled");
+  assert.ok(debug.includes('android:name="' + WIDGET_RELEASE_META + '" android:value="false"'));
+  assert.ok(release.includes('android:name="' + WIDGET_RELEASE_META + '" android:value="true"'));
+  assert.equal(patchWidgetPracticeManifest(release, "release-enabled"), release);
+  assert.equal(patchWidgetPracticeManifest(release, "debug"), debug);
+  assert.equal(patchWidgetPracticeManifest(debug, "release-enabled"), release);
+  for (const previous of [debug, release]) {
+    const legacy = previous.replace(WIDGET_RELEASE_META, WIDGET_LEGACY_CANDIDATE_META);
+    assert.equal(patchWidgetPracticeManifest(legacy, "release-enabled"), release);
+    assert.equal(patchWidgetPracticeManifest(legacy, "debug"), debug);
+  }
+  const tag = '<meta-data android:name="' + WIDGET_RELEASE_META + '" android:value="true" />';
+  assert.throws(() => patchWidgetPracticeManifest(release.replace("<activity />", tag), "debug"), /Duplicate/);
+  assert.throws(() => patchWidgetPracticeManifest(release.replace("<activity />", tag.replace(WIDGET_RELEASE_META, WIDGET_LEGACY_CANDIDATE_META)), "release-enabled"), /Duplicate/);
+  assert.throws(() => patchWidgetPracticeManifest(base.replace("<activity />", '<activity>' + tag + '</activity>'), "release-enabled"), /belong to application/);
+  assert.throws(() => patchWidgetPracticeManifest(base, "read-only"), /Invalid widget mode/);
 });

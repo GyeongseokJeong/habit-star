@@ -8,13 +8,13 @@ import postcss from "postcss";
 import tailwind from "@tailwindcss/postcss";
 
 assert.equal(process.env.BYEOLHARU_POC_PACKAGED_GUEST, "1", "STEP 9 packaging must be explicitly enabled");
-assert.notEqual(process.env.BYEOLHARU_POC_REMOTE_DEBUG, "1", "Release candidate may not use remote WebView");
+assert.notEqual(process.env.BYEOLHARU_POC_REMOTE_DEBUG, "1", "Packaged Android may not use remote WebView");
 assert.notEqual(process.env.BYEOLHARU_POC_NOTIFICATIONS, "1", "STEP 9 is separate from notification demo packages");
 const mobile = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const root = resolve(mobile, "..");
 const out = resolve(mobile, "www-packaged-guest");
 const provenance = sourceBuildInfo(root, true);
-const widgetDirectPractice = provenance.widgetPractice !== "read-only";
+const widgetDirectPractice = ["debug", "release-enabled"].includes(provenance.widgetPractice);
 // Public API settings only. Never package secret/service-role credentials.
 const publicAuth = JSON.parse(readFileSync(resolve(mobile, "public-auth-config.json"), "utf8"));
 assert.match(publicAuth.supabaseUrl, /^https:\/\/[a-z0-9-]+\.supabase\.co$/);
@@ -61,7 +61,7 @@ await build({
   },
   logLevel:"info",
 });
-// Isolated offline runtime: Debug or explicit test-only release candidate.
+// Isolated offline runtime: Debug and normal Release.
 // No React mount, network or Auth client.
 if (widgetDirectPractice) {
   await build({

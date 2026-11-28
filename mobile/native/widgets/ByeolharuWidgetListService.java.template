@@ -10,7 +10,7 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Release remains read-only; debug rows share the guarded practice handle. */
+/** Both variants share the guarded practice handle; disabled capability is read-only. */
 public class ByeolharuWidgetListService extends RemoteViewsService {
     @Override public RemoteViewsFactory onGetViewFactory(Intent intent) {
         final int id=intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,AppWidgetManager.INVALID_APPWIDGET_ID);
