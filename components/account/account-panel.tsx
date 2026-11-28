@@ -18,6 +18,8 @@ import { accountFeedbackTone } from "./account-feedback-tone";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useReminderPermissionGuide } from "@/components/reminder-permission-dialog";
 import type { ThemePreference } from "@/lib/theme-preference";
+import { PrivacyContent } from "@/components/legal/privacy-content";
+import { AccountDeletionContent } from "@/components/legal/account-deletion-content";
 
 const wrapupPeriods: { group: WrapupGroup; name: string; range: string; times: string[] }[] = [
   { group: "morning", name: "아침", range: "05:00~10:59", times: ["09:30","10:00","10:30"] },
@@ -25,7 +27,7 @@ const wrapupPeriods: { group: WrapupGroup; name: string; range: string; times: s
   { group: "night", name: "밤", range: "17:00~다음 날 04:59", times: ["21:00","21:30","22:00","22:30"] },
 ];
 type App = ReturnType<typeof useHabitApp>;
-export type AccountPage = "home" | "records" | "import" | "settings" | "help" | "security" | AuthMode;
+export type AccountPage = "home" | "records" | "import" | "settings" | "help" | "security" | "privacy" | "deletion" | AuthMode;
 
 const zoneLabels: Record<string, string> = {
   "Asia/Seoul": "한국 · 서울",
@@ -394,8 +396,9 @@ export function AccountPanel({
           <nav className="account-menu" aria-label="계정 메뉴">
             <button type="button" aria-label="데이터 관리" onClick={() => navigate("records")}><Database size={19} /><span>데이터 관리<small>동기화 · 백업 · 복원</small></span><ChevronRight size={17} /></button>
             <button type="button" aria-label="앱 설정" onClick={() => navigate("settings")}><Settings2 size={19} /><span>앱 설정<small>{nativeReminders ? "알림 · 화면 · 기록" : "테마 · 간편 보기 · 시간대"}</small></span><ChevronRight size={17} /></button>
-            {app.user && <button type="button" aria-label="계정 관리" onClick={() => navigate("security")}><UserRound size={19} /><span>계정 관리<small>로그인 정보 · 로그아웃</small></span><ChevronRight size={17} /></button>}
+            {app.user && <button type="button" aria-label="계정 관리" onClick={() => navigate("security")}><UserRound size={19} /><span>계정 관리<small>로그인 정보 · 로그아웃 · 계정 삭제</small></span><ChevronRight size={17} /></button>}
             <button type="button" aria-label="사용 안내" onClick={() => navigate("help")}><CircleHelp size={19} /><span>사용 안내<small>기록 · 성장 · 데이터 보관</small></span><ChevronRight size={17} /></button>
+            <button type="button" aria-label="개인정보처리방침" onClick={() => navigate("privacy")}><ShieldCheck size={19} /><span>개인정보처리방침<small>개인정보 문의 · 계정 삭제 요청</small></span><ChevronRight size={17} /></button>
           </nav>
         </>
       )}
@@ -698,6 +701,12 @@ export function AccountPanel({
         </section>
       )}
 
+      {page === "privacy" && (
+        <section className="account-detail"><PrivacyContent onDeletion={() => navigate("deletion")} /></section>
+      )}
+      {page === "deletion" && (
+        <section className="account-detail"><AccountDeletionContent embedded /></section>
+      )}
       {page === "security" && app.user && (
         <section className="account-detail" aria-label="계정 관리">
           <div className="account-record-card">
@@ -710,6 +719,9 @@ export function AccountPanel({
             </button>
             <p className="account-note">{pending || unresolved || state?.importJournal ? "미전송 기록이나 충돌이 있어요. 백업을 확인한 후 로그아웃합니다." : "로그아웃하면 이 기기의 회원 캐시가 정리됩니다."}</p>
           </div>
+          <button type="button" className="account-action-row" onClick={() => navigate("deletion")}>
+            <UserRound size={18} aria-hidden="true" /><span>계정 삭제 요청</span><ChevronRight size={16} aria-hidden="true" />
+          </button>
         </section>
       )}
       {accountFeedback && (page !== "settings" || !!app.error) && feedbackVisible && (

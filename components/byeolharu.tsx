@@ -51,7 +51,7 @@ import type { NativeReminderControls } from "@/lib/habits/native-reminder-contro
 import { resolveHabitReminder, type HabitReminderNavigation } from "@/lib/habits/reminder-navigation";
 import { alarmForSelectedTime } from "@/lib/habits/alarm-default-policy";
 import { scheduledTimeGroup, templateGroupForTime, timeForSelectedGroup } from "@/lib/habits/habit-editor-time";
-import { AccountPanel } from "@/components/account/account-panel";
+import { AccountPanel, type AccountPage } from "@/components/account/account-panel";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ReminderPermissionDialog, useReminderPermissionGuide } from "@/components/reminder-permission-dialog";
 import { THEME_PREFERENCE_KEY, parseThemePreference, resolveTheme, type ThemePreference } from "@/lib/theme-preference";
@@ -1229,7 +1229,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
     onAccountSnapshot?.(app.snapshot, app.user?.id ?? null);
   }, [onAccountSnapshot, app.user?.id, app.snapshot]);
   const [accountOpen, setAccountOpen] = useState(false);
-  const [accountPage, setAccountPage] = useState<"home" | "records" | "import" | "settings" | "help" | "security" | "login" | "signup" | "reset">("home");
+  const [accountPage, setAccountPage] = useState<AccountPage>("home");
   const handledAuthReturn = useRef(0);
   useEffect(() => {
     if (!ready || !nativeAuthReturn || nativeAuthReturn <= handledAuthReturn.current) return;
@@ -2542,7 +2542,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
         <Modal
           accountScreen
           scrollKey={accountPage}
-          title={accountPage === "home" ? "내 계정" : accountPage === "records" ? "데이터 관리" : accountPage === "import" ? "비회원 기록 가져오기" : accountPage === "settings" ? "앱 설정" : accountPage === "help" ? "사용 안내" : accountPage === "security" ? "계정 관리" : accountPage === "login" ? "로그인" : accountPage === "signup" ? "회원가입" : "비밀번호 찾기"}
+          title={accountPage === "home" ? "내 계정" : accountPage === "records" ? "데이터 관리" : accountPage === "import" ? "비회원 기록 가져오기" : accountPage === "settings" ? "앱 설정" : accountPage === "help" ? "사용 안내" : accountPage === "security" ? "계정 관리" : accountPage === "privacy" ? "개인정보처리방침" : accountPage === "deletion" ? "계정 삭제 요청" : accountPage === "login" ? "로그인" : accountPage === "signup" ? "회원가입" : "비밀번호 찾기"}
           onClose={() => { setAccountOpen(false); setAccountPage("home"); }}
           onBack={accountPage !== "home" ? () => setAccountPage("home") : undefined}
           onEscape={() => {
