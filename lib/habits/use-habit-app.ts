@@ -4,6 +4,8 @@ import type { WidgetPracticeCommand, WidgetPracticeResult } from "./widget-pract
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { cloudEnabled, supabase } from "../supabase/client";
+import { clearDeletedMemberLocalData } from "./member-deletion-cache";
+import { requestAccountDeletion } from "../supabase/delete-account";
 import { canUseOfflineVerifiedSession } from "../supabase/offline-auth";
 import { type Habit, type Conflict } from "./domain";
 import {
@@ -29,6 +31,11 @@ export function useHabitApp(samples: () => Habit[], nativeBackupExport?: (conten
     [error, setError] = useState(""),
     [statusMessage, setStatus] = useState("준비 중"),
     [busy, setBusy] = useState(false);
+  const [deletionNotice, setDeletionNotice] = useState("");
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const deletionInFlight = useRef(false);
+  const deletedIdentity = useRef<string | null>(null);
+  const switchIdentity = useRef<((u: User | null) => Promise<void>) | null>(null);
   const repo = useRef<LocalRepository | null>(null),
     engine = useRef<SyncEngine | null>(null),
     cloud = useRef<SupabaseTransport | null>(null),
@@ -50,7 +57,7 @@ export function useHabitApp(samples: () => Habit[], nativeBackupExport?: (conten
     retryAt = useRef(0);
   const sync = useCallback(
     async (force = true) => {
-      if (!force && Date.now() < retryAt.current) return;
+      if (deletionInFlight.current || (!force && Date.now() < retryAt.current)) return;
       const current = repo.current,
         activeEngine = engine.current;
       if (!current || !activeEngine) return;
@@ -101,6 +108,7 @@ export function useHabitApp(samples: () => Habit[], nativeBackupExport?: (conten
     let disposed = false,
       unsubscribe: undefined | (() => void);
     const switchTo = async (u: User | null) => {
+      if (u?.id === deletedIdentity.current) u = null;
       const identity = u?.id ?? null;
       if (activeIdentity.current === identity && repo.current) {
         retryAt.current = 0;
@@ -128,6 +136,7 @@ export function useHabitApp(samples: () => Habit[], nativeBackupExport?: (conten
         }
         repo.current = r;
         setUser(u);
+        if (u) setDeletionNotice("");
         unsubscribe?.();
         unsubscribe = r.subscribe(() => {
           void refresh(r).catch(() => {
@@ -160,6 +169,7 @@ export function useHabitApp(samples: () => Habit[], nativeBackupExport?: (conten
         }
       }
     };
+    switchIdentity.current = switchTo;
     let subscription: { unsubscribe: () => void } | undefined;
     if (cloudEnabled()) {
       // getUser verifies server identity; never select a namespace from an unverified session.
@@ -193,7 +203,7 @@ export function useHabitApp(samples: () => Habit[], nativeBackupExport?: (conten
         const { user: u, clearMarker } = await verified().catch(() => ({ user: null, clearMarker: false }));
         if (!disposed && id === verification) {
           try {
-            if (u) localStorage.setItem("byeolharu_verified_user", u.id);
+            if (u && u.id !== deletedIdentity.current) localStorage.setItem("byeolharu_verified_user", u.id);
             else if (clearMarker) localStorage.removeItem("byeolharu_verified_user");
           } catch {}
           // Do not purge an offline member scope or Outbox here. A rejected
@@ -257,6 +267,7 @@ export function useHabitApp(samples: () => Habit[], nativeBackupExport?: (conten
     document.addEventListener("visibilitychange", visibleOnce);
     return () => {
       disposed = true;
+      switchIdentity.current = null;
       widgetIdentityReady.current = false;
       ++epoch.current;
       clearInterval(timer);
@@ -299,9 +310,9 @@ export function useHabitApp(samples: () => Habit[], nativeBackupExport?: (conten
   const applyWidgetPractice = useCallback(async (command: WidgetPracticeCommand, deadline: number): Promise<WidgetPracticeResult> => {
     const r = repo.current, token = epoch.current;
     const allowed = () => Boolean(r && repo.current === r && epoch.current === token &&
-      widgetIdentityReady.current && !widgetLogoutPending.current &&
+      widgetIdentityReady.current && !widgetLogoutPending.current && !deletionInFlight.current &&
       r.scope === command.scope && Date.now() < deadline);
-    if (!r || !allowed()) return "not-ready";
+    if (deletionInFlight.current || !r || !allowed()) return "not-ready";
     if (cloudEnabled()) {
       try {
         const {data:{session},error} = await supabase().auth.getSession();
@@ -506,12 +517,54 @@ export function useHabitApp(samples: () => Habit[], nativeBackupExport?: (conten
     await LocalRepository.purgeScope(r.scope);
     } finally { widgetLogoutPending.current = false; }
   };
+  const deleteAccount = async (password: string, expectedUserId: string) => {
+    const r = repo.current;
+    if (deletionInFlight.current || !r?.member || r.scope !== "member:" + expectedUserId || user?.id !== expectedUserId)
+      throw Error("로그인 계정을 확인한 뒤 다시 시도해 주세요.");
+    deletionInFlight.current = true;
+    setDeletingAccount(true);
+    const client = supabase();
+    try {
+      // Do not discard unsynced data or invalidate a usable session on a
+      // rejected request. Only a confirmed hard-delete permits local purge.
+      await requestAccountDeletion(client, expectedUserId, password);
+      deletedIdentity.current = expectedUserId;
+      const isDeletedAccountActive = () => activeIdentity.current === expectedUserId;
+      if (isDeletedAccountActive()) {
+        widgetIdentityReady.current = false;
+        engine.current?.stop();
+        setSnapshot(null);
+      }
+      let localCleanupOk = true;
+      try { clearDeletedMemberLocalData(localStorage, expectedUserId); }
+      catch { localCleanupOk = false; }
+      try { await LocalRepository.purgeScope(r.scope); }
+      catch { localCleanupOk = false; }
+      try {
+        const { data: { session } } = await client.auth.getSession();
+        if (session?.user.id === expectedUserId) {
+          const { error } = await client.auth.signOut({ scope: "local" });
+          if (error) localCleanupOk = false;
+        }
+      } catch { localCleanupOk = false; }
+      if (isDeletedAccountActive()) await switchIdentity.current?.(null);
+      if (activeIdentity.current === null) setDeletionNotice(localCleanupOk
+        ? "회원 탈퇴가 완료되었어요."
+        : "회원 탈퇴는 완료되었어요. 기기의 회원 기록 정리를 확인해 주세요.");
+    } finally {
+      deletionInFlight.current = false;
+      setDeletingAccount(false);
+    }
+  };
   return {
     snapshot,
     user,
     error,
     status: snapshot ? syncStatus(!!user, snapshot.state) : statusMessage,
     busy,
+    deletingAccount,
+    deletionNotice,
+    deleteAccount,
     setHabits,
     applyWidgetPractice,
     ensureDay,

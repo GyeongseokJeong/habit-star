@@ -18,6 +18,7 @@ import type { PluginListenerHandle } from "@capacitor/core";
 import type { NativeReminderControls, ReminderPermissionScope, WrapupSettings, WrapupGroup } from "../../lib/habits/native-reminder-controls";
 import type { TimeGroup } from "../../lib/habits/domain";
 import { parseHabitReminder, type HabitReminderNavigation } from "../../lib/habits/reminder-navigation";
+import { REMINDER_LATENCY_STORAGE_PREFIX } from "../../lib/habits/member-deletion-cache";
 import { HABIT_REMINDER_OPT_IN_KEY, WRAPUP_REMINDER_STORAGE_PREFIX } from "./reminder-preferences";
 import { REMINDER_KIND } from "../notifications/reminder-plan.js";
 import { buildScopedReminderPlan } from "../notifications/scoped-reminder-runtime.js";
@@ -65,7 +66,7 @@ type DeviceSettings = {
   openNotificationSettings: () => Promise<void>;
   getActiveReminderPosts: () => Promise<{ posts: {id: number; postedAt: number}[] }>;
 };
-const LEDGER_KEY = "byeolharu_android_reminder_latency_v1:";
+const LEDGER_KEY = REMINDER_LATENCY_STORAGE_PREFIX;
 function readReminderLedger(scope: string): {id:number; at:number}[] {
   try {
     const value = JSON.parse(localStorage.getItem(LEDGER_KEY + scope) ?? "[]");

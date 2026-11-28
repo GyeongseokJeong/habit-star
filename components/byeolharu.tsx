@@ -1253,7 +1253,7 @@ export default function Byeolharu({ nativeUpdates, nativeReminders, nativeShare,
     }
   }, [nativeAuthReturn, ready, app.user]);
   useEffect(() => {
-    if (!app.user && accountPage === "security") setAccountPage("home");
+    if (!app.user && (accountPage === "security" || accountPage === "withdraw")) setAccountPage("home");
   }, [app.user, accountPage]);
   const [constellationOpen, setConstellationOpen] = useState(false);
   const [starlightPreviewOpen, setStarlightPreviewOpen] = useState(false);
@@ -2551,11 +2551,13 @@ export default function Byeolharu({ nativeUpdates, nativeReminders, nativeShare,
         <Modal
           accountScreen
           scrollKey={accountPage}
-          title={accountPage === "home" ? "내 계정" : accountPage === "records" ? "데이터 관리" : accountPage === "import" ? "비회원 기록 가져오기" : accountPage === "settings" ? "앱 설정" : accountPage === "help" ? "사용 안내" : accountPage === "security" ? "계정 관리" : accountPage === "privacy" ? "개인정보처리방침" : accountPage === "deletion" ? "계정 삭제 요청" : accountPage === "login" ? "로그인" : accountPage === "signup" ? "회원가입" : "비밀번호 찾기"}
-          onClose={() => { setAccountOpen(false); setAccountPage("home"); }}
-          onBack={accountPage !== "home" ? () => setAccountPage("home") : undefined}
+          title={accountPage === "home" ? "내 계정" : accountPage === "records" ? "데이터 관리" : accountPage === "import" ? "비회원 기록 가져오기" : accountPage === "settings" ? "앱 설정" : accountPage === "help" ? "사용 안내" : accountPage === "security" ? "계정 관리" : accountPage === "privacy" ? "개인정보처리방침" : accountPage === "deletion" ? "계정 삭제 요청" : accountPage === "withdraw" ? "회원 탈퇴" : accountPage === "login" ? "로그인" : accountPage === "signup" ? "회원가입" : "비밀번호 찾기"}
+          onClose={() => { if (!app.deletingAccount) { setAccountOpen(false); setAccountPage("home"); } }}
+          backLabel={accountPage === "withdraw" ? "계정 관리로" : "내 계정으로"}
+          onBack={accountPage !== "home" ? () => { if (!app.deletingAccount) setAccountPage(accountPage === "withdraw" ? "security" : "home"); } : undefined}
           onEscape={() => {
-            if (accountPage !== "home") setAccountPage("home");
+            if (app.deletingAccount) return;
+            if (accountPage !== "home") setAccountPage(accountPage === "withdraw" ? "security" : "home");
             else { setAccountOpen(false); setAccountPage("home"); }
           }}
         >

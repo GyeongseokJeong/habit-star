@@ -6,10 +6,12 @@ export function PasswordInput({
   label = "비밀번호",
   autoComplete = "current-password",
   disabled = false,
+  requireMinimumLength = true,
 }: {
   label?: string;
   autoComplete?: "new-password" | "current-password";
   disabled?: boolean;
+  requireMinimumLength?: boolean;
 }) {
   const [visible, setVisible] = useState(false);
   return (
@@ -20,25 +22,26 @@ export function PasswordInput({
           id="account-password"
           name="password"
           type={visible ? "text" : "password"}
-          minLength={8}
+          minLength={requireMinimumLength ? 8 : undefined}
           required
           autoComplete={autoComplete}
           disabled={disabled}
-          aria-describedby="password-hint"
+          aria-describedby={requireMinimumLength ? "password-hint" : undefined}
         />
         <button
           type="button"
           className="icon-button"
           aria-label={visible ? "비밀번호 숨기기" : "비밀번호 표시"}
           aria-pressed={visible}
+          disabled={disabled}
           onClick={() => setVisible(!visible)}
         >
           {visible ? <EyeOff size={18} /> : <Eye size={18} />}
         </button>
       </div>
-      <span id="password-hint" className="auth-note">
+      {requireMinimumLength && <span id="password-hint" className="auth-note">
         8자 이상 입력해주세요.
-      </span>
+      </span>}
     </div>
   );
 }

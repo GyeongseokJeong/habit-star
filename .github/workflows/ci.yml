@@ -95,7 +95,7 @@ jobs:
           node-version: 24.22.1
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec supabase start --exclude storage-api,imgproxy,realtime,studio,edge-runtime,logflare,vector,supavisor
+      - run: pnpm exec supabase start --exclude storage-api,imgproxy,realtime,studio,logflare,vector,supavisor
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:db
       - run: pnpm test:e2e:cloud

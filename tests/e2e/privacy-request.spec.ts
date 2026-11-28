@@ -17,7 +17,7 @@ async function expectAccountDesign(scope: Locator, theme: "light" | "dark") {
     await expect(card).toHaveClass(/account-ui-card/);
     await expect(card).toHaveCSS("border-radius", "14px");
     await expect(card).toHaveCSS("background-color", theme === "dark" ? "rgb(23, 29, 41)" : "rgb(255, 255, 255)");
-    const secondary = card.locator(".account-secondary-action");
+    const secondary = card.locator(".account-secondary-action").first();
     await expect(secondary).toHaveCSS("border-radius", "10px");
     expect(await secondary.evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThanOrEqual(48);
   }
@@ -40,7 +40,8 @@ test("public policy and deletion request are discoverable without sign-in", asyn
   await expect(page.getByRole("link", { name: "삭제 요청 메일 작성" })).toHaveAttribute("href", ACCOUNT_DELETION_MAILTO);
   await expect(page.getByText(SUPPORT_EMAIL, { exact: true })).toBeVisible();
   await expect(page.locator(".legal-copy")).not.toContainText(preparationCopy);
-  await expect(page.getByText("본인 확인 후 계정과 관련 기록을 삭제하고 결과를 이메일로 안내합니다.")).toBeVisible();
+  await expect(page.getByRole("link", { name: "별하루에서 로그인하기" })).toHaveAttribute("href", "/");
+  await expect(page.getByText("본인 확인 후 계정과 관련 기록을 삭제하고 결과를 이메일로 안내합니다.", { exact: false })).toBeVisible();
   await expect(page.getByText("삭제한 기록은 복구할 수 없습니다.", { exact: false })).toBeVisible();
   expect(await page.locator("body").evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
