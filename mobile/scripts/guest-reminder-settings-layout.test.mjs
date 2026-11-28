@@ -87,8 +87,14 @@ test("release settings distinguish missing display, exact, and unknown OS permis
 
 test("v3 settings preserve back and close, responsive controls and safe-area behavior",()=>{
  const app=readFileSync(resolve(root,"components/byeolharu.tsx"),"utf8");
- assert.match(app,/onClose=\{\(\) => \{ setAccountOpen\(false\); setAccountPage\("home"\); \}\}/);
- assert.match(app,/onBack=\{accountPage !== "home"/);
+ // Scope navigation assertions to the account modal. Ordinary close/back
+ // still reset or return as before; an in-flight irreversible withdrawal
+ // must not let close, back or Escape dismiss its confirmation state.
+ const accountModal=app.slice(app.indexOf("{accountOpen && ("),app.indexOf("<AccountPanel",app.indexOf("{accountOpen && (")));
+ assert.match(accountModal,/onClose=\{\(\) => \{ if \(!app\.deletingAccount\) \{ setAccountOpen\(false\); setAccountPage\("home"\); \} \}\}/);
+ assert.match(accountModal,/onBack=\{accountPage !== "home" \? \(\) => \{ if \(!app\.deletingAccount\) setAccountPage\(accountPage === "withdraw" \? "security" : "home"\); \} : undefined\}/);
+ assert.match(accountModal,/backLabel=\{accountPage === "withdraw" \? "계정 관리로" : "내 계정으로"\}/);
+ assert.match(accountModal,/onEscape=\{\(\) => \{\s*if \(app\.deletingAccount\) return;\s*if \(accountPage !== "home"\) setAccountPage\(accountPage === "withdraw" \? "security" : "home"\);\s*else \{ setAccountOpen\(false\); setAccountPage\("home"\); \}/);
  assert.match(css,/@media \(max-width: 350px\)/);
  assert.match(css,/min-height: 44px/);
  assert.match(css,/prefers-reduced-motion/);
