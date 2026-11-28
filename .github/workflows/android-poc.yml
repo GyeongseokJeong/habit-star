@@ -37,6 +37,7 @@ jobs:
     timeout-minutes: 40
     env:
       BYEOLHARU_POC_PACKAGED_GUEST: "1"
+      BYEOLHARU_WIDGET_RELEASE_CANDIDATE: "0"
     steps:
       - uses: actions/checkout@v4
       - name: Verify shared web/native boundary before packaging
@@ -124,6 +125,7 @@ jobs:
     env:
       BYEOLHARU_ANDROID_RELEASE: "1"
       BYEOLHARU_POC_PACKAGED_GUEST: "1"
+      BYEOLHARU_WIDGET_RELEASE_CANDIDATE: "0"
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -217,6 +219,48 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      # A separate, non-debuggable APK for owner acceptance only. The
+      # standard read-only AAB/APK have already been verified and uploaded.
+      # No candidate AAB, no Play signing secret, no dispatch/Play path.
+      - name: Build widget-enabled Release candidate APK (PR test only)
+        if: github.event_name == 'pull_request'
+        env:
+          BYEOLHARU_WIDGET_RELEASE_CANDIDATE: "1"
+          TEST_STORE_PASSWORD: ci-release-apk-test-only
+        run: |
+          set -euo pipefail
+          cd mobile
+          npm run packaged-guest:build
+          npm run packaged-guest:verify
+          npm run android:sync
+          (cd android && ./gradlew assembleRelease --no-daemon)
+          cd ..
+          candidate_dir="$RUNNER_TEMP/byeolharu-widget-release-candidate"
+          mkdir -p "$candidate_dir"
+          unsigned="mobile/android/app/build/outputs/apk/release/app-release-unsigned.apk"
+          aligned="$RUNNER_TEMP/byeolharu-widget-candidate-aligned.apk"
+          signed="$candidate_dir/byeolharu-widget-release-candidate-test-signed.apk"
+          keystore="$RUNNER_TEMP/byeolharu-test-release.p12"
+          test -s "$unsigned"
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -f -v 4 "$unsigned" "$aligned"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" sign \
+            --ks "$keystore" --ks-type PKCS12 --ks-key-alias test-release \
+            --ks-pass env:TEST_STORE_PASSWORD --key-pass env:TEST_STORE_PASSWORD \
+            --out "$signed" "$aligned"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$signed"
+          node mobile/scripts/check-android-artifact.mjs apk "$signed" "$ANDROID_HOME/build-tools/36.0.0/aapt"
+          node mobile/scripts/check-guest-boot-manifest.mjs "$signed"
+          cp mobile/www-packaged-guest/build-info.json "$candidate_dir/"
+          (cd "$candidate_dir" && sha256sum byeolharu-widget-release-candidate-test-signed.apk build-info.json > SHA256SUMS)
+      - name: Upload widget-enabled Release candidate APK (not Play)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: byeolharu-widget-release-candidate-apk-test-signed
+          path: ${{ runner.temp }}/byeolharu-widget-release-candidate/
+          if-no-files-found: error
+          retention-days: 7
+
   sign-internal:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.sign_internal
     needs: release-bundle
@@ -242,6 +286,7 @@ jobs:
       - name: Verify downloaded unsigned artifact, source and Play version acknowledgement
         env:
           PLAY_MAX_VERSION_CODE: ${{ inputs.highest_play_version_code }}
+          BYEOLHARU_WIDGET_RELEASE_CANDIDATE: "0"
         run: |
           node --input-type=module -e 'import {assertNewPlayVersion, readAndroidVersion} from "./mobile/scripts/android-release-version.mjs"; assertNewPlayVersion(readAndroidVersion("mobile"), process.env.PLAY_MAX_VERSION_CODE);'
           (cd unsigned && sha256sum --check SHA256SUMS)

@@ -1,21 +1,24 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { buildInfoFor } from "./build-info.mjs";
 import { validateWidgetManifest } from "./check-guest-boot-manifest.mjs";
-import { parseApkBadging, parseBundleDebuggable, verifyArtifactMetadata, verifyPackagedAssetBytes } from "./check-android-artifact.mjs";
+import { parseApkBadging, parseBundleDebuggable, parseApkWidgetCandidate, parseBundleWidgetCandidate, verifyArtifactMetadata, verifyPackagedAssetBytes } from "./check-android-artifact.mjs";
 
-function fixture(variant, kind) {
-  const expected = buildInfoFor({ code: 7, name: "0.2.0" }, "a".repeat(40), true, variant);
+import { WIDGET_CANDIDATE_META } from "./widget-practice-mode.mjs";
+
+function fixture(variant, kind, mode = variant === "debug" ? "debug" : "read-only") {
+  const expected = buildInfoFor({ code: 7, name: "0.2.0" }, "a".repeat(40), true, variant, mode);
   const prefix = kind === "aab" ? "base/assets/public/" : "assets/public/";
   return {
     expected, embedded: { ...expected }, kind,
-    metadata: { applicationId: expected.applicationId, versionCode: "7", versionName: "0.2.0", minSdk: "24", targetSdk: "36", debuggable: variant === "debug", label: variant === "debug" ? "별하루 비회원 STEP 9" : "별하루" },
-    assets: ["app.js", "app.css", "index.html", "build-info.json", ...(variant === "debug" ? ["widget-cold-runtime.js"] : [])].map(name => prefix + name),
+    metadata: { applicationId: expected.applicationId, versionCode: "7", versionName: "0.2.0", minSdk: "24", targetSdk: "36", debuggable: variant === "debug", widgetReleaseCandidate: mode === "release-candidate", label: variant === "debug" ? "별하루 비회원 STEP 9" : "별하루" },
+    assets: ["app.js", "app.css", "index.html", "build-info.json", ...(mode !== "read-only" ? ["widget-cold-runtime.js"] : [])].map(name => prefix + name),
   };
 }
 
 test("APK and AAB metadata and packaged provenance validate for the matching variant", () => {
-  for (const args of [fixture("debug", "apk"), fixture("release", "apk"), fixture("release", "aab")]) verifyArtifactMetadata(args);
+  for (const args of [fixture("debug", "apk"), fixture("release", "apk"), fixture("release", "aab"), fixture("release", "apk", "release-candidate")]) verifyArtifactMetadata(args);
 });
 
 test("final package, version, SDK, label, SHA and variant discrepancies fail", () => {
@@ -67,7 +70,7 @@ test("same-job generated assets must match actual archive bytes in both variants
     const args = fixture(variant, kind);
     const files = new Map(args.assets.map(path => [path, Buffer.from("expected:" + path.split("/").at(-1))]));
     const staged = file => Buffer.from("expected:" + file);
-    const check = () => verifyPackagedAssetBytes({ kind, variant, readEmbedded: path => files.get(path), readStaged: staged });
+    const check = () => verifyPackagedAssetBytes({ kind, widgetPractice: args.expected.widgetPractice, readEmbedded: path => files.get(path), readStaged: staged });
     check();
     for (const [path, original] of files) {
       files.set(path, Buffer.from("stale"));
@@ -82,7 +85,7 @@ test("same-job generated assets must match actual archive bytes in both variants
 });
 
 test("parse actual aapt badging shape and reject missing values", () => {
-  const expected = fixture("release", "apk").metadata;
+  const {widgetReleaseCandidate, ...expected} = fixture("release", "apk").metadata;
   const badging = "package: name='app.byeolharu.android' versionCode='7' versionName='0.2.0' platformBuildVersionName='16'\n"
     + "sdkVersion:'24'\ntargetSdkVersion:'36'\napplication-label:'별하루'\n";
   assert.deepEqual(parseApkBadging(badging), expected);
@@ -111,4 +114,62 @@ test("compiled APK widget components must stay private except the configuration 
   assert.throws(() => validateWidgetManifest(manifest.replace(permission, "")), /binding permission/);
   assert.throws(() => validateWidgetManifest(manifest.replace(service, service + '      A: android:process(0x01010011)=":other"\n')), /application process/);
   assert.throws(() => validateWidgetManifest(manifest.replace(service, make("service", "ByeolharuWidgetListService", null, permission))), /exported flag/);
+});
+
+
+test("release widget candidate is non-debuggable, APK-only and tied to native marker and assets", () => {
+  const candidate=fixture("release","apk","release-candidate");
+  verifyArtifactMetadata(candidate);
+  for (const [key,value] of [["debuggable",true],["widgetReleaseCandidate",false]]) {
+    const bad=structuredClone(candidate);
+    bad.metadata[key]=value;
+    assert.throws(()=>verifyArtifactMetadata(bad),/mismatch/);
+  }
+  const normal=fixture("release","apk");
+  normal.metadata.widgetReleaseCandidate=true;
+  assert.throws(()=>verifyArtifactMetadata(normal),/candidate metadata mismatch/);
+  assert.throws(()=>verifyArtifactMetadata(fixture("release","aab","release-candidate")),/never be an AAB/);
+  const bad=structuredClone(candidate);
+  bad.assets.pop();
+  assert.throws(()=>verifyArtifactMetadata(bad),/Release candidate/);
+  const files=new Map(candidate.assets.map(path=>[path,Buffer.from("expected:"+path.split("/").at(-1))]));
+  verifyPackagedAssetBytes({kind:"apk",widgetPractice:"release-candidate",readEmbedded:path=>files.get(path),readStaged:file=>Buffer.from("expected:"+file)});
+  files.delete("assets/public/widget-cold-runtime.js");
+  assert.throws(()=>verifyPackagedAssetBytes({kind:"apk",widgetPractice:"release-candidate",readEmbedded:path=>files.get(path),readStaged:file=>Buffer.from("expected:"+file)}),/Missing or empty/);
+});
+
+test("compiled candidate metadata is a literal application boolean and cannot be duplicated", () => {
+  const make=(value, indent="    ")=>indent+'E: meta-data (line=5)\n'+indent+'  A: android:name(0x01010003)="'+WIDGET_CANDIDATE_META+'" (Raw: "'+WIDGET_CANDIDATE_META+'")\n'+indent+'  A: android:value(0x01010024)=(type 0x12)'+value+'\n';
+  const app="E: manifest (line=1)\n  E: application (line=2)\n";
+  assert.equal(parseApkWidgetCandidate(app+make("0x0")),false);
+  assert.equal(parseApkWidgetCandidate(app+make("0xffffffff")),true);
+  assert.throws(()=>parseApkWidgetCandidate(app+make("0x1")+make("0x1")),/exactly one/);
+  assert.throws(()=>parseApkWidgetCandidate(app+make("0x2")),/boolean/);
+  assert.throws(()=>parseApkWidgetCandidate(app+'    E: activity (line=3)\n'+make("0x1","      ")),/application/);
+  const tag=(v)=>'<meta-data android:value="'+v+'" android:name="'+WIDGET_CANDIDATE_META+'" />';
+  assert.equal(parseBundleWidgetCandidate(WIDGET_CANDIDATE_META,tag("false")),false);
+  assert.equal(parseBundleWidgetCandidate(WIDGET_CANDIDATE_META,tag("true")),true);
+  assert.throws(()=>parseBundleWidgetCandidate("",tag("true")),/one AAB/);
+  assert.throws(()=>parseBundleWidgetCandidate(WIDGET_CANDIDATE_META,tag("true")+tag("false")),/duplicate/);
+  assert.throws(()=>parseBundleWidgetCandidate(WIDGET_CANDIDATE_META,tag("@bool/candidate")),/Invalid/);
+});
+
+test("CI candidate APK is isolated from default Release and the Play signing path", () => {
+  const workflow=readFileSync(new URL("../../.github/workflows/android-poc.yml",import.meta.url),"utf8");
+  const start=workflow.indexOf("- name: Build widget-enabled Release candidate APK");
+  const upload=workflow.indexOf("- name: Upload widget-enabled Release candidate APK");
+  const signing=workflow.indexOf("\n  sign-internal:");
+  const ordinary=workflow.indexOf("name: byeolharu-android-release-unsigned");
+  assert.ok(ordinary>0 && start>ordinary && upload>start && signing>upload);
+  const candidate=workflow.slice(start,upload), artifact=workflow.slice(upload,signing), play=workflow.slice(signing);
+  for(const step of [candidate,artifact]) assert.match(step,/if: github\.event_name == 'pull_request'/);
+  assert.match(candidate,/BYEOLHARU_WIDGET_RELEASE_CANDIDATE: "1"/);
+  assert.match(candidate,/assembleRelease/);
+  assert.match(candidate,/check-android-artifact\.mjs apk/);
+  assert.doesNotMatch(candidate,/bundleRelease|secrets\.|sign-aab/);
+  assert.match(artifact,/name: byeolharu-widget-release-candidate-apk-test-signed/);
+  assert.doesNotMatch(workflow.slice(0,start),/BYEOLHARU_WIDGET_RELEASE_CANDIDATE: "1"/);
+  assert.match(play,/name: byeolharu-android-release-unsigned/);
+  assert.match(play,/BYEOLHARU_WIDGET_RELEASE_CANDIDATE: "0"/);
+  assert.doesNotMatch(play,/widget-release-candidate|BYEOLHARU_WIDGET_RELEASE_CANDIDATE: "1"/);
 });

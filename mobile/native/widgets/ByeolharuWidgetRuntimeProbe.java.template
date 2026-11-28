@@ -26,7 +26,7 @@ final class ByeolharuWidgetRuntimeProbe {
     private ByeolharuWidgetRuntimeProbe(Consumer<String> callback) { this.callback=callback; }
 
     static void start(Context context,long deadline,Consumer<String> callback) {
-        if(!ByeolharuWidgetProvider.experimental(context) ||
+        if(!ByeolharuWidgetProvider.debuggable(context) ||
             ByeolharuDeviceSettingsPlugin.hasWidgetActivity() ||
             deadline-System.currentTimeMillis()<=500L) {
             callback.accept("not-ready");return;

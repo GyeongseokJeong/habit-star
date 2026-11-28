@@ -200,6 +200,10 @@ console.log("Compact widget layout, configuration and privacy source contracts O
 
 // Warm practice is debug-only and never launches an Activity or rewrites cache on tap.
 assert.match(widget,/ApplicationInfo.FLAG_DEBUGGABLE/);
+assert.match(widget,/if\(debuggable\(c\)\) return true;[\s\S]*if\(!"app\.byeolharu\.android"\.equals\(c.getPackageName\(\)\)\) return false;/);
+assert.match(widget,/PackageManager\.GET_META_DATA[\s\S]*Boolean\.TRUE\.equals\(meta.get\("app\.byeolharu\.widget\.RELEASE_CANDIDATE"\)\)/);
+assert.match(patcher,/patchWidgetCandidateManifest\(returnManifest, widgetPracticeMode\(androidVariant\(\)\)\)/);
+
 assert.match(widget,/setPendingIntentTemplate\(R.id.widget_list/);
 assert.match(widget,/new Intent\(c,Mini.class\).setAction\(PRACTICE\)/);
 assert.match(widget,/currentKey\(c,request.widget,request.key\)/);
@@ -405,11 +409,12 @@ const probeSeed=readFileSync(resolve(root,"packaged-guest/widget-runtime-probe.t
 const guestMain=readFileSync(resolve(root,"packaged-guest/main.tsx"),"utf8");
 assert.match(patcher,/"ByeolharuWidgetRuntimeProbe"/);
 assert.match(patcher,/copyFileSync\(join\(widgetNative, "widget-runtime-probe.html"\)/);
-assert.match(guestMain,/if \(experimentalWidgetPractice\) void seedWidgetRuntimeProbe\(window.location.origin\)/);
+assert.match(guestMain,/const widgetDirectPractice = isAndroid && process.env.NEXT_PUBLIC_ANDROID_WIDGET_DIRECT_PRACTICE === "true"/);
+assert.match(guestMain,/if \(debugWidgetProbe\) void seedWidgetRuntimeProbe\(window.location.origin\)/);
 assert.match(settingsJava,/static boolean hasWidgetActivity\(\)/);
 assert.match(widget,/if\(ByeolharuDeviceSettingsPlugin.dispatchWidgetPractice\(payload\)\) return/);
 assert.match(widget,/if\(!ByeolharuWidgetColdPractice.hasActivity\(\) && claim\(c,payload\)\)\s*ByeolharuWidgetColdPractice.start/);
-assert.match(probeJava,/!ByeolharuWidgetProvider.experimental\(context\)/);
+assert.match(probeJava,/!ByeolharuWidgetProvider.debuggable\(context\)/);
 assert.match(probeJava,/setBlockNetworkLoads\(true\)/);
 assert.match(probeJava,/setAllowFileAccess\(false\)/);
 assert.match(probeJava,/setAllowContentAccess\(false\)/);
@@ -439,7 +444,7 @@ assert.match(widget,/request.claimed && request.requestId.equals\(requestId\)/);
 assert.match(widget,/!ByeolharuWidgetColdPractice.hasActivity\(\)/);
 assert.match(widget,/currentKey\(c,request.widget,request.key\)/);
 assert.match(widget,/if\("saved".equals\(status\)\)/);
-assert.match(coldJava,/!ByeolharuWidgetProvider.experimental\(c\)/);
+assert.match(coldJava,/!ByeolharuWidgetProvider.directPracticeEnabled\(c\)/);
 assert.match(coldJava,/setBlockNetworkLoads\(true\)/);
 assert.match(coldJava,/setAllowFileAccess\(false\)/);
 assert.match(coldJava,/setAllowContentAccess\(false\)/);
@@ -448,7 +453,7 @@ assert.equal((coldJava.match(/@JavascriptInterface/g)||[]).length,1);
 assert.match(coldJava,/@JavascriptInterface public boolean allowed\(\)/);
 assert.match(coldJava,/removeJavascriptInterface\("ByeolharuColdGate"\);old.destroy\(\)/);
 assert.doesNotMatch(coldJava,/startActivity\(|startService\(/);
-assert.match(coldBuild,/if \(process.env.BYEOLHARU_ANDROID_RELEASE !== "1"\) \{\s*await build/);
+assert.match(coldBuild,/if \(widgetDirectPractice\) \{\s*await build/);
 assert.match(coldTs,/repo.applyWidgetPractice\(command, allowed\)/);
 assert.doesNotMatch(coldTs,/repo\.initialize\(|repo\.ensureDay\(|supabase\(|fetch\(/);
 // STEP 4B-2: one prepare/result poll, no additional JavascriptInterface.
@@ -479,12 +484,12 @@ assert.match(coldReminder,/inventoryKeys\(storage.getSavedNotificationIds\(\),ta
 assert.match(coldReminder,/if\(!completed\)return keys/);
 assert.match(coldReminder,/if\(target.completed\) \{\s*if\(visible.contains\(target.id\)\)q.visible.add\(target.id\);\s*\} else q.visible.addAll\(visible\)/);
 assert.match(coldJava,/completeCold\(context,requestId,result,alarmDiagnostic\)/);
-assert.match(widget,/experimental\(c\)&&alarmDiagnostic!=null&&alarmDiagnostic.matches/);
+assert.match(widget,/debuggable\(c\)&&alarmDiagnostic!=null&&alarmDiagnostic.matches/);
 assert.match(coldJava,/JSONObject\.quote\(json\)/);
 assert.match(coldJava,/"saved"\.equals\(result\.optString\("status"\)\)/);
 assert.match(coldTs,/saved = true;[\s\S]*decideCommittedColdReminder/);
 assert.match(coldTransport,/await freshSnapshot\(\)/);
-assert.match(coldReminder,/ByeolharuWidgetProvider\.experimental\(context\)/);
+assert.match(coldReminder,/ByeolharuWidgetProvider\.directPracticeEnabled\(context\)/);
 assert.match(coldReminder,/ByeolharuWidgetColdPractice\.reminderProcessExclusive\(\)/);
 assert.match(coldReminder,/getSavedNotificationAsJSObject\(key\)/);
 assert.match(coldReminder,/id\(raw\)!=k/);
@@ -552,7 +557,7 @@ assert.match(configActivity,/control.setThumbTintList\(null\)/);
 assert.match(configActivity,/control.setShowText\(false\)/);
 assert.match(configActivity,/control.setMinHeight\(dp\(48\)\)/);
 assert.doesNotMatch(configActivity,/테스트 버전: 앱이 백그라운드/);
-assert.match(configActivity,/if\(!ByeolharuWidgetProvider.experimental\(this\)\)\{\s*space\(privacy,6\);privacy.addView\(text\("기록은 앱에서 할 수 있어요."/);
+assert.match(configActivity,/if\(!ByeolharuWidgetProvider.directPracticeEnabled\(this\)\)\{\s*space\(privacy,6\);privacy.addView\(text\("기록은 앱에서 할 수 있어요."/);
 assert.match(configActivity,/습관 이름과 완료 상태가 홈 화면에 표시됩니다\./);
 for(const [theme,on,off] of [["dark","#9180B8","#50576A"],["light","#78639F","#C8BFB3"]]){
   const xml=readFileSync(resolve(root,"native/widgets/drawable/byeolharu_widget_switch_track_"+theme+".xml"),"utf8");

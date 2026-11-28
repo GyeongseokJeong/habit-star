@@ -1,15 +1,17 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
+import { widgetPracticeMode } from "./widget-practice-mode.mjs";
 import { ANDROID_APPLICATION_IDS, androidVariant, readAndroidVersion, validateAndroidVersion } from "./android-release-version.mjs";
 
-export function buildInfoFor(version, sourceSha, cloudEnabled, variant) {
+export function buildInfoFor(version, sourceSha, cloudEnabled, variant, mode = widgetPracticeMode(variant, "0")) {
   const { code, name } = validateAndroidVersion(version);
   assert.match(sourceSha, /^(?:[a-f0-9]{40}|unknown)$/i, "Invalid Git revision");
   assert.ok(Object.hasOwn(ANDROID_APPLICATION_IDS, variant), "Invalid Android variant");
   assert.equal(typeof cloudEnabled, "boolean", "Invalid cloud capability");
+  assert.ok(variant === "debug" ? mode === "debug" : ["read-only", "release-candidate"].includes(mode), "Invalid widget mode for variant");
   return Object.freeze({
-    schemaVersion: 2,
+    schemaVersion: 3,
     app: "byeolharu",
     platform: "android-packaged-guest",
     version: name,
@@ -18,6 +20,7 @@ export function buildInfoFor(version, sourceSha, cloudEnabled, variant) {
     applicationId: ANDROID_APPLICATION_IDS[variant],
     sourceSha,
     cloudEnabled,
+    widgetPractice: mode,
   });
 }
 
@@ -45,5 +48,5 @@ export function sourceBuildInfo(root, cloudEnabled = false, variant = androidVar
   if (process.env.GITHUB_ACTIONS === "true") {
     assert.equal(sha, process.env.GITHUB_SHA, "Git SHA must match the GitHub Actions checkout");
   }
-  return buildInfoFor(version, sha, cloudEnabled, variant);
+  return buildInfoFor(version, sha, cloudEnabled, variant, widgetPracticeMode(variant));
 }

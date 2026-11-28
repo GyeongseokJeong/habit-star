@@ -71,7 +71,7 @@ final class ByeolharuColdReminder {
     }
 
     private boolean canAct() {
-        return Looper.myLooper()==Looper.getMainLooper() && ByeolharuWidgetProvider.experimental(context)
+        return Looper.myLooper()==Looper.getMainLooper() && ByeolharuWidgetProvider.directPracticeEnabled(context)
             && ByeolharuWidgetColdPractice.reminderProcessExclusive()
             && System.currentTimeMillis()<deadline && SystemClock.elapsedRealtime()<elapsedDeadline
             && allowed.getAsBoolean();

@@ -287,7 +287,7 @@ public class ByeolharuWidgetConfigActivity extends Activity {
         privacy.addView(text("습관 이름과 완료 상태가 홈 화면에 표시됩니다.",13,muted(),false));
         // Keep a truthful limitation only while release is display-only.
         // Debug supports direct practice even after process termination.
-        if(!ByeolharuWidgetProvider.experimental(this)){
+        if(!ByeolharuWidgetProvider.directPracticeEnabled(this)){
             space(privacy,6);privacy.addView(text("기록은 앱에서 할 수 있어요.",12,muted(),false));
         }
         space(root,20);save=new Button(this);save.setText("적용하기");save.setAllCaps(false);save.setTextSize(16);save.setMinHeight(dp(52));save.setTextColor(color(night?"#302D38":"#FFFFFF"));save.setBackgroundTintList(null);save.setBackground(controlBackground(accent(),0,14,color(night?"#302D38":"#FFFFFF")));root.addView(save,new LinearLayout.LayoutParams(-1,-2));
