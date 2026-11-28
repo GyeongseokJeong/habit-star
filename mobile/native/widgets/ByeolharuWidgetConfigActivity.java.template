@@ -230,8 +230,9 @@ public class ByeolharuWidgetConfigActivity extends Activity {
         preview.setContentDescription("예시 위젯, "+title+", 완료 1개, 전체 "+samples.length+"개");
     }
     private void updateApplyHint(boolean existing,boolean checked){
-        applyHint.setText(!checked?(existing?"적용하면 홈 화면의 습관이 숨겨집니다.":"표시 동의 후 위젯을 추가할 수 있어요."):"");
-        applyHint.setVisibility(checked?View.GONE:View.VISIBLE);
+        applyHint.setText(!checked?(existing?"적용하면 홈 화면의 습관이 숨겨집니다.":"표시 동의 후 위젯을 추가할 수 있어요."):
+            "습관이 보이지 않으면 위젯에서 앱을 열어 주세요.");
+        applyHint.setVisibility(checked&&existing?View.GONE:View.VISIBLE);
     }
     @Override protected void onSaveInstanceState(Bundle out){
         super.onSaveInstanceState(out);if(hide==null||showIcons==null||consent==null)return;
