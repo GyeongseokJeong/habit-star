@@ -15,6 +15,7 @@ import type { NativeReminderControls, WrapupGroup } from "@/lib/habits/native-re
 import { AppUpdateSettings } from "@/components/app-update-notice";
 import type { NativeUpdateControls } from "@/lib/habits/native-app-update";
 import { AuthForm, type AuthMode } from "./auth-form";
+import { PasswordInput } from "./password-input";
 import { AccountSectionTitle } from "./account-design";
 import { accountFeedbackTone } from "./account-feedback-tone";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -29,7 +30,7 @@ const wrapupPeriods: { group: WrapupGroup; name: string; range: string; times: s
   { group: "night", name: "밤", range: "17:00~다음 날 04:59", times: ["21:00","21:30","22:00","22:30"] },
 ];
 type App = ReturnType<typeof useHabitApp>;
-export type AccountPage = "home" | "records" | "import" | "settings" | "help" | "security" | "privacy" | "deletion" | AuthMode;
+export type AccountPage = "home" | "records" | "import" | "settings" | "help" | "security" | "privacy" | "deletion" | "withdraw" | AuthMode;
 
 const zoneLabels: Record<string, string> = {
   "Asia/Seoul": "한국 · 서울",
@@ -129,6 +130,9 @@ export function AccountPanel({
   } | null>(null);
   const activeAction = useRef<string | null>(null);
   const [workingAction, setWorkingAction] = useState<string | null>(null);
+  const [withdrawConfirmed, setWithdrawConfirmed] = useState(false);
+  const [withdrawError, setWithdrawError] = useState("");
+  useEffect(() => { setWithdrawConfirmed(false); setWithdrawError(""); }, [page, app.user?.id]);
   const [preview, setPreview] = useState<Snapshot | null>(null);
   const [guestAvailable, setGuestAvailable] = useState(false);
   const [timezonePicker, setTimezonePicker] = useState(false);
@@ -400,10 +404,11 @@ export function AccountPanel({
           <nav className="account-menu" aria-label="계정 메뉴">
             <button type="button" aria-label="데이터 관리" onClick={() => navigate("records")}><Database size={19} /><span>데이터 관리<small>동기화 · 백업 · 복원</small></span><ChevronRight size={17} /></button>
             <button type="button" aria-label="앱 설정" onClick={() => navigate("settings")}><Settings2 size={19} /><span>앱 설정<small>{nativeReminders ? "알림 · 화면 · 기록" : "테마 · 간편 보기 · 시간대"}</small></span><ChevronRight size={17} /></button>
-            {app.user && <button type="button" aria-label="계정 관리" onClick={() => navigate("security")}><UserRound size={19} /><span>계정 관리<small>로그인 정보 · 로그아웃 · 계정 삭제</small></span><ChevronRight size={17} /></button>}
+            {app.user && <button type="button" aria-label="계정 관리" onClick={() => navigate("security")}><UserRound size={19} /><span>계정 관리<small>로그인 정보 · 로그아웃 · 회원 탈퇴</small></span><ChevronRight size={17} /></button>}
             <button type="button" aria-label="사용 안내" onClick={() => navigate("help")}><CircleHelp size={19} /><span>사용 안내<small>기록 · 성장 · 데이터 보관</small></span><ChevronRight size={17} /></button>
-            <button type="button" aria-label="개인정보처리방침" onClick={() => navigate("privacy")}><ShieldCheck size={19} /><span>개인정보처리방침<small>개인정보 문의 · 계정 삭제 요청</small></span><ChevronRight size={17} /></button>
           </nav>
+          <button type="button" className="account-privacy-link" onClick={() => navigate("privacy")}>개인정보처리방침</button>
+          {!app.user && app.deletionNotice && <p className="auth-feedback account-feedback" role="status">{app.deletionNotice}</p>}
         </>
       )}
 
@@ -707,10 +712,10 @@ export function AccountPanel({
       )}
 
       {page === "privacy" && (
-        <section className="account-detail"><PrivacyContent onDeletion={() => navigate("deletion")} /></section>
+        <section className="account-detail"><PrivacyContent onDeletion={() => navigate(app.user ? "withdraw" : "deletion")} /></section>
       )}
       {page === "deletion" && (
-        <section className="account-detail"><AccountDeletionContent embedded /></section>
+        <section className="account-detail"><AccountDeletionContent embedded onLogin={cloudEnabled() ? () => navigate(app.user ? "withdraw" : "login") : undefined} /></section>
       )}
       {page === "security" && app.user && (
         <section className="account-detail" aria-label="계정 관리">
@@ -724,9 +729,46 @@ export function AccountPanel({
             </button>
             <p className="account-note">{pending || unresolved || state?.importJournal ? "미전송 기록이나 충돌이 있어요. 백업을 확인한 후 로그아웃합니다." : "로그아웃하면 이 기기의 회원 캐시가 정리됩니다."}</p>
           </div>
-          <button type="button" className="account-action-row" onClick={() => navigate("deletion")}>
-            <UserRound size={18} aria-hidden="true" /><span>계정 삭제 요청</span><ChevronRight size={16} aria-hidden="true" />
+          <button type="button" className="account-action-row" onClick={() => navigate("withdraw")} disabled={app.busy || app.deletingAccount}>
+            <UserRound size={18} aria-hidden="true" /><span>회원 탈퇴</span><ChevronRight size={16} aria-hidden="true" />
           </button>
+        </section>
+      )}
+      {page === "withdraw" && app.user && (
+        <section className="account-detail" aria-label="회원 탈퇴">
+          <div className="account-ui-card account-withdraw-summary">
+            <AccountSectionTitle>삭제되는 정보</AccountSectionTitle>
+            <p>회원 계정과 습관, 실천 기록, 별점, 메모가 영구 삭제됩니다.</p>
+            <p>이 기기의 회원 기록도 정리됩니다. 비회원 기록과 별도로 저장한 백업 파일은 유지됩니다.</p>
+            <p><strong>탈퇴한 계정과 삭제한 기록은 복구할 수 없어요.</strong></p>
+            <button type="button" className="account-secondary-action legal-action" onClick={() => void exportBackup()} disabled={backupBusy || app.deletingAccount}>기록 백업하기</button>
+          </div>
+          <form className="auth-form account-withdraw-form" onSubmit={event => {
+            event.preventDefault();
+            if (!withdrawConfirmed || app.deletingAccount || app.busy || !app.user || activeAction.current) return;
+            const form = event.currentTarget;
+            const password = String(new FormData(form).get("password") ?? "");
+            const userId = app.user.id;
+            form.reset();
+            setWithdrawError("");
+            void runOnce("withdraw", async () => {
+              try { await app.deleteAccount(password, userId); }
+              catch (error) {
+                setWithdrawError(error instanceof Error ? error.message : "탈퇴하지 못했어요. 다시 시도해 주세요.");
+              }
+            });
+          }}>
+            <p className="account-note">본인 확인을 위해 현재 계정의 비밀번호를 입력해 주세요.</p>
+            <PasswordInput disabled={app.deletingAccount || workingAction !== null} />
+            <label className="account-withdraw-consent">
+              <input type="checkbox" checked={withdrawConfirmed} onChange={event => setWithdrawConfirmed(event.target.checked)} disabled={app.deletingAccount || workingAction !== null} required />
+              계정과 기록이 영구 삭제되는 것에 동의합니다.
+            </label>
+            {withdrawError && <p className="auth-feedback account-feedback is-error" role="alert">{withdrawError}</p>}
+            <button type="submit" className="account-withdraw-submit" disabled={!withdrawConfirmed || app.deletingAccount || app.busy || workingAction !== null} aria-busy={app.deletingAccount}>
+              {app.deletingAccount ? "탈퇴 처리 중…" : "회원 탈퇴하기"}
+            </button>
+          </form>
         </section>
       )}
       {accountFeedback && (page !== "settings" || !!app.error) && feedbackVisible && (

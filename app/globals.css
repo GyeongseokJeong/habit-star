@@ -5255,3 +5255,34 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 .app-update-settings { padding: 12px 0; }
 .app-update-settings > div { display: grid; gap: 4px; }
 .app-update-settings small { color: var(--muted); font-size: 12px; }
+
+/* Legal link remains discoverable without a full account-menu row. */
+.account-privacy-link {
+  align-self: center;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.account-withdraw-summary { padding: 14px; overflow-wrap: anywhere; }
+.account-withdraw-summary .account-ui-section-title { margin-top: 0; }
+.account-withdraw-summary p { margin: 0 0 12px; }
+.account-withdraw-form { display: grid; gap: 12px; margin-top: 16px; }
+.account-withdraw-consent { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 14px; color: var(--ink); }
+.account-withdraw-consent input { flex: 0 0 auto; width: 20px; height: 20px; accent-color: var(--selection-bg); }
+.account-withdraw-submit {
+  min-height: 48px;
+  border: 1px solid var(--danger);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--danger);
+  font-size: 14px;
+  font-weight: 650;
+}
+.account-withdraw-submit:disabled { opacity: .5; }
+.account-panel .account-withdraw-consent input { width: 20px; }
+.account-panel .account-withdraw-form .field input { min-height: 46px; }

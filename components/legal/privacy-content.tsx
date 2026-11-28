@@ -33,7 +33,7 @@ export function PrivacyContent({ onDeletion }: { onDeletion?: () => void }) {
       </section>
       <section>
         <AccountSectionTitle as={onDeletion ? "h3" : "h2"}>4. 계정 삭제</AccountSectionTitle>
-        <p>이용자는 앱 또는 웹에서 계정 삭제를 요청할 수 있습니다. 본인 확인 후 회원 계정과 서버에 저장된 관련 기록을 삭제하고 처리 결과를 안내합니다. 삭제한 기록은 복구할 수 없습니다.</p>
+        <p>이용자는 앱 또는 웹에서 로그인 후 내 계정 → 계정 관리 → 회원 탈퇴를 선택할 수 있습니다. 비밀번호로 본인을 확인한 뒤 회원 계정과 서버에 저장된 관련 기록을 삭제합니다. 로그인할 수 없는 경우 별하루에 이메일로 삭제를 요청할 수 있습니다. 삭제한 기록은 복구할 수 없습니다.</p>
         <p>기기에 남은 비회원 기록, 오프라인 사본 및 내보낸 파일은 별도로 관리해 주세요.</p>
         {onDeletion ? (
           <button type="button" className="account-primary-action legal-action" onClick={onDeletion}>계정 삭제 요청 안내</button>

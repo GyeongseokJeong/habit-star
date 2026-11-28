@@ -126,15 +126,12 @@ test("email confirmation, two-device offline sync, conflict resolution, import a
   await confirm(page, request, email);
   await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
   await expect(page.getByText(email, { exact: true })).toBeVisible();
-  // Member can initiate a request without transmitting the account identity,
-  // deleting records, or changing the current authenticated session.
+  // Opening the withdrawal page does not submit or delete anything.
   await page.getByRole("button", { name: "계정 관리", exact: true }).click();
-  await page.getByRole("button", { name: "계정 삭제 요청", exact: true }).click();
-  const deletionRequest = page.getByRole("dialog", { name: "계정 삭제 요청" });
-  await expect(deletionRequest.getByRole("link", { name: "삭제 요청 메일 작성" })).toHaveAttribute(
-    "href", "mailto:jasset.biz@gmail.com?subject=" + encodeURIComponent("별하루 계정 삭제 요청"),
-  );
-  await expect(deletionRequest.getByText(email, { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "회원 탈퇴", exact: true }).click();
+  const withdrawal = page.getByRole("dialog", { name: "회원 탈퇴" });
+  await expect(withdrawal.getByRole("button", { name: "회원 탈퇴하기" })).toBeDisabled();
+  await page.getByRole("button", { name: "계정 관리로" }).click();
   await page.getByRole("button", { name: "내 계정으로" }).click();
   await expect(page.getByText(email, { exact: true })).toBeVisible();
   await openImport(page);
@@ -1126,7 +1123,7 @@ test("member cold widget rejects expired cache and account changes; real auth pr
 
 // Verify the supported Auth admin hard-delete path on the CLI-managed LOCAL
 // Supabase instance, using two disposable identities and a pinned old token.
-test("Auth hard deletion removes target account data and rejects stale sessions", async ({ page }) => {
+test("self-service withdrawal removes only the confirmed account and rejects stale sessions", async ({ page }) => {
   const url = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "");
   if (url.protocol !== "http:" || !["localhost", "127.0.0.1"].includes(url.hostname) || url.port !== "54321")
     throw Error("account deletion integration is local-only");
@@ -1192,13 +1189,37 @@ test("Auth hard deletion removes target account data and rejects stale sessions"
     await login(page, a.email, a.password);
     await expect(page.getByText(a.email, { exact: true })).toBeVisible();
 
-    // An in-flight RPC may finish before deletion or be rejected after it.
-    // Either ordering must leave a completed hard deletion authoritative.
-    const [removed] = await Promise.all([
-      admin.auth.admin.deleteUser(a.session.user.id, false),
+    await page.getByRole("button", { name: "계정 관리", exact: true }).click();
+    await page.getByRole("button", { name: "회원 탈퇴", exact: true }).click();
+    const withdrawal = page.getByRole("dialog", { name: "회원 탈퇴" });
+    const submit = withdrawal.getByRole("button", { name: "회원 탈퇴하기" });
+    await expect(submit).toBeDisabled();
+    await withdrawal.getByLabel("비밀번호", { exact: true }).fill("Incorrect-password");
+    await withdrawal.getByRole("checkbox").check();
+    await submit.click();
+    await expect(withdrawal.getByRole("alert")).toContainText("비밀번호가 일치하지 않아요");
+    expect((await admin.auth.admin.getUserById(a.session.user.id)).data.user?.id).toBe(a.session.user.id);
+    await withdrawal.getByLabel("비밀번호", { exact: true }).fill(a.password);
+    await withdrawal.getByRole("checkbox").check();
+    // A concurrent sync may finish before deletion or be rejected after it.
+    await Promise.all([
+      submit.click(),
       stale.rpc("apply_operation", { p_operation: operation() }).setHeader("Authorization", token),
     ]);
-    expect(removed.error).toBeNull();
+    await expect(page.getByText("회원 탈퇴가 완료되었어요.")).toBeVisible({ timeout: 30000 });
+    await expect(page.getByText("비회원으로 사용 중")).toBeVisible();
+    const memberScope = "member:" + a.session.user.id;
+    const cached = await page.evaluate(scope => new Promise<boolean>((resolve, reject) => {
+      const request = indexedDB.open("byeolharu-v2", 1);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const db = request.result;
+        const lookup = db.transaction("scopes").objectStore("scopes").get(scope);
+        lookup.onsuccess = () => { db.close(); resolve(lookup.result !== undefined); };
+        lookup.onerror = () => { db.close(); reject(lookup.error); };
+      };
+    }), memberScope);
+    expect(cached).toBe(false);
     created.delete(a.session.user.id);
     expect((await admin.auth.admin.getUserById(a.session.user.id)).data.user).toBeNull();
     expect((await a.client.auth.getUser(a.session.access_token)).error).toBeTruthy();
