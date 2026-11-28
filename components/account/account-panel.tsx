@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownToLine, ChevronRight, CheckCircle2, CloudOff,
-  Database, Download, RefreshCw, Settings2, ShieldCheck, Sparkles, UserRound, CircleHelp,
+  Database, Download, RefreshCw, Settings2, ShieldCheck, Sparkles, UserRound, UserRoundX, CircleHelp,
   AlertCircle, Clock3, Laptop, Moon, Sun, Sunrise, MonitorSmartphone, LoaderCircle, Star, Cloud, LogOut, BellRing,
 } from "lucide-react";
 import { cloudEnabled } from "@/lib/supabase/client";
@@ -718,31 +718,45 @@ export function AccountPanel({
         <section className="account-detail"><AccountDeletionContent embedded onLogin={cloudEnabled() ? () => navigate(app.user ? "withdraw" : "login") : undefined} /></section>
       )}
       {page === "security" && app.user && (
-        <section className="account-detail" aria-label="계정 관리">
-          <div className="account-record-card">
-            <div className="account-record-row"><ShieldCheck size={18}/><span>로그인 계정</span><strong className="account-email">{app.user.email}</strong></div>
+        <section className="account-detail account-security" aria-label="계정 관리">
+          <AccountSectionTitle>로그인 정보</AccountSectionTitle>
+          <div className="account-ui-card account-security-identity">
+            <span className="account-security-icon"><UserRound size={21} aria-hidden="true" /></span>
+            <div>
+              <span>이메일</span>
+              <strong>{app.user.email}</strong>
+            </div>
           </div>
-          <div className="account-security-actions">
-            <button type="button" className="account-logout" disabled={workingAction !== null || app.busy} aria-busy={workingAction === "logout"} onClick={() => void runOnce("logout", app.logout)}>
+          <div className="account-security-session">
+            <button type="button" className="account-secondary-action account-logout" disabled={workingAction !== null || app.busy || app.deletingAccount} aria-busy={workingAction === "logout"} onClick={() => void runOnce("logout", app.logout)}>
               {workingAction === "logout" ? <LoaderCircle size={18} className="is-spinning" aria-hidden="true"/> : <LogOut size={18} aria-hidden="true"/>}
               {workingAction === "logout" ? "로그아웃 중…" : "로그아웃"}
             </button>
-            <p className="account-note">{pending || unresolved || state?.importJournal ? "미전송 기록이나 충돌이 있어요. 백업을 확인한 후 로그아웃합니다." : "로그아웃하면 이 기기의 회원 캐시가 정리됩니다."}</p>
+            {!!(pending || unresolved || state?.importJournal) && <p className="account-note">미전송 기록이나 충돌이 있어요. 백업을 확인한 후 로그아웃합니다.</p>}
           </div>
-          <button type="button" className="account-action-row" onClick={() => navigate("withdraw")} disabled={app.busy || app.deletingAccount}>
-            <UserRound size={18} aria-hidden="true" /><span>회원 탈퇴</span><ChevronRight size={16} aria-hidden="true" />
-          </button>
+          <AccountSectionTitle>계정 삭제</AccountSectionTitle>
+          <div className="account-ui-card account-security-danger">
+            <button type="button" className="account-action-row account-withdraw-entry" aria-label="회원 탈퇴" aria-describedby="account-withdraw-description" onClick={() => navigate("withdraw")} disabled={workingAction !== null || app.busy || app.deletingAccount}>
+              <UserRoundX size={20} aria-hidden="true" />
+              <span className="account-withdraw-label"><strong>회원 탈퇴</strong><small id="account-withdraw-description">계정 및 회원 기록 영구 삭제</small></span>
+              <ChevronRight size={17} aria-hidden="true" />
+            </button>
+          </div>
         </section>
       )}
       {page === "withdraw" && app.user && (
-        <section className="account-detail" aria-label="회원 탈퇴">
+        <section className="account-detail account-withdraw" aria-label="회원 탈퇴">
+          <AccountSectionTitle>삭제되는 정보</AccountSectionTitle>
           <div className="account-ui-card account-withdraw-summary">
-            <AccountSectionTitle>삭제되는 정보</AccountSectionTitle>
+            <div className="account-withdraw-warning" id="withdraw-warning">
+              <AlertCircle size={21} aria-hidden="true" />
+              <strong>탈퇴한 계정과 기록은 복구할 수 없어요.</strong>
+            </div>
             <p>회원 계정과 습관, 실천 기록, 별점, 메모가 영구 삭제됩니다.</p>
-            <p>이 기기의 회원 기록도 정리됩니다. 비회원 기록과 별도로 저장한 백업 파일은 유지됩니다.</p>
-            <p><strong>탈퇴한 계정과 삭제한 기록은 복구할 수 없어요.</strong></p>
-            <button type="button" className="account-secondary-action legal-action" onClick={() => void exportBackup()} disabled={backupBusy || app.deletingAccount}>기록 백업하기</button>
+            <p>이 기기의 회원 기록도 정리돼요. 비회원 기록과 저장해 둔 백업 파일은 유지됩니다.</p>
+            <button type="button" className="account-secondary-action account-withdraw-backup" onClick={() => void exportBackup()} disabled={backupBusy || app.deletingAccount}><Download size={18} aria-hidden="true" />기록 백업하기</button>
           </div>
+          <AccountSectionTitle>본인 확인</AccountSectionTitle>
           <form className="auth-form account-withdraw-form" onSubmit={event => {
             event.preventDefault();
             if (!withdrawConfirmed || app.deletingAccount || app.busy || !app.user || activeAction.current) return;
@@ -758,14 +772,14 @@ export function AccountPanel({
               }
             });
           }}>
-            <p className="account-note">본인 확인을 위해 현재 계정의 비밀번호를 입력해 주세요.</p>
-            <PasswordInput disabled={app.deletingAccount || workingAction !== null} />
+            <p className="account-withdraw-prompt">현재 계정의 비밀번호를 입력해 주세요.</p>
+            <PasswordInput requireMinimumLength={false} disabled={app.deletingAccount || workingAction !== null} />
             <label className="account-withdraw-consent">
               <input type="checkbox" checked={withdrawConfirmed} onChange={event => setWithdrawConfirmed(event.target.checked)} disabled={app.deletingAccount || workingAction !== null} required />
               계정과 기록이 영구 삭제되는 것에 동의합니다.
             </label>
             {withdrawError && <p className="auth-feedback account-feedback is-error" role="alert">{withdrawError}</p>}
-            <button type="submit" className="account-withdraw-submit" disabled={!withdrawConfirmed || app.deletingAccount || app.busy || workingAction !== null} aria-busy={app.deletingAccount}>
+            <button type="submit" className="account-withdraw-submit" aria-describedby="withdraw-warning" disabled={!withdrawConfirmed || app.deletingAccount || app.busy || workingAction !== null} aria-busy={app.deletingAccount}>
               {app.deletingAccount ? "탈퇴 처리 중…" : "회원 탈퇴하기"}
             </button>
           </form>

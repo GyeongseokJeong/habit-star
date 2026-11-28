@@ -3289,7 +3289,6 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 .account-timezone-list > button small { color: var(--muted); font-size: 11px; }
 .account-timezone-list > button[aria-pressed="true"] { color: var(--sage); font-weight: 650; }
 .account-timezone-list > button:disabled { opacity: .55; }
-.account-logout { min-height: 44px; padding: 8px 0; color: var(--danger); border: 0; background: transparent; font-size: 13px; }
 .account-auth-links { justify-content: start; }
 .account-auth-links button { padding: 8px 0; font-size: 12px; }
 .account-panel .auth-intro { margin: 13px 0 19px; }
@@ -4376,29 +4375,6 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   outline: 2px solid var(--selection-bg);
   outline-offset: 2px;
 }
-.account-panel .account-security-actions {
-  border-top: 1px solid var(--line);
-  margin-top: 20px;
-  padding-top: 17px;
-}
-.account-panel .account-security-actions .account-logout {
-  width: 100%;
-  min-height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  padding: 11px 15px;
-  border-radius: 10px;
-  border: 1px solid var(--danger);
-  background: transparent;
-  color: var(--danger);
-  font-size: 14px;
-  font-weight: 650;
-}
-.account-panel .account-security-actions > .account-note {
-  margin-top: 10px;
-}
 .account-panel .account-app-info {
   margin: 14px 0 0;
   border-top: 1px solid var(--line);
@@ -5258,7 +5234,8 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 
 /* Legal link remains discoverable without a full account-menu row. */
 .account-privacy-link {
-  align-self: center;
+  display: block;
+  margin-inline: auto;
   min-height: 44px;
   padding: 8px 12px;
   border: 0;
@@ -5268,21 +5245,54 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-.account-withdraw-summary { padding: 14px; overflow-wrap: anywhere; }
-.account-withdraw-summary .account-ui-section-title { margin-top: 0; }
-.account-withdraw-summary p { margin: 0 0 12px; }
-.account-withdraw-form { display: grid; gap: 12px; margin-top: 16px; }
-.account-withdraw-consent { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 14px; color: var(--ink); }
-.account-withdraw-consent input { flex: 0 0 auto; width: 20px; height: 20px; accent-color: var(--selection-bg); }
-.account-withdraw-submit {
-  min-height: 48px;
-  border: 1px solid var(--danger);
-  border-radius: 10px;
-  background: transparent;
-  color: var(--danger);
-  font-size: 14px;
-  font-weight: 650;
+/* Keep normal session controls distinct from irreversible account deletion. */
+.account-security-identity {
+  display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px;
+  align-items: center; padding: 14px;
 }
-.account-withdraw-submit:disabled { opacity: .5; }
-.account-panel .account-withdraw-consent input { width: 20px; }
-.account-panel .account-withdraw-form .field input { min-height: 46px; }
+.account-security-icon {
+  display: grid; place-items: center; width: 40px; height: 40px;
+  border-radius: 10px; background: var(--control-bg); color: var(--sage);
+}
+.account-security-identity > div { min-width: 0; display: grid; gap: 3px; }
+.account-security-identity > div > span { color: var(--muted); font-size: 12px; }
+.account-security-identity strong { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; color: var(--ink); }
+.account-security-session { margin-top: 12px; }
+.account-security-session .account-logout, .account-withdraw-backup {
+  width: 100%; display: flex; align-items: center; justify-content: center;
+  gap: 9px; padding: 10px 12px; font-size: 14px; font-weight: 600;
+}
+.account-security-session > .account-note { margin-top: 10px; }
+.account-security-danger { padding: 0 14px; }
+.account-panel .account-security-danger .account-withdraw-entry {
+  min-height: 64px; padding: 10px 0; border-bottom: 0; color: var(--danger);
+}
+.account-withdraw-label { min-width: 0; display: grid; gap: 4px; }
+.account-withdraw-label > strong { font-size: 14px; font-weight: 600; }
+.account-withdraw-label > small { font-size: 12px; color: var(--muted); font-weight: 400; line-height: 1.5; }
+
+.account-withdraw-summary { padding: 14px; overflow-wrap: anywhere; }
+.account-withdraw-warning { display: flex; align-items: flex-start; gap: 9px; color: var(--danger); margin-bottom: 12px; }
+.account-withdraw-warning > svg { flex: none; margin-top: 1px; }
+.account-withdraw-warning > strong { font-size: 14px; font-weight: 700; line-height: 1.55; }
+.account-panel .account-withdraw-summary > p { font-size: 13px; line-height: 1.65; margin: 0 0 12px; color: var(--body); }
+.account-withdraw-form { display: grid; gap: 12px; }
+.account-panel .account-withdraw-prompt { color: var(--muted); font-size: 13px; line-height: 1.6; margin: 0; }
+.account-withdraw-form > .field { margin: 0; }
+.account-panel .account-withdraw-form .field input { min-height: 48px; }
+.account-withdraw-consent {
+  display: flex; align-items: center; gap: 10px; min-height: 48px;
+  padding: 8px 0; font-size: 14px; line-height: 1.5; color: var(--ink); cursor: pointer;
+}
+.account-panel .account-withdraw-consent input {
+  flex: 0 0 20px; width: 20px; height: 20px; accent-color: var(--selection-bg);
+}
+.account-withdraw-consent input:focus-visible { outline: 2px solid var(--selection-bg); outline-offset: 3px; }
+.account-withdraw-submit {
+  min-height: 48px; padding: 10px 12px; border: 1px solid var(--danger);
+  border-radius: 10px; background: transparent; color: var(--danger);
+  font-size: 14px; font-weight: 650;
+}
+.account-panel .account-withdraw-submit:disabled {
+  opacity: 1; background: var(--control-bg); color: var(--muted); border-color: var(--control-border); cursor: default;
+}

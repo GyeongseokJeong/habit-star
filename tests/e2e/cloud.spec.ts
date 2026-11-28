@@ -1189,6 +1189,44 @@ test("self-service withdrawal removes only the confirmed account and rejects sta
     await login(page, a.email, a.password);
     await expect(page.getByText(a.email, { exact: true })).toBeVisible();
 
+    // The account page shares the account design system, without making
+    // ordinary sign-out look as destructive as permanent deletion.
+    for (const [theme, className] of [["라이트", "light"], ["다크", "dark"]] as const) {
+      await page.getByRole("button", { name: "앱 설정", exact: true }).click();
+      await page.getByRole("group", { name: "화면 테마" }).getByRole("button", { name: theme }).click();
+      await expect(page.locator(".byeolharu")).toHaveClass(new RegExp(className));
+      await page.getByRole("button", { name: "내 계정으로" }).click();
+      await page.getByRole("button", { name: "계정 관리", exact: true }).click();
+      const security = page.getByRole("dialog", { name: "계정 관리" });
+      const logout = security.getByRole("button", { name: "로그아웃", exact: true });
+      const deleteEntry = security.getByRole("button", { name: "회원 탈퇴", exact: true });
+      await expect(security.getByRole("heading", { name: "로그인 정보" })).toBeVisible();
+      await expect(security.getByRole("heading", { name: "계정 삭제" })).toBeVisible();
+      await expect(security.getByText(a.email, { exact: true })).toBeVisible();
+      await expect(security.locator(".account-security-identity")).toHaveCSS("border-radius", "14px");
+      expect(await logout.evaluate(el => getComputedStyle(el).color)).not.toBe(await deleteEntry.evaluate(el => getComputedStyle(el).color));
+      for (const width of [320, 390, 430]) {
+        await page.setViewportSize({ width, height: 844 });
+        expect(await security.locator(".account-detail").evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+        expect(await security.getByText(a.email, { exact: true }).evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+        expect(await logout.evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
+        expect(await deleteEntry.evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
+      }
+      await deleteEntry.click();
+      const screen = page.getByRole("dialog", { name: "회원 탈퇴" });
+      await expect(screen.getByText("탈퇴한 계정과 기록은 복구할 수 없어요.")).toBeVisible();
+      await expect(screen.getByRole("heading", { name: "본인 확인" })).toBeVisible();
+      await expect(screen.getByRole("button", { name: "회원 탈퇴하기" })).toBeDisabled();
+      await expect(screen.locator(".account-withdraw-summary")).toHaveCSS("border-radius", "14px");
+      for (const width of [320, 390, 430]) {
+        await page.setViewportSize({ width, height: 844 });
+        expect(await screen.locator(".account-detail").evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+        expect(await screen.locator(".account-withdraw-consent").evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
+      }
+      await page.getByRole("button", { name: "계정 관리로" }).click();
+      await page.getByRole("button", { name: "내 계정으로" }).click();
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole("button", { name: "계정 관리", exact: true }).click();
     await page.getByRole("button", { name: "회원 탈퇴", exact: true }).click();
     const withdrawal = page.getByRole("dialog", { name: "회원 탈퇴" });
