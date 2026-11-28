@@ -42,7 +42,7 @@ assert.equal(
 assert.ok(template.includes("__PACKAGE__"), "Missing package placeholder in native template");
 const patched = template
   .replace("__PACKAGE__", targetPackage)
-  .replace("__GUEST_SETTINGS_PLUGIN_REGISTER__", "registerPlugin(ByeolharuDeviceSettingsPlugin.class);");
+  .replace("__GUEST_SETTINGS_PLUGIN_REGISTER__", "registerPlugin(ByeolharuDeviceSettingsPlugin.class);\n        registerPlugin(ByeolharuAppUpdatePlugin.class);");
 assert.ok(!patched.includes("__PACKAGE__"));
 assert.ok(!patched.includes("__GUEST_SETTINGS_PLUGIN_REGISTER__"));
 if (current !== patched) writeFileSync(path, patched);
@@ -53,6 +53,9 @@ const pluginTemplate = readFileSync(
 assert.ok(pluginTemplate.includes("__PACKAGE__"), "Missing notification settings plugin package placeholder");
 const pluginPath = join(dirname(path), "ByeolharuDeviceSettingsPlugin.java");
 writeFileSync(pluginPath, pluginTemplate.replaceAll("__PACKAGE__", targetPackage));
+const updateTemplate = readFileSync(resolve(mobileRoot, "native/ByeolharuAppUpdatePlugin.java.template"), "utf8");
+assert.ok(updateTemplate.includes("__PACKAGE__"));
+writeFileSync(join(dirname(path), "ByeolharuAppUpdatePlugin.java"), updateTemplate.replaceAll("__PACKAGE__", targetPackage));
 console.log(`Android native PoC activity patched for ${targetPackage}`);
 
 // Navigate back to the existing test app after email, without transferring tokens.
@@ -147,7 +150,13 @@ if (returnManifest !== initialManifest) writeFileSync(returnManifestPath, return
 // Both variants use the same Android version contract; their package IDs remain distinct.
 const gradlePath = resolve(mobileRoot, "android/app/build.gradle");
 const gradle = readFileSync(gradlePath, "utf8");
-writeFileSync(gradlePath, patchGradleVersion(gradle, readAndroidVersion(mobileRoot)));
+const updateDependency = "implementation 'com.google.android.play:app-update:2.1.0'";
+let versionedGradle = patchGradleVersion(gradle, readAndroidVersion(mobileRoot));
+if (!versionedGradle.includes(updateDependency)) {
+  assert.equal((versionedGradle.match(/^dependencies \{/gm) || []).length, 1, "Expected one app dependency block");
+  versionedGradle = versionedGradle.replace(/^dependencies \{/m, `dependencies {\n    ${updateDependency}`);
+}
+writeFileSync(gradlePath, versionedGradle);
 
 // Replace Capacitor's default launcher icon in both debug and release variants.
 applyLauncherIcons(resolve(mobileRoot, "android/app/src/main"));

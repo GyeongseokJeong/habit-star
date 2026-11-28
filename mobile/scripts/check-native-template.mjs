@@ -36,7 +36,7 @@ assert.match(config, /plugins:\s*\{\s*SystemBars:\s*\{\s*insetsHandling:\s*"disa
 
 assert.match(patcher, /assert\.equal\(\s*targetPackage,/, "Patcher must verify the exact installed package");
 assert.match(java, /__GUEST_SETTINGS_PLUGIN_REGISTER__/);
-assert.match(patcher, /"registerPlugin\(ByeolharuDeviceSettingsPlugin\.class\);"/);
+assert.match(patcher, /registerPlugin\(ByeolharuDeviceSettingsPlugin\.class\);/);
 assert.ok(java.indexOf("__GUEST_SETTINGS_PLUGIN_REGISTER__") < java.indexOf("super.onCreate(state)"),
   "Capacitor plugin registration placeholder must precede bridge initialization");
 
@@ -615,3 +615,12 @@ assert.equal(travel,18);
 assert.equal(measuredWidth-(side+travel+thumbSize),side);
 assert.equal((trackHeight-thumbSize)/2,3);
 console.log("V12.2 compact symmetric switch geometry source contracts OK (not a device test)");
+
+const updateJava = readFileSync(resolve(root, "native/ByeolharuAppUpdatePlugin.java.template"), "utf8");
+assert.match(patcher, /registerPlugin\(ByeolharuAppUpdatePlugin\.class\)/);
+assert.match(patcher, /com\.google\.android\.play:app-update:2\.1\.0/);
+assert.match(updateJava, /AppUpdateType\.FLEXIBLE/);
+assert.match(updateJava, /"com\.android\.vending"\.equals\(installer\)/);
+assert.match(updateJava, /version > installedVersion/);
+assert.match(updateJava, /manager\.unregisterListener\(listener\)/);
+assert.doesNotMatch(updateJava, /AppUpdateType\.IMMEDIATE/);
