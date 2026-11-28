@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { createClient, type Session, type SupabaseClient } from "@supabase/supabase-js";
 import "fake-indexeddb/auto";
@@ -1120,5 +1121,114 @@ test("member cold widget rejects expired cache and account changes; real auth pr
   } finally {
     repo.close();
     await writeWidgetCommandGeneration(coldOrigin, null);
+  }
+});
+
+// Verify the supported Auth admin hard-delete path on the CLI-managed LOCAL
+// Supabase instance, using two disposable identities and a pinned old token.
+test("Auth hard deletion removes target account data and rejects stale sessions", async ({ page }) => {
+  const url = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "");
+  if (url.protocol !== "http:" || !["localhost", "127.0.0.1"].includes(url.hostname) || url.port !== "54321")
+    throw Error("account deletion integration is local-only");
+  const settings = JSON.parse(execFileSync("pnpm", ["exec", "supabase", "status", "--output", "json"], {
+    encoding: "utf8", stdio: ["ignore", "pipe", "pipe"],
+  }));
+  if (new URL(settings.API_URL).origin !== url.origin)
+    throw Error("CLI-managed test instance must match the configured API URL");
+  const adminKey = settings.SECRET_KEY || settings.SERVICE_ROLE_KEY;
+  if (!adminKey) throw Error("local administrator key unavailable");
+  const admin = createClient(url.origin, adminKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+  const created = new Set<string>();
+  const createMember = async () => {
+    const email = `account-deletion-${crypto.randomUUID()}@example.test`;
+    const password = `Test-${crypto.randomUUID()}`;
+    const result = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+    if (result.error || !result.data.user) throw Error("synthetic account creation failed");
+    created.add(result.data.user.id);
+    const client = localWidgetClient();
+    const session = await memberSession(client, { email, password });
+    expect(session.user.id).toBe(result.data.user.id);
+    return { client, session, email, password };
+  };
+  const habitId = crypto.randomUUID();
+  const day = "2026-11-28";
+  const operation = () => {
+    const data = { title: "synthetic", icon: "x", timeGroup: "day", scheduledTime: null, alarmEnabled: false, position: 0 };
+    return { id: crypto.randomUUID(), changes: [
+      { key: "habits::" + habitId, kind: "habits", id: habitId, day: "", base: null, data, deleted: false },
+      { key: `days:${day}:${day}`, kind: "days", id: day, day, base: null, data: {}, deleted: false },
+      { key: `habit_entries:${day}:${habitId}`, kind: "habit_entries", id: habitId, day, base: null,
+        data: { ...data, completed: true, rating: 5, memo: "synthetic memo" }, deleted: false },
+    ] };
+  };
+  const seed = async (client: SupabaseClient) => {
+    expect((await client.rpc("initialize_profile", { p_timezone: "UTC" })).error).toBeNull();
+    const op = operation();
+    const applied = await client.rpc("apply_operation", { p_operation: op });
+    expect(applied.error).toBeNull();
+    expect(applied.data.status).toBe("applied");
+    const stage = await client.rpc("begin_import", { p_source: "synthetic", p_hash: "synthetic", p_total: 1 });
+    expect(stage.error).toBeNull();
+    expect((await client.rpc("stage_import", { p_batch: stage.data, p_chunk: 0, p_items: [op.changes[0]] })).error).toBeNull();
+    return op;
+  };
+  try {
+    const a = await createMember();
+    const b = await createMember();
+    const replay = await seed(a.client);
+    const before = await seed(b.client);
+    // Both independently own the same application entity ID.
+    const bBefore = await b.client.rpc("pull_changes", { p_cursor: -1 });
+    expect(bBefore.error).toBeNull();
+    expect(bBefore.data.entities).toHaveLength(3);
+    const stale = localWidgetClient();
+    const token = "Bearer " + a.session.access_token;
+    const beforeDelete = await stale.rpc("pull_changes", { p_cursor: -1 }).setHeader("Authorization", token);
+    expect(beforeDelete.error).toBeNull();
+    expect(beforeDelete.data.entities).toHaveLength(3);
+    // A separate browser obtains a real verified session and local member scope.
+    await login(page, a.email, a.password);
+    await expect(page.getByText(a.email, { exact: true })).toBeVisible();
+
+    // An in-flight RPC may finish before deletion or be rejected after it.
+    // Either ordering must leave a completed hard deletion authoritative.
+    const [removed] = await Promise.all([
+      admin.auth.admin.deleteUser(a.session.user.id, false),
+      stale.rpc("apply_operation", { p_operation: operation() }).setHeader("Authorization", token),
+    ]);
+    expect(removed.error).toBeNull();
+    created.delete(a.session.user.id);
+    expect((await admin.auth.admin.getUserById(a.session.user.id)).data.user).toBeNull();
+    expect((await a.client.auth.getUser(a.session.access_token)).error).toBeTruthy();
+    await page.reload();
+    await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
+    await expect(page.getByText("비회원으로 사용 중")).toBeVisible();
+    await expect(page.getByText(a.email, { exact: true })).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => localStorage.getItem("byeolharu_verified_user"))).toBeNull();
+
+    for (const [rpc, args] of [
+      ["initialize_profile", { p_timezone: "UTC" }],
+      ["pull_changes", { p_cursor: -1 }],
+      ["apply_operation", { p_operation: replay }],
+      ["apply_operation", { p_operation: operation() }],
+      ["begin_import", { p_source: "after", p_hash: "after", p_total: 1 }],
+    ] as const) {
+      const result = await stale.rpc(rpc, args).setHeader("Authorization", token);
+      expect(result.error, "deleted identity cannot use " + rpc).toBeTruthy();
+    }
+    const bAfter = await b.client.rpc("pull_changes", { p_cursor: -1 });
+    expect(bAfter.error).toBeNull();
+    expect(bAfter.data).toEqual(bBefore.data);
+    const bRetry = await b.client.rpc("apply_operation", { p_operation: before });
+    expect(bRetry.error).toBeNull();
+    expect(bRetry.data.status).toBe("applied");
+  } finally {
+    // This only touches identities successfully created by this local test.
+    for (const id of created) {
+      const result = await admin.auth.admin.deleteUser(id, false);
+      if (result.error) throw Error("synthetic account cleanup failed");
+    }
   }
 });

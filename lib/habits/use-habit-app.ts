@@ -4,6 +4,7 @@ import type { WidgetPracticeCommand, WidgetPracticeResult } from "./widget-pract
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { cloudEnabled, supabase } from "../supabase/client";
+import { canUseOfflineVerifiedSession } from "../supabase/offline-auth";
 import { type Habit, type Conflict } from "./domain";
 import {
   LocalRepository,
@@ -167,34 +168,36 @@ export function useHabitApp(samples: () => Habit[], nativeBackupExport?: (conten
           data: { user },
           error,
         } = await supabase().auth.getUser();
-        if (user?.email_confirmed_at) return user;
-        if (error) {
-          // Offline reload may unlock only a previously verified local account.
-          // This is not server authorization: every RPC still verifies with getUser + RLS.
+        if (user?.email_confirmed_at) return { user, clearMarker: false };
+        if (canUseOfflineVerifiedSession(error)) {
+          // Transport outages may unlock only a previously verified local account.
+          // An explicit Auth rejection must never be mistaken for an outage.
           const {
             data: { session },
           } = await supabase().auth.getSession();
           try {
             if (
-              session?.user.id ===
-              localStorage.getItem("byeolharu_verified_user")
+              session?.user.email_confirmed_at &&
+              session.user.id === localStorage.getItem("byeolharu_verified_user")
             )
-              return session.user;
+              return { user: session.user, clearMarker: false };
           } catch {}
+          return { user: null, clearMarker: false };
         }
-        return null;
+        return { user: null, clearMarker: true };
       };
       let verification = 0;
       const refreshIdentity = async () => {
         widgetIdentityReady.current = false;
         const id = ++verification;
-        const u = await verified().catch(() => null);
+        const { user: u, clearMarker } = await verified().catch(() => ({ user: null, clearMarker: false }));
         if (!disposed && id === verification) {
-          if (u) {
-            try {
-              localStorage.setItem("byeolharu_verified_user", u.id);
-            } catch {}
-          }
+          try {
+            if (u) localStorage.setItem("byeolharu_verified_user", u.id);
+            else if (clearMarker) localStorage.removeItem("byeolharu_verified_user");
+          } catch {}
+          // Do not purge an offline member scope or Outbox here. A rejected
+          // session is not necessarily an account deletion.
           await switchTo(u);
           if (!disposed && id === verification && activeIdentity.current === (u?.id ?? null) && repo.current) widgetIdentityReady.current = true;
         }
