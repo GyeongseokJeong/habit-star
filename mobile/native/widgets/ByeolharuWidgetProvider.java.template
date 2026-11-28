@@ -376,11 +376,16 @@ public abstract class ByeolharuWidgetProvider extends AppWidgetProvider {
         // cached RemoteViews rows. The separate placeholder cannot be toggled
         // by ListView's asynchronous empty-view handling.
         v.setViewVisibility(R.id.widget_content,ready?View.VISIBLE:View.GONE);
-        v.setViewVisibility(R.id.widget_private,ready?View.GONE:View.VISIBLE);
-        v.setTextViewText(R.id.widget_private,consent?"앱에서 기록을 불러와 주세요":"습관 표시 꺼짐");
+        // A missing projection is not an empty habit list or withdrawn consent.
+        // Only the explicit load button opens the same verified app entry as home.
+        v.setViewVisibility(R.id.widget_unavailable,!ready?View.VISIBLE:View.GONE);
+        v.setViewVisibility(R.id.widget_private,!consent?View.VISIBLE:View.GONE);
+        v.setViewVisibility(R.id.widget_load,consent&&!ready?View.VISIBLE:View.GONE);
         Intent open=new Intent(c,MainActivity.class).setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_SINGLE_TOP|Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        v.setOnClickPendingIntent(R.id.widget_home,PendingIntent.getActivity(c,8102,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
+        PendingIntent openApp=PendingIntent.getActivity(c,8102,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+        v.setOnClickPendingIntent(R.id.widget_home,openApp);
+        v.setOnClickPendingIntent(R.id.widget_load,consent&&!ready?openApp:null);
         boolean showIcons=showHabitIcons(c,id);
         // Include the display preference in adapter identity: extras alone
         // are not part of Intent.filterEquals in the launcher collection cache.

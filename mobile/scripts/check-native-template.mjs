@@ -173,7 +173,30 @@ assert.match(configActivity, /saveOptions\(this,id,consent.isChecked\(\)/);
 assert.match(widget, /putBoolean\(id\+":consent",consent\)/);
 assert.match(widget, /if \(!anyConfigured\(c\)\) \{ clear\(c\); return null; \}/);
 assert.match(widget, /setViewVisibility\(R.id.widget_content,ready\?View.VISIBLE:View.GONE\)/);
-assert.match(widget, /setViewVisibility\(R.id.widget_private,ready\?View.GONE:View.VISIBLE\)/);
+assert.match(widget, /setViewVisibility\(R.id.widget_unavailable,!ready\?View.VISIBLE:View.GONE\)/);
+assert.match(widget, /setViewVisibility\(R.id.widget_private,!consent\?View.VISIBLE:View.GONE\)/);
+assert.match(widget, /setViewVisibility\(R.id.widget_load,consent&&!ready\?View.VISIBLE:View.GONE\)/);
+assert.match(widget, /setOnClickPendingIntent\(R.id.widget_load,consent&&!ready\?openApp:null\)/);
+assert.match(widget, /setTextViewText\(R.id.widget_empty,all.isEmpty\(\)\?"예정된 습관이 없어요":"모든 실천을 마쳤어요"\)/);
+assert.match(configActivity, /습관이 보이지 않으면 위젯에서 앱을 열어 주세요/);
+// Evaluate the actual source predicates for all projection/consent combinations.
+// A revoked widget must never show stale collection rows or the load action.
+const visibleWhen = id => widget.match(new RegExp("setViewVisibility\\(R.id." + id + ",([^?]+)\\?View.VISIBLE:View.GONE\\)"))?.[1];
+for (const [consent,data,expected] of [
+  [false,false,[false,true,true,false]],
+  [false,true,[false,true,true,false]],
+  [true,false,[false,true,false,true]],
+  [true,true,[true,false,false,false]],
+]) {
+  const ready = consent && data;
+  const actual = ["widget_content","widget_unavailable","widget_private","widget_load"].map(id => {
+    const expr=visibleWhen(id);
+    assert.ok(expr, id+" predicate");
+    return runInNewContext(expr,{consent,ready});
+  });
+  assert.deepEqual(actual,expected);
+}
+
 const widgetService = readFileSync(resolve(root,"native/widgets/ByeolharuWidgetListService.java.template"),"utf8");
 assert.match(widgetService, /if\(!ByeolharuWidgetProvider.configured\(c,id\)\|\|position/);
 assert.doesNotMatch(widget, /habitId|memberId|memo|userId|authToken/);
@@ -513,8 +536,9 @@ assert.match(widget,/if\(intent.hasExtra\("detailKey"\)\)return/);
 assert.doesNotMatch(widget,/openDetail\(|takeDetail\(|startActivity\(/);
 assert.doesNotMatch(settingsJava,/takeWidgetDetail/);
 assert.doesNotMatch(guestMain,/pendingWidgetDetail|resolveWidgetDetailKey|source:"widget"/);
-assert.match(widget,/setOnClickPendingIntent\(R.id.widget_home,PendingIntent.getActivity/);
-assert.doesNotMatch(widget,/setOnClickPendingIntent\(R.id.widget_(header|label|count|empty|private),/);
+assert.match(widget,/PendingIntent openApp=PendingIntent.getActivity\(c,8102,open,PendingIntent.FLAG_UPDATE_CURRENT\|PendingIntent.FLAG_IMMUTABLE\)/);
+assert.match(widget,/setOnClickPendingIntent\(R.id.widget_home,openApp\)/);
+assert.doesNotMatch(widget,/setOnClickPendingIntent\(R.id.widget_(root|header|label|count|empty|private|unavailable),/);
 assert.match(widget,/getBooleanExtra\("editInApp",false\)/);
 assert.match(widget,/configured\(c,id\)&&key==null/);
 assert.match(widget,/세부 기록은 앱에서 수정할 수 있어요/);
@@ -533,6 +557,12 @@ for(const theme of ["light","dark"]){
   const xml=readFileSync(resolve(root,"native/widgets/layout/byeolharu_widget_"+theme+".xml"),"utf8");
   assert.match(xml,/widget_home" android:layout_width="44dp" android:layout_height="48dp"/);
   assert.match(xml,/android:contentDescription="별하루 앱 열기"/);
+  const load=xml.match(/<Button\b[^>]*android:id="@\+id\/widget_load"[^>]*>/)?.[0];
+  assert.ok(load);
+  assert.match(load,/android:visibility="gone"/);
+  assert.match(load,/android:minHeight="44dp"/);
+  assert.match(load,/android:text="습관 불러오기&#10;앱 열기"/);
+  assert.match(load,/android:background="@drawable\/byeolharu_widget_load_bg"/);
   const home=readFileSync(resolve(root,"native/widgets/drawable/byeolharu_widget_home_"+theme+".xml"),"utf8");
   assert.match(home,/android:width="22dp" android:height="22dp"/);
 }

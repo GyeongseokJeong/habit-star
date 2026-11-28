@@ -9,7 +9,11 @@
     </LinearLayout>
     <FrameLayout android:id="@+id/widget_content" android:visibility="gone" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
         <ListView android:id="@+id/widget_list" android:layout_width="match_parent" android:layout_height="match_parent" android:divider="@null" android:scrollbars="vertical" android:paddingBottom="4dp" android:clipToPadding="true" android:scrollbarStyle="insideOverlay" android:requiresFadingEdge="vertical" android:fadingEdgeLength="6dp"/>
-        <TextView android:id="@+id/widget_empty" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:text="앱에서 기록 불러오기" android:textColor="#A4AABD" android:textSize="12sp"/>
+        <TextView android:id="@+id/widget_empty" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:text="예정된 습관이 없어요" android:textColor="#A4AABD" android:textSize="12sp"/>
     </FrameLayout>
-    <TextView android:id="@+id/widget_private" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:gravity="center" android:text="습관 표시 꺼짐" android:textColor="#A4AABD" android:textSize="12sp"/>
+    <FrameLayout android:id="@+id/widget_unavailable" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+        <TextView android:id="@+id/widget_private" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:text="습관 표시 꺼짐" android:textColor="#A4AABD" android:textSize="12sp"/>
+        <Button android:id="@+id/widget_load" android:visibility="gone" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_gravity="center" android:layout_marginStart="4dp" android:layout_marginEnd="4dp"
+            android:minWidth="0dp" android:minHeight="44dp" android:padding="4dp" android:gravity="center" android:background="@drawable/byeolharu_widget_load_bg" android:backgroundTint="@null" android:text="습관 불러오기&#10;앱 열기" android:textColor="#FFFFFF" android:textSize="13sp" android:textStyle="bold" android:textAllCaps="false"/>
+    </FrameLayout>
 </LinearLayout>
