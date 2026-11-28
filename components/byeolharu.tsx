@@ -45,6 +45,7 @@ import {
   isScheduled,
   stats,
 } from "@/lib/habits/domain";
+import { dailyStarlight } from "@/lib/habits/daily-starlight";
 import { useHabitApp } from "@/lib/habits/use-habit-app";
 import { hasUnsavedHabitSettings, hasUnsavedDailyRecord } from "@/lib/habits/unsaved-draft";
 import type { NativeReminderControls } from "@/lib/habits/native-reminder-controls";
@@ -1164,13 +1165,21 @@ function MonthlyMatrix({
         ))}
         {Array.from({ length: count }, (_, i) => {
           const key = dateKey(new Date(year, index, i + 1));
+          const light = dailyStarlight(key > today ? undefined : history[key], key);
           const score = stats(history[key] || [], key).average;
+          const description = key > today
+            ? "미래 날짜"
+            : light.state === "unrecorded"
+              ? "기록 없음"
+              : light.state === "rest"
+                ? "예정된 습관 없음"
+                : `${light.completedCount}/${light.scheduledCount} 실천, ${score ? `평균 ${score.toFixed(1)}점` : "별점 기록 없음"}, 하루 별빛 ${Number(light.percent.toFixed(1))}%`;
           return (
             <button
               key={key}
               disabled={key > today}
-              aria-label={`${index + 1}월 ${i + 1}일${key === today ? " 오늘" : ""}, ${score ? `평균 ${score.toFixed(1)}점` : "별점 기록 없음"}`}
-              className={`day-tile tier-${Math.ceil(score)} ${key === today ? "today" : ""}`}
+              aria-label={`${index + 1}월 ${i + 1}일${key === today ? " 오늘" : ""}, ${description}`}
+              className={`day-tile tier-${light.tier} ${key === today ? "today" : ""}`}
               onClick={() => onDate(key)}
             >
               {i + 1}
@@ -1179,7 +1188,7 @@ function MonthlyMatrix({
           );
         })}
       </div>
-      <div className="matrix-legend">
+      <div className="matrix-legend" aria-label="예정된 습관 전체 기준 하루 별빛">
         <span>아직은 작은 별</span>
         <div>
           {[0, 1, 2, 3, 4, 5].map((i) => (
@@ -1197,7 +1206,7 @@ function MonthlyMatrix({
           </b>
         </div>
         <div>
-          <span>평균 별점</span>
+          <span>기록한 별점 평균</span>
           <b className="gold">
             <Star size={15} fill="currentColor" />
             {ratings.length
@@ -1206,7 +1215,7 @@ function MonthlyMatrix({
           </b>
         </div>
       </div>
-      <p className="calendar-footnote">하나의 별이 모여, 나만의 우주가 돼요.</p>
+      <p className="calendar-footnote">예정된 습관 전체의 별점으로 하루의 색이 채워져요.</p>
     </section>
   );
 }
@@ -2192,13 +2201,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
                     onMonthChange={setMonth}
                     today={today}
                     history={allHistory}
-                    onDate={(key) => {
-                      const dayStats = stats(allHistory[key] || [], key);
-                      showToast(
-                        `${Number(key.slice(5, 7))}월 ${Number(key.slice(8))}일: ${dayStats.rate}% 달성 · 평균 ${dayStats.average.toFixed(1)}★`,
-                      );
-                      setPastDate(key);
-                    }}
+                    onDate={setPastDate}
                   />
                   <button
                     type="button"
@@ -2583,15 +2586,21 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
         >
           <div className="past-summary">
             <Star size={28} className="gold" />
-            <h3>
-              {stats(allHistory[pastDate] || [], pastDate).rate}% 달성 · 평균{" "}
-              {stats(allHistory[pastDate] || [], pastDate).average.toFixed(1)}★
-            </h3>
-            <p>
-              {allHistory[pastDate]?.length
-                ? "작은 실천들이 모인 소중한 하루예요."
-                : "이날은 아직 남겨진 기록이 없어요."}
-            </p>
+            {(() => {
+              const light = dailyStarlight(allHistory[pastDate], pastDate);
+              const average = stats(allHistory[pastDate] || [], pastDate).average;
+              return light.state === "scheduled" ? (
+                <>
+                  <h3>{light.completedCount}/{light.scheduledCount} 실천 · 하루 별빛 {Number(light.percent.toFixed(1))}%</h3>
+                  <p>기록한 별점 평균 {average ? `${average.toFixed(1)}★` : "—"}</p>
+                </>
+              ) : (
+                <>
+                  <h3>{light.state === "rest" ? "예정된 습관 없음" : "기록 없음"}</h3>
+                  <p>{light.state === "rest" ? "이날은 쉬는 날이에요." : "이날은 아직 남겨진 기록이 없어요."}</p>
+                </>
+              );
+            })()}
             {(allHistory[pastDate] || []).map((h) => (
               <div className="past-row" key={h.id}>
                 <div className="past-habit">
@@ -2604,7 +2613,7 @@ export default function Byeolharu({ nativeReminders, nativeShare, nativeBackupEx
                   </div>
                 </div>
                 <b>
-                  {h.rating ? `${h.rating}★` : h.completed ? "완료" : "미실천"}
+                  {!isScheduled(h, pastDate) ? "쉬는 날" : h.rating ? `${h.rating}★` : h.completed ? "완료" : "미실천"}
                 </b>
               </div>
             ))}
