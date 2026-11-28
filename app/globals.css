@@ -5196,3 +5196,31 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
     padding-right: 10px;
   }
 }
+
+/* Privacy and deletion guidance share the existing account palette on web and Android. */
+.legal-page { padding: 24px 18px 40px; }
+.legal-page-inner { max-width: 720px; margin: 0 auto; }
+.legal-page h1 { font-size: clamp(22px, 5vw, 30px); font-weight: 700; margin: 12px 0 20px; }
+.legal-brand { display: inline-flex; gap: 8px; align-items: center; min-height: 44px; color: var(--ink); text-decoration: none; font-weight: 700; }
+.legal-brand svg { color: var(--accent); }
+.legal-copy { color: var(--body); font-size: 14px; line-height: 1.75; overflow-wrap: anywhere; }
+.legal-copy p { margin: 0 0 12px; }
+.legal-copy section { margin: 24px 0 0; }
+.legal-copy h2 { color: var(--ink); font-size: 15px; font-weight: 700; margin: 0 0 8px; }
+.legal-copy ul, .legal-copy ol { margin: 0 0 12px; padding-inline-start: 1.45em; }
+.legal-copy ul { list-style: disc; }
+.legal-copy ol { list-style: decimal; }
+.legal-copy li + li { margin-top: 6px; }
+.legal-copy .legal-draft-note { padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--ink); }
+.legal-contact { display: grid; gap: 6px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.legal-contact > span { color: var(--muted); font-size: 12px; }
+.legal-contact strong { color: var(--ink); font-weight: 600; }
+.legal-email { user-select: text; -webkit-user-select: text; }
+.legal-action { display: flex; width: 100%; align-items: center; justify-content: center; text-align: center; min-height: 48px; padding: 8px 12px; border: 1px solid var(--selection-bg); border-radius: 12px; background: var(--selection-bg); color: var(--selection-fg); text-decoration: none; font-size: 14px; font-weight: 650; }
+.legal-contact .legal-action { margin-top: 6px; }
+.legal-action.legal-secondary { color: var(--ink); background: var(--surface); border-color: var(--control-border); }
+.legal-contact .legal-feedback { margin: 0; color: var(--ink); }
+.legal-contact .legal-feedback:empty { display: none; }
+.legal-contact > p:last-child { margin: 0; font-size: 13px; }
+.legal-links { display: flex; flex-wrap: wrap; gap: 4px 18px; border-top: 1px solid var(--line); margin-top: 28px; }
+.legal-links a { display: inline-flex; align-items: center; min-height: 44px; }

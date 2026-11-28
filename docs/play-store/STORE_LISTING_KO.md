@@ -67,7 +67,8 @@
 ### Grow users → Store presence → Main store listing
 - [ ] 한국어 앱 이름·짧은 설명·상세 설명 및 카테고리 선택
 - [ ] 아이콘·대표 그래픽 검토/업로드, 실제 Android 스크린샷 촬영·업로드
-- [ ] 공식 고객 지원 이메일/웹사이트 확인
+- [x] 공식 고객 지원·개인정보 문의 이메일: `jasset.biz@gmail.com` (운영자 확정)
+- [ ] 공식 웹사이트 및 개인정보처리방침/계정 삭제 공개 주소 배포 확인
 
 ### Policy and programs → App content / Data safety
 - [ ] 공개 개인정보 처리방침 URL과 앱 내 경로, 실제 수집/사용/공유 및 보관·삭제 기준 확인

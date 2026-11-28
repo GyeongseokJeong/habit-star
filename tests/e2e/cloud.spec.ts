@@ -125,6 +125,17 @@ test("email confirmation, two-device offline sync, conflict resolution, import a
   await confirm(page, request, email);
   await page.getByRole("button", { name: "계정 및 데이터 관리" }).click();
   await expect(page.getByText(email, { exact: true })).toBeVisible();
+  // Member can initiate a request without transmitting the account identity,
+  // deleting records, or changing the current authenticated session.
+  await page.getByRole("button", { name: "계정 관리", exact: true }).click();
+  await page.getByRole("button", { name: "계정 삭제 요청", exact: true }).click();
+  const deletionRequest = page.getByRole("dialog", { name: "계정 삭제 요청" });
+  await expect(deletionRequest.getByRole("link", { name: "삭제 요청 메일 작성" })).toHaveAttribute(
+    "href", "mailto:jasset.biz@gmail.com?subject=" + encodeURIComponent("별하루 계정 삭제 요청"),
+  );
+  await expect(deletionRequest.getByText(email, { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "내 계정으로" }).click();
+  await expect(page.getByText(email, { exact: true })).toBeVisible();
   await openImport(page);
   await page.getByRole("button", { name: "이 계정으로 병합" }).click();
   await expect(
