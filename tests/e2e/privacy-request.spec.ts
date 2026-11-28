@@ -1,7 +1,29 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 import { ACCOUNT_DELETION_MAILTO, SUPPORT_EMAIL } from "../../lib/privacy-contact";
 
 const preparationCopy = /검토용|초안|정식\s*시행\s*전|출시\s*전|정책\s*확정|추후\s*고지/;
+
+async function expectAccountDesign(scope: Locator, theme: "light" | "dark") {
+  const heading = scope.locator(".account-ui-section-title").first();
+  await expect(heading).toHaveCSS("font-size", "14px");
+  await expect(heading).toHaveCSS("margin-top", "24px");
+  await expect(heading).toHaveCSS("margin-bottom", "10px");
+  const action = scope.locator(".account-primary-action").first();
+  await expect(action).toHaveCSS("border-radius", "10px");
+  await expect(action).toHaveCSS("background-color", theme === "dark" ? "rgb(105, 90, 133)" : "rgb(98, 84, 126)");
+  expect(await action.evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThanOrEqual(48);
+  const card = scope.locator(".legal-contact");
+  if (await card.count()) {
+    await expect(card).toHaveClass(/account-ui-card/);
+    await expect(card).toHaveCSS("border-radius", "14px");
+    await expect(card).toHaveCSS("background-color", theme === "dark" ? "rgb(23, 29, 41)" : "rgb(255, 255, 255)");
+    const secondary = card.locator(".account-secondary-action");
+    await expect(secondary).toHaveCSS("border-radius", "10px");
+    expect(await secondary.evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThanOrEqual(48);
+  }
+  expect(await scope.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+}
+
 
 test("public policy and deletion request are discoverable without sign-in", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 740 });
@@ -40,11 +62,18 @@ test("guest can reach bundled policy and request guidance, copy the address, and
   await page.getByRole("button", { name: "개인정보처리방침", exact: true }).click();
   const policy = page.getByRole("dialog", { name: "개인정보처리방침" });
   await expect(policy).toBeVisible();
+  await expect(policy.getByRole("heading", { name: "1. 개인정보의 처리 항목 및 목적", level: 3 })).toBeVisible();
+  await expectAccountDesign(policy.locator(".legal-copy"), "dark");
   await expect(policy.locator(".legal-copy")).not.toContainText(preparationCopy);
   await expect(page.locator(".byeolharu")).toHaveClass(/dark/);
   await policy.getByRole("button", { name: "계정 삭제 요청 안내" }).click();
   const request = page.getByRole("dialog", { name: "계정 삭제 요청" });
   await expect(request).toBeVisible();
+  await expect(request.getByRole("heading", { name: "삭제 요청 방법", level: 3 })).toBeVisible();
+  for (const width of [320, 390, 430]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expectAccountDesign(request.locator(".legal-copy"), "dark");
+  }
   await expect(request.locator(".legal-copy")).not.toContainText(preparationCopy);
   await expect(request.getByRole("link", { name: "삭제 요청 메일 작성" })).toHaveAttribute("href", ACCOUNT_DELETION_MAILTO);
   await request.getByRole("button", { name: "이메일 주소 복사" }).click();
@@ -69,4 +98,21 @@ test("request email stays readable when clipboard is unavailable", async ({ page
   await expect(page.getByRole("status")).toContainText("이메일 주소를 선택해 복사");
   await expect(page.getByText(SUPPORT_EMAIL, { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "삭제 요청 메일 작성" })).toHaveAttribute("href", ACCOUNT_DELETION_MAILTO);
+});
+
+
+test("public policy surfaces share account typography, action styles and theme tokens", async ({ page }) => {
+  for (const theme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme: theme });
+    for (const path of ["/privacy", "/account-deletion"]) {
+      await page.goto(path);
+      await expect(page.locator("html")).toHaveAttribute("data-byeolharu-theme", theme);
+      await expect(page.locator(".legal-copy").getByRole("heading", { level: 2 }).first()).toBeVisible();
+      for (const width of [320, 390, 430]) {
+        await page.setViewportSize({ width, height: 844 });
+        await expectAccountDesign(page.locator(".legal-copy"), theme);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      }
+    }
+  }
 });

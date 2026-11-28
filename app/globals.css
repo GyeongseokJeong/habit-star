@@ -3137,7 +3137,8 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 .account-hero-text span { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
 .account-entry { display: flex; gap: 8px; align-items: center; margin: 16px 0; }
 .account-login-action,
-.account-signup-action {
+.account-signup-action,
+.account-primary-action {
   background: var(--selection-bg);
   color: var(--selection-fg);
   border: 1px solid var(--selection-bg);
@@ -3146,7 +3147,8 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
   font-weight: 650;
 }
 .account-login-action { flex: 1; }
-.account-signup-link {
+.account-signup-link,
+.account-secondary-action {
   border: 1px solid var(--control-border);
   color: var(--body);
   background: var(--surface);
@@ -4931,6 +4933,7 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 /* Account Design System v1 — shared visual hierarchy for functional account pages. */
 .account-panel.account-hub .account-detail { padding-top: 4px !important; }
 .account-panel.account-hub .account-ui-section-title,
+.legal-copy .account-ui-section-title,
 .account-panel .account-settings-final .account-settings-group-title.account-ui-section-title {
   display: flex; align-items: center; min-height: 22px;
   margin: 24px 0 10px !important; padding: 0 !important;
@@ -4939,7 +4942,8 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 }
 .account-panel.account-hub .account-detail > .account-ui-section-title:first-child,
 .account-panel .account-settings-final > .account-ui-section-title:first-child { margin-top: 0 !important; }
-.account-panel.account-hub .account-ui-card {
+.account-panel.account-hub .account-ui-card,
+.legal-copy .account-ui-card {
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--surface);
@@ -5204,22 +5208,21 @@ html[data-byeolharu-theme="dark"] .byeolharu.light .closing-copy p { color: #e1d
 .legal-brand { display: inline-flex; gap: 8px; align-items: center; min-height: 44px; color: var(--ink); text-decoration: none; font-weight: 700; }
 .legal-brand svg { color: var(--accent); }
 .legal-copy { color: var(--body); font-size: 14px; line-height: 1.75; overflow-wrap: anywhere; }
-.legal-copy p { margin: 0 0 12px; }
-.legal-copy section { margin: 24px 0 0; }
-.legal-copy h2 { color: var(--ink); font-size: 15px; font-weight: 700; margin: 0 0 8px; }
+.legal-copy p, .account-panel .legal-copy p { font-size: 14px; margin: 0 0 12px; }
+.legal-copy section { margin: 0; }
 .legal-copy ul, .legal-copy ol { margin: 0 0 12px; padding-inline-start: 1.45em; }
 .legal-copy ul { list-style: disc; }
 .legal-copy ol { list-style: decimal; }
 .legal-copy li + li { margin-top: 6px; }
-.legal-contact { display: grid; gap: 6px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.legal-contact { display: grid; gap: 8px; min-width: 0; padding: 14px; }
 .legal-contact > span { color: var(--muted); font-size: 12px; }
 .legal-contact strong { color: var(--ink); font-weight: 600; }
 .legal-email { user-select: text; -webkit-user-select: text; }
-.legal-action { display: flex; width: 100%; align-items: center; justify-content: center; text-align: center; min-height: 48px; padding: 8px 12px; border: 1px solid var(--selection-bg); border-radius: 12px; background: var(--selection-bg); color: var(--selection-fg); text-decoration: none; font-size: 14px; font-weight: 650; }
-.legal-contact .legal-action { margin-top: 6px; }
-.legal-action.legal-secondary { color: var(--ink); background: var(--surface); border-color: var(--control-border); }
-.legal-contact .legal-feedback { margin: 0; color: var(--ink); }
+.legal-action { display: flex; width: 100%; align-items: center; justify-content: center; text-align: center; padding: 8px 12px; text-decoration: none; font-size: 14px; }
+.legal-copy a:not(.legal-action) { display: inline-flex; min-height: 44px; align-items: center; overflow-wrap: anywhere; }
+.legal-action:focus-visible, .account-panel.account-hub .legal-action:focus-visible { outline: 2px solid var(--sage); outline-offset: 4px; }
+.legal-contact .legal-feedback, .account-panel .legal-contact .legal-feedback { margin: 0; color: var(--ink); }
 .legal-contact .legal-feedback:empty { display: none; }
-.legal-contact > p:last-child { margin: 0; font-size: 13px; }
+.legal-contact > p:last-child, .account-panel .legal-contact > p:last-child { margin: 0; font-size: 13px; }
 .legal-links { display: flex; flex-wrap: wrap; gap: 4px 18px; border-top: 1px solid var(--line); margin-top: 28px; }
 .legal-links a { display: inline-flex; align-items: center; min-height: 44px; }

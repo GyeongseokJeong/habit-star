@@ -1,3 +1,4 @@
+import { AccountSectionTitle } from "@/components/account/account-design";
 import { SUPPORT_EMAIL } from "@/lib/privacy-contact";
 
 export function PrivacyContent({ onDeletion }: { onDeletion?: () => void }) {
@@ -5,7 +6,7 @@ export function PrivacyContent({ onDeletion }: { onDeletion?: () => void }) {
     <article className="legal-copy" aria-label="별하루 개인정보처리방침">
       <p>별하루는 이용자의 개인정보를 보호하며 다음과 같이 개인정보를 처리합니다.</p>
       <section>
-        <h2>1. 개인정보의 처리 항목 및 목적</h2>
+        <AccountSectionTitle as={onDeletion ? "h3" : "h2"}>1. 개인정보의 처리 항목 및 목적</AccountSectionTitle>
         <ul>
           <li>회원 정보: 이메일, 사용자 식별자 및 인증 정보 (회원가입, 로그인, 비밀번호 재설정)</li>
           <li>습관 기록: 습관 제목, 반복 요일, 예정 시간, 알림 설정, 완료 여부, 별점, 메모, 시간대 및 동기화 정보 (기록 관리 및 동기화)</li>
@@ -15,12 +16,12 @@ export function PrivacyContent({ onDeletion }: { onDeletion?: () => void }) {
         <p>비회원의 습관 기록은 기기에 저장됩니다. 알림과 위젯은 기기에 저장된 정보를 사용합니다.</p>
       </section>
       <section>
-        <h2>2. 개인정보의 보유 및 파기</h2>
+        <AccountSectionTitle as={onDeletion ? "h3" : "h2"}>2. 개인정보의 보유 및 파기</AccountSectionTitle>
         <p>회원 정보와 서버에 저장된 습관 기록은 회원 탈퇴 처리 시까지, 문의 정보는 문의 처리 및 필요한 후속 조치가 끝날 때까지 보관합니다. 처리 목적을 달성한 개인정보는 지체 없이 파기합니다.</p>
         <p>법령에 따라 보존해야 하는 정보는 해당 기간이 끝나면 파기합니다. 서비스 운영 로그 및 복구용 백업은 각 시스템의 보관 주기에 따라 파기합니다.</p>
       </section>
       <section>
-        <h2>3. 개인정보의 제공 및 처리 위탁</h2>
+        <AccountSectionTitle as={onDeletion ? "h3" : "h2"}>3. 개인정보의 제공 및 처리 위탁</AccountSectionTitle>
         <p>별하루는 이용자의 동의 또는 법령에 따른 근거 없이 개인정보를 제3자에게 제공하지 않습니다. 서비스 제공을 위해 다음 외부 서비스를 이용합니다.</p>
         <ul>
           <li>Supabase: 회원 인증, 데이터 저장 및 동기화</li>
@@ -31,22 +32,22 @@ export function PrivacyContent({ onDeletion }: { onDeletion?: () => void }) {
         <p>이용자가 직접 저장하거나 공유한 백업 및 별빛 카드는 선택한 저장·공유 대상에서 별도로 관리됩니다.</p>
       </section>
       <section>
-        <h2>4. 계정 삭제</h2>
+        <AccountSectionTitle as={onDeletion ? "h3" : "h2"}>4. 계정 삭제</AccountSectionTitle>
         <p>이용자는 앱 또는 웹에서 계정 삭제를 요청할 수 있습니다. 본인 확인 후 회원 계정과 서버에 저장된 관련 기록을 삭제하고 처리 결과를 안내합니다. 삭제한 기록은 복구할 수 없습니다.</p>
         <p>기기에 남은 비회원 기록, 오프라인 사본 및 내보낸 파일은 별도로 관리해 주세요.</p>
         {onDeletion ? (
-          <button type="button" className="legal-action" onClick={onDeletion}>계정 삭제 요청 안내</button>
+          <button type="button" className="account-primary-action legal-action" onClick={onDeletion}>계정 삭제 요청 안내</button>
         ) : (
-          <a className="legal-action" href="/account-deletion">계정 삭제 요청 안내</a>
+          <a className="account-primary-action legal-action" href="/account-deletion">계정 삭제 요청 안내</a>
         )}
       </section>
       <section>
-        <h2>5. 이용자의 권리 및 개인정보 문의</h2>
+        <AccountSectionTitle as={onDeletion ? "h3" : "h2"}>5. 이용자의 권리 및 개인정보 문의</AccountSectionTitle>
         <p>이용자는 자신의 개인정보에 대한 열람, 정정, 삭제 및 처리정지를 요청할 수 있습니다.</p>
         <p>개인정보 보호책임자: 별하루 운영자<br /><a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a></p>
       </section>
       <section>
-        <h2>6. 개인정보의 안전한 관리</h2>
+        <AccountSectionTitle as={onDeletion ? "h3" : "h2"}>6. 개인정보의 안전한 관리</AccountSectionTitle>
         <p>별하루는 회원 인증과 계정별 접근 제어를 통해 개인정보를 보호합니다. 개인정보처리방침의 변경 사항은 앱과 웹사이트를 통해 안내합니다.</p>
       </section>
       <p>본 방침은 게시일부터 적용됩니다.</p>

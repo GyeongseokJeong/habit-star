@@ -705,7 +705,7 @@ export function AccountPanel({
         <section className="account-detail"><PrivacyContent onDeletion={() => navigate("deletion")} /></section>
       )}
       {page === "deletion" && (
-        <section className="account-detail"><AccountDeletionContent /></section>
+        <section className="account-detail"><AccountDeletionContent embedded /></section>
       )}
       {page === "security" && app.user && (
         <section className="account-detail" aria-label="계정 관리">
