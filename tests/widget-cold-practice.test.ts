@@ -248,6 +248,45 @@ describe("debug cold widget practice",()=>{
     }finally{f.r.close();await writeWidgetCommandGeneration(origin,null);vi.useRealTimers();}
   });
 
+  // App-rated completions used to lack an undo handle entirely. Exercise
+  // publication, recovery after app closure, the real repository commit and
+  // the request-scoped alarm decision for each previously blocked rating.
+  for(const member of [false,true]) for(const rating of [1,2,3,4]) it(
+    "undoes app rating "+rating+" and restores today's future reminder cold, member="+member,async()=>{
+    vi.useFakeTimers({toFake:["Date"]});vi.setSystemTime(new Date(2026,10,25,8,0,0));
+    const f=await setupAlarm(member);
+    let reopened: LocalRepository | undefined;
+    try {
+      await f.r.update(f.habit.id,{completed:true,rating});
+      const before=await f.r.load(), scope=f.r.scope;
+      const projected=buildWidgetActionProjection(before,f.id);
+      const generation=newWidgetCommandGeneration(projected.summary!);
+      const handles=await recoverableWidgetProjection(projected,generation);
+      const key=handles.summary!.rows[0].actionKey;
+      expect(key).toBeTruthy();
+      await writeWidgetCommandGeneration(origin,generation);
+      f.r.close();
+      const restore=vi.fn(async()=>f.inventory(f.booked.filter(n=>n.id!==f.target.id)));
+      const input={origin,actionKey:key!,deadline:Date.now()+7500,storage:storage(f.values),
+        nativeAllowed:()=>true,reminderTransport:{prepare:restore}};
+      const undone=await runColdWidgetPractice(input);
+      expect(undone.status).toBe("saved");
+      expect(undone.summary?.rows[0].completed).toBe(false);
+      expect(undone.alarm).toEqual({kind:"restore",notification:f.target});
+      expect(restore).toHaveBeenCalledTimes(1);
+      expect((await runColdWidgetPractice(input)).status).not.toBe("saved");
+      expect(restore).toHaveBeenCalledTimes(1);
+      reopened=new LocalRepository(scope,()=>[],storage(f.values));
+      await reopened.initialize();
+      const after=await reopened.load();
+      expect(after.habits[0]).toMatchObject({completed:false,rating:0,memo:"보존",scheduledTime:"20:00",alarmEnabled:true});
+      expect(after.state.outbox).toHaveLength(before.state.outbox.length+(member?1:0));
+      if (member) expect(after.state.outbox.at(-1)?.changes).toMatchObject([{
+        kind:"habit_entries",id:f.habit.id,day:before.day,data:{completed:false,rating:0,memo:"보존"},
+      }]);
+    }finally{reopened?.close();f.r.close();await writeWidgetCommandGeneration(origin,null);vi.useRealTimers();}
+  });
+
   for(const member of [false,true]) it("cancels only the stale canonical reservation after a real current-day commit, member="+member,async()=>{
     vi.useFakeTimers({toFake:["Date"]});vi.setSystemTime(new Date(2026,10,25,8,0,0));
     const f=await setupAlarm(member);

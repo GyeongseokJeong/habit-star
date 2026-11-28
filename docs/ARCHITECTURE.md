@@ -24,7 +24,7 @@ Habit Configuration은 `title`, `icon`, `timeGroup`, `repeatDays`, `scheduledTim
 ## 위젯 직접 실천 저장 경계 (STEP 2C-1)
 
 > 아래 STEP 2C 설명은 초기 단계의 제한을 기록한 이력이다. 현재 일반 Release의 capability 및 인수 조건은 [STEP 4F](WIDGET_RELEASE_ENABLED.md)를 따른다.
-위젯의 표시 캐시는 원본이 아니다. `lib/habits/widget-practice.ts`의 내부 명령은 검증된 현재 계정의 저장소에만 전달하며 `LocalRepository.applyWidgetPractice`가 동일 IndexedDB 트랜잭션에서 날짜·revision/version·완료/별점·유효 습관·충돌·동의 이전 잠금 등을 확인하고 기존 daily entry 및 Outbox 경로로 저장한다. 명령이 저장소를 선택할 수 없으며 네이티브 전송이나 백그라운드 실행은 후속 단계다. 실패/미실행은 완료 표시로 취급하지 않는다. 사용자 승인 정책: 위젯 빠른 체크는 미완료·별점 0을 완료·별점 5로, 완료·별점 0 또는 5의 명시적 취소는 미완료·별점 0으로 동일 daily entry 트랜잭션에서 저장한다. 앱에서 입력한 5점과 위젯 5점은 구분하지 않는다. 1~4점 및 비정상 미완료·별점 양수 기록은 상세 편집으로 제한한다. `widgetPracticeTargetRating`을 action projection 및 트랜잭션 검증에서 공유하고 메모·설정·과거 기록은 보존한다. 별자리 성장 규칙은 변경하지 않는다. 기존 기록의 일괄 변경은 없다. 직접 기록의 Debug warm 제한은 유지한다.
+위젯의 표시 캐시는 원본이 아니다. `lib/habits/widget-practice.ts`의 내부 명령은 검증된 현재 계정의 저장소에만 전달하며 `LocalRepository.applyWidgetPractice`가 동일 IndexedDB 트랜잭션에서 날짜·revision/version·완료/별점·유효 습관·충돌·동의 이전 잠금 등을 확인하고 기존 daily entry 및 Outbox 경로로 저장한다. 명령이 저장소를 선택할 수 없으며 warm/cold 모두 같은 저장 계약을 사용한다. 실패/미실행은 완료 표시로 취급하지 않는다. 사용자 승인 정책: 위젯 빠른 체크는 미완료·별점 0을 완료·별점 5로, 완료·별점 0~5의 명시적 취소는 미완료·별점 0으로 동일 daily entry 트랜잭션에서 저장한다(2026-11-29 사용자 승인, 기존 1~4점 취소 제한 폐지). 앱/위젯 기록 출처와 무관하다. 비정상 미완료·별점 양수 기록은 상세 편집으로 제한한다. `widgetPracticeTargetRating`을 action projection 및 트랜잭션 검증에서 공유하고 메모·설정·과거 기록은 보존한다. 별자리 성장 규칙은 변경하지 않는다. 기존 기록의 일괄 변경은 없다. Release에서도 동일한 검증을 사용하며 cold 알림 결정은 커밋 후 일치하는 오늘의 미래 예약만 재등록한다.
 
 ### STEP 2C-2B-2 명령 복원 계약
 

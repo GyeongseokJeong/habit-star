@@ -113,8 +113,15 @@ test("target-only completion inventory still rejects a corrupt, visible or forei
   ]) assert.equal(planColdWidgetReminder(input(true,{queue:bad})).kind,"defer");
 });
 test("undo restores exactly the canonical future payload and respects exact/inexact policy",()=>{
-  assert.deepEqual(planColdWidgetReminder(input(false,{queue:queue(untouched)})),{kind:"restore",notification:target});
-  assert.deepEqual(planColdWidgetReminder(input(false,{queue:queue(untouched),exact:false})),{kind:"restore",notification:ordinary});
+  for (const expectedRating of [0,1,2,3,4,5]) for (const exact of [true,false]) {
+    const b=input(false,{queue:queue(untouched),exact});
+    b.command.expectedRating=expectedRating;
+    const copy=structuredClone(b.queue);
+    assert.deepEqual(planColdWidgetReminder(b),{kind:"restore",notification:exact?target:ordinary});
+    assert.deepEqual(b.queue,copy);
+    assert.deepEqual(planColdWidgetReminder({...b,now:new Date("2026-11-27T20:01:00+09:00")}),
+      {kind:"noop",reason:"no-future-target"});
+  }
   assert.equal(planColdWidgetReminder(input(false,{queue:queue(all)})).kind,"noop");
   assert.equal(planColdWidgetReminder(input(false,{queue:queue([ordinary,...untouched])})).kind,"defer");
 });
@@ -187,8 +194,13 @@ test("no changes for other owners, same-id different category/day, unexpected fi
 test("only an exact post-commit day, scope, revision, entry version and target state can plan",()=>{
   const base=input(false);
   for(const command of [{...base.command,scope:"guest"},{...base.command,revision:8},{...base.command,version:3},
-    {...base.command,day:"2026-11-26"},{...base.command,completed:true},{...base.command,expectedRating:3}])
+    {...base.command,day:"2026-11-26"},{...base.command,completed:true},
+    ...[-1,6,1.5,NaN,Infinity,"4"].map(expectedRating=>({...base.command,expectedRating}))])
     assert.equal(planColdWidgetReminder({...base,command}).kind,"defer");
+  for(const expectedRating of [1,2,3,4,5]) {
+    const b=input(true); b.command.expectedRating=expectedRating;
+    assert.deepEqual(planColdWidgetReminder(b),{kind:"defer",reason:"stale-commit"});
+  }
   for(const snapshot of [{...base.snapshot,history:{}},
     {...base.snapshot,state:{...base.snapshot.state,hydrated:false}},
     {...base.snapshot,state:{...base.snapshot.state,localRevision:9}},

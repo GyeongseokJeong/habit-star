@@ -30,14 +30,14 @@ function validCommand(c: WidgetPracticeCommand): boolean {
 }
 
 /** Quick practice defaults to five stars; an explicit undo resets to zero.
- * Existing unrated or five-star completions can be undone. Other ratings
- * (including inconsistent incomplete rated records) require the editor.
- * The source of a five-star rating is intentionally not distinguished.
+ * All valid completed ratings (0–5) can be explicitly undone, regardless
+ * of where they were recorded. Inconsistent incomplete rated records
+ * still require the editor.
  */
 export function widgetPracticeTargetRating(command: WidgetPracticeCommand): 0 | 5 | null {
   if (command.completed && !command.expectedCompleted && command.expectedRating === 0) return 5;
   if (!command.completed && command.expectedCompleted &&
-      (command.expectedRating === 0 || command.expectedRating === 5)) return 0;
+      Number.isInteger(command.expectedRating) && command.expectedRating >= 0 && command.expectedRating <= 5) return 0;
   return null;
 }
 
@@ -84,7 +84,7 @@ export function validateWidgetPractice(
   if (base.version !== command.version || habit.completed !== command.expectedCompleted ||
       habit.rating !== command.expectedRating) return { kind: "stale" };
   // Derive the rating only after matching the committed record. Never accept
-  // a caller-provided target rating or overwrite a protected rating.
+  // a caller-provided target rating or overwrite an inconsistent record.
   const rating = widgetPracticeTargetRating(command);
   if (rating === null) return { kind: "requires-detail" };
   return { kind: "ready", base, rating };

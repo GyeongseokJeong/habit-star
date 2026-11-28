@@ -113,8 +113,10 @@ export function planColdWidgetReminder({ snapshot, command, memberId, optInRaw, 
     const entries = Object.values(state.entities).filter(e =>
       e.kind === "habit_entries" && e.id === command.habitId && e.day === day && !e.deleted);
     const rating = command.completed ? 5 : 0;
+    // Match widgetPracticeTargetRating: explicit undo of any valid completed
+    // rating is allowed; incomplete rated records still require the editor.
     const previousRatingValid = command.completed ? command.expectedRating === 0
-      : command.expectedRating === 0 || command.expectedRating === 5;
+      : Number.isInteger(command.expectedRating) && command.expectedRating >= 0 && command.expectedRating <= 5;
     if (!previousRatingValid || matching.length !== 1 || matching[0].completed !== command.completed ||
         matching[0].rating !== rating || entries.length !== 1 || entries[0].version !== command.version ||
         entries[0].data.completed !== command.completed || entries[0].data.rating !== rating)
